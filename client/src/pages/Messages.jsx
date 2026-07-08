@@ -4,6 +4,17 @@ import { AuthContext } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { messageAPI } from "../services/api";
 import "../styles/messages.css";
+import { FaSearch, FaPaperPlane, FaUserCircle, FaTrash, FaArrowLeft } from "react-icons/fa";
+import DOMPurify from 'dompurify';
+
+// Sanitize message before display
+const sanitizeMessage = (content) => {
+  if (!content) return '';
+  return DOMPurify.sanitize(content, {
+    ALLOWED_TAGS: [], // No HTML tags allowed
+    ALLOWED_ATTR: [], // No attributes allowed
+  });
+};
 
 const formatTime = (isoDate) => {
   const date = new Date(isoDate);
@@ -18,8 +29,8 @@ const formatListTime = (isoDate) => {
   const diffMins = Math.floor(diffMs / (1000 * 60));
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
 
-  if (diffMins < 60) return `${Math.max(diffMins, 1)}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffMins < 60) return `${Math.max(diffMins, 1)}m`;
+  if (diffHours < 24) return `${diffHours}h`;
 
   const yesterday = new Date();
   yesterday.setDate(now.getDate() - 1);
@@ -53,7 +64,7 @@ const getOtherParticipant = (conversation, currentUserId) => {
 
 export default function Messages() {
   const { user } = useContext(AuthContext);
-  const socket = useSocket();
+  const { socket, isConnected } = useSocket();
   const location = useLocation();
   const preselectedConversationId = location.state?.conversationId || null;
 
@@ -70,13 +81,11 @@ export default function Messages() {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [userSearchResults, setUserSearchResults] = useState([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
-  const [mobileUniversalQuery, setMobileUniversalQuery] = useState("");
-  const [mobileUserSearchResults, setMobileUserSearchResults] = useState([]);
-  const [mobileSearchingUsers, setMobileSearchingUsers] = useState(false);
   const [mobileActiveTab, setMobileActiveTab] = useState("conversations");
 
   const typingDebounceRef = useRef(null);
   const stopTypingTimerRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
   useEffect(() => {
     let isActive = true;
@@ -145,12 +154,14 @@ export default function Messages() {
     socket.emit("join_conversation", selectedConversationId);
 
     return () => {
-      socket.emit("leave_conversation", selectedConversationId);
+      if (socket) {
+        socket.emit("leave_conversation", selectedConversationId);
+      }
     };
   }, [socket, selectedConversationId]);
 
   useEffect(() => {
-    if (!socket || !currentUserId) return undefined;
+    if (!socket || !isConnected || !currentUserId) return undefined;
 
     const onReceiveMessage = (incoming) => {
       const conversationId = String(incoming?.conversationId || "");
@@ -202,11 +213,13 @@ export default function Messages() {
     socket.on("user_stop_typing", onUserStopTyping);
 
     return () => {
-      socket.off("receive_message", onReceiveMessage);
-      socket.off("user_typing", onUserTyping);
-      socket.off("user_stop_typing", onUserStopTyping);
+      if (socket) {
+        socket.off("receive_message", onReceiveMessage);
+        socket.off("user_typing", onUserTyping);
+        socket.off("user_stop_typing", onUserStopTyping);
+      }
     };
-  }, [socket, currentUserId, selectedConversationId]);
+  }, [socket, isConnected, currentUserId, selectedConversationId]);
 
   useEffect(() => {
     let active = true;
@@ -242,39 +255,12 @@ export default function Messages() {
     };
   }, [userSearchQuery]);
 
+  // Scroll to bottom when messages change
   useEffect(() => {
-    let active = true;
-    const term = mobileUniversalQuery.trim();
-
-    if (term.length < 2) {
-      setMobileUserSearchResults([]);
-      setMobileSearchingUsers(false);
-      return undefined;
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-
-    const timer = window.setTimeout(async () => {
-      setMobileSearchingUsers(true);
-      try {
-        const { data } = await messageAPI.searchUsers(term);
-        if (!active) return;
-        setMobileUserSearchResults(Array.isArray(data) ? data : []);
-        setError("");
-      } catch {
-        if (!active) return;
-        setMobileUserSearchResults([]);
-        setError("Failed to search users");
-      } finally {
-        if (active) {
-          setMobileSearchingUsers(false);
-        }
-      }
-    }, 300);
-
-    return () => {
-      active = false;
-      window.clearTimeout(timer);
-    };
-  }, [mobileUniversalQuery]);
+  }, [messagesByConversation, selectedConversationId]);
 
   const filteredConversations = useMemo(() => {
     const search = searchQuery.trim().toLowerCase();
@@ -292,18 +278,6 @@ export default function Messages() {
     () => conversations.find((conversation) => conversation._id === selectedConversationId) || null,
     [conversations, selectedConversationId]
   );
-
-  const mobileFilteredConversations = useMemo(() => {
-    const search = mobileUniversalQuery.trim().toLowerCase();
-    if (!search) return conversations;
-
-    return conversations.filter((conversation) => {
-      const participant = getOtherParticipant(conversation, currentUserId);
-      const name = participant?.name || "";
-      const preview = conversation?.lastMessage || "";
-      return name.toLowerCase().includes(search) || preview.toLowerCase().includes(search);
-    });
-  }, [conversations, mobileUniversalQuery, currentUserId]);
 
   const selectedParticipant = selectedConversation
     ? getOtherParticipant(selectedConversation, currentUserId)
@@ -340,8 +314,12 @@ export default function Messages() {
   };
 
   const handleSend = async () => {
-    const content = draft.trim();
-    if (!content || !selectedConversationId) return;
+    const rawContent = draft.trim();
+    if (!rawContent || !selectedConversationId) return;
+
+    // Sanitize content before sending
+    const content = DOMPurify.sanitize(rawContent);
+    if (!content) return;
 
     const tempId = `temp-${Date.now()}`;
     const optimisticMessage = {
@@ -373,7 +351,7 @@ export default function Messages() {
     );
 
     setDraft("");
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit("stop_typing", { conversationId: selectedConversationId });
     }
 
@@ -386,7 +364,7 @@ export default function Messages() {
         ),
       }));
 
-      if (socket) {
+      if (socket && isConnected) {
         socket.emit("send_message", {
           conversationId: selectedConversationId,
           senderId: currentUserId,
@@ -405,7 +383,7 @@ export default function Messages() {
   const handleInputChange = (value) => {
     setDraft(value);
 
-    if (!socket || !selectedConversationId) return;
+    if (!socket || !selectedConversationId || !isConnected) return;
 
     if (!typingDebounceRef.current) {
       typingDebounceRef.current = window.setTimeout(() => {
@@ -459,8 +437,6 @@ export default function Messages() {
       setSelectedConversationId(createdConversation._id);
       setUserSearchQuery("");
       setUserSearchResults([]);
-      setMobileUniversalQuery("");
-      setMobileUserSearchResults([]);
       setMobileActiveTab("chat");
       setError("");
     } catch (err) {
@@ -477,58 +453,72 @@ export default function Messages() {
     }));
   };
 
+  const handleMobileBack = () => {
+    setMobileActiveTab("conversations");
+  };
+
   return (
     <div className="messages-page">
-      <section className="messages-layout">
-        <aside className="messages-sidebar">
-          <header className="messages-sidebar-header">
+      <div className="messages-container">
+        {/* Sidebar */}
+        <aside className={`messages-sidebar ${mobileActiveTab === "conversations" ? "mobile-active" : "mobile-hidden"}`}>
+          <div className="sidebar-header">
             <h1>Messages</h1>
-            <input
-              type="text"
-              placeholder="Find users/employers to message"
-              aria-label="Find users to message"
-              value={userSearchQuery}
-              onChange={(event) => setUserSearchQuery(event.target.value)}
-            />
+            <div className="search-wrapper">
+              <FaSearch className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={userSearchQuery}
+                onChange={(event) => setUserSearchQuery(event.target.value)}
+              />
+            </div>
+            <div className="search-wrapper">
+              <FaSearch className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </div>
+          </div>
 
-            {(userSearchQuery.trim().length >= 2 || searchingUsers) && (
-              <div className="messages-user-search-results">
-                {searchingUsers && <p className="messages-user-search-empty">Searching...</p>}
+          {/* Search Results */}
+          {(userSearchQuery.trim().length >= 2 || searchingUsers) && (
+            <div className="search-results">
+              {searchingUsers && <p className="search-empty">Searching...</p>}
+              {!searchingUsers && userSearchResults.length === 0 && (
+                <p className="search-empty">No matching users found.</p>
+              )}
+              {!searchingUsers &&
+                userSearchResults.map((item) => (
+                  <button
+                    key={item._id}
+                    type="button"
+                    className="user-search-item"
+                    onClick={() => handleStartConversation(item)}
+                  >
+                    <span className="user-avatar">
+                      {(item.name || "U").trim().charAt(0).toUpperCase()}
+                    </span>
+                    <div className="user-info">
+                      <strong>{item.name}</strong>
+                      <small>{item.role === "employer" ? item.companyName || item.email : item.desiredJobTitle || item.email}</small>
+                    </div>
+                    <button className="start-chat-btn">Message</button>
+                  </button>
+                ))}
+            </div>
+          )}
 
-                {!searchingUsers && userSearchResults.length === 0 && (
-                  <p className="messages-user-search-empty">No matching users found.</p>
-                )}
-
-                {!searchingUsers &&
-                  userSearchResults.map((item) => (
-                    <button
-                      key={item._id}
-                      type="button"
-                      className="messages-user-search-item"
-                      onClick={() => handleStartConversation(item)}
-                    >
-                      <span className="conversation-avatar">{(item.name || "U").trim().charAt(0).toUpperCase()}</span>
-                      <span className="messages-user-search-main">
-                        <strong>{item.name}</strong>
-                        <small>{item.role === "employer" ? item.companyName || item.email : item.desiredJobTitle || item.email}</small>
-                      </span>
-                    </button>
-                  ))}
-              </div>
-            )}
-
-            <input
-              type="text"
-              placeholder="Search conversations"
-              aria-label="Search conversations"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-          </header>
-
-          <div className="messages-conversation-list">
+          <div className="conversation-list">
             {!loading && filteredConversations.length === 0 && (
-              <p className="messages-empty-list">No conversations yet.</p>
+              <div className="empty-state">
+                <FaUserCircle className="empty-icon" />
+                <p>No conversations yet</p>
+                <span>Start by searching for a user above</span>
+              </div>
             )}
 
             {filteredConversations.map((conversation) => {
@@ -537,32 +527,39 @@ export default function Messages() {
               const unreadCount = unreadByConversation[conversation._id] || 0;
 
               return (
-                <div key={conversation._id} className={`conversation-item-wrap ${isActive ? "active" : ""}`}>
+                <div key={conversation._id} className={`conversation-item ${isActive ? "active" : ""}`}>
                   <button
                     type="button"
-                    className={`conversation-item ${isActive ? "active" : ""}`}
-                    onClick={() => setSelectedConversationId(conversation._id)}
+                    className="conversation-btn"
+                    onClick={() => handleSelectConversation(conversation._id)}
                   >
-                    <span className="conversation-avatar">
+                    <span className="user-avatar">
                       {(otherUser?.name || "U").trim().charAt(0).toUpperCase()}
                     </span>
-                    <span className="conversation-main">
-                      <strong>{otherUser?.name || "Unknown User"}</strong>
-                      <small>{conversation.lastMessage || "No messages yet"}</small>
-                    </span>
-                    <span className="conversation-meta">
-                      <span>{formatListTime(conversation.lastMessageAt || conversation.createdAt)}</span>
-                      {unreadCount > 0 ? <span className="conversation-unread-dot" aria-label="Unread" /> : null}
-                    </span>
+                    <div className="conversation-info">
+                      <div className="conversation-top">
+                        <strong>{otherUser?.name || "Unknown User"}</strong>
+                        <span className="conversation-time">
+                          {formatListTime(conversation.lastMessageAt || conversation.createdAt)}
+                        </span>
+                      </div>
+                      <div className="conversation-bottom">
+                        <span className="conversation-preview">
+                          {conversation.lastMessage || "No messages yet"}
+                        </span>
+                        {unreadCount > 0 && (
+                          <span className="unread-badge">{unreadCount}</span>
+                        )}
+                      </div>
+                    </div>
                   </button>
-
                   <button
                     type="button"
-                    className="conversation-delete-btn"
-                    aria-label="Delete conversation"
+                    className="delete-btn"
                     onClick={() => handleDeleteConversation(conversation._id)}
+                    aria-label="Delete conversation"
                   >
-                    x
+                    <FaTrash />
                   </button>
                 </div>
               );
@@ -570,153 +567,41 @@ export default function Messages() {
           </div>
         </aside>
 
-        <main className="messages-thread-panel">
-          <section className="messages-mobile-tabs" aria-label="Mobile messages view toggle">
-            <button
-              type="button"
-              className={`messages-mobile-tab-btn ${mobileActiveTab === "conversations" ? "active" : ""}`}
-              onClick={() => setMobileActiveTab("conversations")}
-            >
-              Conversations
-            </button>
-            <button
-              type="button"
-              className={`messages-mobile-tab-btn ${mobileActiveTab === "chat" ? "active" : ""}`}
-              onClick={() => setMobileActiveTab("chat")}
-            >
-              Chat
-            </button>
-          </section>
-
-          <section
-            className={`messages-mobile-universal-search messages-mobile-tab-panel ${
-              mobileActiveTab === "conversations" ? "active" : "inactive"
-            }`}
-            aria-label="Mobile message search"
-          >
-            <input
-              type="text"
-              placeholder="Search users and conversations"
-              aria-label="Search users and conversations"
-              value={mobileUniversalQuery}
-              onChange={(event) => setMobileUniversalQuery(event.target.value)}
-            />
-
-            {mobileUniversalQuery.trim().length >= 2 ? (
-              <div className="messages-mobile-search-results">
-                <div className="messages-mobile-search-section">
-                  <p className="messages-mobile-search-title">Start New Conversation</p>
-                  {mobileSearchingUsers && <p className="messages-user-search-empty">Searching...</p>}
-                  {!mobileSearchingUsers && mobileUserSearchResults.length === 0 && (
-                    <p className="messages-user-search-empty">No matching users found.</p>
-                  )}
-                  {!mobileSearchingUsers &&
-                    mobileUserSearchResults.map((item) => (
-                      <button
-                        key={`mobile-user-${item._id}`}
-                        type="button"
-                        className="messages-user-search-item"
-                        onClick={() => handleStartConversation(item)}
-                      >
-                        <span className="conversation-avatar">{(item.name || "U").trim().charAt(0).toUpperCase()}</span>
-                        <span className="messages-user-search-main">
-                          <strong>{item.name}</strong>
-                          <small>{item.role === "employer" ? item.companyName || item.email : item.desiredJobTitle || item.email}</small>
-                        </span>
-                      </button>
-                    ))}
+        {/* Chat Area */}
+        <main className={`chat-area ${mobileActiveTab === "chat" ? "mobile-active" : "mobile-hidden"}`}>
+          {!selectedConversation ? (
+            <div className="empty-chat">
+              <div className="empty-chat-content">
+                <FaUserCircle className="empty-chat-icon" />
+                <h3>Your Messages</h3>
+                <p>Select a conversation to start chatting</p>
+                <span className="empty-hint">or search for someone to message</span>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Chat Header */}
+              <header className="chat-header">
+                <button
+                  type="button"
+                  className="mobile-back-btn"
+                  onClick={handleMobileBack}
+                  aria-label="Back to conversations"
+                >
+                  <FaArrowLeft />
+                </button>
+                <span className="chat-avatar">
+                  {(selectedParticipant?.name || "U").trim().charAt(0).toUpperCase()}
+                </span>
+                <div className="chat-user-info">
+                  <strong>{selectedParticipant?.name || "Unknown User"}</strong>
+                  <p>{selectedParticipant?.desiredJobTitle || selectedParticipant?.role || "Conversation"}</p>
                 </div>
+              </header>
 
-                <div className="messages-mobile-search-section">
-                  <p className="messages-mobile-search-title">Your Conversations</p>
-                  {mobileFilteredConversations.length === 0 ? (
-                    <p className="messages-user-search-empty">No matching conversations.</p>
-                  ) : (
-                    mobileFilteredConversations.map((conversation) => {
-                      const otherUser = getOtherParticipant(conversation, currentUserId);
-                      const unreadCount = unreadByConversation[conversation._id] || 0;
-
-                      return (
-                        <button
-                          key={`mobile-conversation-${conversation._id}`}
-                          type="button"
-                          className={`conversation-item ${selectedConversationId === conversation._id ? "active" : ""}`}
-                          onClick={() => handleSelectConversation(conversation._id)}
-                        >
-                          <span className="conversation-avatar">
-                            {(otherUser?.name || "U").trim().charAt(0).toUpperCase()}
-                          </span>
-                          <span className="conversation-main">
-                            <strong>{otherUser?.name || "Unknown User"}</strong>
-                            <small>{conversation.lastMessage || "No messages yet"}</small>
-                          </span>
-                          <span className="conversation-meta">
-                            <span>{formatListTime(conversation.lastMessageAt || conversation.createdAt)}</span>
-                            {unreadCount > 0 ? <span className="conversation-unread-dot" aria-label="Unread" /> : null}
-                          </span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="messages-mobile-conversation-list">
-                {conversations.map((conversation) => {
-                  const otherUser = getOtherParticipant(conversation, currentUserId);
-                  const unreadCount = unreadByConversation[conversation._id] || 0;
-
-                  return (
-                    <button
-                      key={`mobile-list-${conversation._id}`}
-                      type="button"
-                      className={`conversation-item ${selectedConversationId === conversation._id ? "active" : ""}`}
-                      onClick={() => handleSelectConversation(conversation._id)}
-                    >
-                      <span className="conversation-avatar">
-                        {(otherUser?.name || "U").trim().charAt(0).toUpperCase()}
-                      </span>
-                      <span className="conversation-main">
-                        <strong>{otherUser?.name || "Unknown User"}</strong>
-                        <small>{conversation.lastMessage || "No messages yet"}</small>
-                      </span>
-                      <span className="conversation-meta">
-                        <span>{formatListTime(conversation.lastMessageAt || conversation.createdAt)}</span>
-                        {unreadCount > 0 ? <span className="conversation-unread-dot" aria-label="Unread" /> : null}
-                      </span>
-                    </button>
-                  );
-                })}
-                {!loading && conversations.length === 0 && (
-                  <p className="messages-empty-list">No conversations yet.</p>
-                )}
-              </div>
-            )}
-          </section>
-
-          <section
-            className={`messages-thread-content messages-mobile-tab-panel ${
-              mobileActiveTab === "chat" ? "active" : "inactive"
-            }`}
-          >
-            {!selectedConversation ? (
-              <div className="messages-thread-empty">
-                <div className="messages-thread-empty-icon">+</div>
-                <p>Select a conversation to start messaging</p>
-              </div>
-            ) : (
-              <>
-                <header className="thread-header">
-                  <span className="thread-header-avatar">
-                    {(selectedParticipant?.name || "U").trim().charAt(0).toUpperCase()}
-                  </span>
-                  <div>
-                    <strong>{selectedParticipant?.name || "Unknown User"}</strong>
-                    <p>{selectedParticipant?.desiredJobTitle || selectedParticipant?.role || "Conversation"}</p>
-                  </div>
-                </header>
-
-                <div className="thread-messages" role="log" aria-live="polite">
+              {/* Messages */}
+              <div className="messages-container-scroll">
+                <div className="messages-list">
                   {selectedMessages.map((message, index) => {
                     const currentLabel = getDateLabel(message.createdAt);
                     const previousLabel = index > 0 ? getDateLabel(selectedMessages[index - 1].createdAt) : "";
@@ -725,41 +610,59 @@ export default function Messages() {
 
                     return (
                       <div key={message._id || `${message.createdAt}-${index}`}>
-                        {showSeparator ? <div className="date-separator">{currentLabel}</div> : null}
-                        <article className={`thread-message ${mine ? "mine" : "theirs"}`}>
-                          <p>{message.content}</p>
-                          <time>{formatTime(message.createdAt)}</time>
-                        </article>
+                        {showSeparator && <div className="date-divider">{currentLabel}</div>}
+                        <div className={`message ${mine ? "sent" : "received"}`}>
+                          <div className="message-bubble">
+                            <p>{sanitizeMessage(message.content)}</p>
+                            <span className="message-time">{formatTime(message.createdAt)}</span>
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
 
                   {typingUserId && (
-                    <p className="typing-indicator">
-                      {typingUserName} is typing<span>.</span><span>.</span><span>.</span>
-                    </p>
+                    <div className="typing-indicator">
+                      <span>{typingUserName} is typing</span>
+                      <span className="typing-dots">
+                        <span>.</span><span>.</span><span>.</span>
+                      </span>
+                    </div>
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
+              </div>
 
-                <footer className="thread-input-bar">
-                  <input
-                    type="text"
-                    placeholder="Type a message..."
-                    value={draft}
-                    onChange={(event) => handleInputChange(event.target.value)}
-                    onKeyDown={handleKeyDown}
-                  />
-                  <button type="button" className="thread-send-btn" onClick={handleSend} aria-label="Send message">
-                    &rarr;
-                  </button>
-                </footer>
-              </>
-            )}
-          </section>
+              {/* Input Bar */}
+              <footer className="chat-input-bar">
+                <input
+                  type="text"
+                  placeholder="Type a message..."
+                  value={draft}
+                  onChange={(event) => handleInputChange(event.target.value)}
+                  onKeyDown={handleKeyDown}
+                />
+                <button
+                  type="button"
+                  className="send-btn"
+                  onClick={handleSend}
+                  disabled={!draft.trim()}
+                  aria-label="Send message"
+                >
+                  <FaPaperPlane />
+                </button>
+              </footer>
+            </>
+          )}
         </main>
-      </section>
+      </div>
 
-      {error ? <div className="messages-error-banner">{error}</div> : null}
+      {error && (
+        <div className="error-toast" onClick={() => setError("")}>
+          {error}
+          <button className="error-toast-close">×</button>
+        </div>
+      )}
     </div>
   );
 }

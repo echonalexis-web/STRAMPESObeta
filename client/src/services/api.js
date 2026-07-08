@@ -6,6 +6,75 @@ const DEFAULT_API_URL = import.meta.env.DEV
 
 export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
 
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+  timeout: 30000,
+});
+
+// Request interceptor - Add token to every request
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    console.error("Request interceptor error:", error);
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor - Handle errors and retry on rate limit
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    
+    if (originalRequest._retryCount >= 3) {
+      console.error("Max retry attempts reached for:", originalRequest.url);
+      return Promise.reject(error);
+    }
+    
+    if (error.response?.status === 429 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      const retryCount = originalRequest._retryCount || 0;
+      originalRequest._retryCount = retryCount + 1;
+      
+      if (retryCount < 3) {
+        const delay = Math.pow(2, retryCount) * 1000;
+        console.log(`⏳ Rate limited (429). Retrying in ${delay}ms... (attempt ${retryCount + 1}/3)`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return api(originalRequest);
+      }
+    }
+    
+    if (error.response?.status === 401) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        const publicPaths = ['/login', '/register', '/', '/home'];
+        const currentPath = window.location.pathname;
+        if (!publicPaths.some(path => currentPath === path || currentPath.startsWith('/auth'))) {
+          console.log("🔒 Unauthorized, redirecting to login");
+          window.location.href = "/login";
+        }
+      }
+    }
+    
+    if (error.code === "ERR_NETWORK" || error.code === "ECONNABORTED") {
+      console.error("Network error:", error.message);
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+// Helper functions for headers
 const getAuthHeader = () => {
   const token = localStorage.getItem("token");
   return {
@@ -25,69 +94,89 @@ const getAuthFormHeader = () => {
   };
 };
 
+// Helper function for delays
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// API Objects
 export const authAPI = {
-  register: (data) => axios.post(`${API_URL}/auth/register`, data),
-  login: (data) => axios.post(`${API_URL}/auth/login`, data),
-  registerEmployee: (data) => axios.post(`${API_URL}/auth/register/employee`, data),
-  generateInvite: () => axios.post(`${API_URL}/auth/invite`, {}, getAuthHeader()),
-  getProfile: () => axios.get(`${API_URL}/auth/profile`, getAuthHeader()),
-  updateProfile: (data) => axios.put(`${API_URL}/auth/profile`, data, getAuthFormHeader()),
-  deleteAccount: () => axios.delete(`${API_URL}/auth/profile`, getAuthHeader()),
-  registerEmployer: (data) => axios.post(`${API_URL}/auth/register/employer`, data),
+  register: (data) => api.post('/auth/register', data),
+  login: (data) => api.post('/auth/login', data),
+  
+  // ✅ FIXED: correct endpoint for employee/jobseeker registration
+  registerEmployee: (data) => api.post('/auth/register/employee', data),
+  
+  generateInvite: () => api.post('/auth/invite', {}, getAuthHeader()),
+  getProfile: () => api.get('/auth/profile', getAuthHeader()),
+  updateProfile: (data) => api.put('/auth/profile', data, getAuthFormHeader()),
+  deleteAccount: () => api.delete('/auth/profile', getAuthHeader()),
+  
+  // ✅ Employer registration – kept separate
+  registerEmployer: (data) => api.post('/auth/register/employer', data),
 };
 
 export const jobAPI = {
-  createJob: (data) => axios.post(`${API_URL}/jobs`, data, getAuthHeader()),
-  getJobs: () => axios.get(`${API_URL}/jobs`),
-  getHomepageJobs: () => axios.get(`${API_URL}/jobs/homepage`),
-  getJobById: (id) => axios.get(`${API_URL}/jobs/${id}`),
-  updateJob: (id, data) => axios.put(`${API_URL}/jobs/${id}`, data, getAuthHeader()),
-  deleteJob: (id) => axios.delete(`${API_URL}/jobs/${id}`, getAuthHeader()),
-  applyToJob: (id, data) => axios.post(`${API_URL}/jobs/${id}/apply`, data, getAuthFormHeader()),
-  getEmployerJobs: () => axios.get(`${API_URL}/jobs/mine`, getAuthHeader()),
-  getApplicationsForJob: (id) => axios.get(`${API_URL}/jobs/${id}/applications`, getAuthHeader()),
-  getMyApplications: () => axios.get(`${API_URL}/jobs/applications/me`, getAuthHeader()),
-  updateApplication: (id, data) => axios.put(`${API_URL}/jobs/applications/${id}`, data, getAuthFormHeader()),
-  deleteApplication: (id) => axios.delete(`${API_URL}/jobs/applications/${id}`, getAuthHeader()),
+  createJob: (data) => api.post('/jobs', data, getAuthHeader()),
+  getJobs: () => api.get('/jobs'),
+  getHomepageJobs: () => api.get('/jobs/homepage'),
+  getJobById: (id) => api.get(`/jobs/${id}`),
+  updateJob: (id, data) => api.put(`/jobs/${id}`, data, getAuthHeader()),
+  deleteJob: (id) => api.delete(`/jobs/${id}`, getAuthHeader()),
+  applyToJob: (id, data) => api.post(`/jobs/${id}/apply`, data, getAuthFormHeader()),
+  getEmployerJobs: () => api.get('/jobs/mine', getAuthHeader()),
+  getApplicationsForJob: (id) => api.get(`/jobs/${id}/applications`, getAuthHeader()),
+  getMyApplications: () => api.get('/jobs/applications/me', getAuthHeader()),
+  updateApplication: (id, data) => api.put(`/jobs/applications/${id}`, data, getAuthFormHeader()),
+  deleteApplication: (id) => api.delete(`/jobs/applications/${id}`, getAuthHeader()),
 };
 
 export const adminAPI = {
-  getUsers: (params = {}) => axios.get(`${API_URL}/admin/users`, { ...getAuthHeader(), params }),
-  getAnalytics: () => axios.get(`${API_URL}/admin/analytics`, getAuthHeader()),
-  getHomepageJobManagement: () => axios.get(`${API_URL}/admin/jobs/homepage-display`, getAuthHeader()),
+  getUsers: async (params = {}) => {
+    await delay(150);
+    return api.get('/admin/users', { ...getAuthHeader(), params });
+  },
+  getAnalytics: async () => {
+    await delay(150);
+    return api.get('/admin/analytics', getAuthHeader());
+  },
+  getHomepageJobManagement: async () => {
+    await delay(150);
+    return api.get('/admin/jobs/homepage-display', getAuthHeader());
+  },
   toggleHomepageFeature: (id, isFeatured) =>
-    axios.put(`${API_URL}/admin/jobs/${id}/homepage-feature`, { isFeatured }, getAuthHeader()),
-  updateUserRole: (id, role) => axios.put(`${API_URL}/admin/users/${id}/role`, { role }, getAuthHeader()),
-  deactivateUser: (id) => axios.put(`${API_URL}/admin/users/${id}/deactivate`, {}, getAuthHeader()),
-  reactivateUser: (id) => axios.put(`${API_URL}/admin/users/${id}/reactivate`, {}, getAuthHeader()),
+    api.put(`/admin/jobs/${id}/homepage-feature`, { isFeatured }, getAuthHeader()),
+  updateUserRole: (id, role) => api.put(`/admin/users/${id}/role`, { role }, getAuthHeader()),
+  deactivateUser: (id) => api.put(`/admin/users/${id}/deactivate`, {}, getAuthHeader()),
+  reactivateUser: (id) => api.put(`/admin/users/${id}/reactivate`, {}, getAuthHeader()),
   updateEmployerVerification: (id, verificationStatus) =>
-    axios.put(`${API_URL}/admin/users/${id}/verification`, { verificationStatus }, getAuthHeader()),
-  deleteUser: (id) => axios.delete(`${API_URL}/admin/users/${id}`, getAuthHeader()),
-  generateInvite: () => axios.post(`${API_URL}/auth/invite`, {}, getAuthHeader()),
+    api.put(`/admin/users/${id}/verification`, { verificationStatus }, getAuthHeader()),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`, getAuthHeader()),
+  generateInvite: () => api.post('/auth/invite', {}, getAuthHeader()),
 };
 
 export const messageAPI = {
-  searchUsers: (query) => axios.get(`${API_URL}/messages/users/search`, { ...getAuthHeader(), params: { query } }),
-  createConversation: (data) => axios.post(`${API_URL}/messages/conversations`, data, getAuthHeader()),
-  getConversations: () => axios.get(`${API_URL}/messages/conversations`, getAuthHeader()),
-  getMessages: (conversationId) => axios.get(`${API_URL}/messages/conversations/${conversationId}/messages`, getAuthHeader()),
-  sendMessage: (conversationId, data) => axios.post(`${API_URL}/messages/conversations/${conversationId}/messages`, data, getAuthHeader()),
-  deleteConversation: (conversationId) => axios.delete(`${API_URL}/messages/conversations/${conversationId}`, getAuthHeader()),
-  getUnreadCount: () => axios.get(`${API_URL}/messages/unread-count`, getAuthHeader()),
+  searchUsers: (query) => api.get('/messages/users/search', { ...getAuthHeader(), params: { query } }),
+  createConversation: (data) => api.post('/messages/conversations', data, getAuthHeader()),
+  getConversations: () => api.get('/messages/conversations', getAuthHeader()),
+  getMessages: (conversationId) => api.get(`/messages/conversations/${conversationId}/messages`, getAuthHeader()),
+  sendMessage: (conversationId, data) => api.post(`/messages/conversations/${conversationId}/messages`, data, getAuthHeader()),
+  deleteConversation: (conversationId) => api.delete(`/messages/conversations/${conversationId}`, getAuthHeader()),
+  getUnreadCount: () => api.get('/messages/unread-count', getAuthHeader()),
 };
 
 export const employerAPI = {
-  getStats: () => axios.get(`${API_URL}/employer/stats`, getAuthHeader()),
-  getProfileStats: () => axios.get(`${API_URL}/employer/profile-stats`, getAuthHeader()),
-  getJobs: () => axios.get(`${API_URL}/employer/jobs`, getAuthHeader()),
-  createJob: (data) => axios.post(`${API_URL}/employer/jobs`, data, getAuthHeader()),
-  updateJob: (id, data) => axios.put(`${API_URL}/employer/jobs/${id}`, data, getAuthHeader()),
-  closeJob: (id) => axios.delete(`${API_URL}/employer/jobs/${id}`, getAuthHeader()),
-  getApplicantsForJob: (jobId) => axios.get(`${API_URL}/employer/jobs/${jobId}/applicants`, getAuthHeader()),
-  updateApplicationStatus: (applicationId, data) => axios.put(`${API_URL}/employer/applications/${applicationId}/status`, data, getAuthHeader()),
+  getStats: () => api.get('/employer/stats', getAuthHeader()),
+  getProfileStats: () => api.get('/employer/profile-stats', getAuthHeader()),
+  getJobs: () => api.get('/employer/jobs', getAuthHeader()),
+  createJob: (data) => api.post('/employer/jobs', data, getAuthHeader()),
+  updateJob: (id, data) => api.put(`/employer/jobs/${id}`, data, getAuthHeader()),
+  closeJob: (id) => api.delete(`/employer/jobs/${id}`, getAuthHeader()),
+  getApplicantsForJob: (jobId) => api.get(`/employer/jobs/${jobId}/applicants`, getAuthHeader()),
+  updateApplicationStatus: (applicationId, data) => 
+    api.put(`/employer/applications/${applicationId}/status`, data, getAuthHeader()),
 };
 
 export const usersAPI = {
-  completeOnboarding: (data) => axios.put(`${API_URL}/users/onboarding`, data, getAuthHeader()),
+  completeOnboarding: (data) => api.put('/users/onboarding', data, getAuthHeader()),
 };
 
+export default api;

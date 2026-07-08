@@ -1,30 +1,50 @@
-/* Job detail modal styles */
+/* ============================================ */
+/* JOB DETAIL MODAL - STRAM PESO DESIGN */
+/* ============================================ */
+
 .job-dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.58);
-  backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 20px;
   z-index: 1100;
-  animation: jobDialogOverlayIn 220ms ease-out;
+  animation: jobDialogOverlayIn 0.25s ease-out;
 }
 
 .job-dialog-card {
   width: 100%;
-  max-width: 640px;
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
   background: #ffffff;
-  border-radius: 14px;
-  border: 1px solid #dce7df;
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.2);
-  padding: 1rem 1.25rem 1.25rem;
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2);
+  padding: 32px 36px 28px;
   position: relative;
-  opacity: 1;
-  transform: none;
-  animation: jobDialogCardIn 260ms cubic-bezier(0.22, 1, 0.36, 1);
-  transform-origin: top center;
+  animation: jobDialogCardIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Scrollbar styling */
+.job-dialog-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.job-dialog-card::-webkit-scrollbar-track {
+  background: #f0f2f4;
+  border-radius: 10px;
+}
+
+.job-dialog-card::-webkit-scrollbar-thumb {
+  background: #c8d6cc;
+  border-radius: 10px;
+}
+
+.job-dialog-card::-webkit-scrollbar-thumb:hover {
+  background: #a8b8ae;
 }
 
 @keyframes jobDialogOverlayIn {
@@ -39,7 +59,7 @@
 @keyframes jobDialogCardIn {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.97);
+    transform: translateY(20px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -54,102 +74,265 @@
   }
 }
 
+/* Close Button */
 .job-dialog-close {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
   border: none;
   border-radius: 50%;
-  background: #f3f3f3;
-  color: #2f2f2f;
-  font-size: 0.95rem;
-  font-weight: 700;
+  background: #f0f2f4;
+  color: #4a5a6a;
+  font-size: 16px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 1;
 }
 
 .job-dialog-close:hover {
-  background: #e6e6e6;
+  background: #e5e7eb;
+  color: #1a2a3a;
+  transform: rotate(90deg);
 }
 
-.job-dialog-hero {
-  margin-top: 0.6rem;
-  background: linear-gradient(90deg, #1a5c2a 0%, #2e7d42 100%);
-  border-radius: 10px;
-  padding: 0.9rem 1rem;
+/* Header */
+.job-dialog-header {
+  margin-bottom: 20px;
+  padding-right: 40px;
+}
+
+.job-dialog-title-section {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
+  gap: 12px;
+  margin-bottom: 6px;
 }
 
-.job-dialog-hero h2 {
+.job-dialog-title-section h2 {
   margin: 0;
-  color: #ffffff;
-  font-size: 1.45rem;
-  font-weight: 800;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a2a3a;
+  line-height: 1.2;
 }
 
 .job-dialog-status {
-  background: #e6f4ea;
-  color: #1a5c2a;
-  border: 1px solid #1a5c2a;
-  border-radius: 999px;
-  padding: 0.25rem 0.65rem;
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2e7d32;
+  background: #e8f5e9;
+  padding: 2px 14px;
+  border-radius: 20px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.job-dialog-meta {
-  margin-top: 0.9rem;
+.job-dialog-company {
   display: flex;
-  gap: 0.6rem;
+  align-items: center;
+  gap: 8px;
+  color: #7a8a9a;
+  font-size: 15px;
+}
+
+.job-dialog-company svg {
+  color: #2e7d32;
+  font-size: 14px;
+}
+
+/* Chips */
+.job-dialog-chips {
+  display: flex;
   flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
 .job-dialog-chip {
-  border: 1px solid #c5dacb;
-  border-radius: 999px;
-  background: #f8fbf9;
-  color: #1a5c2a;
-  font-size: 0.86rem;
-  font-weight: 600;
-  padding: 0.32rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f5f7fa;
+  border: 1px solid #e8ecf0;
+  border-radius: 30px;
+  padding: 6px 16px;
+  font-size: 13px;
+  color: #4a5a6a;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
+.job-dialog-chip svg {
+  font-size: 13px;
+  color: #2e7d32;
+}
+
+.job-dialog-chip:hover {
+  background: #e8f5e9;
+  border-color: #c8e6c9;
+}
+
+/* Sections */
 .job-dialog-section {
-  margin-top: 1rem;
-  background: #f5f5f5;
-  border-radius: 10px;
-  padding: 0.9rem 1rem;
+  background: #f8fafb;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 14px;
+  border: 1px solid #f0f2f4;
+}
+
+.job-dialog-section:last-of-type {
+  margin-bottom: 20px;
 }
 
 .job-dialog-section h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1rem;
-  color: #1a5c2a;
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a2a3a;
 }
 
 .job-dialog-section p {
   margin: 0;
-  color: #555;
-  line-height: 1.6;
+  color: #4a5a6a;
+  line-height: 1.7;
+  font-size: 14px;
 }
 
+.job-dialog-section-light {
+  background: #ffffff;
+  border-color: #e8ecf0;
+}
+
+/* Footer */
+.job-dialog-footer {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f2f4;
+}
+
+.job-dialog-apply-btn {
+  flex: 1;
+  background: linear-gradient(135deg, #2e7d32, #43a047);
+  color: #ffffff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.job-dialog-apply-btn:hover {
+  background: linear-gradient(135deg, #1b5e20, #2e7d32);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(46, 125, 50, 0.3);
+}
+
+.job-dialog-close-btn {
+  background: #f0f2f4;
+  color: #4a5a6a;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.job-dialog-close-btn:hover {
+  background: #e5e7eb;
+}
+
+/* Responsive */
 @media (max-width: 640px) {
   .job-dialog-card {
-    padding: 0.9rem 0.9rem 1rem;
+    padding: 24px 20px 20px;
+    margin: 12px;
+    max-height: 95vh;
+    border-radius: 16px;
   }
 
-  .job-dialog-hero {
-    margin-top: 0.8rem;
+  .job-dialog-title-section {
     flex-direction: column;
     align-items: flex-start;
+    gap: 6px;
   }
 
-  .job-dialog-hero h2 {
-    font-size: 1.2rem;
+  .job-dialog-title-section h2 {
+    font-size: 20px;
+  }
+
+  .job-dialog-status {
+    font-size: 12px;
+  }
+
+  .job-dialog-chips {
+    gap: 8px;
+  }
+
+  .job-dialog-chip {
+    font-size: 12px;
+    padding: 4px 12px;
+  }
+
+  .job-dialog-section {
+    padding: 14px 16px;
+  }
+
+  .job-dialog-section h3 {
+    font-size: 14px;
+  }
+
+  .job-dialog-section p {
+    font-size: 13px;
+  }
+
+  .job-dialog-footer {
+    flex-direction: column;
+  }
+
+  .job-dialog-apply-btn,
+  .job-dialog-close-btn {
+    width: 100%;
+    text-align: center;
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+
+  .job-dialog-close {
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 400px) {
+  .job-dialog-card {
+    padding: 18px 14px 16px;
+  }
+
+  .job-dialog-title-section h2 {
+    font-size: 18px;
+  }
+
+  .job-dialog-chips {
+    gap: 6px;
+  }
+
+  .job-dialog-chip {
+    font-size: 11px;
+    padding: 3px 10px;
   }
 }

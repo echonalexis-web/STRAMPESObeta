@@ -5,73 +5,46 @@ import { jobAPI } from "../services/api";
 import "../styles/home.css";
 import heroVideo from "../assets/videos/hero-video.mp4";
 import pesoLogo from "../assets/images/peso-logo.png";
-
-const HOME_PROGRAMS = [
-  {
-    id: "spes",
-    tag: "DOLE",
-    title: "SPES",
-    description:
-      "The Special Program for Employment of Students gives eligible youth short-term work opportunities while helping families and communities.",
-    action: "Learn More",
-    icon: "🎓",
-    availability: "Open for applications",
-  },
-  {
-    id: "tupad",
-    tag: "DOLE",
-    title: "TUPAD",
-    description:
-      "TUPAD provides emergency employment support for displaced workers and seasonal laborers through community-based projects.",
-    action: "View Details",
-    icon: "🛠️",
-    availability: "Limited slots available",
-  },
-  {
-    id: "trainings",
-    tag: "TESDA",
-    title: "Training Programs",
-    description:
-      "Explore TESDA-accredited training options that help job seekers build practical skills and strengthen employability.",
-    action: "See Trainings",
-    icon: "📘",
-    availability: "Open for applications",
-  },
-];
+import provincialSeal from "../assets/images/provincial-seal.png";
+import searchBannerBg from "../assets/images/search-banner-background.png";
 
 const HOME_FEATURED_JOBS = [
   {
-    id: "community-liaison-assistant",
+    _id: "community-liaison-assistant",
     title: "Community Liaison Assistant",
     employer: "Marinduque Community Development Group",
     location: "Boac, Marinduque",
+    jobType: "Full-time",
     type: "Full-time",
     description:
       "Support field coordination, community outreach, and documentation for local livelihood programs.",
   },
   {
-    id: "admin-support-staff",
+    _id: "admin-support-staff",
     title: "Administrative Support Staff",
     employer: "Island Cooperative Services",
     location: "Gasan, Marinduque",
+    jobType: "Contract",
     type: "Contract",
     description:
       "Handle office coordination, records management, and front-line support for daily operations.",
   },
   {
-    id: "field-encoder",
+    _id: "field-encoder",
     title: "Field Encoder",
     employer: "Provincial Field Assistance Office",
     location: "Santa Cruz, Marinduque",
+    jobType: "Project-Based",
     type: "Project-Based",
     description:
       "Encode beneficiary records, update reports, and assist in local employment program monitoring.",
   },
   {
-    id: "service-associate",
+    _id: "service-associate",
     title: "Customer Service Associate",
     employer: "Marinduque Trade Center",
     location: "Torrijos, Marinduque",
+    jobType: "Full-time",
     type: "Full-time",
     description:
       "Support customer inquiries, assist transactions, and maintain service quality in a retail setting.",
@@ -82,17 +55,20 @@ export default function Home() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
-  const programsRef = useRef(null);
   const jobsRef = useRef(null);
+  const heroRef = useRef(null);
   const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [featuredJobs, setFeaturedJobs] = useState(HOME_FEATURED_JOBS);
   const [jobsLoading, setJobsLoading] = useState(false);
   const [visibleCards, setVisibleCards] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(true);
 
   useEffect(() => {
     const hash = location.hash.replace("#", "");
-    const target = hash === "programs" ? programsRef.current : hash === "available-jobs" ? jobsRef.current : null;
+    const target = hash === "available-jobs" ? jobsRef.current : null;
 
     if (target) {
       window.requestAnimationFrame(() => {
@@ -116,8 +92,13 @@ export default function Home() {
         const { data } = await jobAPI.getHomepageJobs();
         if (!active) return;
 
-        setFeaturedJobs(Array.isArray(data) && data.length > 0 ? data : HOME_FEATURED_JOBS);
+        if (Array.isArray(data) && data.length > 0) {
+          setFeaturedJobs(data);
+        } else {
+          setFeaturedJobs(HOME_FEATURED_JOBS);
+        }
       } catch (error) {
+        console.error("Error loading jobs:", error);
         if (active) {
           setFeaturedJobs(HOME_FEATURED_JOBS);
         }
@@ -165,6 +146,105 @@ export default function Home() {
     return () => observer.disconnect();
   }, [featuredJobs]);
 
+  // Debounced search effect
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      setIsSearching(false);
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
+
+  // Hide scroll button when user scrolls past hero section
+  useEffect(() => {
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (ticking) return;
+
+      ticking = true;
+
+      window.requestAnimationFrame(() => {
+        if (heroRef.current) {
+          const heroBottom =
+            heroRef.current.getBoundingClientRect().bottom;
+
+          setShowScrollButton(heroBottom > 100);
+        }
+
+        ticking = false;
+      });
+    };
+
+    handleScroll();
+
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  // FIXED: Simple and reliable scroll to available jobs section
+  // FIXED: Simple and reliable scroll to available jobs section
+  const scrollToAvailableJobs = () => {
+    const availableJobsSection = document.getElementById("available-jobs");
+    if (availableJobsSection) {
+      // Hide button immediately
+      setShowScrollButton(false);
+    
+      // Use native scrollIntoView with smooth behavior
+      availableJobsSection.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+        inline: "nearest"
+      });
+    }
+  };
+
+  // Robust filtering function that handles missing fields properly
+  const getFilteredJobs = () => {
+    try {
+      if (!searchQuery.trim()) return featuredJobs;
+      
+      const query = searchQuery.toLowerCase().trim();
+      
+      const results = featuredJobs.filter(job => {
+        if (!job) return false;
+        
+        const title = (job.title || "").toLowerCase().trim();
+        const employer = (typeof job.employer === 'string' ? job.employer : job.employer?.companyName || job.employer?.name || "").toLowerCase().trim();
+        const location = (job.location || "").toLowerCase().trim();
+        
+        let jobType = "";
+        if (job.jobType && typeof job.jobType === 'string') {
+          jobType = job.jobType.toLowerCase().trim();
+        } else if (job.type && typeof job.type === 'string') {
+          jobType = job.type.toLowerCase().trim();
+        } else if (job.employmentType && typeof job.employmentType === 'string') {
+          jobType = job.employmentType.toLowerCase().trim();
+        }
+        
+        let isMatch = false;
+        
+        if (title && title.includes(query)) isMatch = true;
+        if (employer && employer.includes(query) && employer !== "employer") isMatch = true;
+        if (location && location.includes(query)) isMatch = true;
+        if (jobType && jobType.includes(query)) isMatch = true;
+        
+        return isMatch;
+      });
+      
+      return results;
+    } catch (error) {
+      console.error("Error filtering jobs:", error);
+      return featuredJobs;
+    }
+  };
+
+  const filteredJobs = getFilteredJobs();
+  const hasNoResults = searchQuery.trim() !== "" && filteredJobs.length === 0 && !jobsLoading;
+
   const openRegisterPrompt = () => {
     setShowRegisterPrompt(true);
   };
@@ -191,58 +271,60 @@ export default function Home() {
     navigate(`/jobs/${job._id}`);
   };
 
-  const getProgramBadgeLabel = (program) => program?.tag || "Program";
-
-  const getJobStatus = (job) => {
-    const deadlineValue = job?.applicationDeadline || job?.deadline;
-
-    if (!deadlineValue) {
-      return { label: "Open", variant: "open" };
-    }
-
-    const deadlineDate = new Date(deadlineValue);
-
-    if (Number.isNaN(deadlineDate.getTime())) {
-      return { label: "Open", variant: "open" };
-    }
-
-    const daysRemaining = Math.ceil((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-
-    if (daysRemaining <= 7) {
-      return {
-        label: `Closing soon${daysRemaining > 0 ? ` · ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} left` : ""}`,
-        variant: "closing",
-      };
-    }
-
-    return { label: "Open", variant: "open" };
+  const clearSearch = () => {
+    setSearchQuery("");
+    setIsSearching(false);
   };
 
-  const getPostedLabel = (createdAt) => {
-    if (!createdAt) return "Recently posted";
+  const getJobStatus = (job) => {
+    try {
+      const deadlineValue = job?.applicationDeadline || job?.deadline;
 
-    const postedAt = new Date(createdAt);
+      if (!deadlineValue) {
+        return { label: "Open", variant: "open" };
+      }
 
-    if (Number.isNaN(postedAt.getTime())) return "Recently posted";
+      const deadlineDate = new Date(deadlineValue);
 
-    const daysAgo = Math.max(0, Math.floor((Date.now() - postedAt.getTime()) / (1000 * 60 * 60 * 24)));
+      if (Number.isNaN(deadlineDate.getTime())) {
+        return { label: "Open", variant: "open" };
+      }
 
-    if (daysAgo === 0) return "Posted today";
-    if (daysAgo === 1) return "Posted 1 day ago";
+      const daysRemaining = Math.ceil((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
-    return `Posted ${daysAgo} days ago`;
+      if (daysRemaining <= 7 && daysRemaining >= 0) {
+        return {
+          label: `Closing soon${daysRemaining > 0 ? ` · ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} left` : ""}`,
+          variant: "closing",
+        };
+      }
+
+      return { label: "Open", variant: "open" };
+    } catch (error) {
+      console.error("Error getting job status:", error);
+      return { label: "Open", variant: "open" };
+    }
   };
 
   const getEmployerName = (job) => {
-    if (typeof job?.employer === "string") return job.employer;
-    return job?.employer?.companyName || job?.employer?.name || "Employer";
+    try {
+      if (typeof job?.employer === "string") return job.employer;
+      if (job?.employer?.companyName) return job.employer.companyName;
+      if (job?.employer?.name) return job.employer.name;
+      return "";
+    } catch (error) {
+      return "";
+    }
   };
 
-  const getJobDescription = (job) => job?.description || "Open opportunity for Marinduque job seekers.";
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+    setIsSearching(true);
+  };
 
   return (
     <div className="home-container">
-      <section className="video-hero-section">
+      <section className="video-hero-section" ref={heroRef}>
         <video className="hero-video" autoPlay loop muted playsInline>
           <source src={heroVideo} type="video/mp4" />
           Your browser does not support HTML5 video.
@@ -288,45 +370,47 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="programs-section" id="programs" ref={programsRef}>
-        <div className="programs-section-inner">
-          <div className="section-heading-wrap">
-            <span className="section-kicker">Programs</span>
-            <h2>Programs offered by DOLE and TESDA</h2>
-            <p>
-              Discover livelihood support, emergency employment, and skills training opportunities designed for
-              Marinduqueños.
-            </p>
-          </div>
+      {/* Floating Scroll Down Button */}
+      {showScrollButton && (
+        <button className="scroll-down-button" onClick={scrollToAvailableJobs}>
+          <span className="scroll-down-text">Scroll Down for More</span>
+          <span className="scroll-down-arrow">↓</span>
+        </button>
+      )}
 
-          <div className="programs-grid">
-            {HOME_PROGRAMS.map((program, index) => (
-              <article
-                key={program.id}
-                className={`program-card ${visibleCards[program.id] ? "is-visible" : ""}`}
-                data-fade-card="true"
-                data-card-id={program.id}
-                style={{ "--card-delay": `${index * 90}ms` }}
-              >
-                <div className="program-card-header">
-                  <div className="program-card-icon" aria-hidden="true">
-                    {program.icon}
-                  </div>
-                  <span className="program-card-availability">{program.availability}</span>
-                </div>
-                <span className="program-card-tag">{getProgramBadgeLabel(program)}</span>
-                <h3>{program.title}</h3>
-                <p>{program.description}</p>
-                <button type="button" className="program-card-btn" onClick={() => handleProgramAction(program)}>
-                  {program.action}
+      {/* Available Jobs Section - REDESIGNED */}
+      <section className="available-jobs-section" id="available-jobs" ref={jobsRef}>
+        {/* Search Banner */}
+        <div className="jobs-search-banner">
+          <div className="jobs-search-banner-left">
+            <div className="jobs-search-banner-image">
+              <img src={searchBannerBg} alt="Search banner background" />
+            </div>
+            <div className="jobs-search-banner-diagonal"></div>
+          </div>
+          <div className="jobs-search-banner-right">
+            <h2 className="jobs-search-banner-title">Find the right one for you</h2>
+            <p className="jobs-search-banner-subtitle">
+              Discover livelihood support, emergency employment, and skills training opportunities designed for Marinduqueños.
+            </p>
+            <div className="jobs-search-input-wrapper">
+              <span className="jobs-search-icon">🔍</span>
+              <input
+                type="text"
+                className="jobs-search-input"
+                placeholder="Search by job title, employer, location, or type..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+              />
+              {searchQuery && (
+                <button className="search-clear-btn" onClick={clearSearch}>
+                  ✕
                 </button>
-              </article>
-            ))}
+              )}
+            </div>
           </div>
         </div>
-      </section>
 
-      <section className="available-jobs-section" id="available-jobs" ref={jobsRef}>
         <div className="section-heading-wrap">
           <span className="section-kicker">Available Jobs</span>
           <h2>Current employer openings</h2>
@@ -336,65 +420,112 @@ export default function Home() {
         </div>
 
         {jobsLoading ? (
-          <p className="section-loading">Loading available jobs...</p>
+          <div className="section-loading">
+            <p>Loading available jobs...</p>
+          </div>
+        ) : isSearching ? (
+          <div className="section-loading">
+            <p>Searching for "{searchQuery}"...</p>
+          </div>
+        ) : hasNoResults ? (
+          <div className="no-results-container">
+            <div className="no-results-icon">🔍</div>
+            <h3>No jobs found for "{searchQuery}"</h3>
+            <p>We couldn't find any matching jobs. Try adjusting your search terms.</p>
+            <div className="suggestions">
+              <p>💡 Suggestions:</p>
+              <ul>
+                <li>Check for typos or spelling errors</li>
+                <li>Use more general keywords (e.g., "assistant" instead of "admin assistant")</li>
+                <li>Try searching by job type (e.g., "full-time", "contract")</li>
+                <li>Browse all available jobs below</li>
+              </ul>
+            </div>
+            <button className="jobs-see-more-btn" onClick={clearSearch}>
+              View All Jobs
+            </button>
+          </div>
         ) : (
-          <div className="jobs-grid">
-            {featuredJobs.map((job, index) => {
-              const title = job.title || "Untitled Position";
-              const jobId = job._id || job.id || title;
-              const employerName = getEmployerName(job);
-              const description = getJobDescription(job);
-              const jobType = job.jobType || job.type || "Full-time";
-              const salary = job.salary || "Salary negotiable";
-              const status = getJobStatus(job);
-              const postedLabel = getPostedLabel(job.createdAt);
+          <>
+            {searchQuery && (
+              <div className="search-summary">
+                <p>
+                  Found <strong>{filteredJobs.length}</strong> job{filteredJobs.length !== 1 ? 's' : ''} 
+                  matching "<strong>{searchQuery}</strong>"
+                </p>
+                <button className="clear-search-link" onClick={clearSearch}>
+                  Clear search
+                </button>
+              </div>
+            )}
+            
+            <div className="jobs-grid-v2">
+              {filteredJobs.length > 0 ? (
+                filteredJobs.map((job, index) => {
+                  const title = job?.title || "Untitled Position";
+                  const jobId = job?._id || job?.id || title;
+                  const employerName = getEmployerName(job) || "Employer";
+                  const status = getJobStatus(job);
+                  const employerInitial = employerName.charAt(0).toUpperCase() || "E";
 
-              return (
-                <article
-                  key={jobId}
-                  className={`job-preview-card job-preview-card--clickable ${status.variant === "closing" ? "job-preview-card--closing" : "job-preview-card--open"} ${visibleCards[jobId] ? "is-visible" : ""}`}
-                  data-fade-card="true"
-                  data-card-id={jobId}
-                  style={{ "--card-delay": `${index * 90}ms` }}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleViewJob(job)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      handleViewJob(job);
-                    }
-                  }}
-                >
-                  <div className="job-preview-header">
-                    <div className="job-preview-header-copy">
-                      <p className="job-preview-employer">{employerName}</p>
-                      <h3>{title}</h3>
-                    </div>
-                    <span className="job-preview-status">
-                      <span className="job-preview-status-dot" aria-hidden="true"></span>
-                      {status.label}
-                    </span>
-                  </div>
-                  <p className="job-preview-meta">{jobType} · {job.location || "Marinduque"} · {salary}</p>
-                  <p className="job-preview-posted">{postedLabel}</p>
-                  <p className="job-preview-description">{description}</p>
-                  <div className="job-preview-actions">
-                    <button
-                      type="button"
-                      className="job-preview-btn job-preview-btn-primary"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleViewJob(job);
+                  return (
+                    <article
+                      key={jobId}
+                      className={`job-card-v2 ${visibleCards[jobId] ? "is-visible" : ""} ${status.variant === "closing" ? "job-card-v2--closing" : ""}`}
+                      data-fade-card="true"
+                      data-card-id={jobId}
+                      style={{ "--card-delay": `${index * 90}ms` }}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleViewJob(job)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleViewJob(job);
+                        }
                       }}
                     >
-                      View Details
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+                      <div className="job-card-v2-status">
+                        <span className={`job-card-v2-status-dot job-card-v2-status-dot--${status.variant}`}></span>
+                        {status.variant === "closing" ? "closing" : "open"}
+                      </div>
+                      
+                      <div className="job-card-v2-logo">
+                        <div className="job-card-v2-logo-circle">
+                          {employerInitial}
+                        </div>
+                      </div>
+                      
+                      <h3 className="job-card-v2-employer">{employerName}</h3>
+                      <p className="job-card-v2-title">{title}</p>
+                      
+                      <button 
+                        className="job-card-v2-button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleViewJob(job);
+                        }}
+                      >
+                        view details
+                      </button>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="no-results-container">
+                  <div className="no-results-icon">🔍</div>
+                  <h3>No jobs available</h3>
+                  <p>There are currently no job postings. Please check back later.</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="jobs-see-more-wrapper">
+              <button className="jobs-see-more-btn" onClick={() => navigate("/jobs")}>
+                See More Jobs
+              </button>
+            </div>
+          </>
         )}
       </section>
 
@@ -461,55 +592,85 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="how-it-works">
-        <h2>How It Works</h2>
-        <div className="steps">
-          <div className="step">
-            <div className="step-number">1</div>
-            <h3>Register</h3>
-            <p>Create an account as a job seeker or employer.</p>
-          </div>
-          <div className="step">
-            <div className="step-number">2</div>
-            <h3>Login</h3>
-            <p>Sign in with your credentials.</p>
-          </div>
-          <div className="step">
-            <div className="step-number">3</div>
-            <h3>Apply</h3>
-            <p>Upload your resume and submit applications.</p>
-          </div>
-          <div className="step">
-            <div className="step-number">4</div>
-            <h3>Manage</h3>
-            <p>Employers review applicants and admins monitor analytics.</p>
+      <section className="how-it-works-v2">
+        <div className="how-it-works-v2-container">
+          <h2 className="how-it-works-v2-title">How it Works</h2>
+          
+          <div className="how-it-works-v2-layout">
+            <div className="how-it-works-v2-steps">
+              <div className="how-it-works-v2-step-card">
+                <div className="how-it-works-v2-step-number">1</div>
+                <h3 className="how-it-works-v2-step-title">Register</h3>
+                <p className="how-it-works-v2-step-description">
+                  Create an account as a job seeker or employer.
+                </p>
+              </div>
+              
+              <div className="how-it-works-v2-step-card">
+                <div className="how-it-works-v2-step-number">2</div>
+                <h3 className="how-it-works-v2-step-title">Login</h3>
+                <p className="how-it-works-v2-step-description">
+                  Sign in with your credentials.
+                </p>
+              </div>
+              
+              <div className="how-it-works-v2-step-card">
+                <div className="how-it-works-v2-step-number">3</div>
+                <h3 className="how-it-works-v2-step-title">Apply</h3>
+                <p className="how-it-works-v2-step-description">
+                  Upload your resume and submit applications.
+                </p>
+              </div>
+              
+              <div className="how-it-works-v2-step-card">
+                <div className="how-it-works-v2-step-number">4</div>
+                <h3 className="how-it-works-v2-step-title">Manage</h3>
+                <p className="how-it-works-v2-step-description">
+                  Employers review applicants and admins monitor analytics.
+                </p>
+              </div>
+            </div>
+            
+            <div className="how-it-works-v2-video-wrapper">
+              <div className="how-it-works-v2-video-card">
+                <iframe
+                  className="how-it-works-v2-video"
+                  src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                  title="How it works video"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <div className="bottom-green-section">
-        <div className="bottom-beige-bar"></div>
-
-        <div className="bottom-green-content">
-          <div className="bottom-yellow-accent"></div>
-          <div className="bottom-bg-overlay"></div>
-
-          <div className="bottom-inner-container">
-            <div className="bottom-yellow-box">
-              <img src={pesoLogo} alt="PESO Marinduque Logo" className="bottom-logo" />
+      <footer className="footer-v2">
+        <div className="footer-v2-background-overlay"></div>
+        
+        <div className="footer-v2-content">
+          <div className="footer-v2-logos">
+            <div className="footer-v2-yellow-box">
+              <img src={pesoLogo} alt="PESO Marinduque Logo" className="footer-v2-logo-img" />
             </div>
-
-            <div className="bottom-text-content">
-              <h1 className="bottom-main-title">STRAM PESO</h1>
-              <p className="bottom-subtitle">Lalawigan ng Marinduque</p>
+            <div className="footer-v2-seal">
+              <img src={provincialSeal} alt="Provincial Seal" className="footer-v2-seal-img" />
             </div>
           </div>
-
-          <div className="bottom-footer">
-            <p>© 2025 Provincial Government of Marinduque. All Rights Reserved.</p>
+          
+          <div className="footer-v2-text">
+            <p className="footer-v2-label">LIVELIHOOD MANPOWER DEVELOPMENT</p>
+            <h2 className="footer-v2-title">PUBLIC EMPLOYMENT SERVICE OFFICE</h2>
+            <p className="footer-v2-subtitle">Ialawigan ng Marinduque</p>
           </div>
         </div>
-      </div>
+        
+        <div className="footer-v2-copyright">
+          <p>© 2025 Provincial Government of Marinduque. All Rights Reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 }

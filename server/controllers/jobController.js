@@ -4,6 +4,16 @@ const User = require("../models/User");
 const Message = require("../models/Message");
 const { ensureConversationBetweenUsers } = require("./messageController");
 const { getHomepageJobsPayload, getApplicationCountMap } = require("../utils/jobDisplay");
+const fs = require("fs");
+const path = require("path");
+
+// Simple logger that uses console (no external dependency)
+const logger = {
+  info: (...args) => console.log("[INFO]", ...args),
+  error: (...args) => console.error("[ERROR]", ...args),
+  warn: (...args) => console.warn("[WARN]", ...args),
+  debug: (...args) => console.debug("[DEBUG]", ...args),
+};
 
 exports.createJob = async (req, res) => {
   try {
@@ -24,9 +34,15 @@ exports.createJob = async (req, res) => {
       employer: req.user.id,
     });
 
+    logger.info(`Job created: ${job._id} by user ${req.user.id}`);
     res.json({ message: "Job posted successfully", job });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    logger.error("Create job error:", { userId: req.user?.id, error: error.message });
+    res.status(500).json({ 
+      message: process.env.NODE_ENV === "production" 
+        ? "Failed to create job posting" 
+        : error.message 
+    });
   }
 };
 
@@ -44,7 +60,8 @@ exports.getJobs = async (req, res) => {
 
     res.json(jobsWithCounts);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    logger.error("Get jobs error:", error.message);
+    res.status(500).json({ message: "Failed to fetch jobs" });
   }
 };
 
@@ -57,7 +74,8 @@ exports.getHomepageJobs = async (req, res) => {
     const featuredJobs = await getHomepageJobsPayload(jobs, 4);
     res.json(featuredJobs);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    logger.error("Get homepage jobs error:", error.message);
+    res.status(500).json({ message: "Failed to fetch featured jobs" });
   }
 };
 
@@ -73,7 +91,8 @@ exports.getJobById = async (req, res) => {
       applicationCount: Number(countMap[String(job._id)] || 0),
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    logger.error("Get job by ID error:", { jobId: req.params.id, error: error.message });
+    res.status(500).json({ message: "Failed to fetch job details" });
   }
 };
 
@@ -99,9 +118,15 @@ exports.updateJob = async (req, res) => {
     };
 
     const updatedJob = await JobVacancy.findByIdAndUpdate(req.params.id, updates, { new: true });
+    logger.info(`Job updated: ${req.params.id} by user ${req.user.id}`);
     res.json({ message: "Job updated", job: updatedJob });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    logger.error("Update job error:", { jobId: req.params.id, error: error.message });
+    res.status(500).json({ 
+      message: process.env.NODE_ENV === "production" 
+        ? "Failed to update job" 
+        : error.message 
+    });
   }
 };
 
@@ -115,35 +140,86 @@ exports.deleteJob = async (req, res) => {
     }
 
     await JobVacancy.findByIdAndDelete(req.params.id);
+    logger.info(`Job deleted: ${req.params.id} by user ${req.user.id}`);
     res.json({ message: "Job posting removed" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    logger.error("Delete job error:", { jobId: req.params.id, error: error.message });
+    res.status(500).json({ message: "Failed to delete job" });
   }
 };
 
 exports.applyToJob = async (req, res) => {
+  let uploadedFile = req.file;
+  const session = await JobApplication.startSession();
+
   try {
     const job = await JobVacancy.findById(req.params.id);
-    if (!job) return res.status(404).json({ message: "Job not found" });
+    if (!job) {
+      // Clean up uploaded file if job not found
+      if (uploadedFile && fs.existsSync(uploadedFile.path)) {
+        fs.unlinkSync(uploadedFile.path);
+        logger.info(`Cleaned up orphan file: ${uploadedFile.path}`);
+      }
+      return res.status(404).json({ message: "Job not found" });
+    }
 
+    session.startTransaction();
+
+    // Check for existing application with write lock
     const existingApplication = await JobApplication.findOne({
       applicant: req.user.id,
       vacancy: job._id,
-    });
+    }).session(session);
+
     if (existingApplication) {
+      // Clean up uploaded file
+      if (uploadedFile && fs.existsSync(uploadedFile.path)) {
+        fs.unlinkSync(uploadedFile.path);
+      }
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ message: "You have already applied to this job" });
     }
 
-    const application = await JobApplication.create({
+    // Create application
+    const application = await JobApplication.create([{
       applicant: req.user.id,
       vacancy: job._id,
-      resume: req.file ? `uploads/${req.file.filename}` : undefined,
+      resume: req.file ? req.file.path : undefined,
       coverLetter: req.body.coverLetter || "",
+    }], { session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    logger.info(`Application submitted: ${application[0]._id} for job ${job._id} by user ${req.user.id}`);
+    res.json({ message: "Application submitted successfully", application: application[0] });
+  } catch (error) {
+    // Clean up uploaded file on error
+    if (uploadedFile && fs.existsSync(uploadedFile.path)) {
+      try {
+        fs.unlinkSync(uploadedFile.path);
+        logger.info(`Cleaned up orphan file on error: ${uploadedFile.path}`);
+      } catch (unlinkError) {
+        logger.error("Failed to delete uploaded file:", unlinkError);
+      }
+    }
+
+    await session.abortTransaction();
+    session.endSession();
+
+    logger.error("Application submission error:", { 
+      userId: req.user?.id, 
+      jobId: req.params.id, 
+      error: error.message,
+      stack: error.stack 
     });
 
-    res.json({ message: "Application submitted successfully", application });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      message: process.env.NODE_ENV === "production" 
+        ? "Failed to submit application. Please try again later." 
+        : error.message 
+    });
   }
 };
 
@@ -185,7 +261,8 @@ exports.getApplicationsForJob = async (req, res) => {
 
     res.json(applications);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    logger.error("Get applications error:", { jobId: req.params.id, error: error.message });
+    res.status(500).json({ message: "Failed to fetch applications" });
   }
 };
 
@@ -239,7 +316,8 @@ exports.getMyApplications = async (req, res) => {
 
     res.json(normalized);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    logger.error("Get my applications error:", { userId: req.user.id, error: error.message });
+    res.status(500).json({ message: "Failed to fetch your applications" });
   }
 };
 
@@ -259,7 +337,15 @@ exports.updateMyApplication = async (req, res) => {
     }
 
     if (req.file) {
-      application.resume = `uploads/${req.file.filename}`;
+      // Delete old resume if exists
+      if (application.resume && fs.existsSync(application.resume)) {
+        try {
+          fs.unlinkSync(application.resume);
+        } catch (unlinkError) {
+          logger.error("Failed to delete old resume:", unlinkError);
+        }
+      }
+      application.resume = req.file.path;
     }
 
     await application.save();
@@ -294,9 +380,15 @@ exports.updateMyApplication = async (req, res) => {
       }
     }
 
+    logger.info(`Application updated: ${req.params.id} by user ${req.user.id}`);
     res.json({ message: "Application updated successfully", application: normalizedApplication });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    logger.error("Update application error:", { applicationId: req.params.id, error: error.message });
+    res.status(500).json({ 
+      message: process.env.NODE_ENV === "production" 
+        ? "Failed to update application" 
+        : error.message 
+    });
   }
 };
 
@@ -311,10 +403,21 @@ exports.deleteMyApplication = async (req, res) => {
       return res.status(403).json({ message: "You can only delete your own applications" });
     }
 
+    // Delete resume file if exists
+    if (application.resume && fs.existsSync(application.resume)) {
+      try {
+        fs.unlinkSync(application.resume);
+      } catch (unlinkError) {
+        logger.error("Failed to delete resume on application deletion:", unlinkError);
+      }
+    }
+
     await JobApplication.findByIdAndDelete(application._id);
+    logger.info(`Application deleted: ${req.params.id} by user ${req.user.id}`);
     res.json({ message: "Application withdrawn successfully", id: application._id });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    logger.error("Delete application error:", { applicationId: req.params.id, error: error.message });
+    res.status(500).json({ message: "Failed to delete application" });
   }
 };
 
@@ -323,6 +426,7 @@ exports.getEmployerJobs = async (req, res) => {
     const jobs = await JobVacancy.find({ employer: req.user.id }).sort({ createdAt: -1 });
     res.json(jobs);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    logger.error("Get employer jobs error:", { userId: req.user.id, error: error.message });
+    res.status(500).json({ message: "Failed to fetch your jobs" });
   }
 };

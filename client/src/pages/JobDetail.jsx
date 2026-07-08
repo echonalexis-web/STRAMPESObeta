@@ -1,9 +1,11 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { jobAPI } from "../services/api";
 import "../styles/report.css";
 import AppModal from "../components/AppModal";
+import CoverLetterBuilder from "../components/CoverLetterBuilder.jsx";
+import "../styles/coverLetterBuilder.css";
 
 export default function JobDetail() {
   const { id } = useParams();
@@ -13,10 +15,17 @@ export default function JobDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [coverLetter, setCoverLetter] = useState("");
   const [resumeFile, setResumeFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [coverLetter, setCoverLetter] = useState("");
+  const [coverLetterError, setCoverLetterError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const MAX_COVER_LETTER_LENGTH = 1000;
+  const MIN_COVER_LETTER_LENGTH = 10;
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
   useEffect(() => {
     const fetchJob = async () => {
@@ -41,31 +50,137 @@ export default function JobDetail() {
     });
   };
 
+  const handleCoverLetterChange = (text) => {
+    setCoverLetter(text);
+    if (coverLetterError) setCoverLetterError("");
+  };
+
+  const validateCoverLetter = (text) => {
+    const trimmed = text.trim();
+    const errors = [];
+
+    if (trimmed.length === 0) {
+      errors.push("Cover letter is required");
+    } else if (trimmed.length < MIN_COVER_LETTER_LENGTH) {
+      errors.push(`Cover letter must be at least ${MIN_COVER_LETTER_LENGTH} characters (current: ${trimmed.length})`);
+    } else if (trimmed.length > MAX_COVER_LETTER_LENGTH) {
+      errors.push(`Cover letter cannot exceed ${MAX_COVER_LETTER_LENGTH} characters (current: ${trimmed.length})`);
+    }
+
+    const suspiciousPatterns = [
+      /<script/i,
+      /javascript:/i,
+      /onerror\s*=/i,
+      /onload\s*=/i,
+      /<iframe/i,
+      /<object/i,
+      /<embed/i,
+      /data:text\/html/i,
+      /vbscript:/i,
+      /expression\s*\(/i,
+      /onclick\s*=/i,
+      /onmouseover\s*=/i,
+      /alert\s*\(/i,
+      /eval\s*\(/i,
+      /document\./i,
+      /window\./i
+    ];
+
+    for (const pattern of suspiciousPatterns) {
+      if (pattern.test(trimmed)) {
+        errors.push("Cover letter contains suspicious or malicious content");
+        break;
+      }
+    }
+
+    return errors;
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      setError(`File size exceeds 5MB limit. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB. Please compress your file.`);
+      e.target.value = '';
+      setResumeFile(null);
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    
+    if (!allowedTypes.includes(file.type)) {
+      setError("Invalid file type. Please upload PDF, DOC, or DOCX files.");
+      e.target.value = '';
+      setResumeFile(null);
+      return;
+    }
+
+    setResumeFile(file);
+    setError("");
+  };
+
   const handleApplyClick = async (e) => {
     e.preventDefault();
+
+    // Prevent double submission
+    if (isSubmitting || submitting) return;
 
     if (!user) {
       setShowAuthPrompt(true);
       return;
     }
 
+    const coverLetterErrors = validateCoverLetter(coverLetter);
+    if (coverLetterErrors.length > 0) {
+      const message = `Cover letter issue: ${coverLetterErrors[0]}. Please fix it before submitting.`;
+      setCoverLetterError(message);
+      setError(message);
+      return;
+    }
+
+    setIsSubmitting(true);
     setSubmitting(true);
     setError("");
     setSuccessMessage("");
+    setCoverLetterError("");
 
     try {
       const formData = new FormData();
       if (resumeFile) {
         formData.append("resume", resumeFile);
+      } else {
+        setError("Please upload your resume before applying.");
+        setIsSubmitting(false);
+        setSubmitting(false);
+        return;
       }
-      formData.append("coverLetter", coverLetter);
+      formData.append("coverLetter", coverLetter.trim());
       await jobAPI.applyToJob(id, formData);
       setSuccessMessage("Application submitted successfully!");
-      setTimeout(() => navigate("/dashboard"), 1200);
+      // Reset form
+      setResumeFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      setCoverLetter("");
+      setTimeout(() => navigate("/dashboard"), 1500);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to submit application");
-    } finally {
+      setIsSubmitting(false);
       setSubmitting(false);
+    } finally {
+      // Only reset if not navigating
+      if (!successMessage) {
+        setIsSubmitting(false);
+        setSubmitting(false);
+      }
     }
   };
 
@@ -81,10 +196,6 @@ export default function JobDetail() {
 
   const employerName = job?.employer?.companyName || job?.employer?.name || "Employer";
   const employerDescription = job?.employer?.companyDescription || "No employer description provided.";
-
-  const handleSubmit = async (e) => {
-    handleApplyClick(e);
-  };
 
   if (loading) return <div className="report-container"><p>Loading job details...</p></div>;
 
@@ -162,39 +273,62 @@ export default function JobDetail() {
           <div className="apply-card">
             <h3>Apply for this Position</h3>
             {!user ? <p className="apply-card-note">Please log in or register to apply for this job.</p> : null}
-            <form onSubmit={handleSubmit} className="apply-form">
+            
+            <form onSubmit={handleApplyClick} className="apply-form">
               {user ? (
                 <>
                   <div className="form-group">
-                    <label htmlFor="coverLetter">Cover Letter</label>
-                    <textarea
-                      id="coverLetter"
+                    <label>Cover Letter</label>
+                    <CoverLetterBuilder
                       value={coverLetter}
-                      onChange={(e) => setCoverLetter(e.target.value)}
-                      rows="6"
-                      placeholder="Tell the employer why you're a good fit"
-                      className="form-control"
-                    ></textarea>
+                      onChange={handleCoverLetterChange}
+                      jobTitle={job?.title}
+                      companyName={job?.employer?.companyName}
+                      maxLength={MAX_COVER_LETTER_LENGTH}
+                      minLength={MIN_COVER_LETTER_LENGTH}
+                      error={coverLetterError}
+                    />
+                    {coverLetterError && (
+                      <p className="feedback-error cover-letter-feedback" aria-live="polite">
+                        {coverLetterError}
+                      </p>
+                    )}
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="resume">Upload Resume</label>
+                    <label htmlFor="resume">Upload Resume (PDF, DOC, DOCX - Max 5MB)</label>
                     <input
                       id="resume"
+                      ref={fileInputRef}
                       type="file"
                       accept=".pdf,.doc,.docx"
-                      onChange={(e) => setResumeFile(e.target.files[0])}
+                      onChange={handleFileChange}
                       className="file-input"
                     />
                     <label htmlFor="resume" className="file-input-label">Choose File</label>
                     <p className="file-name">{resumeFile ? resumeFile.name : "No file selected"}</p>
+                    {resumeFile && (
+                      <p className="file-size">
+                        Size: {(resumeFile.size / (1024 * 1024)).toFixed(2)} MB
+                      </p>
+                    )}
                   </div>
                 </>
               ) : null}
 
               <div className="form-group">
-                <button type="submit" disabled={submitting} className="btn-apply">
-                  {submitting ? "Applying..." : "Apply Now"}
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting || submitting} 
+                  className="btn-apply"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="spinner"></span> Applying...
+                    </>
+                  ) : (
+                    "Apply Now"
+                  )}
                 </button>
               </div>
 

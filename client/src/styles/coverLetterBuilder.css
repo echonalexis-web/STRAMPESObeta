@@ -1,0 +1,293 @@
+/* ============================================ */
+/* COVER LETTER BUILDER STYLES */
+/* ============================================ */
+
+.cover-letter-builder-wrapper {
+  width: 100%;
+}
+
+/* Template Selector */
+.template-selector {
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+  background: #f8faf9;
+  border-radius: 8px;
+  border: 1px solid #e3e8ee;
+}
+
+.template-selector label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #24303d;
+  margin-bottom: 0.6rem;
+}
+
+.template-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.template-btn {
+  border: 1px solid #d5dde5;
+  background: #fff;
+  color: #24303d;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.template-btn:hover {
+  background: #e8f3eb;
+  border-color: #1a5c2a;
+}
+
+.template-btn.active {
+  background: #1a5c2a;
+  border-color: #1a5c2a;
+  color: #fff;
+}
+
+.template-btn-clear {
+  border-color: #e5e7eb;
+  color: #6b7280;
+}
+
+.template-btn-clear:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+/* Builder Tabs */
+.builder-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+}
+
+.builder-tab {
+  background: transparent;
+  border: none;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.builder-tab:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.builder-tab.active {
+  color: #1a5c2a;
+  background: #e8f3eb;
+}
+
+/* Cover Letter Builder */
+.cover-letter-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.cover-letter-builder .form-group {
+  margin-bottom: 0;
+}
+
+.cover-letter-builder .form-group label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.cover-letter-builder .form-group label .char-count {
+  font-weight: 400;
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.cover-letter-builder .form-group .hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.2rem;
+  font-style: italic;
+}
+
+.cover-letter-builder .form-group textarea {
+  min-height: 60px;
+  font-size: 0.9rem;
+  padding: 0.6rem;
+  width: 100%;
+  border: 1px solid #d5dde5;
+  border-radius: 8px;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cover-letter-builder .form-group textarea:focus {
+  outline: none;
+  border-color: #1a5c2a;
+  box-shadow: 0 0 0 3px rgba(26, 92, 42, 0.14);
+}
+
+.cover-letter-builder .form-group textarea.is-warning {
+  border-color: #ffc107;
+}
+
+.cover-letter-builder .form-group textarea.is-warning:focus {
+  box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.14);
+}
+
+.cover-letter-builder .form-group textarea.is-invalid {
+  border-color: #dc3545;
+}
+
+.cover-letter-builder .form-group textarea.is-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.14);
+}
+
+.char-counter-small {
+  font-size: 0.7rem;
+  text-align: right;
+  margin-top: 0.2rem;
+}
+
+.char-counter-small .text-muted {
+  color: #6c757d;
+}
+
+.char-counter-small .text-warning {
+  color: #ffc107;
+}
+
+.char-counter-small .text-success {
+  color: #28a745;
+}
+
+.char-counter-small .text-danger {
+  color: #dc3545;
+}
+
+/* Cover Letter Preview */
+.cover-letter-preview {
+  background: #fafcfb;
+  border: 1px solid #e3e8ee;
+  border-radius: 8px;
+  padding: 1rem;
+  min-height: 250px;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.preview-header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.total-char-count {
+  font-size: 0.8rem;
+}
+
+.total-char-count .text-muted {
+  color: #6c757d;
+}
+
+.total-char-count .text-warning {
+  color: #ffc107;
+}
+
+.total-char-count .text-success {
+  color: #28a745;
+}
+
+.total-char-count .text-danger {
+  color: #dc3545;
+}
+
+.preview-content {
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: #1f2937;
+  min-height: 150px;
+  padding: 0.2rem;
+}
+
+.preview-content:empty::before {
+  content: "Your cover letter preview will appear here. Start building it in the 'Builder' tab.";
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Invalid feedback */
+.invalid-feedback {
+  color: #dc3545;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.invalid-feedback div {
+  margin-bottom: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .template-buttons {
+    flex-direction: column;
+  }
+  
+  .template-btn {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .builder-tabs {
+    justify-content: center;
+  }
+  
+  .builder-tab {
+    flex: 1;
+    text-align: center;
+  }
+  
+  .preview-header {
+    flex-direction: column;
+    gap: 0.4rem;
+    align-items: flex-start;
+  }
+  
+  .cover-letter-builder .form-group label {
+    font-size: 0.8rem;
+  }
+  
+  .cover-letter-builder .form-group textarea {
+    font-size: 0.85rem;
+    min-height: 50px;
+  }
+  
+  .preview-content {
+    font-size: 0.85rem;
+  }
+}

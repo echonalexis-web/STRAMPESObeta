@@ -1,7 +1,8 @@
-import { useContext, useMemo, useState } from "react";
+import { useContext, useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { authAPI } from "../../services/api";
+import "../../styles/onboarding.css";
 
 const suggestedSkills = [
   "Computer Literacy",
@@ -11,7 +12,14 @@ const suggestedSkills = [
   "Caregiving",
   "Typing",
   "Customer Service",
+  "Communication",
+  "Problem Solving",
+  "Teamwork",
+  "Leadership",
+  "Time Management",
 ];
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export default function JobSeekerOnboarding() {
   const { user, login } = useContext(AuthContext);
@@ -36,6 +44,20 @@ export default function JobSeekerOnboarding() {
   const [skillInput, setSkillInput] = useState("");
   const [resumeFile, setResumeFile] = useState(null);
   const [validIdFile, setValidIdFile] = useState(null);
+  const [resumeError, setResumeError] = useState("");
+  const [validIdError, setValidIdError] = useState("");
+
+  // Check if user is already onboarded
+  useEffect(() => {
+    if (user?.hasCompletedOnboarding === true || user?.onboardingComplete === true) {
+      const role = user?.role || "resident";
+      if (role === "employer") {
+        navigate("/employer-dashboard");
+      } else {
+        navigate("/dashboard");
+      }
+    }
+  }, [user, navigate]);
 
   const progress = useMemo(() => {
     const capped = Math.min(step, 4);
@@ -65,6 +87,57 @@ export default function JobSeekerOnboarding() {
     }
   };
 
+  const validateFile = (file, type) => {
+    if (!file) {
+      if (type === "resume") setResumeError("Resume file is required");
+      if (type === "validId") setValidIdError("Valid ID file is required");
+      return false;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      const errorMsg = `File size exceeds 5MB limit. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`;
+      if (type === "resume") setResumeError(errorMsg);
+      if (type === "validId") setValidIdError(errorMsg);
+      return false;
+    }
+
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (type === "resume" && !allowedTypes.includes(file.type)) {
+      setResumeError("Invalid file type. Please upload PDF, DOC, or DOCX files.");
+      return false;
+    }
+
+    const allowedTypesWithImages = [...allowedTypes, 'image/jpeg', 'image/png', 'image/jpg'];
+    if (type === "validId" && !allowedTypesWithImages.includes(file.type)) {
+      setValidIdError("Invalid file type. Please upload PDF, DOC, DOCX, JPG, or PNG files.");
+      return false;
+    }
+
+    if (type === "resume") setResumeError("");
+    if (type === "validId") setValidIdError("");
+    return true;
+  };
+
+  const handleResumeChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    if (file && validateFile(file, "resume")) {
+      setResumeFile(file);
+    } else {
+      setResumeFile(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleValidIdChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    if (file && validateFile(file, "validId")) {
+      setValidIdFile(file);
+    } else {
+      setValidIdFile(null);
+      e.target.value = '';
+    }
+  };
+
   const handleNext = () => {
     setError("");
     if (step === 2 && skills.length < 1) {
@@ -82,6 +155,16 @@ export default function JobSeekerOnboarding() {
   const submitProfile = async ({ skipDocs = false } = {}) => {
     setSaving(true);
     setError("");
+    
+    // Validate docs if not skipping
+    if (!skipDocs) {
+      if (!resumeFile && !skipDocs) {
+        setError("Please upload your resume or click 'Skip for now'");
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       const data = new FormData();
       data.append("name", form.name || "");
@@ -104,12 +187,12 @@ export default function JobSeekerOnboarding() {
 
       const { data: response } = await authAPI.updateProfile(data);
       const token = localStorage.getItem("token");
-      if (token) {
+      if (token && response.user) {
         login(token, response.user);
       }
       setStep(5);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to complete onboarding.");
+      setError(err.response?.data?.message || "Failed to complete onboarding. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -126,23 +209,43 @@ export default function JobSeekerOnboarding() {
         </>
       )}
 
-      {error && <div className="onboarding-error">{error}</div>}
+      {error && (
+        <div className="onboarding-error" role="alert">
+          {error}
+        </div>
+      )}
 
       {step === 1 && (
         <div className="onboarding-step">
           <h2>Personal Details</h2>
+          <p className="onboarding-subtitle">Tell us about yourself so employers can get to know you.</p>
           <div className="onboarding-fields">
             <label>
               Full Name
-              <input type="text" value={form.name} onChange={(e) => updateField("name", e.target.value)} />
+              <input 
+                type="text" 
+                value={form.name} 
+                onChange={(e) => updateField("name", e.target.value)} 
+                disabled={saving}
+              />
             </label>
             <label>
               Phone Number
-              <input type="text" value={form.phone} onChange={(e) => updateField("phone", e.target.value)} />
+              <input 
+                type="tel" 
+                value={form.phone} 
+                onChange={(e) => updateField("phone", e.target.value)} 
+                disabled={saving}
+              />
             </label>
             <label>
               Date of Birth
-              <input type="date" value={form.dateOfBirth} onChange={(e) => updateField("dateOfBirth", e.target.value)} />
+              <input 
+                type="date" 
+                value={form.dateOfBirth} 
+                onChange={(e) => updateField("dateOfBirth", e.target.value)} 
+                disabled={saving}
+              />
             </label>
             <div>
               <span className="onboarding-label">Gender</span>
@@ -153,6 +256,7 @@ export default function JobSeekerOnboarding() {
                     type="button"
                     className={`pill-btn ${form.gender === option ? "active" : ""}`}
                     onClick={() => updateField("gender", option)}
+                    disabled={saving}
                   >
                     {option}
                   </button>
@@ -161,7 +265,12 @@ export default function JobSeekerOnboarding() {
             </div>
             <label>
               Home Address / Municipality
-              <input type="text" value={form.address} onChange={(e) => updateField("address", e.target.value)} />
+              <input 
+                type="text" 
+                value={form.address} 
+                onChange={(e) => updateField("address", e.target.value)} 
+                disabled={saving}
+              />
             </label>
           </div>
         </div>
@@ -170,6 +279,7 @@ export default function JobSeekerOnboarding() {
       {step === 2 && (
         <div className="onboarding-step">
           <h2>What are your skills?</h2>
+          <p className="onboarding-subtitle">Add skills that showcase your abilities and experience.</p>
           <div className="skills-entry-row">
             <input
               type="text"
@@ -177,22 +287,37 @@ export default function JobSeekerOnboarding() {
               placeholder="Type a skill and press Enter"
               onChange={(e) => setSkillInput(e.target.value)}
               onKeyDown={handleSkillKeyDown}
+              disabled={saving}
             />
-            <button type="button" className="onboarding-add-btn" onClick={handleAddSkill}>Add</button>
+            <button type="button" className="onboarding-add-btn" onClick={handleAddSkill} disabled={saving}>
+              Add
+            </button>
           </div>
           <div className="skills-tags-wrap">
             {skills.map((skill) => (
               <span key={skill} className="skill-pill">
                 {skill}
-                <button type="button" onClick={() => setSkills((prev) => prev.filter((s) => s !== skill))}>x</button>
+                <button 
+                  type="button" 
+                  onClick={() => setSkills((prev) => prev.filter((s) => s !== skill))}
+                  disabled={saving}
+                >
+                  ×
+                </button>
               </span>
             ))}
           </div>
           <p className="onboarding-hint">Suggestions:</p>
           <div className="suggestions-row">
             {suggestedSkills.map((skill) => (
-              <button key={skill} type="button" className="suggestion-chip" onClick={() => addSkill(skill)}>
-                {skill}
+              <button 
+                key={skill} 
+                type="button" 
+                className="suggestion-chip" 
+                onClick={() => addSkill(skill)}
+                disabled={saving}
+              >
+                + {skill}
               </button>
             ))}
           </div>
@@ -202,14 +327,25 @@ export default function JobSeekerOnboarding() {
       {step === 3 && (
         <div className="onboarding-step">
           <h2>Work Background</h2>
+          <p className="onboarding-subtitle">Share your professional background and career goals.</p>
           <div className="onboarding-fields">
             <label>
               Desired Job Title
-              <input type="text" value={form.desiredJobTitle} onChange={(e) => updateField("desiredJobTitle", e.target.value)} />
+              <input 
+                type="text" 
+                value={form.desiredJobTitle} 
+                onChange={(e) => updateField("desiredJobTitle", e.target.value)} 
+                disabled={saving}
+                placeholder="e.g. Administrative Assistant"
+              />
             </label>
             <label>
               Educational Attainment
-              <select value={form.educationalAttainment} onChange={(e) => updateField("educationalAttainment", e.target.value)}>
+              <select 
+                value={form.educationalAttainment} 
+                onChange={(e) => updateField("educationalAttainment", e.target.value)}
+                disabled={saving}
+              >
                 <option value="">Select</option>
                 <option value="Elementary Graduate">Elementary Graduate</option>
                 <option value="High School Graduate">High School Graduate</option>
@@ -223,7 +359,11 @@ export default function JobSeekerOnboarding() {
             </label>
             <label>
               Work Experience
-              <select value={form.workExperience} onChange={(e) => updateField("workExperience", e.target.value)}>
+              <select 
+                value={form.workExperience} 
+                onChange={(e) => updateField("workExperience", e.target.value)}
+                disabled={saving}
+              >
                 <option value="">Select</option>
                 <option value="Fresh Graduate">Fresh Graduate</option>
                 <option value="Less than 1 year">Less than 1 year</option>
@@ -241,6 +381,7 @@ export default function JobSeekerOnboarding() {
                     type="button"
                     className={`pill-btn ${form.availabilityStatus === option ? "active" : ""}`}
                     onClick={() => updateField("availabilityStatus", option)}
+                    disabled={saving}
                   >
                     {option}
                   </button>
@@ -254,17 +395,37 @@ export default function JobSeekerOnboarding() {
       {step === 4 && (
         <div className="onboarding-step">
           <h2>Upload Documents</h2>
+          <p className="onboarding-subtitle">Upload your resume and valid ID to complete your profile.</p>
           <div className="onboarding-fields">
             <label>
-              Resume upload (PDF/DOC)
-              <input type="file" accept=".pdf,.doc,.docx" onChange={(e) => setResumeFile(e.target.files?.[0] || null)} />
+              Resume upload (PDF, DOC, DOCX - Max 5MB)
+              <input 
+                type="file" 
+                accept=".pdf,.doc,.docx" 
+                onChange={handleResumeChange}
+                disabled={saving}
+              />
+              {resumeError && <span className="onboarding-field-error">{resumeError}</span>}
+              {resumeFile && <span className="file-upload-success">✓ {resumeFile.name}</span>}
             </label>
             <label>
-              Valid ID upload
-              <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={(e) => setValidIdFile(e.target.files?.[0] || null)} />
+              Valid ID upload (PDF, DOC, DOCX, JPG, PNG - Max 5MB)
+              <input 
+                type="file" 
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" 
+                onChange={handleValidIdChange}
+                disabled={saving}
+              />
+              {validIdError && <span className="onboarding-field-error">{validIdError}</span>}
+              {validIdFile && <span className="file-upload-success">✓ {validIdFile.name}</span>}
             </label>
           </div>
-          <button type="button" className="skip-link" onClick={() => submitProfile({ skipDocs: true })} disabled={saving}>
+          <button 
+            type="button" 
+            className="skip-link" 
+            onClick={() => submitProfile({ skipDocs: true })} 
+            disabled={saving}
+          >
             Skip for now
           </button>
         </div>
@@ -272,27 +433,54 @@ export default function JobSeekerOnboarding() {
 
       {step === 5 && (
         <div className="onboarding-step onboarding-success-step">
-          <div className="success-icon">OK</div>
+          <div className="success-icon">✓</div>
           <h2>You're all set, {form.name || "Job Seeker"}!</h2>
-          <p>Your profile is ready.</p>
+          <p>Your profile is ready. Start exploring opportunities now.</p>
           <div className="onboarding-nav">
-            <button type="button" className="onboarding-primary" onClick={() => navigate("/profile")}>View My Profile</button>
-            <button type="button" className="onboarding-secondary" onClick={() => navigate("/jobs")}>Browse Jobs</button>
+            <button 
+              type="button" 
+              className="onboarding-primary" 
+              onClick={() => navigate("/profile")}
+            >
+              View My Profile
+            </button>
+            <button 
+              type="button" 
+              className="onboarding-secondary" 
+              onClick={() => navigate("/jobs")}
+            >
+              Browse Jobs
+            </button>
           </div>
         </div>
       )}
 
       {step <= 4 && (
         <div className="onboarding-nav">
-          <button type="button" className="onboarding-secondary" onClick={handleBack} disabled={step === 1 || saving}>
+          <button 
+            type="button" 
+            className="onboarding-secondary" 
+            onClick={handleBack} 
+            disabled={step === 1 || saving}
+          >
             Back
           </button>
           {step < 4 ? (
-            <button type="button" className="onboarding-primary" onClick={handleNext}>
+            <button 
+              type="button" 
+              className="onboarding-primary" 
+              onClick={handleNext}
+              disabled={saving}
+            >
               Next
             </button>
           ) : (
-            <button type="button" className="onboarding-primary" onClick={() => submitProfile()} disabled={saving}>
+            <button 
+              type="button" 
+              className="onboarding-primary" 
+              onClick={() => submitProfile()} 
+              disabled={saving}
+            >
               {saving ? "Finishing..." : "Finish Setup"}
             </button>
           )}

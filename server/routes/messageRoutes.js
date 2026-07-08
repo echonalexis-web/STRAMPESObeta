@@ -9,13 +9,39 @@ const {
   searchUsers,
 } = require("../controllers/messageController");
 const { verifyToken: protect } = require("../middleware/auth");
+const {
+  validateMessage,
+  validateRequest,
+  sanitizeRequestBody,
+  sanitizeQueryParams,
+  validateMongoId
+} = require("../middleware/validation");
+const { detectMaliciousPayload } = require("../middleware/security");
 
-router.get("/users/search", protect, searchUsers);
-router.post("/conversations", protect, createConversation);
-router.get("/conversations", protect, getConversations);
-router.get("/conversations/:conversationId/messages", protect, getMessages);
-router.post("/conversations/:conversationId/messages", protect, sendMessage);
-router.delete("/conversations/:conversationId", protect, deleteConversation);
-router.get("/unread-count", protect, getUnreadCount);
+// All message routes require authentication
+router.use(protect);
+
+// Search users
+router.get("/users/search", sanitizeQueryParams, searchUsers);
+
+// Conversations
+router.get("/conversations", sanitizeQueryParams, getConversations);
+router.post("/conversations", sanitizeRequestBody, detectMaliciousPayload, createConversation);
+router.delete("/conversations/:conversationId", validateMongoId("conversationId"), deleteConversation);
+
+// Messages
+router.get("/conversations/:conversationId/messages", validateMongoId("conversationId"), sanitizeQueryParams, getMessages);
+router.post(
+  "/conversations/:conversationId/messages",
+  validateMongoId("conversationId"),
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  validateMessage,
+  validateRequest,
+  sendMessage
+);
+
+// Unread count
+router.get("/unread-count", getUnreadCount);
 
 module.exports = router;

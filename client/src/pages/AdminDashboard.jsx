@@ -18,25 +18,49 @@ import {
 import { AuthContext } from "../context/AuthContext";
 import { adminAPI } from "../services/api";
 import "../styles/admin.css";
+import { 
+  FaUsers, 
+  FaBuilding, 
+  FaUser, 
+  FaBriefcase, 
+  FaFileAlt, 
+  FaCheckCircle, 
+  FaSearch, 
+  FaPlus, 
+  FaCopy,
+  FaTimes,
+  FaEllipsisV,
+  FaEye,
+  FaUserCheck,
+  FaUserSlash,
+  FaTrash,
+  FaShieldAlt,
+  FaStar,
+  FaChartLine,
+  FaCalendarAlt,
+  FaEnvelope,
+  FaPhone,
+  FaMapMarkerAlt,
+  FaUserCircle
+} from "react-icons/fa";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const STATUS_COLORS = {
-  pending: "#9ca3af",
-  reviewed: "#2563eb",
-  shortlisted: "#d97706",
+  pending: "#f59e0b",
+  reviewed: "#3b82f6",
+  shortlisted: "#8b5cf6",
   rejected: "#ef4444",
-  hired: "#16a34a",
+  hired: "#22c55e",
 };
 
 const TABS = [
-  { label: "All", value: "" },
+  { label: "All Users", value: "" },
   { label: "Employers", value: "employer" },
   { label: "Job Seekers", value: "resident" },
   { label: "Admins", value: "admin" },
 ];
 
 const PAGE_LIMIT = 10;
-const ACTION_MENU_WIDTH = 180;
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -77,7 +101,7 @@ function ActionsMenu({ row, isBusy, onDeactivate, onReactivate, onDelete, onTogg
       ? Math.max(8, rect.top - measuredHeight - 4)
       : Math.min(window.innerHeight - measuredHeight - 8, rect.bottom + 4);
 
-    const left = Math.max(8, rect.right - ACTION_MENU_WIDTH);
+    const left = Math.max(8, rect.right - 200);
 
     setMenuPosition({ top, left });
   }, [menuHeight]);
@@ -141,77 +165,45 @@ function ActionsMenu({ row, isBusy, onDeactivate, onReactivate, onDelete, onTogg
         onClick={handleToggle}
         disabled={isBusy}
       >
-        •••
+        <FaEllipsisV />
       </button>
 
       {open &&
         createPortal(
           <div
             ref={menuRef}
-            className="admin-action-menu admin-action-menu-portal"
+            className="admin-action-menu"
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
             }}
             data-direction={openUpward ? "up" : "down"}
           >
-            <button
-              type="button"
-              onClick={() => {
-                closeMenu();
-                window.alert(`${row.name}\n${row.email}`);
-              }}
-            >
-              View Profile
+            <button onClick={() => { closeMenu(); window.alert(`${row.name}\n${row.email}`); }}>
+              <FaEye /> View Profile
             </button>
 
             {row.role === "employer" ? (
-              <button
-                type="button"
-                onClick={() => {
-                  closeMenu();
-                  onToggleVerification();
-                }}
-              >
-                {row.verificationStatus === "verified" ? "Revoke Verification" : "Verify Employer"}
+              <button onClick={() => { closeMenu(); onToggleVerification(); }}>
+                <FaShieldAlt /> {row.verificationStatus === "verified" ? "Revoke Verification" : "Verify Employer"}
               </button>
             ) : null}
 
             {canManage ? (
               isActive ? (
-                <button
-                  type="button"
-                  className="danger"
-                  onClick={() => {
-                    closeMenu();
-                    onDeactivate();
-                  }}
-                >
-                  Deactivate
+                <button className="danger" onClick={() => { closeMenu(); onDeactivate(); }}>
+                  <FaUserSlash /> Deactivate
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeMenu();
-                    onReactivate();
-                  }}
-                >
-                  Reactivate
+                <button onClick={() => { closeMenu(); onReactivate(); }}>
+                  <FaUserCheck /> Reactivate
                 </button>
               )
             ) : null}
 
             {canManage ? (
-              <button
-                type="button"
-                className="danger"
-                onClick={() => {
-                  closeMenu();
-                  onDelete();
-                }}
-              >
-                Delete
+              <button className="danger" onClick={() => { closeMenu(); onDelete(); }}>
+                <FaTrash /> Delete
               </button>
             ) : null}
           </div>,
@@ -261,7 +253,6 @@ export default function AdminDashboard() {
       setSearch(searchInput.trim());
       setCurrentPage(1);
     }, 350);
-
     return () => clearTimeout(timer);
   }, [searchInput]);
 
@@ -331,12 +322,12 @@ export default function AdminDashboard() {
     if (!analytics) return [];
 
     return [
-      { label: "Total Accounts", icon: "👥", value: analytics.totalAccounts, accent: "#16a34a" },
-      { label: "Total Employers", icon: "🏢", value: analytics.totalEmployers, accent: "#2563eb" },
-      { label: "Total Job Seekers", icon: "👤", value: analytics.totalJobSeekers, accent: "#7c3aed" },
-      { label: "Total Vacancies", icon: "📋", value: analytics.totalVacancies, accent: "#d97706" },
-      { label: "Total Applications", icon: "📨", value: analytics.totalApplications, accent: "#0891b2" },
-      { label: "Verified Employers", icon: "✓", value: analytics.verifiedEmployers, accent: "#16a34a" },
+      { label: "Total Accounts", icon: <FaUsers />, value: analytics.totalAccounts, color: "#22c55e", bg: "#dcfce7" },
+      { label: "Total Employers", icon: <FaBuilding />, value: analytics.totalEmployers, color: "#3b82f6", bg: "#dbeafe" },
+      { label: "Job Seekers", icon: <FaUser />, value: analytics.totalJobSeekers, color: "#8b5cf6", bg: "#ede9fe" },
+      { label: "Vacancies", icon: <FaBriefcase />, value: analytics.totalVacancies, color: "#f59e0b", bg: "#fef3c7" },
+      { label: "Applications", icon: <FaFileAlt />, value: analytics.totalApplications, color: "#06b6d4", bg: "#cffafe" },
+      { label: "Verified Employers", icon: <FaCheckCircle />, value: analytics.verifiedEmployers, color: "#22c55e", bg: "#dcfce7" },
     ];
   }, [analytics]);
 
@@ -416,7 +407,6 @@ export default function AdminDashboard() {
 
   const copyInviteCode = async () => {
     if (!inviteCode) return;
-
     try {
       await navigator.clipboard.writeText(inviteCode);
       window.alert("Invite code copied to clipboard.");
@@ -442,58 +432,79 @@ export default function AdminDashboard() {
     if (!job?.employer || typeof job.employer !== "object") {
       return "Unknown employer";
     }
-
     return job.employer.companyName || job.employer.name || "Unknown employer";
   };
 
   return (
     <div className="admin-panel-page">
+      {/* Banner */}
       <section className="admin-banner">
-        <h1>Admin Dashboard</h1>
-        <p>STRAM PESO System Overview</p>
+        <div className="admin-banner-content">
+          <div>
+            <h1>Admin Dashboard</h1>
+            <p>Manage and monitor the STRAM PESO platform</p>
+          </div>
+          <div className="admin-banner-actions">
+            <button className="admin-banner-btn" onClick={handleGenerateInvite}>
+              <FaPlus /> Generate Invite
+            </button>
+          </div>
+        </div>
       </section>
 
-      {error ? <p className="admin-page-error">{error}</p> : null}
+      {error && <div className="admin-error">{error}</div>}
 
+      {/* Stats Grid */}
       <section className="admin-stats-grid">
-        {(loadingAnalytics ? Array.from({ length: 6 }, (_, i) => ({ label: `Loading-${i}`, icon: "•", value: "--", accent: "#cbd5e1" })) : stats).map((item) => (
-          <article key={item.label} className="admin-stat-card" style={{ borderLeftColor: item.accent }}>
-            <span className="admin-stat-icon" style={{ color: item.accent }}>{item.icon}</span>
+        {(loadingAnalytics ? Array.from({ length: 6 }, (_, i) => ({ label: `Loading-${i}`, icon: <FaUser />, value: "--", color: "#94a3b8", bg: "#f1f5f9" })) : stats).map((item) => (
+          <article key={item.label} className="admin-stat-card" style={{ borderLeftColor: item.color }}>
+            <span className="admin-stat-icon" style={{ background: item.bg, color: item.color }}>{item.icon}</span>
             <strong>{item.value}</strong>
             <p>{item.label}</p>
           </article>
         ))}
       </section>
 
+      {/* Charts */}
       <section className="admin-chart-grid">
         <article className="admin-chart-card">
-          <h3>Applications &amp; Registrations Over Time</h3>
+          <div className="admin-chart-header">
+            <h3><FaChartLine /> Applications &amp; Registrations</h3>
+          </div>
           <div className="admin-chart-area">
-            <ResponsiveContainer width="100%" height={320}>
+            <ResponsiveContainer width="100%" height={300}>
               <ComposedChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid stroke="#e2e8f0" strokeDasharray="4 4" />
-                <XAxis dataKey="month" stroke="#64748b" />
-                <YAxis stroke="#64748b" allowDecimals={false} />
-                <Tooltip />
-                <Legend verticalAlign="top" />
-                <Bar dataKey="applications" fill="#16a34a" radius={[4, 4, 0, 0]} />
-                <Line type="monotone" dataKey="registrations" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 3 }} />
+                <CartesianGrid stroke="#f1f5f9" strokeDasharray="4 4" />
+                <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} />
+                <YAxis stroke="#94a3b8" allowDecimals={false} fontSize={12} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                  formatter={(value) => [`${value}`, '']}
+                />
+                <Legend verticalAlign="top" height={36} />
+                <Bar dataKey="applications" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                <Line type="monotone" dataKey="registrations" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
         </article>
 
         <article className="admin-chart-card">
-          <h3>Applications by Status</h3>
+          <div className="admin-chart-header">
+            <h3><FaChartLine /> Application Status</h3>
+          </div>
           <div className="admin-chart-area admin-chart-area-pie">
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={230}>
               <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2}>
                   {pieData.map((entry) => (
                     <Cell key={entry.key} fill={STATUS_COLORS[entry.key]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                  formatter={(value) => [`${value} applications`, '']}
+                />
               </PieChart>
             </ResponsiveContainer>
             <div className="admin-pie-legend">
@@ -509,47 +520,47 @@ export default function AdminDashboard() {
         </article>
       </section>
 
-      <section className="admin-job-home-section">
-        <header className="admin-job-home-header">
+      {/* Homepage Management */}
+      <section className="admin-homepage-section">
+        <div className="admin-homepage-header">
           <div>
-            <h2>Homepage Display</h2>
-            <p>Manage featured jobs on the public homepage and review which openings are getting the most attention.</p>
+            <h2><FaStar /> Homepage Featured Jobs</h2>
+            <p>Manage featured jobs displayed on the public homepage</p>
           </div>
-          <div className="admin-job-home-badge">
-            Featured slots used: <strong>{featuredCount}/4</strong>
+          <div className="admin-featured-count">
+            <FaStar className="star-icon" />
+            <span><strong>{featuredCount}</strong> / 4 slots used</span>
           </div>
-        </header>
+        </div>
 
-        {homepageJobsError ? <div className="error-message">{homepageJobsError}</div> : null}
+        {homepageJobsError && <div className="admin-error admin-error-small">{homepageJobsError}</div>}
 
-        <div className="admin-job-home-grid">
-          <article className="admin-job-home-card">
-            <div className="table-card-header">
-              <h3>Active Job Postings</h3>
+        <div className="admin-homepage-grid">
+          <article className="admin-homepage-card admin-homepage-card--jobs">
+            <div className="admin-card-header">
+              <h3>All Active Jobs</h3>
             </div>
 
             {loadingHomepageJobs ? (
-              <p className="loading">Loading homepage jobs...</p>
+              <p className="admin-loading">Loading jobs...</p>
             ) : (
               <div className="admin-table-wrap">
-                <table className="admin-users-table admin-home-job-table">
+                <table className="admin-table">
                   <thead>
                     <tr>
                       <th>Job Title</th>
                       <th>Employer</th>
-                      <th>Date Posted</th>
-                      <th>Total Applications</th>
-                      <th>Feature on Homepage</th>
+                      <th>Posted</th>
+                      <th>Applications</th>
+                      <th>Featured</th>
                     </tr>
                   </thead>
                   <tbody>
                     {homepageJobs.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="admin-empty-state">
-                          <div>
-                            <div className="icon">📭</div>
-                            <p>No active job postings found.</p>
-                          </div>
+                          <FaBriefcase className="empty-icon" />
+                          <p>No active job postings found.</p>
                         </td>
                       </tr>
                     ) : (
@@ -559,19 +570,21 @@ export default function AdminDashboard() {
 
                         return (
                           <tr key={job._id}>
-                            <td>{job.title}</td>
+                            <td><strong>{job.title}</strong></td>
                             <td>{getEmployerDisplay(job)}</td>
                             <td>{formatDate(job.createdAt)}</td>
                             <td>{Number(job.applicationCount || 0)}</td>
                             <td>
-                              <label className="admin-feature-toggle">
+                              <label className="admin-toggle">
                                 <input
                                   type="checkbox"
                                   checked={isFeatured}
                                   disabled={isBusy || (!isFeatured && featuredCount >= 4)}
                                   onChange={(event) => handleToggleHomepageFeature(job._id, event.target.checked)}
                                 />
-                                <span>{isFeatured ? "Featured" : "Not Featured"}</span>
+                                <span className={isFeatured ? "active" : ""}>
+                                  {isFeatured ? "★ Featured" : "Add"}
+                                </span>
                               </label>
                             </td>
                           </tr>
@@ -584,29 +597,27 @@ export default function AdminDashboard() {
             )}
           </article>
 
-          <article className="admin-job-home-card">
-            <div className="table-card-header">
-              <h3>Application Analytics</h3>
+          <article className="admin-homepage-card admin-homepage-card--analytics">
+            <div className="admin-card-header">
+              <h3>📊 Top Performing Jobs</h3>
             </div>
             {loadingHomepageJobs ? (
-              <p className="loading">Loading analytics...</p>
+              <p className="admin-loading">Loading analytics...</p>
             ) : rankedHomepageJobs.length === 0 ? (
               <div className="admin-empty-state">
-                <div>
-                  <div className="icon">📊</div>
-                  <p>No application data is available yet.</p>
-                </div>
+                <FaChartLine className="empty-icon" />
+                <p>No application data available yet.</p>
               </div>
             ) : (
-              <div className="admin-analytics-list">
+              <div className="admin-rank-list">
                 {rankedHomepageJobs.slice(0, 8).map((job, index) => (
-                  <div key={job._id} className="admin-analytics-row">
-                    <div className="admin-analytics-rank">#{index + 1}</div>
-                    <div className="admin-analytics-main">
+                  <div key={job._id} className="admin-rank-item">
+                    <div className="admin-rank-number">#{index + 1}</div>
+                    <div className="admin-rank-info">
                       <strong>{job.title}</strong>
                       <span>{getEmployerDisplay(job)}</span>
                     </div>
-                    <div className="admin-analytics-count">{Number(job.applicationCount || 0)} apps</div>
+                    <div className="admin-rank-count">{Number(job.applicationCount || 0)}</div>
                   </div>
                 ))}
               </div>
@@ -615,37 +626,29 @@ export default function AdminDashboard() {
         </div>
       </section>
 
-      <section className="admin-users-panel">
-        <header className="admin-users-header">
+      {/* User Management */}
+      <section className="admin-users-section">
+        <div className="admin-users-header">
           <div>
-            <h2>User Management</h2>
-            <p>Monitor and manage all system accounts.</p>
+            <h2><FaUsers /> User Management</h2>
+            <p>Monitor and manage all system accounts</p>
           </div>
-          <div className="admin-users-toolbar">
+        </div>
+
+        <div className="admin-users-toolbar">
+          <div className="admin-search-wrapper">
+            <FaSearch className="admin-search-icon" />
             <input
               type="text"
               placeholder="Search by name or email..."
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
-            <button
-              type="button"
-              style={{
-                background: "#16a34a",
-                color: "#fff",
-                border: "none",
-                borderRadius: "8px",
-                padding: "8px 16px",
-                fontSize: "13px",
-                fontWeight: "600",
-                cursor: "pointer",
-              }}
-              onClick={handleGenerateInvite}
-            >
-              + Generate Invite Code
-            </button>
           </div>
-        </header>
+          <button className="admin-invite-btn" onClick={handleGenerateInvite}>
+            <FaPlus /> Generate Invite
+          </button>
+        </div>
 
         <div className="admin-users-meta">
           <div className="admin-tab-filters">
@@ -654,37 +657,32 @@ export default function AdminDashboard() {
                 key={tab.label}
                 type="button"
                 className={roleFilter === tab.value ? "active" : ""}
-                onClick={() => {
-                  setRoleFilter(tab.value);
-                  setCurrentPage(1);
-                }}
+                onClick={() => { setRoleFilter(tab.value); setCurrentPage(1); }}
               >
                 {tab.label}
               </button>
             ))}
           </div>
-          <p>Showing {users.length} of {totalUsers} users</p>
+          <p className="admin-user-count">Showing {users.length} of {totalUsers} users</p>
         </div>
 
         <div className="admin-table-wrap">
-          <table className="admin-users-table">
+          <table className="admin-table admin-users-table">
             <thead>
               <tr>
-                <th>Avatar + Name</th>
+                <th>User</th>
                 <th>Role</th>
                 <th>Status</th>
                 <th>Joined</th>
-                <th>Actions</th>
+                <th className="admin-actions-header">Actions</th>
               </tr>
             </thead>
             <tbody>
               {!loadingUsers && users.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="admin-empty-state">
-                    <div>
-                      <div className="icon">🔍</div>
-                      <p>No users found matching your search.</p>
-                    </div>
+                    <FaSearch className="empty-icon" />
+                    <p>No users found matching your search.</p>
                   </td>
                 </tr>
               ) : (
@@ -697,8 +695,10 @@ export default function AdminDashboard() {
                     <Fragment key={row._id}>
                       <tr>
                         <td>
-                          <div className="admin-name-cell">
-                            <span className="avatar">{String(row.name || "U").charAt(0).toUpperCase()}</span>
+                          <div className="admin-user-cell">
+                            <div className="admin-user-avatar">
+                              {String(row.name || "U").charAt(0).toUpperCase()}
+                            </div>
                             <div>
                               <strong>{row.name}</strong>
                               <small>{row.email}</small>
@@ -709,8 +709,7 @@ export default function AdminDashboard() {
                           <span className={roleBadgeClass(row.role)}>{row.role}</span>
                         </td>
                         <td>
-                          <span className={`admin-status ${isActive ? "active" : "inactive"}`}>
-                            <i></i>
+                          <span className={`admin-status-badge ${isActive ? "active" : "inactive"}`}>
                             {isActive ? "Active" : "Inactive"}
                           </span>
                         </td>
@@ -731,13 +730,15 @@ export default function AdminDashboard() {
 
                       {verificationTarget === row._id && row.role === "employer" ? (
                         <tr>
-                          <td colSpan={5} className="admin-verification-cell">
+                          <td colSpan={5} className="admin-verification-row">
                             <div className="admin-verification-inline">
-                              <p>Set verification status for {row.name}:</p>
+                              <p>Set verification status for <strong>{row.name}</strong>:</p>
                               <div>
-                                <button type="button" onClick={() => handleVerification(row, "unverified")}>Unverified</button>
-                                <button type="button" onClick={() => handleVerification(row, "pending")}>Pending</button>
-                                <button type="button" onClick={() => handleVerification(row, "verified")}>Verified ✓</button>
+                                <button onClick={() => handleVerification(row, "unverified")}>Unverified</button>
+                                <button onClick={() => handleVerification(row, "pending")}>Pending</button>
+                                <button className="verified" onClick={() => handleVerification(row, "verified")}>
+                                  ✓ Verified
+                                </button>
                               </div>
                             </div>
                           </td>
@@ -751,9 +752,8 @@ export default function AdminDashboard() {
           </table>
         </div>
 
-        <footer className="admin-pagination">
+        <div className="admin-pagination">
           <button
-            type="button"
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage <= 1}
           >
@@ -761,27 +761,35 @@ export default function AdminDashboard() {
           </button>
           <p>Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong></p>
           <button
-            type="button"
             onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
             disabled={currentPage >= totalPages}
           >
             Next →
           </button>
-        </footer>
+        </div>
       </section>
 
-      {inviteCode ? (
-        <div className="admin-invite-modal-backdrop" onClick={() => setInviteCode("")}>
-          <div className="admin-invite-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>Employer Invite Code</h3>
-            <p>{inviteCode}</p>
-            <div>
-              <button type="button" onClick={copyInviteCode}>Copy</button>
-              <button type="button" onClick={() => setInviteCode("")}>Close</button>
+      {/* Invite Modal */}
+      {inviteCode && (
+        <div className="admin-invite-overlay" onClick={() => setInviteCode("")}>
+          <div className="admin-invite-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="admin-invite-close" onClick={() => setInviteCode("")}>
+              <FaTimes />
+            </button>
+            <h3>🔑 Employer Invite Code</h3>
+            <p>Share this code with employers to register</p>
+            <div className="admin-invite-code">{inviteCode}</div>
+            <div className="admin-invite-actions">
+              <button className="admin-invite-copy" onClick={copyInviteCode}>
+                <FaCopy /> Copy
+              </button>
+              <button className="admin-invite-close-btn" onClick={() => setInviteCode("")}>
+                Close
+              </button>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

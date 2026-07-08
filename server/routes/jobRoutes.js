@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 const {
   createJob,
   getJobs,
@@ -16,42 +17,116 @@ const {
   getMyApplications,
   getEmployerJobs,
 } = require("../controllers/jobController");
-const { verifyToken, isResident, isEmployer, isAdmin } = require("../middleware/auth");
+const { verifyToken, isResident, isEmployer } = require("../middleware/auth");
+const { 
+  validateJobApplication, 
+  validateRequest,
+  sanitizeRequestBody,
+  sanitizeQueryParams,
+  validateMongoId
+} = require("../middleware/validation");
+const { detectMaliciousPayload } = require("../middleware/security");
+const { validateFile, cleanupUploadedFiles } = require("../middleware/upload");
 
+// Ensure upload directory exists
+const uploadDir = path.join(__dirname, "../uploads/resumes");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true, mode: 0o755 });
+}
+
+// Multer configuration for resume uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "../uploads"));
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
+    // Sanitize filename and add timestamp to prevent collisions
+    const cleanName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '');
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 10000);
+    cb(null, `${timestamp}-${random}-${cleanName}`);
   }
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { 
+    fileSize: 5 * 1024 * 1024, // 5MB
+    files: 1
+  },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /pdf|doc|docx|jpeg|jpg|png/;
-    const isValidType = allowedTypes.test(file.mimetype);
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const allowedExtensions = ['.pdf', '.doc', '.docx'];
+    
+    const ext = path.extname(file.originalname).toLowerCase();
+    const isValidType = allowedTypes.includes(file.mimetype) || allowedExtensions.includes(ext);
+    
     if (isValidType) {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type"));
+      cb(new Error("Invalid file type. Please upload PDF, DOC, or DOCX files."));
     }
   }
 });
 
+// ============ PUBLIC ROUTES ============
 router.get("/homepage", getHomepageJobs);
 router.get("/", getJobs);
-router.get("/mine", verifyToken, isEmployer, getEmployerJobs);
-router.get("/applications/me", verifyToken, isResident, getMyApplications);
-router.put("/applications/:id", verifyToken, isResident, upload.single("resume"), updateMyApplication);
-router.delete("/applications/:id", verifyToken, isResident, deleteMyApplication);
-router.post("/", verifyToken, isEmployer, createJob);
-router.post("/:id/apply", verifyToken, isResident, upload.single("resume"), applyToJob);
-router.get("/:id/applications", verifyToken, getApplicationsForJob);
 router.get("/:id", getJobById);
+
+// ============ PROTECTED ROUTES ============
+
+// Employer routes
+router.get("/mine", verifyToken, isEmployer, getEmployerJobs);
+router.post("/", verifyToken, isEmployer, createJob);
 router.put("/:id", verifyToken, isEmployer, updateJob);
 router.delete("/:id", verifyToken, isEmployer, deleteJob);
+
+// Job applications - Employer viewing
+router.get("/:id/applications", verifyToken, getApplicationsForJob);
+
+// Resident (Job Seeker) routes
+router.get("/applications/me", verifyToken, isResident, getMyApplications);
+
+// Apply to job with cover letter validation
+router.post(
+  "/:id/apply",
+  verifyToken,
+  isResident,
+  sanitizeRequestBody,
+  validateMongoId("id"),
+  detectMaliciousPayload,
+  validateJobApplication,
+  validateRequest,
+  upload.single("resume"),
+  validateFile,
+  cleanupUploadedFiles,
+  applyToJob
+);
+
+// Update application with cover letter validation
+router.put(
+  "/applications/:id",
+  verifyToken,
+  isResident,
+  sanitizeRequestBody,
+  validateMongoId("id"),
+  detectMaliciousPayload,
+  validateJobApplication,
+  validateRequest,
+  upload.single("resume"),
+  validateFile,
+  cleanupUploadedFiles,
+  updateMyApplication
+);
+
+// Delete application
+router.delete(
+  "/applications/:id",
+  verifyToken,
+  isResident,
+  validateMongoId("id"),
+  deleteMyApplication
+);
 
 module.exports = router;

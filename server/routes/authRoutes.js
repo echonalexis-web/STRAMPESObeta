@@ -5,7 +5,7 @@ const {
     register, 
     login, 
     getMe, 
-  getProfile,
+    getProfile,
     updateProfile,
     deleteAccount,
     registerEmployer, 
@@ -13,19 +13,29 @@ const {
     promoteToEmployer 
 } = require("../controllers/authController");
 const { verifyToken: protect, isAdmin } = require("../middleware/auth");
+const {
+  sanitizeRequestBody,
+  sanitizeQueryParams,
+  validateUserRegistration,
+  validateUserLogin,
+  validateRequest
+} = require("../middleware/validation");
+const { detectMaliciousPayload, sensitiveOperationLimiter } = require("../middleware/security");
 
+// Multer configuration for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "../uploads"));
+    cb(null, path.join(__dirname, "../uploads/profiles"));
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '');
+    cb(null, Date.now() + "-" + sanitizedName);
   }
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /pdf|doc|docx|jpeg|jpg|png/;
     cb(null, allowedTypes.test(file.mimetype));
@@ -34,13 +44,43 @@ const upload = multer({
 
 const profileUpload = multer({ dest: path.join(__dirname, "../uploads") });
 
-router.post("/register", register);
-router.post("/login", login);
+// Public routes
+router.post(
+  "/register",
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  validateUserRegistration,
+  validateRequest,
+  register
+);
+
+router.post(
+  "/login",
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  validateUserLogin,
+  validateRequest,
+  login
+);
+
+router.post(
+  "/register/employer",
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  validateUserRegistration,
+  validateRequest,
+  registerEmployer
+);
+
+// Protected routes
 router.get("/me", protect, getMe);
 router.get("/profile", protect, getProfile);
+
 router.put(
   "/profile",
   protect,
+  sanitizeRequestBody,
+  detectMaliciousPayload,
   profileUpload.fields([
     { name: "resumeFile", maxCount: 1 },
     { name: "validIdFile", maxCount: 1 },
@@ -49,10 +89,12 @@ router.put(
   ]),
   updateProfile
 );
-router.delete("/profile", protect, deleteAccount);
+
 router.patch(
   "/me",
   protect,
+  sanitizeRequestBody,
+  detectMaliciousPayload,
   upload.fields([
     { name: "resume", maxCount: 1 },
     { name: "supportingDocument", maxCount: 1 },
@@ -60,7 +102,9 @@ router.patch(
   updateProfile
 );
 
-router.post("/register/employer", registerEmployer);
+router.delete("/profile", protect, deleteAccount);
+
+// Admin-only routes
 router.post("/invite", protect, isAdmin, generateInviteCode);
 router.patch("/promote/:userId", protect, isAdmin, promoteToEmployer);
 

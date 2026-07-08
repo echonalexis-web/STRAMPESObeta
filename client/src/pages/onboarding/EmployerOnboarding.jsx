@@ -1,7 +1,8 @@
-import { useContext, useMemo, useState } from "react";
+import { useContext, useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { usersAPI } from "../../services/api";
+import "../../styles/onboarding.css";
 
 const industries = [
   "Retail",
@@ -15,10 +16,13 @@ const industries = [
   "Construction",
   "Transportation",
   "Hospitality",
+  "Real Estate",
+  "Food & Beverage",
+  "Financial Services",
   "Other",
 ];
 
-const companySizes = ["1-10", "11-50", "51-200", "200+"];
+const companySizes = ["1-10", "11-50", "51-200", "201-500", "500+"];
 
 export default function EmployerOnboarding() {
   const { user, login } = useContext(AuthContext);
@@ -29,7 +33,7 @@ export default function EmployerOnboarding() {
   const [errors, setErrors] = useState({});
 
   const [form, setForm] = useState({
-    companyName: user?.companyName || user?.name || "",
+    companyName: user?.companyName || "",
     industry: user?.industry || "",
     companySize: user?.companySize || "",
     businessAddress: user?.businessAddress || user?.address || "",
@@ -37,6 +41,17 @@ export default function EmployerOnboarding() {
     website: user?.website || "",
     companyDescription: user?.companyDescription || "",
   });
+
+  // Check if user is already onboarded
+  useEffect(() => {
+    if (user?.hasCompletedOnboarding === true || user?.onboardingComplete === true) {
+      navigate("/employer-dashboard");
+    }
+    // If user is not an employer, redirect
+    if (user && user.role !== "employer") {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
 
   const progress = useMemo(() => {
     if (step === 1) return 33;
@@ -67,6 +82,13 @@ export default function EmployerOnboarding() {
     if (!form.phone.trim()) nextErrors.phone = "Phone number is required";
     if (!form.companyDescription.trim()) {
       nextErrors.companyDescription = "Please add a short company description";
+    } else if (form.companyDescription.trim().length < 10) {
+      nextErrors.companyDescription = "Description must be at least 10 characters";
+    }
+
+    // Validate website format if provided
+    if (form.website.trim() && !/^https?:\/\/[^\s]+$/.test(form.website.trim())) {
+      nextErrors.website = "Please enter a valid URL (e.g., https://example.com)";
     }
 
     setErrors(nextErrors);
@@ -103,14 +125,13 @@ export default function EmployerOnboarding() {
       const { data } = await usersAPI.completeOnboarding(payload);
       const token = localStorage.getItem("token");
 
-      if (token) {
+      if (token && data.user) {
         login(token, data.user);
       }
 
       navigate("/employer-dashboard");
     } catch (err) {
       setSubmitError(err.response?.data?.message || "Failed to complete onboarding. Please try again.");
-    } finally {
       setSaving(false);
     }
   };
@@ -122,6 +143,12 @@ export default function EmployerOnboarding() {
         <div className="onboarding-progress-fill" style={{ width: `${progress}%` }}></div>
       </div>
 
+      {submitError && (
+        <div className="onboarding-error" role="alert">
+          {submitError}
+        </div>
+      )}
+
       {step === 1 && (
         <div className="onboarding-step">
           <h2>Tell us about your company</h2>
@@ -129,18 +156,24 @@ export default function EmployerOnboarding() {
 
           <div className="onboarding-fields">
             <label>
-              Company Name
+              Company Name *
               <input
                 type="text"
                 value={form.companyName}
                 onChange={(e) => updateField("companyName", e.target.value)}
+                disabled={saving}
+                placeholder="e.g. ABC Corporation"
               />
               {errors.companyName && <span className="onboarding-field-error">{errors.companyName}</span>}
             </label>
 
             <label>
-              Industry / Sector
-              <select value={form.industry} onChange={(e) => updateField("industry", e.target.value)}>
+              Industry / Sector *
+              <select 
+                value={form.industry} 
+                onChange={(e) => updateField("industry", e.target.value)}
+                disabled={saving}
+              >
                 <option value="">Select industry</option>
                 {industries.map((industry) => (
                   <option key={industry} value={industry}>
@@ -152,7 +185,7 @@ export default function EmployerOnboarding() {
             </label>
 
             <div>
-              <span className="onboarding-label">Company Size</span>
+              <span className="onboarding-label">Company Size *</span>
               <div className="pill-row">
                 {companySizes.map((size) => (
                   <button
@@ -160,6 +193,7 @@ export default function EmployerOnboarding() {
                     type="button"
                     className={`pill-btn ${form.companySize === size ? "active" : ""}`}
                     onClick={() => updateField("companySize", size)}
+                    disabled={saving}
                   >
                     {size}
                   </button>
@@ -169,12 +203,13 @@ export default function EmployerOnboarding() {
             </div>
 
             <label>
-              Business Address
+              Business Address *
               <input
                 type="text"
                 placeholder="e.g. Boac, Marinduque"
                 value={form.businessAddress}
                 onChange={(e) => updateField("businessAddress", e.target.value)}
+                disabled={saving}
               />
               {errors.businessAddress && <span className="onboarding-field-error">{errors.businessAddress}</span>}
             </label>
@@ -189,8 +224,14 @@ export default function EmployerOnboarding() {
 
           <div className="onboarding-fields">
             <label>
-              Phone Number
-              <input type="text" value={form.phone} onChange={(e) => updateField("phone", e.target.value)} />
+              Phone Number *
+              <input 
+                type="tel" 
+                value={form.phone} 
+                onChange={(e) => updateField("phone", e.target.value)} 
+                disabled={saving}
+                placeholder="e.g. 09171234567"
+              />
               {errors.phone && <span className="onboarding-field-error">{errors.phone}</span>}
             </label>
 
@@ -201,21 +242,27 @@ export default function EmployerOnboarding() {
                 placeholder="https://facebook.com/yourcompany"
                 value={form.website}
                 onChange={(e) => updateField("website", e.target.value)}
+                disabled={saving}
               />
+              {errors.website && <span className="onboarding-field-error">{errors.website}</span>}
             </label>
 
             <label>
-              Company Description
+              Company Description *
               <textarea
                 className="onboarding-textarea"
                 placeholder="Briefly describe what your company does, your mission, and what makes you a great employer..."
                 value={form.companyDescription}
-                onChange={(e) => updateField("companyDescription", e.target.value.slice(0, 300))}
+                onChange={(e) => updateField("companyDescription", e.target.value.slice(0, 500))}
+                disabled={saving}
+                maxLength="500"
               />
               {errors.companyDescription && (
                 <span className="onboarding-field-error">{errors.companyDescription}</span>
               )}
-              <span className="onboarding-char-counter">{form.companyDescription.length} / 300 characters</span>
+              <span className="onboarding-char-counter">
+                {form.companyDescription.length} / 500 characters
+              </span>
             </label>
           </div>
         </div>
@@ -258,16 +305,26 @@ export default function EmployerOnboarding() {
           </div>
 
           <div className="onboarding-review-links">
-            <button type="button" className="onboarding-edit-link" onClick={() => setStep(1)}>
-              {"<- Edit company information"}
+            <button 
+              type="button" 
+              className="onboarding-edit-link" 
+              onClick={() => setStep(1)}
+              disabled={saving}
+            >
+              ← Edit company information
             </button>
-            <button type="button" className="onboarding-edit-link" onClick={() => setStep(2)}>
-              {"<- Edit contact details"}
+            <button 
+              type="button" 
+              className="onboarding-edit-link" 
+              onClick={() => setStep(2)}
+              disabled={saving}
+            >
+              ← Edit contact details
             </button>
           </div>
 
           <div className="onboarding-info-box">
-            <strong>i</strong>
+            <span className="info-icon">i</span>
             <span>You can update these details anytime from your Profile page.</span>
           </div>
 
@@ -283,20 +340,28 @@ export default function EmployerOnboarding() {
                 Finishing setup...
               </span>
             ) : (
-              "Finish Setup ->"
+              "Finish Setup →"
             )}
           </button>
-
-          {submitError && <p className="onboarding-submit-error">{submitError}</p>}
         </div>
       )}
 
       {step <= 2 && (
         <div className="onboarding-nav">
-          <button type="button" className="onboarding-secondary" onClick={handleBack} disabled={step === 1 || saving}>
+          <button 
+            type="button" 
+            className="onboarding-secondary" 
+            onClick={handleBack} 
+            disabled={step === 1 || saving}
+          >
             Back
           </button>
-          <button type="button" className="onboarding-primary" onClick={handleNext}>
+          <button 
+            type="button" 
+            className="onboarding-primary" 
+            onClick={handleNext}
+            disabled={saving}
+          >
             Next
           </button>
         </div>

@@ -10,13 +10,18 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
         },
-        "url": "{{baseUrl}}/auth/login"
+        "url": {
+          "raw": "{{baseUrl}}/auth/login"
+        }
       },
       "event": [
         {
@@ -39,9 +44,14 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
         ],
-        "url": "{{baseUrl}}/auth/invite"
+        "url": {
+          "raw": "{{baseUrl}}/auth/invite"
+        }
       },
       "event": [
         {
@@ -63,13 +73,18 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"name\": \"{{employerName}}\",\n  \"email\": \"{{employerEmail}}\",\n  \"password\": \"{{employerPassword}}\",\n  \"inviteCode\": \"{{inviteCode}}\"\n}"
         },
-        "url": "{{baseUrl}}/auth/register/employer"
+        "url": {
+          "raw": "{{baseUrl}}/auth/register/employer"
+        }
       },
       "event": [
         {
@@ -88,13 +103,18 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"name\": \"{{residentName}}\",\n  \"email\": \"{{residentEmail}}\",\n  \"password\": \"{{residentPassword}}\"\n}"
         },
-        "url": "{{baseUrl}}/auth/register"
+        "url": {
+          "raw": "{{baseUrl}}/auth/register"
+        }
       },
       "event": [
         {
@@ -102,10 +122,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Resident register success', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
-              "const json = pm.response.json();",
-              "if (json.token) pm.collectionVariables.set('residentToken', json.token);",
-              "if (json.user?.id || json.user?._id) pm.collectionVariables.set('residentUserId', json.user?.id || json.user?._id);"
+              "pm.test('Resident register success', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
             ]
           }
         }
@@ -116,13 +133,18 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"email\": \"{{employerEmail}}\",\n  \"password\": \"{{employerPassword}}\"\n}"
         },
-        "url": "{{baseUrl}}/auth/login"
+        "url": {
+          "raw": "{{baseUrl}}/auth/login"
+        }
       },
       "event": [
         {
@@ -144,13 +166,18 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"email\": \"{{residentEmail}}\",\n  \"password\": \"{{residentPassword}}\"\n}"
         },
-        "url": "{{baseUrl}}/auth/login"
+        "url": {
+          "raw": "{{baseUrl}}/auth/login"
+        }
       },
       "event": [
         {
@@ -172,14 +199,22 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Authorization", "value": "Bearer {{employerToken}}" },
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Authorization",
+            "value": "Bearer {{employerToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"title\": \"{{jobTitle}}\",\n  \"location\": \"{{jobLocation}}\",\n  \"description\": \"{{jobDescription}}\",\n  \"salary\": \"{{jobSalary}}\",\n  \"jobType\": \"Full-time\",\n  \"requirements\": \"Basic electrical skills\",\n  \"slots\": 1\n}"
         },
-        "url": "{{baseUrl}}/employer/jobs"
+        "url": {
+          "raw": "{{baseUrl}}/employer/jobs"
+        }
       },
       "event": [
         {
@@ -202,15 +237,24 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Authorization", "value": "Bearer {{residentToken}}" }
+          {
+            "key": "Authorization",
+            "value": "Bearer {{residentToken}}"
+          }
         ],
         "body": {
           "mode": "formdata",
           "formdata": [
-            { "key": "coverLetter", "value": "I am interested in this role and available immediately.", "type": "text" }
+            {
+              "key": "coverLetter",
+              "value": "I am interested in this role and available immediately.",
+              "type": "text"
+            }
           ]
         },
-        "url": "{{baseUrl}}/jobs/{{jobId}}/apply"
+        "url": {
+          "raw": "{{baseUrl}}/jobs/{{jobId}}/apply"
+        }
       },
       "event": [
         {
@@ -232,9 +276,14 @@
       "request": {
         "method": "GET",
         "header": [
-          { "key": "Authorization", "value": "Bearer {{employerToken}}" }
+          {
+            "key": "Authorization",
+            "value": "Bearer {{employerToken}}"
+          }
         ],
-        "url": "{{baseUrl}}/employer/jobs/{{jobId}}/applicants"
+        "url": {
+          "raw": "{{baseUrl}}/employer/jobs/{{jobId}}/applicants"
+        }
       },
       "event": [
         {
@@ -257,14 +306,22 @@
       "request": {
         "method": "PUT",
         "header": [
-          { "key": "Authorization", "value": "Bearer {{employerToken}}" },
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Authorization",
+            "value": "Bearer {{employerToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"status\": \"reviewed\",\n  \"employerNote\": \"Thank you, we are reviewing your application.\"\n}"
         },
-        "url": "{{baseUrl}}/employer/applications/{{applicationId}}/status"
+        "url": {
+          "raw": "{{baseUrl}}/employer/applications/{{applicationId}}/status"
+        }
       },
       "event": [
         {
@@ -283,14 +340,22 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Authorization", "value": "Bearer {{employerToken}}" },
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Authorization",
+            "value": "Bearer {{employerToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"participantId\": \"{{residentUserId}}\"\n}"
         },
-        "url": "{{baseUrl}}/messages/conversations"
+        "url": {
+          "raw": "{{baseUrl}}/messages/conversations"
+        }
       },
       "event": [
         {
@@ -313,14 +378,22 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Authorization", "value": "Bearer {{employerToken}}" },
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Authorization",
+            "value": "Bearer {{employerToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"content\": \"Hello from employer E2E test.\"\n}"
         },
-        "url": "{{baseUrl}}/messages/conversations/{{conversationId}}/messages"
+        "url": {
+          "raw": "{{baseUrl}}/messages/conversations/{{conversationId}}/messages"
+        }
       },
       "event": [
         {
@@ -339,9 +412,14 @@
       "request": {
         "method": "GET",
         "header": [
-          { "key": "Authorization", "value": "Bearer {{residentToken}}" }
+          {
+            "key": "Authorization",
+            "value": "Bearer {{residentToken}}"
+          }
         ],
-        "url": "{{baseUrl}}/messages/conversations/{{conversationId}}/messages"
+        "url": {
+          "raw": "{{baseUrl}}/messages/conversations/{{conversationId}}/messages"
+        }
       },
       "event": [
         {
@@ -359,28 +437,97 @@
     }
   ],
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000/api/v1" },
-    { "key": "adminEmail", "value": "admin@example.com" },
-    { "key": "adminPassword", "value": "Admin123" },
-    { "key": "adminToken", "value": "" },
-    { "key": "adminUserId", "value": "" },
-    { "key": "inviteCode", "value": "" },
-    { "key": "employerName", "value": "E2E Employer" },
-    { "key": "employerEmail", "value": "employer_e2e@example.com" },
-    { "key": "employerPassword", "value": "Employer123" },
-    { "key": "employerToken", "value": "" },
-    { "key": "employerUserId", "value": "" },
-    { "key": "residentName", "value": "E2E Resident" },
-    { "key": "residentEmail", "value": "resident_e2e@example.com" },
-    { "key": "residentPassword", "value": "Resident123" },
-    { "key": "residentToken", "value": "" },
-    { "key": "residentUserId", "value": "" },
-    { "key": "jobTitle", "value": "E2E Electrician" },
-    { "key": "jobLocation", "value": "Boac" },
-    { "key": "jobDescription", "value": "E2E job description" },
-    { "key": "jobSalary", "value": "20000" },
-    { "key": "jobId", "value": "" },
-    { "key": "applicationId", "value": "" },
-    { "key": "conversationId", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Admin123"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "adminUserId",
+      "value": ""
+    },
+    {
+      "key": "inviteCode",
+      "value": ""
+    },
+    {
+      "key": "employerName",
+      "value": "E2E Employer"
+    },
+    {
+      "key": "employerEmail",
+      "value": "employer_e2e@example.com"
+    },
+    {
+      "key": "employerPassword",
+      "value": "Employer123"
+    },
+    {
+      "key": "employerToken",
+      "value": ""
+    },
+    {
+      "key": "employerUserId",
+      "value": ""
+    },
+    {
+      "key": "residentName",
+      "value": "E2E Resident"
+    },
+    {
+      "key": "residentEmail",
+      "value": "resident_e2e@example.com"
+    },
+    {
+      "key": "residentPassword",
+      "value": "Resident123"
+    },
+    {
+      "key": "residentToken",
+      "value": ""
+    },
+    {
+      "key": "residentUserId",
+      "value": ""
+    },
+    {
+      "key": "jobTitle",
+      "value": "E2E Electrician"
+    },
+    {
+      "key": "jobLocation",
+      "value": "Boac"
+    },
+    {
+      "key": "jobDescription",
+      "value": "E2E job description"
+    },
+    {
+      "key": "jobSalary",
+      "value": "20000"
+    },
+    {
+      "key": "jobId",
+      "value": ""
+    },
+    {
+      "key": "applicationId",
+      "value": ""
+    },
+    {
+      "key": "conversationId",
+      "value": ""
+    }
   ]
 }

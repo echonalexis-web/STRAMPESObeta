@@ -1,6 +1,6 @@
 ﻿import { useContext, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FaEnvelope, FaUserCircle } from "react-icons/fa";
+import { FaEnvelope, FaUserCircle, FaChevronDown, FaBars, FaTimes } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { messageAPI } from "../services/api";
 import { useSocket } from "../context/SocketContext";
@@ -37,7 +37,7 @@ export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
-  const socket = useSocket();
+  const { socket, isConnected } = useSocket();
   const userRole = normalizeRole(user?.role);
   const isLoggedIn = Boolean(user);
   const loggedInMenuItems = getLoggedInMenuItems(userRole);
@@ -45,6 +45,7 @@ export default function Navbar() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isRegisterDropdownOpen, setIsRegisterDropdownOpen] = useState(false);
 
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
@@ -72,7 +73,8 @@ export default function Navbar() {
   }, [user, location.pathname]);
 
   useEffect(() => {
-    if (!socket || !user) return undefined;
+    // Only run if socket exists and is connected
+    if (!socket || !isConnected || !user) return;
 
     const currentUserId = String(user._id || user.id);
 
@@ -90,9 +92,11 @@ export default function Navbar() {
     socket.on("receive_message", handleReceiveMessage);
 
     return () => {
-      socket.off("receive_message", handleReceiveMessage);
+      if (socket) {
+        socket.off("receive_message", handleReceiveMessage);
+      }
     };
-  }, [socket, user, location.pathname]);
+  }, [socket, isConnected, user, location.pathname]);
 
   useEffect(() => {
     if (!user) {
@@ -102,12 +106,14 @@ export default function Navbar() {
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
+    setIsRegisterDropdownOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth > 768 && !user) {
         setIsMobileMenuOpen(false);
+        setIsRegisterDropdownOpen(false);
       }
     };
 
@@ -122,6 +128,18 @@ export default function Navbar() {
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const handleRegisterClick = () => {
+    setIsRegisterDropdownOpen(!isRegisterDropdownOpen);
+  };
+
+  const closeRegisterDropdown = () => {
+    setIsRegisterDropdownOpen(false);
   };
 
   return (
@@ -146,12 +164,12 @@ export default function Navbar() {
             <button
               type="button"
               className="mobile-menu-toggle mobile-menu-toggle--auth"
-              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+              onClick={toggleMobileMenu}
               aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={isMobileMenuOpen}
               aria-controls="mobile-nav-panel"
             >
-              {isMobileMenuOpen ? "CLOSE" : "MENU"}
+              {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
             </button>
           </div>
         ) : (
@@ -159,21 +177,45 @@ export default function Navbar() {
             <button
               type="button"
               className="mobile-menu-toggle mobile-menu-toggle--public"
-              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+              onClick={toggleMobileMenu}
               aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={isMobileMenuOpen}
               aria-controls="mobile-nav-panel"
             >
-              {isMobileMenuOpen ? "CLOSE" : "MENU"}
+              {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
             </button>
 
             <div className="nav-links nav-links--public">
               <Link to="/">Home</Link>
-              <Link to="/#programs">Programs</Link>
               <Link to="/#available-jobs">Available Jobs</Link>
               <Link to="/login">Login</Link>
-              <Link to="/register">Register</Link>
-              <Link to="/register-employer">Register as Employer</Link>
+              
+              {/* Register Dropdown */}
+              <div className="register-dropdown">
+                <button 
+                  type="button" 
+                  className="register-dropdown-btn"
+                  onClick={handleRegisterClick}
+                  onMouseEnter={() => setIsRegisterDropdownOpen(true)}
+                  onMouseLeave={closeRegisterDropdown}
+                >
+                  Register <FaChevronDown className={`dropdown-arrow ${isRegisterDropdownOpen ? 'rotate' : ''}`} />
+                </button>
+                {isRegisterDropdownOpen && (
+                  <div 
+                    className="register-dropdown-menu"
+                    onMouseEnter={() => setIsRegisterDropdownOpen(true)}
+                    onMouseLeave={closeRegisterDropdown}
+                  >
+                    <Link to="/register" onClick={closeMobileMenu}>
+                      Register as Applicant
+                    </Link>
+                    <Link to="/register-employer" onClick={closeMobileMenu}>
+                      Register as Employer
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}
@@ -234,11 +276,19 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <Link to="/#programs" onClick={closeMobileMenu}>Programs</Link>
                   <Link to="/#available-jobs" onClick={closeMobileMenu}>Available Jobs</Link>
                   <Link to="/login" onClick={closeMobileMenu}>Login</Link>
-                  <Link to="/register" onClick={closeMobileMenu}>Register</Link>
-                  <Link to="/register-employer" onClick={closeMobileMenu}>Register as Employer</Link>
+                  
+                  {/* Mobile Register Section */}
+                  <div className="mobile-register-section">
+                    <div className="mobile-register-label">Register as:</div>
+                    <Link to="/register" onClick={closeMobileMenu} className="mobile-register-link">
+                      Applicant
+                    </Link>
+                    <Link to="/register-employer" onClick={closeMobileMenu} className="mobile-register-link">
+                      Employer
+                    </Link>
+                  </div>
                 </>
               )}
             </div>

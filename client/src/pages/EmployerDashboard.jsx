@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { employerAPI, messageAPI } from "../services/api";
 import "../styles/employer-dashboard.css";
+import { API_URL } from "../services/api";
 
 const tabList = ["overview", "jobs", "applicants"];
 
@@ -37,7 +38,9 @@ const normalizeApplicationStatus = (value) => {
 
 const formatDate = (value) => {
   if (!value) return "N/A";
-  return new Date(value).toLocaleDateString("en-US", {
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return "N/A";
+  return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -49,10 +52,10 @@ const getApplicantContact = (application) => {
   return applicant.phone || applicant.contactNumber || applicant.mobile || applicant.email || "N/A";
 };
 
+// ✅ FIXED: now recognizes shortlisted and rejected
 const normalizeRecentApplicantStatus = (value) => {
   const normalized = normalizeApplicationStatus(value);
-  if (normalized === "active") return "active";
-  if (normalized === "hired") return "hired";
+  if (["active", "hired", "shortlisted", "rejected"].includes(normalized)) return normalized;
   return "pending";
 };
 
@@ -106,8 +109,16 @@ export default function EmployerDashboard() {
   const [drawerNote, setDrawerNote] = useState("");
   const [isSavingApplication, setIsSavingApplication] = useState(false);
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
   useEffect(() => {
     loadDashboardData();
+
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
@@ -128,42 +139,83 @@ export default function EmployerDashboard() {
     setError("");
 
     try {
-      const [{ data: statsData }, { data: jobsData }] = await Promise.all([
-        employerAPI.getStats(),
-        employerAPI.getJobs(),
-      ]);
+      console.log("📡 Fetching employer dashboard data...");
+      
+      const statsResponse = await employerAPI.getStats();
+      console.log("📊 Stats:", statsResponse.data);
+      
+      const jobsResponse = await employerAPI.getJobs();
+      console.log("💼 Jobs:", jobsResponse.data);
 
-      setStats(statsData);
-      setJobs(jobsData);
+      const statsData = statsResponse.data;
+      const jobsData = jobsResponse.data;
 
-      if (jobsData.length) {
-        const applicantRequests = jobsData.map((job) => employerAPI.getApplicantsForJob(job._id));
-        const applicantResponses = await Promise.all(applicantRequests);
+      setStats(statsData || {
+        totalJobs: 0,
+        activeJobs: 0,
+        totalApplicants: 0,
+        pendingReview: 0,
+        shortlisted: 0,
+        hired: 0,
+      });
+      
+      const jobsArray = Array.isArray(jobsData) ? jobsData : [];
+      setJobs(jobsArray);
+
+      if (jobsArray.length > 0) {
+        const applicantRequests = jobsArray.map(async (job) => {
+          try {
+            console.log(`🔍 Fetching applicants for job: ${job._id} (${job.title})`);
+            const response = await employerAPI.getApplicantsForJob(job._id);
+            console.log(`✅ Found ${response.data?.length || 0} applicants for ${job.title}`);
+            return { jobId: job._id, applicants: response.data || [] };
+          } catch (err) {
+            console.error(`❌ Failed to fetch applicants for job ${job._id}:`, err);
+            return { jobId: job._id, applicants: [] };
+          }
+        });
+
+        const applicantResults = await Promise.all(applicantRequests);
 
         const nextApplicants = {};
         const allApplicants = [];
-        jobsData.forEach((job, index) => {
-          const list = applicantResponses[index].data || [];
-          nextApplicants[job._id] = list;
-          list.forEach((application) => {
+
+        applicantResults.forEach(({ jobId, applicants }) => {
+          nextApplicants[jobId] = applicants;
+          applicants.forEach((application) => {
+            const job = jobsArray.find(j => j._id === jobId);
             allApplicants.push({
               ...application,
-              vacancy: { _id: job._id, title: job.title },
+              vacancy: { 
+                _id: jobId, 
+                title: job?.title || "Unknown Job" 
+              },
             });
           });
         });
 
-        allApplicants.sort((a, b) => new Date(b.createdAt || b.appliedAt) - new Date(a.createdAt || a.appliedAt));
+        allApplicants.sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.appliedAt || 0);
+          const dateB = new Date(b.createdAt || b.appliedAt || 0);
+          return dateB - dateA;
+        });
+
+        console.log(`📋 Total applicants across all jobs: ${allApplicants.length}`);
 
         setJobApplicants(nextApplicants);
         setRecentApplicants(allApplicants.slice(0, 5));
-        setSelectedJobId((current) => current || jobsData[0]._id);
+        
+        const currentJobExists = jobsArray.some(job => job._id === selectedJobId);
+        if (!selectedJobId || !currentJobExists) {
+          setSelectedJobId(jobsArray[0]._id);
+        }
       } else {
         setJobApplicants({});
         setRecentApplicants([]);
         setSelectedJobId(null);
       }
     } catch (err) {
+      console.error("❌ Dashboard load error:", err);
       setError(err.response?.data?.message || "Failed to load employer dashboard");
     } finally {
       setLoading(false);
@@ -197,6 +249,22 @@ export default function EmployerDashboard() {
     setError("");
 
     try {
+      if (!jobForm.title.trim()) {
+        setError("Job title is required");
+        setIsSavingJob(false);
+        return;
+      }
+      if (!jobForm.description.trim()) {
+        setError("Job description is required");
+        setIsSavingJob(false);
+        return;
+      }
+      if (!jobForm.location.trim()) {
+        setError("Location is required");
+        setIsSavingJob(false);
+        return;
+      }
+
       if (editingJob?._id) {
         await employerAPI.updateJob(editingJob._id, jobForm);
         setSuccessToast("Job updated successfully");
@@ -238,6 +306,30 @@ export default function EmployerDashboard() {
   const handleSaveApplicationStatus = async () => {
     if (!selectedApplication?._id) return;
 
+    const updatedApplication = {
+      ...selectedApplication,
+      status: drawerStatus,
+      employerNote: drawerNote,
+    };
+
+    setRecentApplicants((prev) =>
+      prev.map((app) =>
+        app._id === updatedApplication._id ? updatedApplication : app
+      )
+    );
+
+    setJobApplicants((prev) => {
+      const newState = { ...prev };
+      Object.keys(newState).forEach((jobId) => {
+        newState[jobId] = newState[jobId].map((app) =>
+          app._id === updatedApplication._id ? updatedApplication : app
+        );
+      });
+      return newState;
+    });
+
+    setSelectedApplication(updatedApplication);
+
     setIsSavingApplication(true);
     setError("");
 
@@ -249,24 +341,54 @@ export default function EmployerDashboard() {
 
       setSuccessToast("Application updated successfully");
       setSelectedApplication(null);
-      await loadDashboardData();
+
+      // Background refresh to sync stats – no longer overwrites because the helper is fixed
+      try {
+        const statsResponse = await employerAPI.getStats();
+        setStats(statsResponse.data || {
+          totalJobs: 0,
+          activeJobs: 0,
+          totalApplicants: 0,
+          pendingReview: 0,
+          shortlisted: 0,
+          hired: 0,
+        });
+      } catch (statsErr) {
+        console.warn("⚠️ Failed to update stats:", statsErr);
+      }
+
+      // Optional: background full refresh after delay for safety
+      setTimeout(() => {
+        loadDashboardData();
+      }, 3000);
+
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update application");
+      await loadDashboardData(); // revert on error
     } finally {
       setIsSavingApplication(false);
     }
   };
 
   const handleMessageApplicant = async (applicantId) => {
-    if (!applicantId) return;
+    if (!applicantId) {
+      setError("No applicant selected");
+      return;
+    }
 
     try {
+      console.log("💬 Starting conversation with applicant:", applicantId);
       const { data } = await messageAPI.createConversation({ participantId: applicantId });
+      console.log("✅ Conversation created:", data);
+      
       const conversationId = data?._id;
       if (conversationId) {
         navigate("/messages", { state: { conversationId } });
+      } else {
+        setError("Failed to create conversation");
       }
     } catch (err) {
+      console.error("❌ Failed to start conversation:", err);
       setError(err.response?.data?.message || "Failed to start conversation");
     }
   };
@@ -301,13 +423,18 @@ export default function EmployerDashboard() {
               role="tab"
               className={`employer-tab ${activeTab === tab ? "active" : ""}`}
               onClick={() => setActiveTab(tab)}
+              aria-selected={activeTab === tab}
             >
               {tab === "overview" ? "Overview" : tab === "jobs" ? "My Job Postings" : "Applicants"}
             </button>
           ))}
         </div>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && (
+          <div className="error-message" role="alert">
+            {error}
+          </div>
+        )}
 
         {loading ? (
           <p className="loading">Loading dashboard...</p>
@@ -333,39 +460,75 @@ export default function EmployerDashboard() {
                     <div className="recent-applicants-empty">No recent applicants yet.</div>
                   ) : (
                     <>
-                      <div className="table-scroll-wrap recent-applicants-table-wrap">
-                        <table className="employer-table recent-applicants-table">
-                          <colgroup>
-                            <col style={{ width: "22%" }} />
-                            <col style={{ width: "24%" }} />
-                            <col style={{ width: "14%" }} />
-                            <col style={{ width: "13%" }} />
-                            <col style={{ width: "15%" }} />
-                            <col style={{ width: "12%" }} />
-                          </colgroup>
-                          <thead>
-                            <tr>
-                              <th>Applicant Name</th>
-                              <th>Applied For</th>
-                              <th>Date</th>
-                              <th>Status</th>
-                              <th>Contact</th>
-                              <th>Action</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {recentApplicants.map((application) => (
-                              <tr key={application._id}>
-                                <td>{application.applicant?.name || "Unknown Applicant"}</td>
-                                <td>{application.vacancy?.title || "Unknown Job"}</td>
-                                <td>{formatDate(application.createdAt || application.appliedAt)}</td>
-                                <td>
-                                  <span className={`status-pill ${recentApplicantStatusClass(application.status)}`}>
-                                    {recentApplicantStatusLabel(application.status)}
-                                  </span>
-                                </td>
-                                <td>{getApplicantContact(application)}</td>
-                                <td>
+                      {!isMobile ? (
+                        <div className="table-scroll-wrap recent-applicants-table-wrap">
+                          <table className="employer-table recent-applicants-table">
+                            <colgroup>
+                              <col style={{ width: "22%" }} />
+                              <col style={{ width: "24%" }} />
+                              <col style={{ width: "14%" }} />
+                              <col style={{ width: "13%" }} />
+                              <col style={{ width: "15%" }} />
+                              <col style={{ width: "12%" }} />
+                            </colgroup>
+                            <thead>
+                              <tr>
+                                <th>Applicant Name</th>
+                                <th>Applied For</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Contact</th>
+                                <th>Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {recentApplicants.map((application) => (
+                                <tr key={application._id}>
+                                  <td>{application.applicant?.name || "Unknown Applicant"}</td>
+                                  <td>{application.vacancy?.title || "Unknown Job"}</td>
+                                  <td>{formatDate(application.createdAt || application.appliedAt)}</td>
+                                  <td>
+                                    <span className={`status-pill ${recentApplicantStatusClass(application.status)}`}>
+                                      {recentApplicantStatusLabel(application.status)}
+                                    </span>
+                                  </td>
+                                  <td>{getApplicantContact(application)}</td>
+                                  <td>
+                                    <button
+                                      type="button"
+                                      className="recent-view-btn"
+                                      onClick={() => openApplicantDrawer(application)}
+                                    >
+                                      View
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="recent-applicants-mobile" aria-label="Recent applicants mobile list">
+                          {recentApplicants.map((application) => (
+                            <article key={`mobile-${application._id}`} className="recent-applicant-card">
+                              <div className="recent-applicant-top">
+                                <strong>{application.applicant?.name || "Unknown Applicant"}</strong>
+                                <span className={`status-pill ${recentApplicantStatusClass(application.status)}`}>
+                                  {recentApplicantStatusLabel(application.status)}
+                                </span>
+                              </div>
+                              <div className="recent-applicant-grid">
+                                <span className="label">Applied For</span>
+                                <span className="value">{application.vacancy?.title || "Unknown Job"}</span>
+
+                                <span className="label">Date</span>
+                                <span className="value">{formatDate(application.createdAt || application.appliedAt)}</span>
+
+                                <span className="label">Contact</span>
+                                <span className="value">{getApplicantContact(application)}</span>
+
+                                <span className="label">Action</span>
+                                <span className="value">
                                   <button
                                     type="button"
                                     className="recent-view-btn"
@@ -373,46 +536,12 @@ export default function EmployerDashboard() {
                                   >
                                     View
                                   </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div className="recent-applicants-mobile" aria-label="Recent applicants mobile list">
-                        {recentApplicants.map((application) => (
-                          <article key={`mobile-${application._id}`} className="recent-applicant-card">
-                            <div className="recent-applicant-top">
-                              <strong>{application.applicant?.name || "Unknown Applicant"}</strong>
-                              <span className={`status-pill ${recentApplicantStatusClass(application.status)}`}>
-                                {recentApplicantStatusLabel(application.status)}
-                              </span>
-                            </div>
-                            <div className="recent-applicant-grid">
-                              <span className="label">Applied For</span>
-                              <span className="value">{application.vacancy?.title || "Unknown Job"}</span>
-
-                              <span className="label">Date</span>
-                              <span className="value">{formatDate(application.createdAt || application.appliedAt)}</span>
-
-                              <span className="label">Contact</span>
-                              <span className="value">{getApplicantContact(application)}</span>
-
-                              <span className="label">Action</span>
-                              <span className="value">
-                                <button
-                                  type="button"
-                                  className="recent-view-btn"
-                                  onClick={() => openApplicantDrawer(application)}
-                                >
-                                  View
-                                </button>
-                              </span>
-                            </div>
-                          </article>
-                        ))}
-                      </div>
+                                </span>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -436,7 +565,9 @@ export default function EmployerDashboard() {
                       <article key={job._id} className="job-card">
                         <div className="job-card-head">
                           <h3>{job.title}</h3>
-                          <span className={`status-pill ${statusClass(job.status)}`}>{job.status || "active"}</span>
+                          <span className={`status-pill ${statusClass(job.status)}`}>
+                            {job.status || "active"}
+                          </span>
                         </div>
                         <p className="job-meta">{job.location}</p>
                         <p className="job-meta">Salary: {job.salary || "Negotiable"}</p>
@@ -444,7 +575,9 @@ export default function EmployerDashboard() {
                         <p className="job-meta">Posted: {formatDate(job.createdAt)}</p>
 
                         <div className="job-actions">
-                          <button type="button" className="outline-btn" onClick={() => openEditJobModal(job)}>Edit</button>
+                          <button type="button" className="outline-btn" onClick={() => openEditJobModal(job)}>
+                            Edit
+                          </button>
                           <button type="button" className="outline-btn" onClick={() => handleCloseOrReopen(job)}>
                             {job.status === "closed" ? "Reopen" : "Close"}
                           </button>
@@ -534,29 +667,34 @@ export default function EmployerDashboard() {
         )}
       </section>
 
+      {/* Job Modal */}
       {isJobModalOpen && (
         <div className="modal-overlay" onClick={() => setIsJobModalOpen(false)}>
           <div className="job-modal" onClick={(event) => event.stopPropagation()}>
             <h3>{editingJob ? "Edit Job Posting" : "Post New Job"}</h3>
 
+            {error && <div className="error-message">{error}</div>}
+
             <form className="job-form-grid" onSubmit={handleSaveJob}>
               <label>
-                Job Title
+                Job Title *
                 <input
                   type="text"
                   value={jobForm.title}
                   onChange={(event) => setJobForm((prev) => ({ ...prev, title: event.target.value }))}
                   required
+                  disabled={isSavingJob}
                 />
               </label>
 
               <label>
-                Location
+                Location *
                 <input
                   type="text"
                   value={jobForm.location}
                   onChange={(event) => setJobForm((prev) => ({ ...prev, location: event.target.value }))}
                   required
+                  disabled={isSavingJob}
                 />
               </label>
 
@@ -565,10 +703,14 @@ export default function EmployerDashboard() {
                 <select
                   value={jobForm.jobType}
                   onChange={(event) => setJobForm((prev) => ({ ...prev, jobType: event.target.value }))}
+                  disabled={isSavingJob}
                 >
                   <option value="Full-time">Full-time</option>
                   <option value="Part-time">Part-time</option>
                   <option value="Contract">Contract</option>
+                  <option value="Internship">Internship</option>
+                  <option value="Temporary">Temporary</option>
+                  <option value="Remote">Remote</option>
                 </select>
               </label>
 
@@ -578,49 +720,66 @@ export default function EmployerDashboard() {
                   type="text"
                   value={jobForm.salary}
                   onChange={(event) => setJobForm((prev) => ({ ...prev, salary: event.target.value }))}
+                  placeholder="e.g. PHP 18,000 - 25,000"
+                  disabled={isSavingJob}
                 />
               </label>
 
               <label>
-                Slots Available
+                Slots Available *
                 <input
                   type="number"
                   min="1"
+                  max="100"
                   value={jobForm.slots}
                   onChange={(event) => setJobForm((prev) => ({ ...prev, slots: Number(event.target.value) || 1 }))}
+                  required
+                  disabled={isSavingJob}
                 />
               </label>
 
               <label className="full-width">
-                Description
+                Description *
                 <textarea
                   value={jobForm.description}
                   onChange={(event) => setJobForm((prev) => ({ ...prev, description: event.target.value }))}
                   rows="4"
                   required
+                  disabled={isSavingJob}
+                  placeholder="Describe the job responsibilities, role scope, and expectations..."
                 />
               </label>
 
               <label className="full-width">
-                Requirements
+                Requirements *
                 <textarea
                   value={jobForm.requirements}
                   onChange={(event) => setJobForm((prev) => ({ ...prev, requirements: event.target.value }))}
                   rows="3"
+                  required
+                  disabled={isSavingJob}
+                  placeholder="e.g. Bachelor's degree, 2 years experience, skills..."
                 />
               </label>
 
-                  <label>
-                    Application Deadline
-                    <input
-                      type="date"
-                      value={jobForm.applicationDeadline}
-                      onChange={(event) => setJobForm((prev) => ({ ...prev, applicationDeadline: event.target.value }))}
-                    />
-                  </label>
+              <label>
+                Application Deadline
+                <input
+                  type="date"
+                  value={jobForm.applicationDeadline}
+                  onChange={(event) => setJobForm((prev) => ({ ...prev, applicationDeadline: event.target.value }))}
+                  min={new Date().toISOString().split("T")[0]}
+                  disabled={isSavingJob}
+                />
+              </label>
 
               <div className="job-modal-actions full-width">
-                <button type="button" className="outline-btn" onClick={() => setIsJobModalOpen(false)} disabled={isSavingJob}>
+                <button 
+                  type="button" 
+                  className="outline-btn" 
+                  onClick={() => setIsJobModalOpen(false)} 
+                  disabled={isSavingJob}
+                >
                   Cancel
                 </button>
                 <button type="submit" className="green-btn" disabled={isSavingJob}>
@@ -632,6 +791,7 @@ export default function EmployerDashboard() {
         </div>
       )}
 
+      {/* Applicant Drawer */}
       {selectedApplication && (
         <div className="drawer-overlay" onClick={() => setSelectedApplication(null)}>
           <aside className="applicant-drawer" onClick={(event) => event.stopPropagation()}>
@@ -682,7 +842,7 @@ export default function EmployerDashboard() {
               <div className="drawer-section">
                 <p className="drawer-section-label">Skills</p>
                 <div className="drawer-skill-list">
-                  {(selectedApplication.applicant?.skills || []).length ? (
+                  {selectedApplication.applicant?.skills?.length ? (
                     selectedApplication.applicant.skills.map((skill) => <span key={skill}>{skill}</span>)
                   ) : (
                     <span className="skill-empty">No skills listed</span>
@@ -690,17 +850,17 @@ export default function EmployerDashboard() {
                 </div>
               </div>
 
-              {selectedApplication.resume ? (
+              {selectedApplication.resume && (
                 <a
                   className="drawer-resume-link"
-                  href={`http://localhost:3000/${String(selectedApplication.resume).replace(/^\/+/, "")}`}
+                  href={`${API_URL.replace(/\/api\/v1$/, '')}/${String(selectedApplication.resume).replace(/^\/+/, "")}`}
                   target="_blank"
                   rel="noreferrer"
                 >
                   <span aria-hidden="true">↓</span>
                   <span>Download Resume</span>
                 </a>
-              ) : null}
+              )}
 
               <label className="drawer-field">
                 <span className="drawer-section-label">Status</span>
@@ -708,6 +868,7 @@ export default function EmployerDashboard() {
                   className={`drawer-status-select status-${drawerStatus}`}
                   value={drawerStatus}
                   onChange={(event) => setDrawerStatus(event.target.value)}
+                  disabled={isSavingApplication}
                 >
                   <option value="pending">Pending</option>
                   <option value="shortlisted">Shortlisted</option>
@@ -723,6 +884,7 @@ export default function EmployerDashboard() {
                   value={drawerNote}
                   onChange={(event) => setDrawerNote(event.target.value)}
                   placeholder="Add a quick status note…"
+                  disabled={isSavingApplication}
                 />
               </label>
 
@@ -741,7 +903,11 @@ export default function EmployerDashboard() {
         </div>
       )}
 
-      {successToast && <div className="success-toast">{successToast}</div>}
+      {successToast && (
+        <div className="success-toast" role="alert">
+          {successToast}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-﻿import { useState, useContext } from "react";
+﻿import { useState, useContext, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
@@ -22,7 +22,11 @@ const formatApiError = (err, fallback = "Login failed") => {
   }
 
   if (err?.code === "ERR_NETWORK") {
-    return "Network error: backend unreachable or blocked by CORS.";
+    return "Network error: Cannot connect to server. Please check your connection.";
+  }
+
+  if (err?.code === "ECONNABORTED") {
+    return "Request timed out. Please try again.";
   }
 
   const safeData =
@@ -30,7 +34,7 @@ const formatApiError = (err, fallback = "Login failed") => {
       ? JSON.stringify(data)
       : String(data || "none");
 
-  return `${fallback} | status:${status || "none"} | code:${err?.code || "none"} | message:${err?.message || "none"} | data:${safeData}`;
+  return `${fallback} | status:${status || "none"} | code:${err?.code || "none"}`;
 };
 
 export default function Login() {
@@ -38,12 +42,28 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useContext(AuthContext);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const { login, user } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user && !isRedirecting) {
+      const role = normalizeRole(user.role);
+      if (role === "admin") {
+        navigate("/admin");
+      } else if (role === "employer") {
+        navigate("/employer-dashboard");
+      } else {
+        navigate("/dashboard");
+      }
+    }
+  }, [user, navigate, isRedirecting]);
+
   const getDefaultRouteByRole = (role) => {
-    if (role === "admin") return "/admin";
-    if (role === "employer") return "/employer-dashboard";
+    const normalizedRole = normalizeRole(role);
+    if (normalizedRole === "admin") return "/admin";
+    if (normalizedRole === "employer") return "/employer-dashboard";
     return "/dashboard";
   };
 
@@ -58,8 +78,16 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (!formData.email.trim() || !formData.password) {
+      setError("Please enter both email and password");
+      return;
+    }
+
     setLoading(true);
     setError("");
+    setIsRedirecting(false);
 
     try {
       const loginPayload = {
@@ -68,31 +96,47 @@ export default function Login() {
       };
 
       const { data } = await authAPI.login(loginPayload);
-      login(data.token, data.user);
+      
+      if (!data.token || !data.user) {
+        throw new Error("Invalid response from server");
+      }
 
-      const profileResponse = await authAPI.getProfile();
+      // Get user profile for complete data
+      let profileData = null;
+      try {
+        const profileResponse = await authAPI.getProfile();
+        profileData = profileResponse.data;
+      } catch (profileErr) {
+        console.warn("Could not fetch profile, using login data:", profileErr);
+      }
+
       const mergedUser = {
         ...data.user,
-        ...profileResponse.data,
-        role: normalizeRole(profileResponse.data?.role || data.user?.role),
+        ...(profileData || {}),
+        role: normalizeRole(profileData?.role || data.user?.role),
       };
 
+      // Store auth data
       login(data.token, mergedUser);
 
+      // Check onboarding status
       const hasCompletedOnboarding =
         typeof mergedUser?.hasCompletedOnboarding === "boolean"
           ? mergedUser.hasCompletedOnboarding
           : mergedUser?.onboardingComplete;
 
-      if (["resident", "employer"].includes(mergedUser?.role) && hasCompletedOnboarding === false) {
+      const role = normalizeRole(mergedUser?.role);
+
+      if (["resident", "employer"].includes(role) && hasCompletedOnboarding === false) {
+        setIsRedirecting(true);
         navigate("/onboarding");
         return;
       }
 
-      navigate(getDefaultRouteByRole(mergedUser?.role));
+      setIsRedirecting(true);
+      navigate(getDefaultRouteByRole(role));
     } catch (err) {
       setError(formatApiError(err, "Login failed"));
-    } finally {
       setLoading(false);
     }
   };
@@ -104,46 +148,66 @@ export default function Login() {
         <p className="auth-subtitle">Access your account to view jobs and manage applications.</p>
 
         {error && (
-          <p className="error-message" role="alert" aria-live="polite">
+          <div className="error-message" role="alert" aria-live="polite">
             {error}
-          </p>
+          </div>
         )}
 
-
         <form className="auth-form" onSubmit={handleSubmit}>
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-          />
-          <div className="password-container">
+          <div className="form-group">
+            <label htmlFor="email">Email Address</label>
             <input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              placeholder="Password"
-              value={formData.password}
+              id="email"
+              type="email"
+              name="email"
+              placeholder="Enter your email"
+              value={formData.email}
               onChange={handleChange}
               required
+              disabled={loading || isRedirecting}
+              autoComplete="email"
             />
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={togglePasswordVisibility}
-              aria-label="Toggle password visibility"
-            >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
           </div>
-          <button type="submit" className="auth-button" disabled={loading}>
-            {loading ? "Logging in..." : "Login"}
+
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <div className="password-container">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                disabled={loading || isRedirecting}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={togglePasswordVisibility}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                disabled={loading || isRedirecting}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
+          </div>
+
+          <button 
+            type="submit" 
+            className="auth-button" 
+            disabled={loading || isRedirecting}
+          >
+            {loading ? "Logging in..." : isRedirecting ? "Redirecting..." : "Login"}
           </button>
         </form>
 
         <p className="auth-link">
-          Don't have an account? <Link to="/register">Register</Link>
+          Don't have an account? <Link to="/register" onClick={(e) => {
+            if (loading || isRedirecting) e.preventDefault();
+          }}>Register</Link>
         </p>
       </div>
     </div>
