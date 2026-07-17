@@ -6,7 +6,6 @@ const DEFAULT_API_URL = import.meta.env.DEV
 
 export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
 
-// Create axios instance with default config
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
@@ -101,16 +100,11 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
-  
-  // ✅ FIXED: correct endpoint for employee/jobseeker registration
   registerEmployee: (data) => api.post('/auth/register/employee', data),
-  
   generateInvite: () => api.post('/auth/invite', {}, getAuthHeader()),
   getProfile: () => api.get('/auth/profile', getAuthHeader()),
   updateProfile: (data) => api.put('/auth/profile', data, getAuthFormHeader()),
   deleteAccount: () => api.delete('/auth/profile', getAuthHeader()),
-  
-  // ✅ Employer registration – kept separate
   registerEmployer: (data) => api.post('/auth/register/employer', data),
 };
 
@@ -169,7 +163,7 @@ export const employerAPI = {
   getJobs: () => api.get('/employer/jobs', getAuthHeader()),
   createJob: (data) => api.post('/employer/jobs', data, getAuthHeader()),
   updateJob: (id, data) => api.put(`/employer/jobs/${id}`, data, getAuthHeader()),
-  closeJob: (id) => api.delete(`/employer/jobs/${id}`, getAuthHeader()),
+  deleteJob: (id) => api.delete(`/employer/jobs/${id}`, getAuthHeader()),
   getApplicantsForJob: (jobId) => api.get(`/employer/jobs/${jobId}/applicants`, getAuthHeader()),
   updateApplicationStatus: (applicationId, data) => 
     api.put(`/employer/applications/${applicationId}/status`, data, getAuthHeader()),

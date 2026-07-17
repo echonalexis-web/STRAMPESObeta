@@ -26,9 +26,6 @@ import {
   FaFileAlt, 
   FaCheckCircle, 
   FaSearch, 
-  FaPlus, 
-  FaCopy,
-  FaTimes,
   FaEllipsisV,
   FaEye,
   FaUserCheck,
@@ -37,11 +34,6 @@ import {
   FaShieldAlt,
   FaStar,
   FaChartLine,
-  FaCalendarAlt,
-  FaEnvelope,
-  FaPhone,
-  FaMapMarkerAlt,
-  FaUserCircle
 } from "react-icons/fa";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -69,6 +61,18 @@ const formatDate = (value) => {
     day: "numeric",
     year: "numeric",
   });
+};
+
+const verificationBadge = (status) => {
+  switch (status) {
+    case "verified":
+      return { label: "Verified", className: "admin-status-badge active" };
+    case "pending":
+      return { label: "Pending", className: "admin-status-badge pending" };
+    case "unverified":
+    default:
+      return { label: "Unverified", className: "admin-status-badge inactive" };
+  }
 };
 
 function ActionsMenu({ row, isBusy, onDeactivate, onReactivate, onDelete, onToggleVerification }) {
@@ -237,10 +241,12 @@ export default function AdminDashboard() {
   const [busyUserId, setBusyUserId] = useState("");
   const [busyJobId, setBusyJobId] = useState("");
 
-  const [inviteCode, setInviteCode] = useState("");
   const [homepageJobs, setHomepageJobs] = useState([]);
   const [rankedHomepageJobs, setRankedHomepageJobs] = useState([]);
   const [featuredCount, setFeaturedCount] = useState(0);
+
+  // Separate error state for verification inline messages
+  const [verificationError, setVerificationError] = useState("");
 
   useEffect(() => {
     if (user?.role !== "admin") {
@@ -361,6 +367,30 @@ export default function AdminDashboard() {
     return "admin-role-badge resident";
   };
 
+  // Modified runUserAction for verification with separate error
+  const runVerificationAction = async (targetUser, verificationStatus) => {
+    setVerificationError("");
+    setBusyUserId(targetUser._id);
+    try {
+      await adminAPI.updateEmployerVerification(targetUser._id, verificationStatus);
+      // Refresh users and analytics
+      await Promise.all([fetchUsers(), fetchAnalytics()]);
+      // Clear the verification row on success
+      setVerificationTarget("");
+    } catch (err) {
+      const message = err.response?.data?.message || "Action failed";
+      console.error("Verification failed:", message, err);
+      setVerificationError(message);
+    } finally {
+      setBusyUserId("");
+    }
+  };
+
+  const handleVerification = (targetUser, verificationStatus) => {
+    runVerificationAction(targetUser, verificationStatus);
+  };
+
+  // Other actions unchanged (deactivate, reactivate, delete)
   const runUserAction = async (request) => {
     try {
       await request();
@@ -390,31 +420,6 @@ export default function AdminDashboard() {
     runUserAction(() => adminAPI.deleteUser(targetUser._id));
   };
 
-  const handleVerification = (targetUser, verificationStatus) => {
-    setBusyUserId(targetUser._id);
-    runUserAction(() => adminAPI.updateEmployerVerification(targetUser._id, verificationStatus));
-  };
-
-  const handleGenerateInvite = async () => {
-    try {
-      const { data } = await adminAPI.generateInvite();
-      setInviteCode(data.code || "");
-      setError("");
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to generate invite code");
-    }
-  };
-
-  const copyInviteCode = async () => {
-    if (!inviteCode) return;
-    try {
-      await navigator.clipboard.writeText(inviteCode);
-      window.alert("Invite code copied to clipboard.");
-    } catch {
-      window.alert("Copy failed. Please copy manually.");
-    }
-  };
-
   const handleToggleHomepageFeature = async (jobId, nextValue) => {
     try {
       setBusyJobId(jobId);
@@ -437,17 +442,12 @@ export default function AdminDashboard() {
 
   return (
     <div className="admin-panel-page">
-      {/* Banner */}
+      {/* Banner – NO invite button */}
       <section className="admin-banner">
         <div className="admin-banner-content">
           <div>
             <h1>Admin Dashboard</h1>
             <p>Manage and monitor the STRAM PESO platform</p>
-          </div>
-          <div className="admin-banner-actions">
-            <button className="admin-banner-btn" onClick={handleGenerateInvite}>
-              <FaPlus /> Generate Invite
-            </button>
           </div>
         </div>
       </section>
@@ -626,7 +626,7 @@ export default function AdminDashboard() {
         </div>
       </section>
 
-      {/* User Management */}
+      {/* User Management – Verification column added */}
       <section className="admin-users-section">
         <div className="admin-users-header">
           <div>
@@ -645,9 +645,6 @@ export default function AdminDashboard() {
               onChange={(event) => setSearchInput(event.target.value)}
             />
           </div>
-          <button className="admin-invite-btn" onClick={handleGenerateInvite}>
-            <FaPlus /> Generate Invite
-          </button>
         </div>
 
         <div className="admin-users-meta">
@@ -672,6 +669,7 @@ export default function AdminDashboard() {
               <tr>
                 <th>User</th>
                 <th>Role</th>
+                <th>Verification</th>
                 <th>Status</th>
                 <th>Joined</th>
                 <th className="admin-actions-header">Actions</th>
@@ -680,7 +678,7 @@ export default function AdminDashboard() {
             <tbody>
               {!loadingUsers && users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="admin-empty-state">
+                  <td colSpan={6} className="admin-empty-state">
                     <FaSearch className="empty-icon" />
                     <p>No users found matching your search.</p>
                   </td>
@@ -688,8 +686,8 @@ export default function AdminDashboard() {
               ) : (
                 users.map((row) => {
                   const isActive = row.isActive !== false;
-                  const canManage = row.role !== "admin";
                   const isBusy = busyUserId === row._id;
+                  const badge = row.role === "employer" ? verificationBadge(row.verificationStatus) : null;
 
                   return (
                     <Fragment key={row._id}>
@@ -707,6 +705,13 @@ export default function AdminDashboard() {
                         </td>
                         <td>
                           <span className={roleBadgeClass(row.role)}>{row.role}</span>
+                        </td>
+                        <td>
+                          {row.role === "employer" ? (
+                            <span className={badge.className}>{badge.label}</span>
+                          ) : (
+                            <span style={{ color: "#94a3b8" }}>–</span>
+                          )}
                         </td>
                         <td>
                           <span className={`admin-status-badge ${isActive ? "active" : "inactive"}`}>
@@ -730,16 +735,33 @@ export default function AdminDashboard() {
 
                       {verificationTarget === row._id && row.role === "employer" ? (
                         <tr>
-                          <td colSpan={5} className="admin-verification-row">
+                          <td colSpan={6} className="admin-verification-row">
                             <div className="admin-verification-inline">
                               <p>Set verification status for <strong>{row.name}</strong>:</p>
                               <div>
-                                <button onClick={() => handleVerification(row, "unverified")}>Unverified</button>
-                                <button onClick={() => handleVerification(row, "pending")}>Pending</button>
-                                <button className="verified" onClick={() => handleVerification(row, "verified")}>
+                                <button
+                                  onClick={() => handleVerification(row, "unverified")}
+                                  disabled={isBusy}
+                                >
+                                  Unverified
+                                </button>
+                                <button
+                                  onClick={() => handleVerification(row, "pending")}
+                                  disabled={isBusy}
+                                >
+                                  Pending
+                                </button>
+                                <button
+                                  className="verified"
+                                  onClick={() => handleVerification(row, "verified")}
+                                  disabled={isBusy}
+                                >
                                   ✓ Verified
                                 </button>
                               </div>
+                              {verificationError && (
+                                <p className="verification-error">{verificationError}</p>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -768,28 +790,6 @@ export default function AdminDashboard() {
           </button>
         </div>
       </section>
-
-      {/* Invite Modal */}
-      {inviteCode && (
-        <div className="admin-invite-overlay" onClick={() => setInviteCode("")}>
-          <div className="admin-invite-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="admin-invite-close" onClick={() => setInviteCode("")}>
-              <FaTimes />
-            </button>
-            <h3>🔑 Employer Invite Code</h3>
-            <p>Share this code with employers to register</p>
-            <div className="admin-invite-code">{inviteCode}</div>
-            <div className="admin-invite-actions">
-              <button className="admin-invite-copy" onClick={copyInviteCode}>
-                <FaCopy /> Copy
-              </button>
-              <button className="admin-invite-close-btn" onClick={() => setInviteCode("")}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

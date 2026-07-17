@@ -51,6 +51,19 @@ const HOME_FEATURED_JOBS = [
   },
 ];
 
+const formatAddress = (address) => {
+  if (!address) return "Not specified";
+  const parts = address.split(", ");
+  if (parts.length >= 2) {
+    return (
+      <>
+        <span>{parts[0]}</span><br /><span className="text-muted">{parts.slice(1).join(", ")}</span>
+      </>
+    );
+  }
+  return address;
+};
+
 export default function Home() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -69,14 +82,12 @@ export default function Home() {
   useEffect(() => {
     const hash = location.hash.replace("#", "");
     const target = hash === "available-jobs" ? jobsRef.current : null;
-
     if (target) {
       window.requestAnimationFrame(() => {
         target.scrollIntoView({ behavior: "smooth", block: "start" });
       });
       return;
     }
-
     if (location.pathname === "/" && !location.hash) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -84,14 +95,11 @@ export default function Home() {
 
   useEffect(() => {
     let active = true;
-
     const loadJobs = async () => {
       setJobsLoading(true);
-
       try {
         const { data } = await jobAPI.getHomepageJobs();
         if (!active) return;
-
         if (Array.isArray(data) && data.length > 0) {
           setFeaturedJobs(data);
         } else {
@@ -99,142 +107,84 @@ export default function Home() {
         }
       } catch (error) {
         console.error("Error loading jobs:", error);
-        if (active) {
-          setFeaturedJobs(HOME_FEATURED_JOBS);
-        }
+        if (active) setFeaturedJobs(HOME_FEATURED_JOBS);
       } finally {
-        if (active) {
-          setJobsLoading(false);
-        }
+        if (active) setJobsLoading(false);
       }
     };
-
     loadJobs();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [user]);
 
   useEffect(() => {
     const cards = Array.from(document.querySelectorAll("[data-fade-card]"));
-
     if (!cards.length) return undefined;
-
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return;
-
           const cardId = entry.target.getAttribute("data-card-id");
-
-          if (cardId) {
-            setVisibleCards((current) => ({ ...current, [cardId]: true }));
-          }
-
+          if (cardId) setVisibleCards((current) => ({ ...current, [cardId]: true }));
           observer.unobserve(entry.target);
         });
       },
-      {
-        threshold: 0.18,
-        rootMargin: "0px 0px -40px 0px",
-      }
+      { threshold: 0.18, rootMargin: "0px 0px -40px 0px" }
     );
-
     cards.forEach((card) => observer.observe(card));
-
     return () => observer.disconnect();
   }, [featuredJobs]);
 
-  // Debounced search effect
   useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      setIsSearching(false);
-    }, 300);
-
+    const debounceTimer = setTimeout(() => setIsSearching(false), 300);
     return () => clearTimeout(debounceTimer);
   }, [searchQuery]);
 
-  // Hide scroll button when user scrolls past hero section
   useEffect(() => {
     let ticking = false;
-
     const handleScroll = () => {
       if (ticking) return;
-
       ticking = true;
-
       window.requestAnimationFrame(() => {
         if (heroRef.current) {
-          const heroBottom =
-            heroRef.current.getBoundingClientRect().bottom;
-
+          const heroBottom = heroRef.current.getBoundingClientRect().bottom;
           setShowScrollButton(heroBottom > 100);
         }
-
         ticking = false;
       });
     };
-
     handleScroll();
-
     window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // FIXED: Simple and reliable scroll to available jobs section
-  // FIXED: Simple and reliable scroll to available jobs section
   const scrollToAvailableJobs = () => {
     const availableJobsSection = document.getElementById("available-jobs");
     if (availableJobsSection) {
-      // Hide button immediately
       setShowScrollButton(false);
-    
-      // Use native scrollIntoView with smooth behavior
-      availableJobsSection.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-        inline: "nearest"
-      });
+      availableJobsSection.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
     }
   };
 
-  // Robust filtering function that handles missing fields properly
   const getFilteredJobs = () => {
     try {
       if (!searchQuery.trim()) return featuredJobs;
-      
       const query = searchQuery.toLowerCase().trim();
-      
       const results = featuredJobs.filter(job => {
         if (!job) return false;
-        
         const title = (job.title || "").toLowerCase().trim();
         const employer = (typeof job.employer === 'string' ? job.employer : job.employer?.companyName || job.employer?.name || "").toLowerCase().trim();
         const location = (job.location || "").toLowerCase().trim();
-        
         let jobType = "";
-        if (job.jobType && typeof job.jobType === 'string') {
-          jobType = job.jobType.toLowerCase().trim();
-        } else if (job.type && typeof job.type === 'string') {
-          jobType = job.type.toLowerCase().trim();
-        } else if (job.employmentType && typeof job.employmentType === 'string') {
-          jobType = job.employmentType.toLowerCase().trim();
-        }
-        
+        if (job.jobType && typeof job.jobType === 'string') jobType = job.jobType.toLowerCase().trim();
+        else if (job.type && typeof job.type === 'string') jobType = job.type.toLowerCase().trim();
+        else if (job.employmentType && typeof job.employmentType === 'string') jobType = job.employmentType.toLowerCase().trim();
         let isMatch = false;
-        
         if (title && title.includes(query)) isMatch = true;
         if (employer && employer.includes(query) && employer !== "employer") isMatch = true;
         if (location && location.includes(query)) isMatch = true;
         if (jobType && jobType.includes(query)) isMatch = true;
-        
         return isMatch;
       });
-      
       return results;
     } catch (error) {
       console.error("Error filtering jobs:", error);
@@ -245,60 +195,24 @@ export default function Home() {
   const filteredJobs = getFilteredJobs();
   const hasNoResults = searchQuery.trim() !== "" && filteredJobs.length === 0 && !jobsLoading;
 
-  const openRegisterPrompt = () => {
-    setShowRegisterPrompt(true);
-  };
-
-  const closeRegisterPrompt = () => {
-    setShowRegisterPrompt(false);
-  };
-
-  const goToRegister = (route) => {
-    closeRegisterPrompt();
-    navigate(route);
-  };
-
-  const handleProgramAction = (program) => {
-    setSelectedProgram(program);
-  };
-
-  const closeProgramModal = () => {
-    setSelectedProgram(null);
-  };
-
-  const handleViewJob = (job) => {
-    if (!job?._id) return;
-    navigate(`/jobs/${job._id}`);
-  };
-
-  const clearSearch = () => {
-    setSearchQuery("");
-    setIsSearching(false);
-  };
+  const openRegisterPrompt = () => setShowRegisterPrompt(true);
+  const closeRegisterPrompt = () => setShowRegisterPrompt(false);
+  const goToRegister = (route) => { closeRegisterPrompt(); navigate(route); };
+  const handleProgramAction = (program) => setSelectedProgram(program);
+  const closeProgramModal = () => setSelectedProgram(null);
+  const handleViewJob = (job) => { if (!job?._id) return; navigate(`/jobs/${job._id}`); };
+  const clearSearch = () => { setSearchQuery(""); setIsSearching(false); };
 
   const getJobStatus = (job) => {
     try {
       const deadlineValue = job?.applicationDeadline || job?.deadline;
-
-      if (!deadlineValue) {
-        return { label: "Open", variant: "open" };
-      }
-
+      if (!deadlineValue) return { label: "Open", variant: "open" };
       const deadlineDate = new Date(deadlineValue);
-
-      if (Number.isNaN(deadlineDate.getTime())) {
-        return { label: "Open", variant: "open" };
-      }
-
+      if (Number.isNaN(deadlineDate.getTime())) return { label: "Open", variant: "open" };
       const daysRemaining = Math.ceil((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-
       if (daysRemaining <= 7 && daysRemaining >= 0) {
-        return {
-          label: `Closing soon${daysRemaining > 0 ? ` · ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} left` : ""}`,
-          variant: "closing",
-        };
+        return { label: `Closing soon${daysRemaining > 0 ? ` · ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} left` : ""}`, variant: "closing" };
       }
-
       return { label: "Open", variant: "open" };
     } catch (error) {
       console.error("Error getting job status:", error);
@@ -312,15 +226,10 @@ export default function Home() {
       if (job?.employer?.companyName) return job.employer.companyName;
       if (job?.employer?.name) return job.employer.name;
       return "";
-    } catch (error) {
-      return "";
-    }
+    } catch (error) { return ""; }
   };
 
-  const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
-    setIsSearching(true);
-  };
+  const handleSearchChange = (e) => { setSearchQuery(e.target.value); setIsSearching(true); };
 
   return (
     <div className="home-container">
@@ -329,48 +238,21 @@ export default function Home() {
           <source src={heroVideo} type="video/mp4" />
           Your browser does not support HTML5 video.
         </video>
-
         <div className="video-overlay"></div>
-
         <div className="video-hero-content">
-          <div className="hero-logo-container">
-            <img src={pesoLogo} alt="PESO Marinduque Logo" className="hero-logo" />
-          </div>
-
+          <div className="hero-logo-container"><img src={pesoLogo} alt="PESO Marinduque Logo" className="hero-logo" /></div>
           <h1 className="hero-main-title">TRABAHO MANDIN!</h1>
-
           <p className="hero-tagline">Trabaho para sa Marinduqueño</p>
-
-          <div className="hero-description">
-            <p>
-              Marinduque, proudly known as the Heart of the Philippines, is a province rich in culture, resilience,
-              and community spirit. Through Online Employment in Marinduque, we connect local talent with
-              opportunities, empowering every Marinduqueño to build a stronger future at home and beyond
-            </p>
-          </div>
-
+          <div className="hero-description"><p>Marinduque, proudly known as the Heart of the Philippines, is a province rich in culture, resilience, and community spirit. Through Online Employment in Marinduque, we connect local talent with opportunities, empowering every Marinduqueño to build a stronger future at home and beyond</p></div>
           {!user && (
             <div className="hero-mobile-quick-actions">
-              <button
-                type="button"
-                className="hero-mobile-btn hero-mobile-login-btn"
-                onClick={() => navigate("/login")}
-              >
-                Login
-              </button>
-              <button
-                type="button"
-                className="hero-mobile-btn hero-mobile-register-btn"
-                onClick={openRegisterPrompt}
-              >
-                Register
-              </button>
+              <button type="button" className="hero-mobile-btn hero-mobile-login-btn" onClick={() => navigate("/login")}>Login</button>
+              <button type="button" className="hero-mobile-btn hero-mobile-register-btn" onClick={openRegisterPrompt}>Register</button>
             </div>
           )}
         </div>
       </section>
 
-      {/* Floating Scroll Down Button */}
       {showScrollButton && (
         <button className="scroll-down-button" onClick={scrollToAvailableJobs}>
           <span className="scroll-down-text">Scroll Down for More</span>
@@ -378,35 +260,19 @@ export default function Home() {
         </button>
       )}
 
-      {/* Available Jobs Section - REDESIGNED */}
       <section className="available-jobs-section" id="available-jobs" ref={jobsRef}>
-        {/* Search Banner */}
         <div className="jobs-search-banner">
           <div className="jobs-search-banner-left">
-            <div className="jobs-search-banner-image">
-              <img src={searchBannerBg} alt="Search banner background" />
-            </div>
+            <div className="jobs-search-banner-image"><img src={searchBannerBg} alt="Search banner background" /></div>
             <div className="jobs-search-banner-diagonal"></div>
           </div>
           <div className="jobs-search-banner-right">
             <h2 className="jobs-search-banner-title">Find the right one for you</h2>
-            <p className="jobs-search-banner-subtitle">
-              Discover livelihood support, emergency employment, and skills training opportunities designed for Marinduqueños.
-            </p>
+            <p className="jobs-search-banner-subtitle">Discover livelihood support, emergency employment, and skills training opportunities designed for Marinduqueños.</p>
             <div className="jobs-search-input-wrapper">
               <span className="jobs-search-icon">🔍</span>
-              <input
-                type="text"
-                className="jobs-search-input"
-                placeholder="Search by job title, employer, location, or type..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-              />
-              {searchQuery && (
-                <button className="search-clear-btn" onClick={clearSearch}>
-                  ✕
-                </button>
-              )}
+              <input type="text" className="jobs-search-input" placeholder="Search by job title, employer, location, or type..." value={searchQuery} onChange={handleSearchChange} />
+              {searchQuery && <button className="search-clear-btn" onClick={clearSearch}>✕</button>}
             </div>
           </div>
         </div>
@@ -414,51 +280,30 @@ export default function Home() {
         <div className="section-heading-wrap">
           <span className="section-kicker">Available Jobs</span>
           <h2>Current employer openings</h2>
-          <p>
-            Browse featured vacancies from local employers. Visitors can preview openings here and log in to apply.
-          </p>
+          <p>Browse featured vacancies from local employers. Visitors can preview openings here and log in to apply.</p>
         </div>
 
         {jobsLoading ? (
-          <div className="section-loading">
-            <p>Loading available jobs...</p>
-          </div>
+          <div className="section-loading"><p>Loading available jobs...</p></div>
         ) : isSearching ? (
-          <div className="section-loading">
-            <p>Searching for "{searchQuery}"...</p>
-          </div>
+          <div className="section-loading"><p>Searching for "{searchQuery}"...</p></div>
         ) : hasNoResults ? (
           <div className="no-results-container">
             <div className="no-results-icon">🔍</div>
             <h3>No jobs found for "{searchQuery}"</h3>
             <p>We couldn't find any matching jobs. Try adjusting your search terms.</p>
-            <div className="suggestions">
-              <p>💡 Suggestions:</p>
-              <ul>
-                <li>Check for typos or spelling errors</li>
-                <li>Use more general keywords (e.g., "assistant" instead of "admin assistant")</li>
-                <li>Try searching by job type (e.g., "full-time", "contract")</li>
-                <li>Browse all available jobs below</li>
-              </ul>
-            </div>
-            <button className="jobs-see-more-btn" onClick={clearSearch}>
-              View All Jobs
-            </button>
+            <div className="suggestions"><p>💡 Suggestions:</p><ul><li>Check for typos or spelling errors</li><li>Use more general keywords (e.g., "assistant" instead of "admin assistant")</li><li>Try searching by job type (e.g., "full-time", "contract")</li><li>Browse all available jobs below</li></ul></div>
+            <button className="jobs-see-more-btn" onClick={clearSearch}>View All Jobs</button>
           </div>
         ) : (
           <>
             {searchQuery && (
               <div className="search-summary">
-                <p>
-                  Found <strong>{filteredJobs.length}</strong> job{filteredJobs.length !== 1 ? 's' : ''} 
-                  matching "<strong>{searchQuery}</strong>"
-                </p>
-                <button className="clear-search-link" onClick={clearSearch}>
-                  Clear search
-                </button>
+                <p>Found <strong>{filteredJobs.length}</strong> job{filteredJobs.length !== 1 ? 's' : ''} matching "<strong>{searchQuery}</strong>"</p>
+                <button className="clear-search-link" onClick={clearSearch}>Clear search</button>
               </div>
             )}
-            
+
             <div className="jobs-grid-v2">
               {filteredJobs.length > 0 ? (
                 filteredJobs.map((job, index) => {
@@ -467,7 +312,6 @@ export default function Home() {
                   const employerName = getEmployerName(job) || "Employer";
                   const status = getJobStatus(job);
                   const employerInitial = employerName.charAt(0).toUpperCase() || "E";
-
                   return (
                     <article
                       key={jobId}
@@ -478,52 +322,27 @@ export default function Home() {
                       role="button"
                       tabIndex={0}
                       onClick={() => handleViewJob(job)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          handleViewJob(job);
-                        }
-                      }}
+                      onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleViewJob(job); } }}
                     >
                       <div className="job-card-v2-status">
                         <span className={`job-card-v2-status-dot job-card-v2-status-dot--${status.variant}`}></span>
                         {status.variant === "closing" ? "closing" : "open"}
                       </div>
-                      
-                      <div className="job-card-v2-logo">
-                        <div className="job-card-v2-logo-circle">
-                          {employerInitial}
-                        </div>
-                      </div>
-                      
+                      <div className="job-card-v2-logo"><div className="job-card-v2-logo-circle">{employerInitial}</div></div>
                       <h3 className="job-card-v2-employer">{employerName}</h3>
                       <p className="job-card-v2-title">{title}</p>
-                      
-                      <button 
-                        className="job-card-v2-button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleViewJob(job);
-                        }}
-                      >
-                        view details
-                      </button>
+                      <p className="job-card-v2-location">{formatAddress(job.location)}</p>
+                      <button className="job-card-v2-button" onClick={(event) => { event.stopPropagation(); handleViewJob(job); }}>view details</button>
                     </article>
                   );
                 })
               ) : (
-                <div className="no-results-container">
-                  <div className="no-results-icon">🔍</div>
-                  <h3>No jobs available</h3>
-                  <p>There are currently no job postings. Please check back later.</p>
-                </div>
+                <div className="no-results-container"><div className="no-results-icon">🔍</div><h3>No jobs available</h3><p>There are currently no job postings. Please check back later.</p></div>
               )}
             </div>
-            
+
             <div className="jobs-see-more-wrapper">
-              <button className="jobs-see-more-btn" onClick={() => navigate("/jobs")}>
-                See More Jobs
-              </button>
+              <button className="jobs-see-more-btn" onClick={() => navigate("/jobs")}>See More Jobs</button>
             </div>
           </>
         )}
@@ -532,23 +351,12 @@ export default function Home() {
       {showRegisterPrompt && (
         <div className="register-choice-overlay" onClick={closeRegisterPrompt}>
           <div className="register-choice-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>Register as</h3>
-            <p>Select your account type to continue.</p>
+            <h3>Register as</h3><p>Select your account type to continue.</p>
             <div className="register-choice-actions">
-              <button type="button" className="register-choice-btn" onClick={() => goToRegister("/register")}>
-                Resident / Jobseeker
-              </button>
-              <button
-                type="button"
-                className="register-choice-btn"
-                onClick={() => goToRegister("/register-employer")}
-              >
-                Employer
-              </button>
+              <button type="button" className="register-choice-btn" onClick={() => goToRegister("/register")}>Resident / Jobseeker</button>
+              <button type="button" className="register-choice-btn" onClick={() => goToRegister("/register-employer")}>Employer</button>
             </div>
-            <button type="button" className="register-choice-cancel" onClick={closeRegisterPrompt}>
-              Cancel
-            </button>
+            <button type="button" className="register-choice-cancel" onClick={closeRegisterPrompt}>Cancel</button>
           </div>
         </div>
       )}
@@ -556,12 +364,8 @@ export default function Home() {
       {selectedProgram && (
         <div className="register-choice-overlay" onClick={closeProgramModal}>
           <div className="register-choice-modal program-detail-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>{selectedProgram.title}</h3>
-            <p className="program-detail-tag">{selectedProgram.tag}</p>
-            <p>{selectedProgram.description}</p>
-            <button type="button" className="register-choice-cancel" onClick={closeProgramModal}>
-              Close
-            </button>
+            <h3>{selectedProgram.title}</h3><p className="program-detail-tag">{selectedProgram.tag}</p><p>{selectedProgram.description}</p>
+            <button type="button" className="register-choice-cancel" onClick={closeProgramModal}>Close</button>
           </div>
         </div>
       )}
@@ -569,78 +373,26 @@ export default function Home() {
       <section className="features-section">
         <h2>Find Work or Hire Talent</h2>
         <div className="features-grid">
-          <div className="feature-card">
-            <span className="icon">👨‍💼</span>
-            <h3>Job Seekers</h3>
-            <p>Discover local job openings and apply online.</p>
-          </div>
-          <div className="feature-card">
-            <span className="icon">🏢</span>
-            <h3>Employers</h3>
-            <p>Post vacancies and manage applicants in one place.</p>
-          </div>
-          <div className="feature-card">
-            <span className="icon">📄</span>
-            <h3>Resume Upload</h3>
-            <p>Attach your resume when applying for jobs.</p>
-          </div>
-          <div className="feature-card">
-            <span className="icon">📊</span>
-            <h3>Admin Analytics</h3>
-            <p>Track users, vacancies, and application activity.</p>
-          </div>
+          <div className="feature-card"><span className="icon">👨‍💼</span><h3>Job Seekers</h3><p>Discover local job openings and apply online.</p></div>
+          <div className="feature-card"><span className="icon">🏢</span><h3>Employers</h3><p>Post vacancies and manage applicants in one place.</p></div>
+          <div className="feature-card"><span className="icon">📄</span><h3>Resume Upload</h3><p>Attach your resume when applying for jobs.</p></div>
+          <div className="feature-card"><span className="icon">📊</span><h3>Admin Analytics</h3><p>Track users, vacancies, and application activity.</p></div>
         </div>
       </section>
 
       <section className="how-it-works-v2">
         <div className="how-it-works-v2-container">
           <h2 className="how-it-works-v2-title">How it Works</h2>
-          
           <div className="how-it-works-v2-layout">
             <div className="how-it-works-v2-steps">
-              <div className="how-it-works-v2-step-card">
-                <div className="how-it-works-v2-step-number">1</div>
-                <h3 className="how-it-works-v2-step-title">Register</h3>
-                <p className="how-it-works-v2-step-description">
-                  Create an account as a job seeker or employer.
-                </p>
-              </div>
-              
-              <div className="how-it-works-v2-step-card">
-                <div className="how-it-works-v2-step-number">2</div>
-                <h3 className="how-it-works-v2-step-title">Login</h3>
-                <p className="how-it-works-v2-step-description">
-                  Sign in with your credentials.
-                </p>
-              </div>
-              
-              <div className="how-it-works-v2-step-card">
-                <div className="how-it-works-v2-step-number">3</div>
-                <h3 className="how-it-works-v2-step-title">Apply</h3>
-                <p className="how-it-works-v2-step-description">
-                  Upload your resume and submit applications.
-                </p>
-              </div>
-              
-              <div className="how-it-works-v2-step-card">
-                <div className="how-it-works-v2-step-number">4</div>
-                <h3 className="how-it-works-v2-step-title">Manage</h3>
-                <p className="how-it-works-v2-step-description">
-                  Employers review applicants and admins monitor analytics.
-                </p>
-              </div>
+              <div className="how-it-works-v2-step-card"><div className="how-it-works-v2-step-number">1</div><h3 className="how-it-works-v2-step-title">Register</h3><p className="how-it-works-v2-step-description">Create an account as a job seeker or employer.</p></div>
+              <div className="how-it-works-v2-step-card"><div className="how-it-works-v2-step-number">2</div><h3 className="how-it-works-v2-step-title">Login</h3><p className="how-it-works-v2-step-description">Sign in with your credentials.</p></div>
+              <div className="how-it-works-v2-step-card"><div className="how-it-works-v2-step-number">3</div><h3 className="how-it-works-v2-step-title">Apply</h3><p className="how-it-works-v2-step-description">Upload your resume and submit applications.</p></div>
+              <div className="how-it-works-v2-step-card"><div className="how-it-works-v2-step-number">4</div><h3 className="how-it-works-v2-step-title">Manage</h3><p className="how-it-works-v2-step-description">Employers review applicants and admins monitor analytics.</p></div>
             </div>
-            
             <div className="how-it-works-v2-video-wrapper">
               <div className="how-it-works-v2-video-card">
-                <iframe
-                  className="how-it-works-v2-video"
-                  src="https://www.youtube.com/embed/dQw4w9WgXcQ"
-                  title="How it works video"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
+                <iframe className="how-it-works-v2-video" src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="How it works video" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
               </div>
             </div>
           </div>
@@ -649,27 +401,18 @@ export default function Home() {
 
       <footer className="footer-v2">
         <div className="footer-v2-background-overlay"></div>
-        
         <div className="footer-v2-content">
           <div className="footer-v2-logos">
-            <div className="footer-v2-yellow-box">
-              <img src={pesoLogo} alt="PESO Marinduque Logo" className="footer-v2-logo-img" />
-            </div>
-            <div className="footer-v2-seal">
-              <img src={provincialSeal} alt="Provincial Seal" className="footer-v2-seal-img" />
-            </div>
+            <div className="footer-v2-yellow-box"><img src={pesoLogo} alt="PESO Marinduque Logo" className="footer-v2-logo-img" /></div>
+            <div className="footer-v2-seal"><img src={provincialSeal} alt="Provincial Seal" className="footer-v2-seal-img" /></div>
           </div>
-          
           <div className="footer-v2-text">
             <p className="footer-v2-label">LIVELIHOOD MANPOWER DEVELOPMENT</p>
             <h2 className="footer-v2-title">PUBLIC EMPLOYMENT SERVICE OFFICE</h2>
             <p className="footer-v2-subtitle">Ialawigan ng Marinduque</p>
           </div>
         </div>
-        
-        <div className="footer-v2-copyright">
-          <p>© 2025 Provincial Government of Marinduque. All Rights Reserved.</p>
-        </div>
+        <div className="footer-v2-copyright"><p>© 2025 Provincial Government of Marinduque. All Rights Reserved.</p></div>
       </footer>
     </div>
   );

@@ -9,37 +9,36 @@ const {
   getEmployerStats,
   getEmployerProfileStats,
 } = require("../controllers/employerController");
-const { verifyToken: protect, isEmployer } = require("../middleware/auth");
+const { verifyToken: protect, isEmployer, isVerifiedEmployer } = require("../middleware/auth");
 const {
   sanitizeRequestBody,
   sanitizeQueryParams,
   validateMongoId,
   validateRequest,
-  validateJobPosting
+  validateJobPosting,
+  validateQualifications, // NEW
 } = require("../middleware/validation");
 const { detectMaliciousPayload } = require("../middleware/security");
 const rateLimit = require("express-rate-limit");
 
 // Rate limiting for employer routes
 const employerLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 100, // 100 requests per minute
+  windowMs: 60 * 1000,
+  max: 100,
   message: { message: "Too many requests. Please slow down." },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// Stricter rate limit for job creation
 const jobCreationLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // 20 job creations per hour
+  windowMs: 60 * 60 * 1000,
+  max: 20,
   message: { message: "Too many job postings. Please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// All employer routes require authentication and employer role
-router.use(protect, isEmployer, employerLimiter);
+router.use(protect, isEmployer, isVerifiedEmployer, employerLimiter);
 
 // Jobs
 router.get("/jobs", sanitizeQueryParams, getEmployerJobs);
@@ -48,6 +47,7 @@ router.post("/jobs",
   sanitizeRequestBody, 
   detectMaliciousPayload, 
   validateJobPosting, 
+  validateQualifications, // NEW: validate qualifications array
   validateRequest, 
   createJob
 );
@@ -56,6 +56,7 @@ router.put("/jobs/:id",
   sanitizeRequestBody, 
   detectMaliciousPayload, 
   validateJobPosting, 
+  validateQualifications, // NEW: validate qualifications array
   validateRequest, 
   updateJob
 );
@@ -81,7 +82,7 @@ router.put("/applications/:applicationId/status",
 router.get("/stats", sanitizeQueryParams, getEmployerStats);
 router.get("/profile-stats", sanitizeQueryParams, getEmployerProfileStats);
 
-// Error handling middleware for this router
+// Error handling middleware
 router.use((err, req, res, next) => {
   console.error("Employer route error:", err);
   

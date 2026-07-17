@@ -366,6 +366,50 @@
   font-weight: 800;
 }
 
+/* ---- Address group styling ---- */
+.onboarding-address-group {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.onboarding-address-group .onboarding-label {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.onboarding-address-group label:not(.checkbox-label) {
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: #374151;
+  font-weight: 600;
+}
+
+.onboarding-address-group input[type="text"] {
+  margin-top: 0.2rem;
+}
+
+/* ---- Horizontal checkbox for "Same as Present Address" ---- */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #16a34a;
+}
+
 @media (max-width: 640px) {
   .onboarding-page {
     padding: 110px 0.75rem 1.25rem;

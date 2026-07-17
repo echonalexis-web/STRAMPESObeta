@@ -1183,3 +1183,26 @@
     flex-direction: column;
   }
 }
+
+.admin-status-badge { 
+  padding: 0.25rem 0.75rem; 
+  border-radius: 999px; 
+  font-size: 0.8rem; 
+  font-weight: 600; 
+  white-space: nowrap; 
+}
+
+.admin-status-badge.active { 
+  background: #dcfce7; 
+  color: #15803d; 
+}
+
+.admin-status-badge.inactive { 
+  background: #fee2e2; 
+  color: #b91c1c; 
+}
+
+.admin-status-badge.pending {
+  background: #fef3c7; 
+  color: #a16207; 
+}

@@ -177,31 +177,45 @@ exports.sendMessage = async (req, res) => {
   try {
     const userId = getUserId(req);
     const conversationId = req.params.conversationId || req.body.conversationId;
-    const { content } = req.body;
+    const { content, receiverId } = req.body;
 
+    // Validate required fields
     if (!conversationId || !content || !String(content).trim()) {
       return res.status(400).json({ message: "conversationId and content are required" });
     }
 
+    // Find conversation
     const conversation = await Conversation.findById(conversationId).select("participants");
     if (!conversation) {
       return res.status(404).json({ message: "Conversation not found" });
     }
 
+    // Check if sender is a participant
     const isParticipant = conversation.participants.some(
       (participant) => String(participant) === String(userId)
     );
-
     if (!isParticipant) {
       return res.status(403).json({ message: "Access denied" });
     }
 
+    // If receiverId is provided, verify it is the other participant
+    if (receiverId) {
+      const otherParticipant = conversation.participants.find(
+        (participant) => String(participant) !== String(userId)
+      );
+      if (String(otherParticipant) !== String(receiverId)) {
+        return res.status(400).json({ message: "Invalid receiver ID" });
+      }
+    }
+
+    // Create and save message
     const message = await Message.create({
       conversationId,
       sender: userId,
       content: String(content).trim(),
     });
 
+    // Update conversation's last message
     await Conversation.findByIdAndUpdate(conversationId, {
       $set: {
         lastMessage: message.content,
@@ -209,10 +223,21 @@ exports.sendMessage = async (req, res) => {
       },
     });
 
+    // Populate sender info for response
     const populatedMessage = await Message.findById(message._id).populate("sender", "name role");
+
+    // Broadcast via Socket.IO to the conversation room
+    const io = req.app.get("io");
+    if (io) {
+      io.to(String(conversationId)).emit("receive_message", {
+        ...populatedMessage.toObject(),
+        conversationId: conversationId,
+      });
+    }
 
     return res.status(201).json(populatedMessage);
   } catch (error) {
+    console.error("❌ Send message error:", error);
     return res.status(500).json({ message: "Failed to send message" });
   }
 };

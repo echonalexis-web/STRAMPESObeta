@@ -1,0 +1,350 @@
+/* Qualifications Editor Styles */
+.qualifications-editor {
+  margin: 0.5rem 0 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+}
+
+.qualifications-editor-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #1e293b;
+  margin-bottom: 0.75rem;
+}
+
+.required-star {
+  color: #dc2626;
+}
+
+/* Template section */
+.qualifications-template-section {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.qualifications-template-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.qualifications-template-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.qualifications-template-select {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: white;
+  font-size: 0.9rem;
+}
+
+.qualifications-template-load-btn {
+  padding: 0.4rem 1rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.qualifications-template-load-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.qualifications-template-load-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* List of qualifications */
+.qualifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.qualifications-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  transition: border-color 0.2s;
+}
+
+.qualifications-item:hover {
+  border-color: #94a3b8;
+}
+
+.qualifications-item-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.qualifications-item-type {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 0.1rem 0.5rem;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.qualifications-item-value {
+  font-size: 0.9rem;
+  color: #1e293b;
+  word-break: break-word;
+}
+
+.qualifications-item-optional {
+  font-size: 0.75rem;
+  color: #f59e0b;
+  font-weight: 500;
+  background: #fef3c7;
+  padding: 0.05rem 0.4rem;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.qualifications-item-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.qualifications-item-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.qualifications-item-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+  color: #1e293b;
+}
+
+.qualifications-item-btn-danger:hover:not(:disabled) {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.qualifications-item-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Add row */
+.qualifications-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.qualifications-add-field {
+  flex: 1 1 auto;
+}
+
+.qualifications-add-type {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: white;
+  font-size: 0.9rem;
+  min-width: 110px;
+}
+
+.qualifications-add-value {
+  flex: 3 1 180px;
+}
+
+.qualifications-add-input {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.qualifications-add-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.qualifications-add-optional {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.qualifications-optional-label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.qualifications-optional-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+}
+
+.qualifications-add-btn {
+  padding: 0.4rem 1rem;
+  background: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.qualifications-add-btn:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.qualifications-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.qualifications-empty {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+  text-align: center;
+}
+
+/* Display component styles */
+.qualifications-display {
+  margin: 0.5rem 0;
+}
+
+.qualifications-group {
+  margin-bottom: 1rem;
+}
+
+.qualifications-group-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 0.35rem;
+}
+
+.qualifications-group-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.qualifications-group-item {
+  padding: 0.2rem 0;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.qualifications-group-optional {
+  font-size: 0.8rem;
+  color: #f59e0b;
+  background: #fef3c7;
+  padding: 0.05rem 0.4rem;
+  border-radius: 10px;
+  margin-left: 0.4rem;
+}
+
+.qualifications-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.qualification-badge {
+  background: #e5e7eb;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: #1e293b;
+}
+
+.qualification-badge.more {
+  background: #dbeafe;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.qualifications-empty-text {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .qualifications-add-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .qualifications-add-field {
+    flex: 1;
+  }
+
+  .qualifications-add-optional {
+    flex: 1;
+    justify-content: flex-start;
+  }
+
+  .qualifications-item {
+    flex-wrap: wrap;
+  }
+
+  .qualifications-item-content {
+    flex: 1 1 100%;
+    margin-bottom: 0.25rem;
+  }
+
+  .qualifications-item-actions {
+    flex: 0 0 auto;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

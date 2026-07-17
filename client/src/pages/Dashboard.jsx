@@ -9,8 +9,22 @@ import "../styles/dashboard.css";
 import "../styles/EmployerModal.css";
 import { FaBriefcase, FaFileAlt, FaUserCircle, FaBuilding, FaMapMarkerAlt, FaCalendarAlt, FaSearch, FaArrowRight, FaExclamationTriangle, FaSpinner } from "react-icons/fa";
 
-// Use environment variable for API URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+const formatAddress = (address) => {
+  if (!address) return "Not specified";
+  const parts = address.split(", ");
+  if (parts.length >= 2) {
+    return (
+      <>
+        <span>{parts[0]}</span>
+        <br />
+        <span className="text-muted">{parts.slice(1).join(", ")}</span>
+      </>
+    );
+  }
+  return address;
+};
 
 export default function Dashboard() {
   const { user } = useContext(AuthContext);
@@ -143,15 +157,9 @@ export default function Dashboard() {
 
   const getEmployerDisplay = (employer) => {
     if (!employer || typeof employer !== "object") {
-      return {
-        accountName: "Unknown",
-        companyName: "No company name",
-      };
+      return { accountName: "Unknown", companyName: "No company name" };
     }
-    return {
-      accountName: employer.name || "Unknown",
-      companyName: employer.companyName || "No company name",
-    };
+    return { accountName: employer.name || "Unknown", companyName: employer.companyName || "No company name" };
   };
 
   const handleOpenEditModal = (application) => {
@@ -168,21 +176,15 @@ export default function Dashboard() {
     try {
       const formData = new FormData();
       formData.append("coverLetter", editCoverLetter || "");
-      if (editResumeFile) {
-        formData.append("resume", editResumeFile);
-      }
+      if (editResumeFile) formData.append("resume", editResumeFile);
 
       const { data } = await jobAPI.updateApplication(editingApplication._id, formData);
       const updatedApplication = data?.application;
-
       if (updatedApplication) {
         setApplications((prev) =>
-          prev.map((application) =>
-            application._id === updatedApplication._id ? updatedApplication : application
-          )
+          prev.map((app) => (app._id === updatedApplication._id ? updatedApplication : app))
         );
       }
-
       setEditingApplication(null);
       setToastMessage({ text: "Application updated successfully!", type: "success" });
     } catch (err) {
@@ -196,7 +198,7 @@ export default function Dashboard() {
     setIsDeletingApplication(true);
     try {
       await jobAPI.deleteApplication(applicationId);
-      setApplications((prev) => prev.filter((application) => application._id !== applicationId));
+      setApplications((prev) => prev.filter((app) => app._id !== applicationId));
       setConfirmDeleteId(null);
       setToastMessage({ text: "Application withdrawn successfully!", type: "success" });
     } catch (err) {
@@ -212,9 +214,7 @@ export default function Dashboard() {
         <div className="error-message">
           <FaExclamationTriangle className="error-icon" />
           <span>Please login to view your dashboard.</span>
-          <button onClick={() => navigate('/login')} className="btn-login-redirect">
-            Go to Login
-          </button>
+          <button onClick={() => navigate('/login')} className="btn-login-redirect">Go to Login</button>
         </div>
       </div>
     );
@@ -230,7 +230,6 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      {/* Hero Banner */}
       <div className="dashboard-hero">
         <div className="dashboard-hero-content">
           <div className="dashboard-hero-text">
@@ -243,207 +242,105 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="stats-grid">
         <div className="stat-card stat-card-green">
-          <div className="stat-card-icon">
-            <FaBriefcase />
-          </div>
-          <div className="stat-card-content">
-            <span className="stat-number">{jobs.length}</span>
-            <span className="stat-label">Available Jobs</span>
-          </div>
+          <div className="stat-card-icon"><FaBriefcase /></div>
+          <div className="stat-card-content"><span className="stat-number">{jobs.length}</span><span className="stat-label">Available Jobs</span></div>
         </div>
         <div className="stat-card stat-card-yellow">
-          <div className="stat-card-icon">
-            <FaFileAlt />
-          </div>
-          <div className="stat-card-content">
-            <span className="stat-number">{totalApplications}</span>
-            <span className="stat-label">Total Applications</span>
-          </div>
+          <div className="stat-card-icon"><FaFileAlt /></div>
+          <div className="stat-card-content"><span className="stat-number">{totalApplications}</span><span className="stat-label">Total Applications</span></div>
         </div>
         <div className="stat-card stat-card-blue">
-          <div className="stat-card-icon">
-            <FaCalendarAlt />
-          </div>
-          <div className="stat-card-content">
-            <span className="stat-number">{pendingApplications}</span>
-            <span className="stat-label">Pending Review</span>
-          </div>
+          <div className="stat-card-icon"><FaCalendarAlt /></div>
+          <div className="stat-card-content"><span className="stat-number">{pendingApplications}</span><span className="stat-label">Pending Review</span></div>
         </div>
         <div className="stat-card stat-card-purple">
-          <div className="stat-card-icon">
-            <FaBuilding />
-          </div>
-          <div className="stat-card-content">
-            <span className="stat-number">{acceptedApplications}</span>
-            <span className="stat-label">Accepted</span>
-          </div>
+          <div className="stat-card-icon"><FaBuilding /></div>
+          <div className="stat-card-content"><span className="stat-number">{acceptedApplications}</span><span className="stat-label">Accepted</span></div>
         </div>
       </div>
 
-      {/* Error Message with Retry */}
       {error && (
         <div className="error-message error-message-with-retry">
-          <FaExclamationTriangle className="error-icon" />
-          <span>{error}</span>
-          <button onClick={handleRetry} className="retry-btn">
-            Retry
-          </button>
+          <FaExclamationTriangle className="error-icon" /><span>{error}</span>
+          <button onClick={handleRetry} className="retry-btn">Retry</button>
         </div>
       )}
 
       {loading ? (
-        <div className="loading-spinner">
-          <FaSpinner className="spinner-icon" />
-          <p>Loading your dashboard...</p>
-        </div>
+        <div className="loading-spinner"><FaSpinner className="spinner-icon" /><p>Loading your dashboard...</p></div>
       ) : (
         <>
-          {/* Profile Card */}
           <div className="profile-card">
             <div className="profile-card-left">
               <div className="profile-avatar-large">{initials}</div>
               <div className="profile-details">
-                <h2>{user.name}</h2>
-                <p className="profile-email">{user.email}</p>
-                <span className="profile-role-badge">Job Seeker</span>
+                <h2>{user.name}</h2><p className="profile-email">{user.email}</p><span className="profile-role-badge">Job Seeker</span>
               </div>
             </div>
             <div className="profile-card-right">
-              <button className="btn-profile-edit" onClick={() => navigate("/profile")}>
-                Edit Profile
-              </button>
+              <button className="btn-profile-edit" onClick={() => navigate("/profile")}>Edit Profile</button>
             </div>
           </div>
 
-          {/* Recent Jobs Section */}
           <div className="section-header">
             <h2>Recent Job Openings</h2>
-            <button className="section-view-all" onClick={() => navigate("/jobs")}>
-              View All <FaArrowRight />
-            </button>
+            <button className="section-view-all" onClick={() => navigate("/jobs")}>View All <FaArrowRight /></button>
           </div>
 
           {jobs.length === 0 ? (
-            <div className="empty-state-card">
-              <p>No jobs are available right now.</p>
-            </div>
+            <div className="empty-state-card"><p>No jobs are available right now.</p></div>
           ) : (
             <div className="jobs-grid">
               {jobs.slice(0, 4).map((job) => (
                 <div key={job._id} className="job-card">
-                  <div className="job-card-header">
-                    <h3>{job.title}</h3>
-                    <span className="job-status status-open">Open</span>
-                  </div>
-                  <div className="job-card-location">
-                    <FaMapMarkerAlt /> {job.location}
-                  </div>
+                  <div className="job-card-header"><h3>{job.title}</h3><span className="job-status status-open">Open</span></div>
+                  <div className="job-card-location"><FaMapMarkerAlt /> {formatAddress(job.location)}</div>
                   <p className="job-card-description">{job.description?.slice(0, 120) || ''}...</p>
                   <div className="job-card-footer">
-                    <div className="job-card-company">
-                      <FaBuilding />
-                      <span>{job.employer?.companyName || "Employer"}</span>
-                    </div>
-                    <button className="btn-apply" onClick={() => handleApplyJob(job._id)}>
-                      Apply Now
-                    </button>
+                    <div className="job-card-company"><FaBuilding /><span>{job.employer?.companyName || "Employer"}</span></div>
+                    <button className="btn-apply" onClick={() => handleApplyJob(job._id)}>Apply Now</button>
                   </div>
                   <div className="job-card-actions">
-                    <button className="btn-view-job" onClick={() => handleViewJob(job)}>
-                      View Details
-                    </button>
-                    <button className="btn-employer" onClick={() => handleViewEmployer(job)}>
-                      <FaUserCircle /> Employer
-                    </button>
+                    <button className="btn-view-job" onClick={() => handleViewJob(job)}>View Details</button>
+                    <button className="btn-employer" onClick={() => handleViewEmployer(job)}><FaUserCircle /> Employer</button>
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Applications Section */}
           <div className="section-header">
-            <h2>Your Applications</h2>
-            <span className="application-count">{applications.length} total</span>
+            <h2>Your Applications</h2><span className="application-count">{applications.length} total</span>
           </div>
 
           {applications.length === 0 ? (
-            <div className="empty-state-card">
-              <p>You haven't applied to any jobs yet.</p>
-              <button className="btn-browse-jobs" onClick={() => navigate("/jobs")}>
-                Browse Jobs
-              </button>
-            </div>
+            <div className="empty-state-card"><p>You haven't applied to any jobs yet.</p><button className="btn-browse-jobs" onClick={() => navigate("/jobs")}>Browse Jobs</button></div>
           ) : (
             <div className="applications-grid">
               {applications.map((application) => (
                 <div key={application._id} className="application-card">
-                  <div className="application-card-header">
-                    <h3>{application.vacancy?.title || "Untitled"}</h3>
-                    <span className={`application-status ${getStatusClassName(application.status)}`}>
-                      {application.status || "Pending"}
-                    </span>
-                  </div>
+                  <div className="application-card-header"><h3>{application.vacancy?.title || "Untitled"}</h3><span className={`application-status ${getStatusClassName(application.status)}`}>{application.status || "Pending"}</span></div>
                   <div className="application-card-details">
-                    <p className="application-company">
-                      <FaBuilding /> {getEmployerDisplay(application.vacancy?.employer).companyName}
-                    </p>
-                    <p className="application-location">
-                      <FaMapMarkerAlt /> {application.vacancy?.location || "N/A"}
-                    </p>
-                    <p className="application-date">
-                      <FaCalendarAlt /> Applied on {formatAppliedDate(application.appliedAt)}
-                    </p>
+                    <p className="application-company"><FaBuilding /> {getEmployerDisplay(application.vacancy?.employer).companyName}</p>
+                    <p className="application-location"><FaMapMarkerAlt /> {formatAddress(application.vacancy?.location || "N/A")}</p>
+                    <p className="application-date"><FaCalendarAlt /> Applied on {formatAppliedDate(application.appliedAt)}</p>
                   </div>
 
                   {confirmDeleteId === application._id ? (
                     <div className="withdraw-confirm">
                       <p>Are you sure you want to withdraw this application?</p>
                       <div className="withdraw-confirm-actions">
-                        <button
-                          type="button"
-                          className="btn-withdraw-confirm"
-                          onClick={() => handleDeleteApplication(application._id)}
-                          disabled={isDeletingApplication}
-                        >
-                          Yes, Withdraw
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-withdraw-cancel"
-                          onClick={() => setConfirmDeleteId(null)}
-                          disabled={isDeletingApplication}
-                        >
-                          Cancel
-                        </button>
+                        <button type="button" className="btn-withdraw-confirm" onClick={() => handleDeleteApplication(application._id)} disabled={isDeletingApplication}>Yes, Withdraw</button>
+                        <button type="button" className="btn-withdraw-cancel" onClick={() => setConfirmDeleteId(null)} disabled={isDeletingApplication}>Cancel</button>
                       </div>
                     </div>
                   ) : (
                     <div className="application-actions">
-                      <button
-                        type="button"
-                        className="btn-app-view"
-                        onClick={() => setViewingApplication(application)}
-                      >
-                        View Details
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-app-edit"
-                        onClick={() => handleOpenEditModal(application)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-app-withdraw"
-                        onClick={() => setConfirmDeleteId(application._id)}
-                      >
-                        Withdraw
-                      </button>
+                      <button type="button" className="btn-app-view" onClick={() => setViewingApplication(application)}>View Details</button>
+                      <button type="button" className="btn-app-edit" onClick={() => handleOpenEditModal(application)}>Edit</button>
+                      <button type="button" className="btn-app-withdraw" onClick={() => setConfirmDeleteId(application._id)}>Withdraw</button>
                     </div>
                   )}
                 </div>
@@ -453,121 +350,43 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Modals */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        job={selectedJob}
-      />
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} job={selectedJob} />
+      <EmployerModal isOpen={isEmployerModalOpen} onClose={() => setIsEmployerModalOpen(false)} employer={selectedEmployer} />
 
-      <EmployerModal
-        isOpen={isEmployerModalOpen}
-        onClose={() => setIsEmployerModalOpen(false)}
-        employer={selectedEmployer}
-      />
-
-      <AppModal
-        isOpen={Boolean(viewingApplication)}
-        onClose={() => setViewingApplication(null)}
-        title="Application Details"
-      >
+      <AppModal isOpen={Boolean(viewingApplication)} onClose={() => setViewingApplication(null)} title="Application Details">
         {viewingApplication && (
           <div className="application-modal-content">
             <p><strong>Job Title:</strong> {viewingApplication.vacancy?.title || "N/A"}</p>
             <p><strong>Employer Account:</strong> {getEmployerDisplay(viewingApplication.vacancy?.employer).accountName}</p>
             <p><strong>Company:</strong> {getEmployerDisplay(viewingApplication.vacancy?.employer).companyName}</p>
-            <p><strong>Location:</strong> {viewingApplication.vacancy?.location || "N/A"}</p>
-            <p>
-              <strong>Status:</strong>{" "}
-              <span className={`status-badge ${getStatusClassName(viewingApplication.status)}`}>
-                {viewingApplication.status || "Pending"}
-              </span>
-            </p>
+            <p><strong>Location:</strong> {formatAddress(viewingApplication.vacancy?.location || "N/A")}</p>
+            <p><strong>Status:</strong> <span className={`status-badge ${getStatusClassName(viewingApplication.status)}`}>{viewingApplication.status || "Pending"}</span></p>
             <p><strong>Cover Letter:</strong> {viewingApplication.coverLetter || "No cover letter submitted."}</p>
-            <div className="employer-note-box">
-              <p>
-                <strong>Employer Note:</strong>{" "}
-                {viewingApplication.employerNote
-                  ? viewingApplication.employerNote
-                  : "No note from employer yet."}
-              </p>
-              {viewingApplication.statusUpdatedAt ? (
-                <p className="employer-note-date">
-                  Last update: {formatAppliedDate(viewingApplication.statusUpdatedAt)}
-                </p>
-              ) : null}
-            </div>
-            <p>
-              <strong>Resume:</strong>{" "}
-              {viewingApplication.resume ? (
-                <a
-                  href={getResumeUrl(viewingApplication.resume)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="resume-link"
-                >
-                  View Resume
-                </a>
-              ) : (
-                "No resume uploaded."
-              )}
-            </p>
+            <div className="employer-note-box"><p><strong>Employer Note:</strong> {viewingApplication.employerNote || "No note from employer yet."}</p>{viewingApplication.statusUpdatedAt && <p className="employer-note-date">Last update: {formatAppliedDate(viewingApplication.statusUpdatedAt)}</p>}</div>
+            <p><strong>Resume:</strong> {viewingApplication.resume ? <a href={getResumeUrl(viewingApplication.resume)} target="_blank" rel="noreferrer" className="resume-link">View Resume</a> : "No resume uploaded."}</p>
             <p><strong>Date applied:</strong> {formatAppliedDate(viewingApplication.appliedAt)}</p>
           </div>
         )}
       </AppModal>
 
-      <AppModal
-        isOpen={Boolean(editingApplication)}
-        onClose={() => setEditingApplication(null)}
-        title="Edit Application"
-      >
+      <AppModal isOpen={Boolean(editingApplication)} onClose={() => setEditingApplication(null)} title="Edit Application">
         {editingApplication && (
           <form className="edit-application-form" onSubmit={handleUpdateApplication}>
             <label htmlFor="editCoverLetter">Cover Letter</label>
-            <textarea
-              id="editCoverLetter"
-              value={editCoverLetter}
-              onChange={(event) => setEditCoverLetter(event.target.value)}
-              rows="6"
-            />
-
+            <textarea id="editCoverLetter" value={editCoverLetter} onChange={(e) => setEditCoverLetter(e.target.value)} rows="6" />
             <label htmlFor="editResume">Resume</label>
-            <input
-              id="editResume"
-              type="file"
-              accept=".pdf,.doc,.docx"
-              onChange={(event) => setEditResumeFile(event.target.files?.[0] || null)}
-            />
-            <p className="current-file-name">
-              {editResumeFile
-                ? editResumeFile.name
-                : editingApplication.resume
-                  ? editingApplication.resume.split("/").pop()
-                  : "No resume uploaded"}
-            </p>
-
+            <input id="editResume" type="file" accept=".pdf,.doc,.docx" onChange={(e) => setEditResumeFile(e.target.files?.[0] || null)} />
+            <p className="current-file-name">{editResumeFile ? editResumeFile.name : editingApplication.resume ? editingApplication.resume.split("/").pop() : "No resume uploaded"}</p>
             <div className="edit-application-actions">
-              <button type="submit" className="btn-save-changes" disabled={isUpdatingApplication}>
-                {isUpdatingApplication ? "Saving..." : "Save Changes"}
-              </button>
-              <button
-                type="button"
-                className="btn-cancel-edit"
-                onClick={() => setEditingApplication(null)}
-                disabled={isUpdatingApplication}
-              >
-                Cancel
-              </button>
+              <button type="submit" className="btn-save-changes" disabled={isUpdatingApplication}>{isUpdatingApplication ? "Saving..." : "Save Changes"}</button>
+              <button type="button" className="btn-cancel-edit" onClick={() => setEditingApplication(null)} disabled={isUpdatingApplication}>Cancel</button>
             </div>
           </form>
         )}
       </AppModal>
 
       {toastMessage && (
-        <div className={`app-toast app-toast--${toastMessage.type}`} role="status" aria-live="polite">
-          {toastMessage.text}
-        </div>
+        <div className={`app-toast app-toast--${toastMessage.type}`} role="status" aria-live="polite">{toastMessage.text}</div>
       )}
     </div>
   );

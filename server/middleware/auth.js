@@ -10,7 +10,7 @@ exports.verifyToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select("isActive role");
+    const user = await User.findById(decoded.id).select("isActive role verificationStatus");
 
     if (!user) {
       return res.status(401).json({ message: "User not found" });
@@ -20,8 +20,11 @@ exports.verifyToken = async (req, res, next) => {
       return res.status(403).json({ message: "Your account is deactivated" });
     }
 
-    decoded.role = user.role;
-    req.user = decoded;
+    req.user = {
+      ...decoded,
+      role: user.role,
+      verificationStatus: user.verificationStatus,
+    };
     next();
   } catch (error) {
     return res.status(403).json({ message: "Invalid token" });
@@ -29,7 +32,6 @@ exports.verifyToken = async (req, res, next) => {
 };
 
 exports.isResident = (req, res, next) => {
-  // Allow residents and legacy job seeker records, but not admins.
   if (!["resident", "employee", "jobseeker"].includes(req.user.role)) {
     return res.status(403).json({ message: "Access denied" });
   }
@@ -37,7 +39,6 @@ exports.isResident = (req, res, next) => {
 };
 
 exports.isEmployee = (req, res, next) => {
-  // Allow only employees, not admins
   if (req.user.role !== "employee") {
     return res.status(403).json({ message: "Only employees can perform this action" });
   }
@@ -45,15 +46,25 @@ exports.isEmployee = (req, res, next) => {
 };
 
 exports.isEmployer = (req, res, next) => {
-  // Allow only employers, not admins
   if (req.user.role !== "employer") {
     return res.status(403).json({ message: "Only employers can perform this action" });
   }
   next();
 };
 
+exports.isVerifiedEmployer = (req, res, next) => {
+  if (req.user.role !== "employer") {
+    return res.status(403).json({ message: "Only employers can perform this action" });
+  }
+  if (req.user.verificationStatus !== "verified") {
+    return res.status(403).json({
+      message: "Your employer account is not yet verified. Please upload your business permit and wait for admin approval.",
+    });
+  }
+  next();
+};
+
 exports.isEmployeeOrResident = (req, res, next) => {
-  // Allow residents and employees, but not admins
   if (!["resident", "employee", "jobseeker"].includes(req.user.role)) {
     return res.status(403).json({ message: "Only residents or employees can perform this action" });
   }

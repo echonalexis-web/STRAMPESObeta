@@ -8,9 +8,7 @@ const {
     getProfile,
     updateProfile,
     deleteAccount,
-    registerEmployer, 
-    generateInviteCode, 
-    promoteToEmployer 
+    registerEmployer 
 } = require("../controllers/authController");
 const { verifyToken: protect, isAdmin } = require("../middleware/auth");
 const {
@@ -20,7 +18,7 @@ const {
   validateUserLogin,
   validateRequest
 } = require("../middleware/validation");
-const { detectMaliciousPayload, sensitiveOperationLimiter } = require("../middleware/security");
+const { detectMaliciousPayload } = require("../middleware/security");
 
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
@@ -103,9 +101,5 @@ router.patch(
 );
 
 router.delete("/profile", protect, deleteAccount);
-
-// Admin-only routes
-router.post("/invite", protect, isAdmin, generateInviteCode);
-router.patch("/promote/:userId", protect, isAdmin, promoteToEmployer);
 
 module.exports = router;

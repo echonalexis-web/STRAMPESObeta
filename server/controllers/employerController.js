@@ -2,9 +2,21 @@ const JobVacancy = require("../models/JobVacancy");
 const JobApplication = require("../models/JobApplication");
 const Message = require("../models/Message");
 const { ensureConversationBetweenUsers } = require("./messageController");
+const JobseekerProfile = require("../models/JobseekerProfile");
 
 const getUserId = (req) => req.user._id || req.user.id;
 
+// Helper to format qualifications for response
+const formatQualifications = (qualifications) => {
+  if (!qualifications || !Array.isArray(qualifications)) return [];
+  return qualifications
+    .filter(q => q && q.value)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+};
+
+// ---------------------------------------------------------------------
+// Get all jobs for the logged-in employer
+// ---------------------------------------------------------------------
 exports.getEmployerJobs = async (req, res) => {
   try {
     const employerId = getUserId(req);
@@ -13,8 +25,10 @@ exports.getEmployerJobs = async (req, res) => {
     const jobsWithCounts = await Promise.all(
       jobs.map(async (job) => {
         const applicantCount = await JobApplication.countDocuments({ vacancy: job._id });
+        const jobObj = job.toObject();
+        jobObj.qualifications = formatQualifications(jobObj.qualifications);
         return {
-          ...job.toObject(),
+          ...jobObj,
           applicantCount,
         };
       })
@@ -26,21 +40,47 @@ exports.getEmployerJobs = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Create a new job
+// ---------------------------------------------------------------------
 exports.createJob = async (req, res) => {
   try {
     const employerId = getUserId(req);
-    const { title, location, description, salary, requirements, jobType, slots, applicationDeadline } = req.body;
+    const { title, location, description, salary, qualifications, jobType, slots, applicationDeadline } = req.body;
 
     if (!title || !location || !description) {
       return res.status(400).json({ message: "title, location, and description are required" });
     }
+
+    // Parse qualifications from JSON string if needed
+    let parsedQualifications = [];
+    if (qualifications) {
+      try {
+        parsedQualifications = typeof qualifications === "string" 
+          ? JSON.parse(qualifications) 
+          : qualifications;
+      } catch (e) {
+        return res.status(400).json({ message: "Invalid qualifications format" });
+      }
+    }
+
+    // Validate qualifications
+    if (!Array.isArray(parsedQualifications)) {
+      return res.status(400).json({ message: "Qualifications must be an array" });
+    }
+
+    // Set order if not provided
+    const processedQualifications = parsedQualifications.map((q, index) => ({
+      ...q,
+      order: q.order !== undefined ? q.order : index,
+    }));
 
     const job = await JobVacancy.create({
       title: String(title).trim(),
       location: String(location).trim(),
       description: String(description).trim(),
       salary: salary ? String(salary).trim() : "",
-      requirements: requirements ? String(requirements).trim() : "",
+      qualifications: processedQualifications,
       jobType: jobType || "Full-time",
       slots: Number(slots) > 0 ? Number(slots) : 1,
       applicationDeadline: applicationDeadline ? new Date(applicationDeadline) : null,
@@ -50,12 +90,18 @@ exports.createJob = async (req, res) => {
       updatedAt: new Date(),
     });
 
-    return res.status(201).json(job);
+    const jobObj = job.toObject();
+    jobObj.qualifications = formatQualifications(jobObj.qualifications);
+
+    return res.status(201).json(jobObj);
   } catch (error) {
     return res.status(500).json({ message: "Failed to create job" });
   }
 };
 
+// ---------------------------------------------------------------------
+// Update an existing job
+// ---------------------------------------------------------------------
 exports.updateJob = async (req, res) => {
   try {
     const employerId = String(getUserId(req));
@@ -70,12 +116,37 @@ exports.updateJob = async (req, res) => {
       return res.status(403).json({ message: "You can only update your own job" });
     }
 
-    const allowedFields = ["title", "location", "description", "salary", "requirements", "jobType", "slots", "status", "applicationDeadline"];
+    // Parse qualifications from JSON string if needed
+    let parsedQualifications = undefined;
+    if (req.body.qualifications !== undefined) {
+      try {
+        parsedQualifications = typeof req.body.qualifications === "string" 
+          ? JSON.parse(req.body.qualifications) 
+          : req.body.qualifications;
+      } catch (e) {
+        return res.status(400).json({ message: "Invalid qualifications format" });
+      }
+      
+      if (!Array.isArray(parsedQualifications)) {
+        return res.status(400).json({ message: "Qualifications must be an array" });
+      }
+      
+      parsedQualifications = parsedQualifications.map((q, index) => ({
+        ...q,
+        order: q.order !== undefined ? q.order : index,
+      }));
+    }
+
+    const allowedFields = ["title", "location", "description", "salary", "jobType", "slots", "status", "applicationDeadline"];
     allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) {
         job[field] = req.body[field];
       }
     });
+
+    if (req.body.qualifications !== undefined) {
+      job.qualifications = parsedQualifications;
+    }
 
     if (req.body.status === "closed") {
       job.isActive = false;
@@ -87,12 +158,18 @@ exports.updateJob = async (req, res) => {
     job.updatedAt = new Date();
 
     await job.save();
-    return res.json(job);
+    const jobObj = job.toObject();
+    jobObj.qualifications = formatQualifications(jobObj.qualifications);
+
+    return res.json(jobObj);
   } catch (error) {
     return res.status(500).json({ message: "Failed to update job" });
   }
 };
 
+// ---------------------------------------------------------------------
+// Permanently delete a job and its applications
+// ---------------------------------------------------------------------
 exports.deleteJob = async (req, res) => {
   try {
     const employerId = String(getUserId(req));
@@ -104,20 +181,24 @@ exports.deleteJob = async (req, res) => {
     }
 
     if (String(job.employer) !== employerId) {
-      return res.status(403).json({ message: "You can only close your own job" });
+      return res.status(403).json({ message: "You can only delete your own job" });
     }
 
-    job.status = "closed";
-    job.isActive = false;
-    job.updatedAt = new Date();
-    await job.save();
+    // Delete all applications for this job
+    await JobApplication.deleteMany({ vacancy: id });
 
-    return res.json({ message: "Job closed successfully", job });
+    // Delete the job itself
+    await JobVacancy.findByIdAndDelete(id);
+
+    return res.json({ message: "Job permanently deleted" });
   } catch (error) {
-    return res.status(500).json({ message: "Failed to close job" });
+    return res.status(500).json({ message: "Failed to delete job" });
   }
 };
 
+// ---------------------------------------------------------------------
+// Get applicants for a specific job (with jobseeker profiles)
+// ---------------------------------------------------------------------
 exports.getApplicantsForJob = async (req, res) => {
   try {
     const employerId = String(getUserId(req));
@@ -136,12 +217,36 @@ exports.getApplicantsForJob = async (req, res) => {
       .populate("applicant", "name email phone address skills resume resumeFile validIdFile")
       .sort({ createdAt: -1 });
 
-    return res.json(applications);
+    // Fetch jobseeker profiles for all applicants
+    const applicantIds = applications.map(app => app.applicant?._id).filter(Boolean);
+    const profiles = await JobseekerProfile.find({ userId: { $in: applicantIds } });
+    const profileMap = profiles.reduce((map, profile) => {
+      map[String(profile.userId)] = profile;
+      return map;
+    }, {});
+
+    // Merge profile into each application
+    const mergedApplications = applications.map(app => {
+      const appObj = app.toObject();
+      const applicant = appObj.applicant;
+      if (applicant) {
+        const profile = profileMap[String(applicant._id)];
+        if (profile) {
+          applicant.profile = profile;
+        }
+      }
+      return appObj;
+    });
+
+    return res.json(mergedApplications);
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch applicants" });
   }
 };
 
+// ---------------------------------------------------------------------
+// Update application status (and auto-start conversation)
+// ---------------------------------------------------------------------
 exports.updateApplicationStatus = async (req, res) => {
   try {
     const employerId = String(getUserId(req));
@@ -206,9 +311,19 @@ exports.updateApplicationStatus = async (req, res) => {
       }
     }
 
+    // Refetch with full details and profile
     const updatedApplication = await JobApplication.findById(applicationId)
       .populate("applicant", "name email phone address skills resume resumeFile validIdFile")
       .populate("vacancy", "title location");
+
+    if (updatedApplication.applicant) {
+      const profile = await JobseekerProfile.findOne({ userId: updatedApplication.applicant._id });
+      if (profile) {
+        const appObj = updatedApplication.toObject();
+        appObj.applicant.profile = profile;
+        return res.json(appObj);
+      }
+    }
 
     return res.json(updatedApplication);
   } catch (error) {
@@ -216,6 +331,9 @@ exports.updateApplicationStatus = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Employer dashboard statistics
+// ---------------------------------------------------------------------
 exports.getEmployerStats = async (req, res) => {
   try {
     const employerId = getUserId(req);
@@ -255,6 +373,9 @@ exports.getEmployerStats = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Employer profile statistics (for onboarding/progress)
+// ---------------------------------------------------------------------
 exports.getEmployerProfileStats = async (req, res) => {
   try {
     const employerId = getUserId(req);

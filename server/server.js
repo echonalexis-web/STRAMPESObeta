@@ -57,6 +57,9 @@ app.use(helmet({
 
 // ============ RATE LIMITING ============
 
+// Disable request limits locally so development does not get blocked by 429s.
+const disableRateLimits = process.env.DISABLE_RATE_LIMITS === "true" || process.env.NODE_ENV !== "production";
+
 const rateLimitHandler = (req, res, next, options) => {
   const origin = req.headers.origin;
   if (origin) {
@@ -68,49 +71,59 @@ const rateLimitHandler = (req, res, next, options) => {
   res.status(options.statusCode).json(options.message);
 };
 
+const createLimiter = (options) => {
+  if (disableRateLimits) {
+    return (req, res, next) => next();
+  }
+
+  return rateLimit({
+    ...options,
+    handler: rateLimitHandler,
+  });
+};
+
 // Global limiter
-const globalLimiter = rateLimit({
+const globalLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 500,
   message: { message: "Too many requests from this IP, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
-  handler: rateLimitHandler,
 });
 
 // Auth limiter
-const authLimiter = rateLimit({
+// Protects login and register endpoints in production.
+const authLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 50,
   message: { message: "Too many authentication attempts, please try again later." },
   skipSuccessfulRequests: true,
-  handler: rateLimitHandler,
 });
 
 // Admin limiter
-const adminLimiter = rateLimit({
+// Protects admin routes from excessive repeated calls.
+const adminLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 300,
   message: { message: "Too many admin requests, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
-  handler: rateLimitHandler,
 });
 
 // Upload limiter
-const uploadLimiter = rateLimit({
+// Prevents repeated file upload attempts from being abused.
+const uploadLimiter = createLimiter({
   windowMs: 60 * 60 * 1000,
   max: 20,
   message: { message: "Too many upload attempts. Please try again later." },
-  handler: rateLimitHandler,
 });
 
 // Message rate limiter for socket
-const messageRateLimiter = rateLimit({
+// Limits chat bursts on Socket.IO connections.
+const messageRateLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 30,
   message: { message: "Too many messages sent. Please slow down." },
-  handler: rateLimitHandler,
 });
 
 app.use(mongoSanitize());

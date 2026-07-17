@@ -4,10 +4,11 @@ const User = require("../models/User");
 const Message = require("../models/Message");
 const { ensureConversationBetweenUsers } = require("./messageController");
 const { getHomepageJobsPayload, getApplicationCountMap } = require("../utils/jobDisplay");
+const EmployerProfile = require("../models/EmployerProfile");
 const fs = require("fs");
 const path = require("path");
 
-// Simple logger that uses console (no external dependency)
+// Simple logger
 const logger = {
   info: (...args) => console.log("[INFO]", ...args),
   error: (...args) => console.error("[ERROR]", ...args),
@@ -15,19 +16,53 @@ const logger = {
   debug: (...args) => console.debug("[DEBUG]", ...args),
 };
 
+// Helper to format qualifications for response
+const formatQualifications = (qualifications) => {
+  if (!qualifications || !Array.isArray(qualifications)) return [];
+  return qualifications
+    .filter(q => q && q.value)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+};
+
+// ---------------------------------------------------------------------
+// Create a job (employer only)
+// ---------------------------------------------------------------------
 exports.createJob = async (req, res) => {
   try {
-    const { title, description, location, salary, requirements, jobType, slots, applicationDeadline } = req.body;
+    const { title, description, location, salary, qualifications, jobType, slots, applicationDeadline } = req.body;
     if (!title || !description || !location) {
       return res.status(400).json({ message: "Title, description, and location are required" });
     }
+
+    // Parse qualifications from JSON string if needed
+    let parsedQualifications = [];
+    if (qualifications) {
+      try {
+        parsedQualifications = typeof qualifications === "string" 
+          ? JSON.parse(qualifications) 
+          : qualifications;
+      } catch (e) {
+        return res.status(400).json({ message: "Invalid qualifications format" });
+      }
+    }
+
+    // Validate qualifications
+    if (!Array.isArray(parsedQualifications)) {
+      return res.status(400).json({ message: "Qualifications must be an array" });
+    }
+
+    // Set order if not provided
+    const processedQualifications = parsedQualifications.map((q, index) => ({
+      ...q,
+      order: q.order !== undefined ? q.order : index,
+    }));
 
     const job = await JobVacancy.create({
       title: String(title).trim(),
       description: String(description).trim(),
       location: String(location).trim(),
       salary: salary ? String(salary).trim() : "",
-      requirements: requirements ? String(requirements).trim() : "",
+      qualifications: processedQualifications,
       jobType: jobType || "Full-time",
       slots: Number(slots) > 0 ? Number(slots) : 1,
       applicationDeadline: applicationDeadline ? new Date(applicationDeadline) : null,
@@ -46,17 +81,34 @@ exports.createJob = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Get all active jobs (public) – with employer profiles
+// ---------------------------------------------------------------------
 exports.getJobs = async (req, res) => {
   try {
     const jobs = await JobVacancy.find({ isActive: true })
       .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone")
       .sort({ createdAt: -1 });
 
+    // Fetch employer profiles
+    const employerIds = jobs.map(job => job.employer?._id).filter(Boolean);
+    const profiles = await EmployerProfile.find({ userId: { $in: employerIds } });
+    const profileMap = profiles.reduce((map, p) => {
+      map[String(p.userId)] = p;
+      return map;
+    }, {});
+
     const countMap = await getApplicationCountMap(jobs.map((job) => job._id));
-    const jobsWithCounts = jobs.map((job) => ({
-      ...job.toObject(),
-      applicationCount: Number(countMap[String(job._id)] || 0),
-    }));
+    const jobsWithCounts = jobs.map((job) => {
+      const jobObj = job.toObject();
+      const employer = jobObj.employer;
+      if (employer && profileMap[String(employer._id)]) {
+        employer.profile = profileMap[String(employer._id)];
+      }
+      jobObj.applicationCount = Number(countMap[String(job._id)] || 0);
+      jobObj.qualifications = formatQualifications(jobObj.qualifications);
+      return jobObj;
+    });
 
     res.json(jobsWithCounts);
   } catch (error) {
@@ -65,13 +117,34 @@ exports.getJobs = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Get featured jobs for homepage (with employer profiles)
+// ---------------------------------------------------------------------
 exports.getHomepageJobs = async (req, res) => {
   try {
     const jobs = await JobVacancy.find({ isActive: true, status: { $ne: "closed" } })
       .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone")
       .sort({ createdAt: -1 });
 
-    const featuredJobs = await getHomepageJobsPayload(jobs, 4);
+    // Attach employer profiles
+    const employerIds = jobs.map(job => job.employer?._id).filter(Boolean);
+    const profiles = await EmployerProfile.find({ userId: { $in: employerIds } });
+    const profileMap = profiles.reduce((map, p) => {
+      map[String(p.userId)] = p;
+      return map;
+    }, {});
+
+    const jobsWithProfile = jobs.map(job => {
+      const jobObj = job.toObject();
+      const employer = jobObj.employer;
+      if (employer && profileMap[String(employer._id)]) {
+        employer.profile = profileMap[String(employer._id)];
+      }
+      jobObj.qualifications = formatQualifications(jobObj.qualifications);
+      return jobObj;
+    });
+
+    const featuredJobs = await getHomepageJobsPayload(jobsWithProfile, 4);
     res.json(featuredJobs);
   } catch (error) {
     logger.error("Get homepage jobs error:", error.message);
@@ -79,23 +152,38 @@ exports.getHomepageJobs = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Get single job by ID (with employer profile)
+// ---------------------------------------------------------------------
 exports.getJobById = async (req, res) => {
   try {
     const job = await JobVacancy.findById(req.params.id)
       .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone");
     if (!job) return res.status(404).json({ message: "Job not found" });
 
+    // Attach employer profile
+    const jobObj = job.toObject();
+    if (jobObj.employer) {
+      const profile = await EmployerProfile.findOne({ userId: jobObj.employer._id });
+      if (profile) {
+        jobObj.employer.profile = profile;
+      }
+    }
+
     const countMap = await getApplicationCountMap([job._id]);
-    res.json({
-      ...job.toObject(),
-      applicationCount: Number(countMap[String(job._id)] || 0),
-    });
+    jobObj.applicationCount = Number(countMap[String(job._id)] || 0);
+    jobObj.qualifications = formatQualifications(jobObj.qualifications);
+
+    res.json(jobObj);
   } catch (error) {
     logger.error("Get job by ID error:", { jobId: req.params.id, error: error.message });
     res.status(500).json({ message: "Failed to fetch job details" });
   }
 };
 
+// ---------------------------------------------------------------------
+// Update a job (employer or admin)
+// ---------------------------------------------------------------------
 exports.updateJob = async (req, res) => {
   try {
     const job = await JobVacancy.findById(req.params.id);
@@ -105,21 +193,53 @@ exports.updateJob = async (req, res) => {
       return res.status(403).json({ message: "You can only update your own job postings" });
     }
 
+    // Parse qualifications from JSON string if needed
+    let parsedQualifications = undefined;
+    if (req.body.qualifications !== undefined) {
+      try {
+        parsedQualifications = typeof req.body.qualifications === "string" 
+          ? JSON.parse(req.body.qualifications) 
+          : req.body.qualifications;
+      } catch (e) {
+        return res.status(400).json({ message: "Invalid qualifications format" });
+      }
+      
+      // Validate qualifications
+      if (!Array.isArray(parsedQualifications)) {
+        return res.status(400).json({ message: "Qualifications must be an array" });
+      }
+      
+      // Set order if not provided
+      parsedQualifications = parsedQualifications.map((q, index) => ({
+        ...q,
+        order: q.order !== undefined ? q.order : index,
+      }));
+    }
+
     const updates = {
       title: req.body.title || job.title,
       description: req.body.description || job.description,
       location: req.body.location || job.location,
       salary: req.body.salary || job.salary,
-      requirements: typeof req.body.requirements === "string" ? req.body.requirements : job.requirements,
       jobType: req.body.jobType || job.jobType,
       slots: Number(req.body.slots) > 0 ? Number(req.body.slots) : job.slots,
       applicationDeadline: req.body.applicationDeadline ? new Date(req.body.applicationDeadline) : job.applicationDeadline,
       isActive: typeof req.body.isActive === "boolean" ? req.body.isActive : job.isActive,
+      // Only update qualifications if provided
+      qualifications: parsedQualifications !== undefined ? parsedQualifications : job.qualifications,
     };
 
+    // Keep legacy requirements for backward compatibility
+    if (req.body.requirements !== undefined) {
+      updates.requirements = req.body.requirements;
+    }
+
     const updatedJob = await JobVacancy.findByIdAndUpdate(req.params.id, updates, { new: true });
+    const jobObj = updatedJob.toObject();
+    jobObj.qualifications = formatQualifications(jobObj.qualifications);
+    
     logger.info(`Job updated: ${req.params.id} by user ${req.user.id}`);
-    res.json({ message: "Job updated", job: updatedJob });
+    res.json({ message: "Job updated", job: jobObj });
   } catch (error) {
     logger.error("Update job error:", { jobId: req.params.id, error: error.message });
     res.status(500).json({ 
@@ -130,6 +250,9 @@ exports.updateJob = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Delete a job (employer or admin)
+// ---------------------------------------------------------------------
 exports.deleteJob = async (req, res) => {
   try {
     const job = await JobVacancy.findById(req.params.id);
@@ -148,6 +271,9 @@ exports.deleteJob = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Apply to a job (resident)
+// ---------------------------------------------------------------------
 exports.applyToJob = async (req, res) => {
   let uploadedFile = req.file;
   const session = await JobApplication.startSession();
@@ -155,7 +281,6 @@ exports.applyToJob = async (req, res) => {
   try {
     const job = await JobVacancy.findById(req.params.id);
     if (!job) {
-      // Clean up uploaded file if job not found
       if (uploadedFile && fs.existsSync(uploadedFile.path)) {
         fs.unlinkSync(uploadedFile.path);
         logger.info(`Cleaned up orphan file: ${uploadedFile.path}`);
@@ -165,14 +290,12 @@ exports.applyToJob = async (req, res) => {
 
     session.startTransaction();
 
-    // Check for existing application with write lock
     const existingApplication = await JobApplication.findOne({
       applicant: req.user.id,
       vacancy: job._id,
     }).session(session);
 
     if (existingApplication) {
-      // Clean up uploaded file
       if (uploadedFile && fs.existsSync(uploadedFile.path)) {
         fs.unlinkSync(uploadedFile.path);
       }
@@ -181,7 +304,6 @@ exports.applyToJob = async (req, res) => {
       return res.status(400).json({ message: "You have already applied to this job" });
     }
 
-    // Create application
     const application = await JobApplication.create([{
       applicant: req.user.id,
       vacancy: job._id,
@@ -195,7 +317,6 @@ exports.applyToJob = async (req, res) => {
     logger.info(`Application submitted: ${application[0]._id} for job ${job._id} by user ${req.user.id}`);
     res.json({ message: "Application submitted successfully", application: application[0] });
   } catch (error) {
-    // Clean up uploaded file on error
     if (uploadedFile && fs.existsSync(uploadedFile.path)) {
       try {
         fs.unlinkSync(uploadedFile.path);
@@ -223,6 +344,9 @@ exports.applyToJob = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Get all applications for a job (employer/admin)
+// ---------------------------------------------------------------------
 exports.getApplicationsForJob = async (req, res) => {
   try {
     const job = await JobVacancy.findById(req.params.id);
@@ -266,12 +390,15 @@ exports.getApplicationsForJob = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Get current user's applications (resident)
+// ---------------------------------------------------------------------
 exports.getMyApplications = async (req, res) => {
   try {
     const applications = await JobApplication.find({ applicant: req.user.id })
       .populate({
         path: "vacancy",
-        select: "title location employer",
+        select: "title location employer qualifications",
         populate: {
           path: "employer",
           select: "name email companyName",
@@ -286,6 +413,11 @@ exports.getMyApplications = async (req, res) => {
 
         if (!vacancy) {
           return data;
+        }
+
+        // Format qualifications
+        if (vacancy.qualifications) {
+          vacancy.qualifications = formatQualifications(vacancy.qualifications);
         }
 
         const employerValue = vacancy.employer;
@@ -321,6 +453,9 @@ exports.getMyApplications = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Update my application (resident)
+// ---------------------------------------------------------------------
 exports.updateMyApplication = async (req, res) => {
   try {
     const application = await JobApplication.findById(req.params.id);
@@ -337,7 +472,6 @@ exports.updateMyApplication = async (req, res) => {
     }
 
     if (req.file) {
-      // Delete old resume if exists
       if (application.resume && fs.existsSync(application.resume)) {
         try {
           fs.unlinkSync(application.resume);
@@ -353,7 +487,7 @@ exports.updateMyApplication = async (req, res) => {
     const populated = await JobApplication.findById(application._id)
       .populate({
         path: "vacancy",
-        select: "title location employer",
+        select: "title location employer qualifications",
         populate: {
           path: "employer",
           select: "name email companyName",
@@ -362,6 +496,11 @@ exports.updateMyApplication = async (req, res) => {
 
     const normalizedApplication = populated?.toObject ? populated.toObject() : populated;
     if (normalizedApplication?.vacancy) {
+      // Format qualifications
+      if (normalizedApplication.vacancy.qualifications) {
+        normalizedApplication.vacancy.qualifications = formatQualifications(normalizedApplication.vacancy.qualifications);
+      }
+
       const employerValue = normalizedApplication.vacancy.employer;
       const alreadyPopulated = employerValue && typeof employerValue === "object" && employerValue.name;
 
@@ -392,6 +531,9 @@ exports.updateMyApplication = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Delete my application (resident)
+// ---------------------------------------------------------------------
 exports.deleteMyApplication = async (req, res) => {
   try {
     const application = await JobApplication.findById(req.params.id);
@@ -403,7 +545,6 @@ exports.deleteMyApplication = async (req, res) => {
       return res.status(403).json({ message: "You can only delete your own applications" });
     }
 
-    // Delete resume file if exists
     if (application.resume && fs.existsSync(application.resume)) {
       try {
         fs.unlinkSync(application.resume);
@@ -421,10 +562,18 @@ exports.deleteMyApplication = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Get jobs for the logged-in employer (employer)
+// ---------------------------------------------------------------------
 exports.getEmployerJobs = async (req, res) => {
   try {
     const jobs = await JobVacancy.find({ employer: req.user.id }).sort({ createdAt: -1 });
-    res.json(jobs);
+    const jobsWithFormatted = jobs.map(job => {
+      const obj = job.toObject();
+      obj.qualifications = formatQualifications(obj.qualifications);
+      return obj;
+    });
+    res.json(jobsWithFormatted);
   } catch (error) {
     logger.error("Get employer jobs error:", { userId: req.user.id, error: error.message });
     res.status(500).json({ message: "Failed to fetch your jobs" });

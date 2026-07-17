@@ -27,19 +27,11 @@ const formatApiError = (err, fallback = "Registration failed") => {
   const status = err?.response?.status;
   const data = err?.response?.data;
 
-  // Handle duplicate email specifically
   if (data?.message?.toLowerCase().includes("email") && 
       (data?.message?.toLowerCase().includes("already") || 
        data?.message?.toLowerCase().includes("exists") ||
        data?.message?.toLowerCase().includes("taken"))) {
     return "This email is already registered. Please use a different email or log in.";
-  }
-
-  // Handle invalid invite code
-  if (data?.message?.toLowerCase().includes("invite") || 
-      data?.message?.toLowerCase().includes("invalid") ||
-      data?.message?.toLowerCase().includes("not found")) {
-    return "Invalid or expired invite code. Please check with your administrator.";
   }
 
   if (data?.errors && typeof data.errors === "object") {
@@ -80,7 +72,6 @@ export default function EmployerRegister() {
     name: "",
     email: "",
     password: "",
-    inviteCode: "",
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -98,7 +89,6 @@ export default function EmployerRegister() {
     if (name === "password") {
       const errors = validatePassword(value);
       setPasswordErrors(errors);
-      // Auto-clear error when user starts typing
       if (error && error.includes("email")) {
         setError("");
       }
@@ -143,12 +133,6 @@ export default function EmployerRegister() {
       return;
     }
 
-    // Invite code validation
-    if (!formData.inviteCode.trim()) {
-      setError("Please enter an invite code.");
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -156,26 +140,21 @@ export default function EmployerRegister() {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
-        inviteCode: formData.inviteCode.trim(),
       };
 
       const response = await authAPI.registerEmployer(trimmedData);
       
-      // Check if registration succeeded
       if (response.data?.message || response.status === 201 || response.status === 200) {
-        setSuccess("Employer account created successfully! You can now log in.");
-        // Clear form
+        setSuccess("Account created! Please log in and upload your business documents for verification.");
         setFormData({
           name: "",
           email: "",
           password: "",
-          inviteCode: "",
         });
         setTouched({});
-        // Redirect after 2 seconds
         setTimeout(() => {
           navigate("/login");
-        }, 2000);
+        }, 2500);
       }
     } catch (err) {
       console.error("Registration error:", err);
@@ -185,7 +164,6 @@ export default function EmployerRegister() {
     }
   };
 
-  // Determine if password requirements should be shown
   const showPasswordRequirements = touched.password && passwordErrors.length > 0 && isPasswordFocused;
   const showPasswordSuccess = touched.password && passwordErrors.length === 0 && formData.password.length > 0;
 
@@ -284,24 +262,6 @@ export default function EmployerRegister() {
             {showPasswordSuccess && (
               <span className="password-valid">✓ Password meets all requirements</span>
             )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="inviteCode">Invite Code</label>
-            <input
-              id="inviteCode"
-              type="text"
-              name="inviteCode"
-              placeholder="Enter your invite code"
-              value={formData.inviteCode}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              onFocus={handleFocus}
-              required
-              disabled={loading}
-              autoComplete="off"
-              className={touched.inviteCode && !formData.inviteCode.trim() && formData.inviteCode.length > 0 ? "is-error" : ""}
-            />
           </div>
 
           <button type="submit" className="auth-button" disabled={loading}>

@@ -1,6 +1,6 @@
 const xss = require('xss');
 
-// Sanitize input
+// ============ SANITIZATION ============
 const sanitizeInput = (value) => {
   if (typeof value === 'string') {
     return xss(value.trim());
@@ -8,7 +8,6 @@ const sanitizeInput = (value) => {
   return value;
 };
 
-// Sanitize all request inputs
 const sanitizeRequestBody = (req, res, next) => {
   if (req.body) {
     Object.keys(req.body).forEach(key => {
@@ -19,7 +18,6 @@ const sanitizeRequestBody = (req, res, next) => {
           typeof item === 'string' ? sanitizeInput(item) : item
         );
       } else if (typeof req.body[key] === 'object' && req.body[key] !== null) {
-        // Recursively sanitize nested objects
         const sanitizeObject = (obj) => {
           if (!obj || typeof obj !== 'object') return obj;
           const sanitized = {};
@@ -43,12 +41,10 @@ const sanitizeRequestBody = (req, res, next) => {
   next();
 };
 
-// Sanitize query parameters
 const sanitizeQueryParams = (req, res, next) => {
   if (req.query) {
     Object.keys(req.query).forEach(key => {
       if (typeof req.query[key] === 'string') {
-        // Remove MongoDB operators
         req.query[key] = req.query[key].replace(/[\[\]{}()$]/g, '');
         req.query[key] = sanitizeInput(req.query[key]);
       }
@@ -57,9 +53,19 @@ const sanitizeQueryParams = (req, res, next) => {
   next();
 };
 
-// Manual validation functions
+// ============ USER VALIDATIONS ============
 const validateUserUpdate = (req, res, next) => {
-  const { name, email, phone, address, bio } = req.body;
+  const { 
+    name, email, phone, address, bio,
+    civilStatus, placeOfBirth, citizenship, height, weight,
+    landline, mobileSecondary,
+    presentAddress, permanentAddress,
+    disability, is4psBeneficiary, _4psHouseholdId,
+    isOfw, isRepatriated, repatriationIntent,
+    employmentStatus, employmentType, unemploymentReason, laidoffCountry,
+    tradeName, acronym, tin, officeType, employerClassification,
+    totalWorkforceSize, ownerName, contactPersonName, contactPersonPosition, fax
+  } = req.body;
   const errors = [];
 
   if (name !== undefined) {
@@ -86,7 +92,123 @@ const validateUserUpdate = (req, res, next) => {
   if (bio !== undefined && bio && bio.length > 500) {
     errors.push('Bio cannot exceed 500 characters');
   }
-  
+
+  if (req.user?.role === 'resident' || !req.user) {
+    if (civilStatus !== undefined && !["Single", "Married", "Widowed", "Separated", "Divorced"].includes(civilStatus)) {
+      errors.push('Invalid civil status');
+    }
+    if (placeOfBirth !== undefined && placeOfBirth && placeOfBirth.length > 100) {
+      errors.push('Place of birth too long');
+    }
+    if (citizenship !== undefined && citizenship && citizenship.length > 50) {
+      errors.push('Citizenship too long');
+    }
+    if (height !== undefined && height && (isNaN(parseFloat(height)) || parseFloat(height) < 50 || parseFloat(height) > 300)) {
+      errors.push('Height must be a number between 50 and 300 cm');
+    }
+    if (weight !== undefined && weight && (isNaN(parseFloat(weight)) || parseFloat(weight) < 10 || parseFloat(weight) > 500)) {
+      errors.push('Weight must be a number between 10 and 500 kg');
+    }
+    if (landline !== undefined && landline && !/^[0-9+\-\s()]{7,15}$/.test(landline)) {
+      errors.push('Invalid landline format');
+    }
+    if (mobileSecondary !== undefined && mobileSecondary && !/^[0-9+\-\s()]{10,20}$/.test(mobileSecondary)) {
+      errors.push('Invalid secondary mobile format');
+    }
+    if (disability !== undefined && !Array.isArray(disability)) {
+      errors.push('Disability must be an array');
+    } else if (disability) {
+      const validDisabilities = ["Visual", "Hearing", "Speech", "Physical", "Others"];
+      for (const d of disability) {
+        if (!validDisabilities.includes(d)) {
+          errors.push('Invalid disability type');
+          break;
+        }
+      }
+    }
+    if (is4psBeneficiary !== undefined && typeof is4psBeneficiary !== 'boolean' && is4psBeneficiary !== 'true' && is4psBeneficiary !== 'false') {
+      errors.push('4Ps beneficiary must be a boolean');
+    }
+    if (_4psHouseholdId !== undefined && _4psHouseholdId && _4psHouseholdId.length > 20) {
+      errors.push('4Ps household ID too long');
+    }
+    if (isOfw !== undefined && typeof isOfw !== 'boolean' && isOfw !== 'true' && isOfw !== 'false') {
+      errors.push('OFW status must be a boolean');
+    }
+    if (isRepatriated !== undefined && typeof isRepatriated !== 'boolean' && isRepatriated !== 'true' && isRepatriated !== 'false') {
+      errors.push('Repatriated status must be a boolean');
+    }
+    if (repatriationIntent !== undefined && repatriationIntent && repatriationIntent.length > 200) {
+      errors.push('Repatriation intent too long');
+    }
+    if (employmentStatus !== undefined && !["employed", "unemployed"].includes(employmentStatus)) {
+      errors.push('Invalid employment status');
+    }
+    if (employmentType !== undefined && employmentType && !["wage", "self"].includes(employmentType)) {
+      errors.push('Invalid employment type');
+    }
+    if (unemploymentReason !== undefined && unemploymentReason) {
+      const reasons = ["fresh_grad", "finished_contract", "resigned", "retired", "laidoff_local", "laidoff_abroad"];
+      if (!reasons.includes(unemploymentReason)) {
+        errors.push('Invalid unemployment reason');
+      }
+    }
+    if (laidoffCountry !== undefined && laidoffCountry && laidoffCountry.length > 50) {
+      errors.push('Laid off country too long');
+    }
+  }
+
+  if (req.user?.role === 'employer' || !req.user) {
+    if (tradeName !== undefined && tradeName && tradeName.length > 100) {
+      errors.push('Trade name too long');
+    }
+    if (acronym !== undefined && acronym && acronym.length > 20) {
+      errors.push('Acronym too long');
+    }
+    if (tin !== undefined && tin && !/^\d{9,12}$/.test(tin.replace(/-/g, ''))) {
+      errors.push('Invalid TIN format (should be 9-12 digits)');
+    }
+    if (officeType !== undefined && officeType && !["main", "branch"].includes(officeType)) {
+      errors.push('Invalid office type');
+    }
+    if (employerClassification !== undefined && employerClassification) {
+      if (typeof employerClassification !== 'object') {
+        errors.push('Employer classification must be an object');
+      } else {
+        const { type, subtype } = employerClassification;
+        if (type && !["public", "private"].includes(type)) {
+          errors.push('Invalid employer classification type');
+        }
+        const validPublicSubtypes = ["NGA", "LGU", "GOCC", "SUC/LUC"];
+        const validPrivateSubtypes = ["Direct Hire", "Local Recruitment Agency", "Overseas Recruitment Agency", "D.O. 174 Contractor"];
+        if (subtype) {
+          if (type === 'public' && !validPublicSubtypes.includes(subtype)) {
+            errors.push('Invalid public subtype');
+          } else if (type === 'private' && !validPrivateSubtypes.includes(subtype)) {
+            errors.push('Invalid private subtype');
+          } else if (!type) {
+            errors.push('Classification type required when subtype provided');
+          }
+        }
+      }
+    }
+    if (totalWorkforceSize !== undefined && totalWorkforceSize && !["micro", "small", "medium", "large"].includes(totalWorkforceSize)) {
+      errors.push('Invalid workforce size');
+    }
+    if (ownerName !== undefined && ownerName && ownerName.length > 100) {
+      errors.push('Owner name too long');
+    }
+    if (contactPersonName !== undefined && contactPersonName && contactPersonName.length > 100) {
+      errors.push('Contact person name too long');
+    }
+    if (contactPersonPosition !== undefined && contactPersonPosition && contactPersonPosition.length > 100) {
+      errors.push('Contact person position too long');
+    }
+    if (fax !== undefined && fax && !/^[0-9+\-\s()]{7,15}$/.test(fax)) {
+      errors.push('Invalid fax format');
+    }
+  }
+
   if (errors.length > 0) {
     return res.status(400).json({ errors });
   }
@@ -185,65 +307,22 @@ const validateUserLogin = (req, res, next) => {
   next();
 };
 
-const validateJobPosting = (req, res, next) => {
-  const { title, description, location, jobType, requirements, salary } = req.body;
-  const errors = [];
-
-  if (!title || title.length < 5 || title.length > 100) {
-    errors.push('Title must be between 5 and 100 characters');
-  }
-  
-  if (!description || description.length < 20 || description.length > 5000) {
-    errors.push('Description must be between 20 and 5000 characters');
-  }
-  
-  if (!location || location.length < 2 || location.length > 100) {
-    errors.push('Location is required and must be between 2 and 100 characters');
-  }
-  
-  const validJobTypes = ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Internship', 'Remote'];
-  if (!jobType || !validJobTypes.includes(jobType)) {
-    errors.push('Invalid job type');
-  }
-  
-  if (salary && salary.length > 50) {
-    errors.push('Salary format too long');
-  }
-  
-  if (requirements && requirements.length > 2000) {
-    errors.push('Requirements too long');
-  }
-  
-  if (errors.length > 0) {
-    return res.status(400).json({ errors });
-  }
-  
-  next();
-};
-
-// ============================================
-// UPDATED: Validate Job Application with better security
-// ============================================
 const validateJobApplication = (req, res, next) => {
   const { coverLetter } = req.body;
   const errors = [];
 
-  // Only validate if coverLetter is provided
   if (coverLetter !== undefined && coverLetter !== null) {
     const trimmed = coverLetter.trim();
     const length = trimmed.length;
     
-    // Maximum length check - 1000 characters (reduced from 2000)
     if (length > 1000) {
       errors.push(`Cover letter cannot exceed 1000 characters (currently ${length})`);
     }
     
-    // Minimum length check (optional - only if content is provided)
     if (length > 0 && length < 10) {
       errors.push('Cover letter must be at least 10 characters');
     }
     
-    // Check for suspicious patterns (XSS protection)
     const suspiciousPatterns = [
       /<script/i,
       /javascript:/i,
@@ -309,6 +388,112 @@ const validateNotificationRead = (req, res, next) => {
   next();
 };
 
+// ============ JOB VALIDATIONS (UNIFIED) ============
+const validateJobPosting = (req, res, next) => {
+  const { title, description, location, jobType, requirements, salary, qualifications } = req.body;
+  const errors = [];
+
+  if (!title || title.length < 5 || title.length > 100) {
+    errors.push('Title must be between 5 and 100 characters');
+  }
+  
+  if (!description || description.length < 20 || description.length > 5000) {
+    errors.push('Description must be between 20 and 5000 characters');
+  }
+  
+  if (!location || location.length < 2 || location.length > 100) {
+    errors.push('Location is required and must be between 2 and 100 characters');
+  }
+  
+  const validJobTypes = ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Internship', 'Remote'];
+  if (!jobType || !validJobTypes.includes(jobType)) {
+    errors.push('Invalid job type');
+  }
+  
+  if (salary && salary.length > 50) {
+    errors.push('Salary format too long');
+  }
+
+  if (requirements && requirements.length > 2000) {
+    errors.push('Requirements too long');
+  }
+
+  // Validate qualifications if provided
+  if (qualifications !== undefined) {
+    if (!Array.isArray(qualifications)) {
+      errors.push('Qualifications must be an array');
+    } else {
+      const allowedTypes = ["education", "experience", "skill", "certification", "license", "other"];
+      qualifications.forEach((q, index) => {
+        if (!q.type || !allowedTypes.includes(q.type)) {
+          errors.push(`Qualification at index ${index}: invalid or missing type`);
+        }
+        if (!q.value || typeof q.value !== "string" || q.value.trim().length === 0) {
+          errors.push(`Qualification at index ${index}: value is required`);
+        }
+      });
+    }
+  }
+  
+  if (errors.length > 0) {
+    return res.status(400).json({ errors });
+  }
+  
+  next();
+};
+
+// ============ QUALIFICATIONS VALIDATION (used separately) ============
+const validateQualifications = (req, res, next) => {
+  const { qualifications } = req.body;
+  const errors = [];
+
+  if (qualifications === undefined) {
+    return next();
+  }
+
+  if (!Array.isArray(qualifications)) {
+    return res.status(400).json({ 
+      message: "Qualifications must be an array",
+      field: "qualifications"
+    });
+  }
+
+  const allowedTypes = ["education", "experience", "skill", "certification", "license", "other"];
+
+  qualifications.forEach((q, index) => {
+    if (!q.type) {
+      errors.push(`Qualification at index ${index}: "type" is required`);
+    } else if (!allowedTypes.includes(q.type)) {
+      errors.push(`Qualification at index ${index}: invalid type "${q.type}" – allowed: ${allowedTypes.join(", ")}`);
+    }
+
+    if (!q.value || typeof q.value !== "string" || q.value.trim().length === 0) {
+      errors.push(`Qualification at index ${index}: "value" is required and must be a non-empty string`);
+    }
+
+    if (q.value && q.value.trim().length > 500) {
+      errors.push(`Qualification at index ${index}: "value" exceeds 500 characters`);
+    }
+
+    if (q.optional !== undefined && typeof q.optional !== "boolean") {
+      errors.push(`Qualification at index ${index}: "optional" must be a boolean`);
+    }
+
+    if (q.order !== undefined && typeof q.order !== "number") {
+      errors.push(`Qualification at index ${index}: "order" must be a number`);
+    }
+  });
+
+  if (errors.length > 0) {
+    return res.status(400).json({ 
+      message: "Invalid qualifications",
+      errors 
+    });
+  }
+
+  next();
+};
+
 module.exports = {
   sanitizeRequestBody,
   sanitizeQueryParams,
@@ -321,5 +506,6 @@ module.exports = {
   validateJobPosting,
   validateJobApplication,
   validateMessage,
-  validateNotificationRead
+  validateNotificationRead,
+  validateQualifications,
 };

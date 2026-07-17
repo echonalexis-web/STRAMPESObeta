@@ -1,258 +1,253 @@
 const User = require("../models/User");
+const JobseekerProfile = require("../models/JobseekerProfile");
+const EmployerProfile = require("../models/EmployerProfile");
+const authController = require("./authController");
 
-const normalizeWorkExperience = (value) => {
-  if (!value) return value;
-  if (value === "1-3 years") return "1–3 years";
-  if (value === "3-5 years") return "3–5 years";
-  return value;
+// Helper to update or create profile
+const upsertProfile = async (userId, role, data) => {
+  let Model = role === "resident" ? JobseekerProfile : EmployerProfile;
+  return Model.findOneAndUpdate({ userId }, { $set: data }, { new: true, upsert: true });
 };
 
+// Helper to safely parse JSON
+const parseJSON = (value, fallback = null) => {
+  if (!value) return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+// ---------- Get full profile (user + role profile) ----------
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    let profile = null;
+    if (user.role === "resident") {
+      profile = await JobseekerProfile.findOne({ userId: user._id });
+    } else if (user.role === "employer") {
+      profile = await EmployerProfile.findOne({ userId: user._id });
+    }
+
+    res.json({ user, profile });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ---------- Complete onboarding ----------
 exports.completeOnboarding = async (req, res) => {
   try {
     const userId = req.user._id || req.user.id;
-    const currentUser = await User.findById(userId).select("role");
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (!currentUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const updates = {
+    // 1. Build common updates (fields that belong to User model)
+    const commonUpdates = {
+      name: req.body.name,
+      phone: req.body.phone,
+      about: req.body.about,
+      address: req.body.address,
+      dateOfBirth: req.body.dateOfBirth || null,
+      gender: req.body.gender || null,
       hasCompletedOnboarding: true,
       onboardingComplete: true,
     };
 
-    if (currentUser.role === "employer") {
-      updates.companyName = req.body.companyName;
-      updates.industry = req.body.industry;
-      updates.companySize = req.body.companySize;
-      updates.businessAddress = req.body.businessAddress;
-      updates.website = req.body.website || "";
-      updates.companyDescription = req.body.companyDescription;
-      updates.phone = req.body.phone;
-      updates.address = req.body.businessAddress;
-    } else {
-      Object.assign(updates, req.body);
-      updates.workExperience = normalizeWorkExperience(req.body.workExperience);
-    }
-
-    const cleanUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([, value]) => value !== undefined)
-    );
-
-    const user = await User.findByIdAndUpdate(userId, cleanUpdates, {
-      new: true,
-    }).select("-password");
-
-    return res.json({
-      message: "Onboarding completed",
-      user,
-    });
-  } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to complete onboarding" });
-  }
-};
-
-// Get user profile
-exports.getProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password');
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    res.json(user);
-  } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// Update user profile
-exports.updateProfile = async (req, res) => {
-  try {
-    const allowedUpdates = ['name', 'phone', 'address', 'bio', 'skills', 'experience', 'education'];
-    const updates = {};
-    
-    allowedUpdates.forEach(field => {
-      if (req.body[field] !== undefined) {
-        updates[field] = req.body[field];
+    // For jobseekers, also update career fields on User
+    if (user.role === "resident") {
+      commonUpdates.desiredJobTitle = req.body.desiredJobTitle || null;
+      commonUpdates.workExperience = req.body.workExperience || null;
+      commonUpdates.educationalAttainment = req.body.educationalAttainment || null;
+      commonUpdates.availabilityStatus = req.body.availabilityStatus || null;
+      // Parse skills from JSON string
+      if (req.body.skills) {
+        const skills = parseJSON(req.body.skills, []);
+        if (Array.isArray(skills)) commonUpdates.skills = skills;
       }
-    });
-    
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { $set: updates },
-      { new: true, runValidators: true }
-    ).select('-password');
-    
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
     }
-    
-    res.json({ message: 'Profile updated successfully', user });
+
+    // For employers, update company fields
+    if (user.role === "employer") {
+      const employerFields = ["companyName", "industry", "companySize", "website", "companyDescription", "businessAddress"];
+      employerFields.forEach(field => {
+        if (req.body[field] !== undefined) commonUpdates[field] = req.body[field];
+      });
+    }
+
+    // Apply common updates
+    await User.findByIdAndUpdate(userId, commonUpdates);
+
+    // 2. Build role‑specific profile data (NSRP fields)
+    let profileData = {};
+    if (user.role === "resident") {
+      profileData = {
+        civilStatus: req.body.civilStatus || null,
+        placeOfBirth: req.body.placeOfBirth || null,
+        citizenship: req.body.citizenship || null,
+        height: req.body.height ? parseFloat(req.body.height) : null,
+        weight: req.body.weight ? parseFloat(req.body.weight) : null,
+        landline: req.body.landline || null,
+        mobileSecondary: req.body.mobileSecondary || null,
+        presentAddress: parseJSON(req.body.presentAddress, { street: "", barangay: "", municipality: "", province: "", region: "" }),
+        permanentAddress: parseJSON(req.body.permanentAddress, { street: "", barangay: "", municipality: "", province: "", region: "" }),
+        disability: parseJSON(req.body.disability, []),
+        is4psBeneficiary: req.body.is4psBeneficiary === "true",
+        _4psHouseholdId: req.body._4psHouseholdId || null,
+        isOfw: req.body.isOfw === "true",
+        isRepatriated: req.body.isRepatriated === "true",
+        repatriationIntent: req.body.repatriationIntent || null,
+        employmentStatus: req.body.employmentStatus || null,
+        employmentType: req.body.employmentType || null,
+        unemploymentReason: req.body.unemploymentReason || null,
+        laidoffCountry: req.body.laidoffCountry || null,
+      };
+    } else if (user.role === "employer") {
+      profileData = {
+        tradeName: req.body.tradeName || null,
+        acronym: req.body.acronym || null,
+        tin: req.body.tin || null,
+        officeType: req.body.officeType || null,
+        employerClassification: parseJSON(req.body.employerClassification, { type: null, subtype: null }),
+        totalWorkforceSize: req.body.totalWorkforceSize || null,
+        businessAddress: parseJSON(req.body.businessAddressStructured, { street: "", barangay: "", municipality: "", province: "", region: "" }),
+        ownerName: req.body.ownerName || null,
+        contactPersonName: req.body.contactPersonName || null,
+        contactPersonPosition: req.body.contactPersonPosition || null,
+        fax: req.body.fax || null,
+      };
+    }
+
+    // Remove undefined fields
+    Object.keys(profileData).forEach(key => profileData[key] === undefined && delete profileData[key]);
+
+    let updatedProfile = null;
+    if (Object.keys(profileData).length > 0) {
+      updatedProfile = await upsertProfile(userId, user.role, profileData);
+    }
+
+    const updatedUser = await User.findById(userId).select("-password");
+
+    res.json({
+      message: "Onboarding completed",
+      user: updatedUser,
+      profile: updatedProfile,
+    });
   } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Upload profile image
+// ---------- Update profile (re‑exports authController.updateProfile) ----------
+exports.updateProfile = authController.updateProfile;
+
+// ---------- Other user operations ----------
 exports.uploadProfileImage = async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-    
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
     const imageUrl = `/uploads/profiles/${req.file.filename}`;
-    
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { profileImage: imageUrl },
       { new: true }
-    ).select('-password');
-    
-    res.json({ 
-      message: 'Profile image uploaded successfully', 
-      profileImage: imageUrl,
-      user 
-    });
+    ).select("-password");
+    res.json({ message: "Profile image uploaded", profileImage: imageUrl, user });
   } catch (error) {
-    console.error('Upload profile image error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Upload resume
 exports.uploadResume = async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-    
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
     const resumeUrl = `/uploads/resumes/${req.file.filename}`;
-    
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { resume: resumeUrl },
+      { resumeFile: resumeUrl },
       { new: true }
-    ).select('-password');
-    
-    res.json({ 
-      message: 'Resume uploaded successfully', 
-      resume: resumeUrl,
-      user 
-    });
+    ).select("-password");
+    res.json({ message: "Resume uploaded", resume: resumeUrl, user });
   } catch (error) {
-    console.error('Upload resume error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Change password
 exports.changePassword = async (req, res) => {
   try {
-    const bcrypt = require("bcryptjs");
     const { currentPassword, newPassword } = req.body;
-    
     const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    // Verify current password
+    if (!user) return res.status(404).json({ message: "User not found" });
     const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Current password is incorrect' });
-    }
-    
-    // Hash new password
+    if (!isMatch) return res.status(401).json({ message: "Current password is incorrect" });
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
-    
-    res.json({ message: 'Password changed successfully' });
+    res.json({ message: "Password changed successfully" });
   } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Get user by ID
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    res.json(user);
+    const user = await User.findById(req.params.id).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    let profile = null;
+    if (user.role === "resident") profile = await JobseekerProfile.findOne({ userId: user._id });
+    else if (user.role === "employer") profile = await EmployerProfile.findOne({ userId: user._id });
+    res.json({ user, profile });
   } catch (error) {
-    console.error('Get user by ID error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Delete account
 exports.deleteAccount = async (req, res) => {
   try {
     await User.findByIdAndDelete(req.user.id);
-    res.json({ message: 'Account deleted successfully' });
+    await JobseekerProfile.deleteOne({ userId: req.user.id });
+    await EmployerProfile.deleteOne({ userId: req.user.id });
+    res.json({ message: "Account deleted" });
   } catch (error) {
-    console.error('Delete account error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Get notifications
+// Notifications (unchanged)
 exports.getNotifications = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('notifications');
+    const user = await User.findById(req.user.id).select("notifications");
     res.json(user?.notifications || []);
   } catch (error) {
-    console.error('Get notifications error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Mark notification as read
 exports.markNotificationRead = async (req, res) => {
   try {
-    const { notificationId } = req.params;
-    
     const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    const notification = user.notifications.id(notificationId);
-    if (!notification) {
-      return res.status(404).json({ message: 'Notification not found' });
-    }
-    
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const notification = user.notifications.id(req.params.notificationId);
+    if (!notification) return res.status(404).json({ message: "Notification not found" });
     notification.isRead = true;
     await user.save();
-    
-    res.json({ message: 'Notification marked as read' });
+    res.json({ message: "Notification marked as read" });
   } catch (error) {
-    console.error('Mark notification read error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Mark all notifications as read
 exports.markAllNotificationsRead = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    user.notifications.forEach(notification => {
-      notification.isRead = true;
-    });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    user.notifications.forEach(n => (n.isRead = true));
     await user.save();
-    
-    res.json({ message: 'All notifications marked as read' });
+    res.json({ message: "All notifications marked as read" });
   } catch (error) {
-    console.error('Mark all notifications read error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };

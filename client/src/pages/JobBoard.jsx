@@ -5,6 +5,8 @@ import "../styles/jobboard.css";
 import Modal from "../components/Modal";
 import AppModal from "../components/AppModal";
 import EmployerModal from "../components/EmployerModal";
+import QualificationsDisplay from "../components/QualificationsDisplay";
+import "../styles/qualifications-editor.css";
 import { 
   FaSearch, 
   FaMapMarkerAlt, 
@@ -14,6 +16,22 @@ import {
   FaCalendarAlt, 
   FaFileAlt 
 } from "react-icons/fa";
+
+// Helper to format address for display
+const formatAddress = (address) => {
+  if (!address) return "Not specified";
+  const parts = address.split(", ");
+  if (parts.length >= 2) {
+    return (
+      <>
+        <span>{parts[0]}</span>
+        <br />
+        <span className="text-muted">{parts.slice(1).join(", ")}</span>
+      </>
+    );
+  }
+  return address;
+};
 
 export default function JobBoard() {
   const navigate = useNavigate();
@@ -195,7 +213,6 @@ export default function JobBoard() {
       </section>
 
       <div className="jobboard-content">
-        {/* Job Count */}
         <div className="jobboard-count">{filteredJobs.length} jobs available</div>
 
         {loading ? (
@@ -224,9 +241,15 @@ export default function JobBoard() {
                   <span className="job-status status-open">Open</span>
                 </div>
                 <div className="job-card-location">
-                  <FaMapMarkerAlt /> {job.location}
+                  <FaMapMarkerAlt /> {formatAddress(job.location)}
                 </div>
                 <p className="job-card-description">{job.description}</p>
+                
+                {/* Qualification badges */}
+                <div className="job-card-qualifications">
+                  <QualificationsDisplay qualifications={job.qualifications || []} compact maxBadges={3} />
+                </div>
+
                 <div className="job-card-footer">
                   <div className="job-card-company">
                     <FaBuilding />
@@ -272,7 +295,7 @@ export default function JobBoard() {
                     <FaBuilding /> {getEmployerDisplay(application.vacancy?.employer).companyName}
                   </p>
                   <p>
-                    <FaMapMarkerAlt /> {application.vacancy?.location || "N/A"}
+                    <FaMapMarkerAlt /> {formatAddress(application.vacancy?.location || "N/A")}
                   </p>
                   <p>
                     <FaCalendarAlt /> Applied on {formatAppliedDate(application.appliedAt)}
@@ -356,7 +379,7 @@ export default function JobBoard() {
             <p><strong>Job Title:</strong> {viewingApplication.vacancy?.title || "N/A"}</p>
             <p><strong>Employer Account:</strong> {getEmployerDisplay(viewingApplication.vacancy?.employer).accountName}</p>
             <p><strong>Company:</strong> {getEmployerDisplay(viewingApplication.vacancy?.employer).companyName}</p>
-            <p><strong>Location:</strong> {viewingApplication.vacancy?.location || "N/A"}</p>
+            <p><strong>Location:</strong> {formatAddress(viewingApplication.vacancy?.location || "N/A")}</p>
             <p>
               <strong>Status:</strong>{" "}
               <span className={`status-badge ${getStatusClassName(viewingApplication.status)}`}>

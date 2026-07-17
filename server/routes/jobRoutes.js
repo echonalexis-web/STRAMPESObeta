@@ -17,13 +17,15 @@ const {
   getMyApplications,
   getEmployerJobs,
 } = require("../controllers/jobController");
-const { verifyToken, isResident, isEmployer } = require("../middleware/auth");
+const { verifyToken, isResident, isEmployer, isVerifiedEmployer } = require("../middleware/auth");
 const { 
   validateJobApplication, 
   validateRequest,
   sanitizeRequestBody,
   sanitizeQueryParams,
-  validateMongoId
+  validateMongoId,
+  validateJobPosting,
+  validateQualifications, // NEW
 } = require("../middleware/validation");
 const { detectMaliciousPayload } = require("../middleware/security");
 const { validateFile, cleanupUploadedFiles } = require("../middleware/upload");
@@ -40,7 +42,6 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    // Sanitize filename and add timestamp to prevent collisions
     const cleanName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '');
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 10000);
@@ -51,7 +52,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: { 
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 5 * 1024 * 1024,
     files: 1
   },
   fileFilter: (req, file, cb) => {
@@ -76,14 +77,14 @@ router.get("/:id", getJobById);
 
 // ============ PROTECTED ROUTES ============
 
-// Employer routes
-router.get("/mine", verifyToken, isEmployer, getEmployerJobs);
-router.post("/", verifyToken, isEmployer, createJob);
-router.put("/:id", verifyToken, isEmployer, updateJob);
-router.delete("/:id", verifyToken, isEmployer, deleteJob);
+// Employer routes – now require verified status
+router.get("/mine", verifyToken, isEmployer, isVerifiedEmployer, getEmployerJobs);
+router.post("/", verifyToken, isEmployer, isVerifiedEmployer, validateJobPosting, validateQualifications, validateRequest, createJob);
+router.put("/:id", verifyToken, isEmployer, isVerifiedEmployer, validateJobPosting, validateQualifications, validateRequest, updateJob);
+router.delete("/:id", verifyToken, isEmployer, isVerifiedEmployer, deleteJob);
 
-// Job applications - Employer viewing
-router.get("/:id/applications", verifyToken, getApplicationsForJob);
+// Job applications - Employer viewing (also verified)
+router.get("/:id/applications", verifyToken, isEmployer, isVerifiedEmployer, getApplicationsForJob);
 
 // Resident (Job Seeker) routes
 router.get("/applications/me", verifyToken, isResident, getMyApplications);

@@ -3,23 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { authAPI } from "../../services/api";
 import "../../styles/onboarding.css";
+import LocationSelect from "../../components/LocationSelect";
 
 const suggestedSkills = [
-  "Computer Literacy",
-  "Driving",
-  "Cooking",
-  "Carpentry",
-  "Caregiving",
-  "Typing",
-  "Customer Service",
-  "Communication",
-  "Problem Solving",
-  "Teamwork",
-  "Leadership",
-  "Time Management",
+  "Computer Literacy", "Driving", "Cooking", "Carpentry", "Caregiving", "Typing",
+  "Customer Service", "Communication", "Problem Solving", "Teamwork", "Leadership", "Time Management",
 ];
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export default function JobSeekerOnboarding() {
   const { user, login } = useContext(AuthContext);
@@ -33,6 +23,27 @@ export default function JobSeekerOnboarding() {
     phone: user?.phone || "",
     dateOfBirth: user?.dateOfBirth ? String(user.dateOfBirth).slice(0, 10) : "",
     gender: user?.gender || "",
+    // NSRP fields
+    civilStatus: "",
+    placeOfBirth: "",
+    citizenship: "",
+    height: "",
+    weight: "",
+    landline: "",
+    mobileSecondary: "",
+    presentAddress: { street: "", barangay: "", municipality: "", province: "", region: "" },
+    permanentAddress: { street: "", barangay: "", municipality: "", province: "", region: "" },
+    disability: [],
+    is4psBeneficiary: false,
+    _4psHouseholdId: "",
+    isOfw: false,
+    isRepatriated: false,
+    repatriationIntent: "",
+    employmentStatus: "",
+    employmentType: "",
+    unemploymentReason: "",
+    laidoffCountry: "",
+    // common
     address: user?.address || "",
     desiredJobTitle: user?.desiredJobTitle || "",
     educationalAttainment: user?.educationalAttainment || "",
@@ -47,45 +58,34 @@ export default function JobSeekerOnboarding() {
   const [resumeError, setResumeError] = useState("");
   const [validIdError, setValidIdError] = useState("");
 
-  // Check if user is already onboarded
   useEffect(() => {
     if (user?.hasCompletedOnboarding === true || user?.onboardingComplete === true) {
       const role = user?.role || "resident";
-      if (role === "employer") {
-        navigate("/employer-dashboard");
-      } else {
-        navigate("/dashboard");
-      }
+      if (role === "employer") navigate("/employer-dashboard");
+      else navigate("/dashboard");
     }
   }, [user, navigate]);
 
-  const progress = useMemo(() => {
-    const capped = Math.min(step, 4);
-    return (capped / 4) * 100;
-  }, [step]);
+  const progress = useMemo(() => (Math.min(step, 5) / 5) * 100, [step]);
 
-  const updateField = (name, value) => {
-    setForm((prev) => ({ ...prev, [name]: value }));
+  const updateField = (name, value) => setForm(prev => ({ ...prev, [name]: value }));
+
+  const updateAddress = (type, field, value) => {
+    setForm(prev => ({
+      ...prev,
+      [type]: { ...prev[type], [field]: value }
+    }));
   };
 
   const addSkill = (value) => {
     const trimmed = value.trim();
     if (!trimmed) return;
-    if (skills.some((skill) => skill.toLowerCase() === trimmed.toLowerCase())) return;
-    setSkills((prev) => [...prev, trimmed]);
+    if (skills.some(skill => skill.toLowerCase() === trimmed.toLowerCase())) return;
+    setSkills(prev => [...prev, trimmed]);
   };
 
-  const handleAddSkill = () => {
-    addSkill(skillInput);
-    setSkillInput("");
-  };
-
-  const handleSkillKeyDown = (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      handleAddSkill();
-    }
-  };
+  const handleAddSkill = () => { addSkill(skillInput); setSkillInput(""); };
+  const handleSkillKeyDown = (e) => { if (e.key === "Enter") { e.preventDefault(); handleAddSkill(); } };
 
   const validateFile = (file, type) => {
     if (!file) {
@@ -93,26 +93,22 @@ export default function JobSeekerOnboarding() {
       if (type === "validId") setValidIdError("Valid ID file is required");
       return false;
     }
-
     if (file.size > MAX_FILE_SIZE) {
-      const errorMsg = `File size exceeds 5MB limit. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`;
-      if (type === "resume") setResumeError(errorMsg);
-      if (type === "validId") setValidIdError(errorMsg);
+      const msg = `File size exceeds 5MB limit. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`;
+      if (type === "resume") setResumeError(msg);
+      if (type === "validId") setValidIdError(msg);
       return false;
     }
-
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     if (type === "resume" && !allowedTypes.includes(file.type)) {
       setResumeError("Invalid file type. Please upload PDF, DOC, or DOCX files.");
       return false;
     }
-
     const allowedTypesWithImages = [...allowedTypes, 'image/jpeg', 'image/png', 'image/jpg'];
     if (type === "validId" && !allowedTypesWithImages.includes(file.type)) {
       setValidIdError("Invalid file type. Please upload PDF, DOC, DOCX, JPG, or PNG files.");
       return false;
     }
-
     if (type === "resume") setResumeError("");
     if (type === "validId") setValidIdError("");
     return true;
@@ -120,22 +116,14 @@ export default function JobSeekerOnboarding() {
 
   const handleResumeChange = (e) => {
     const file = e.target.files?.[0] || null;
-    if (file && validateFile(file, "resume")) {
-      setResumeFile(file);
-    } else {
-      setResumeFile(null);
-      e.target.value = '';
-    }
+    if (file && validateFile(file, "resume")) setResumeFile(file);
+    else { setResumeFile(null); e.target.value = ''; }
   };
 
   const handleValidIdChange = (e) => {
     const file = e.target.files?.[0] || null;
-    if (file && validateFile(file, "validId")) {
-      setValidIdFile(file);
-    } else {
-      setValidIdFile(null);
-      e.target.value = '';
-    }
+    if (file && validateFile(file, "validId")) setValidIdFile(file);
+    else { setValidIdFile(null); e.target.value = ''; }
   };
 
   const handleNext = () => {
@@ -144,27 +132,16 @@ export default function JobSeekerOnboarding() {
       setError("Please add at least one skill before continuing.");
       return;
     }
-    setStep((prev) => Math.min(prev + 1, 5));
+    setStep(prev => Math.min(prev + 1, 6));
   };
-
   const handleBack = () => {
     setError("");
-    setStep((prev) => Math.max(prev - 1, 1));
+    setStep(prev => Math.max(prev - 1, 1));
   };
 
-  const submitProfile = async ({ skipDocs = false } = {}) => {
+  const submitProfile = async () => {
     setSaving(true);
     setError("");
-    
-    // Validate docs if not skipping
-    if (!skipDocs) {
-      if (!resumeFile && !skipDocs) {
-        setError("Please upload your resume or click 'Skip for now'");
-        setSaving(false);
-        return;
-      }
-    }
-
     try {
       const data = new FormData();
       data.append("name", form.name || "");
@@ -180,17 +157,35 @@ export default function JobSeekerOnboarding() {
       data.append("onboardingComplete", "true");
       data.append("hasCompletedOnboarding", "true");
 
-      if (!skipDocs) {
-        if (resumeFile) data.append("resumeFile", resumeFile);
-        if (validIdFile) data.append("validIdFile", validIdFile);
-      }
+      // NSRP fields
+      data.append("civilStatus", form.civilStatus || "");
+      data.append("placeOfBirth", form.placeOfBirth || "");
+      data.append("citizenship", form.citizenship || "");
+      data.append("height", form.height || "");
+      data.append("weight", form.weight || "");
+      data.append("landline", form.landline || "");
+      data.append("mobileSecondary", form.mobileSecondary || "");
+      data.append("presentAddress", JSON.stringify(form.presentAddress));
+      data.append("permanentAddress", JSON.stringify(form.permanentAddress));
+      data.append("disability", JSON.stringify(form.disability));
+      data.append("is4psBeneficiary", form.is4psBeneficiary ? "true" : "false");
+      data.append("_4psHouseholdId", form._4psHouseholdId || "");
+      data.append("isOfw", form.isOfw ? "true" : "false");
+      data.append("isRepatriated", form.isRepatriated ? "true" : "false");
+      data.append("repatriationIntent", form.repatriationIntent || "");
+      data.append("employmentStatus", form.employmentStatus || "");
+      data.append("employmentType", form.employmentType || "");
+      data.append("unemploymentReason", form.unemploymentReason || "");
+      data.append("laidoffCountry", form.laidoffCountry || "");
+
+      // Optional files
+      if (resumeFile) data.append("resumeFile", resumeFile);
+      if (validIdFile) data.append("validIdFile", validIdFile);
 
       const { data: response } = await authAPI.updateProfile(data);
       const token = localStorage.getItem("token");
-      if (token && response.user) {
-        login(token, response.user);
-      }
-      setStep(5);
+      if (token && response.user) login(token, response.user);
+      setStep(6);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to complete onboarding. Please try again.");
     } finally {
@@ -200,78 +195,39 @@ export default function JobSeekerOnboarding() {
 
   return (
     <section className="onboarding-card">
-      {step <= 4 && (
+      {step <= 5 && (
         <>
-          <div className="onboarding-progress-meta">Step {step} of 4</div>
-          <div className="onboarding-progress-track">
-            <div className="onboarding-progress-fill" style={{ width: `${progress}%` }}></div>
-          </div>
+          <div className="onboarding-progress-meta">Step {step} of 5</div>
+          <div className="onboarding-progress-track"><div className="onboarding-progress-fill" style={{ width: `${progress}%` }}></div></div>
         </>
       )}
-
-      {error && (
-        <div className="onboarding-error" role="alert">
-          {error}
-        </div>
-      )}
+      {error && <div className="onboarding-error" role="alert">{error}</div>}
 
       {step === 1 && (
         <div className="onboarding-step">
           <h2>Personal Details</h2>
           <p className="onboarding-subtitle">Tell us about yourself so employers can get to know you.</p>
           <div className="onboarding-fields">
-            <label>
-              Full Name
-              <input 
-                type="text" 
-                value={form.name} 
-                onChange={(e) => updateField("name", e.target.value)} 
-                disabled={saving}
-              />
-            </label>
-            <label>
-              Phone Number
-              <input 
-                type="tel" 
-                value={form.phone} 
-                onChange={(e) => updateField("phone", e.target.value)} 
-                disabled={saving}
-              />
-            </label>
-            <label>
-              Date of Birth
-              <input 
-                type="date" 
-                value={form.dateOfBirth} 
-                onChange={(e) => updateField("dateOfBirth", e.target.value)} 
-                disabled={saving}
-              />
-            </label>
+            <label>Full Name <input type="text" value={form.name} onChange={e => updateField("name", e.target.value)} disabled={saving} /></label>
+            <label>Phone Number <input type="tel" value={form.phone} onChange={e => updateField("phone", e.target.value)} disabled={saving} /></label>
+            <label>Date of Birth <input type="date" value={form.dateOfBirth} onChange={e => updateField("dateOfBirth", e.target.value)} disabled={saving} /></label>
             <div>
               <span className="onboarding-label">Gender</span>
               <div className="pill-row">
-                {["Male", "Female", "Prefer not to say"].map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={`pill-btn ${form.gender === option ? "active" : ""}`}
-                    onClick={() => updateField("gender", option)}
-                    disabled={saving}
-                  >
-                    {option}
-                  </button>
+                {["Male", "Female", "Prefer not to say"].map(opt => (
+                  <button key={opt} type="button" className={`pill-btn ${form.gender === opt ? "active" : ""}`} onClick={() => updateField("gender", opt)} disabled={saving}>{opt}</button>
                 ))}
               </div>
             </div>
-            <label>
-              Home Address / Municipality
-              <input 
-                type="text" 
-                value={form.address} 
-                onChange={(e) => updateField("address", e.target.value)} 
+            <div>
+              <span className="onboarding-label">Home Address / Municipality</span>
+              <LocationSelect
+                value={form.address}
+                onChange={(loc) => updateField("address", loc)}
                 disabled={saving}
+                required
               />
-            </label>
+            </div>
           </div>
         </div>
       )}
@@ -281,71 +237,29 @@ export default function JobSeekerOnboarding() {
           <h2>What are your skills?</h2>
           <p className="onboarding-subtitle">Add skills that showcase your abilities and experience.</p>
           <div className="skills-entry-row">
-            <input
-              type="text"
-              value={skillInput}
-              placeholder="Type a skill and press Enter"
-              onChange={(e) => setSkillInput(e.target.value)}
-              onKeyDown={handleSkillKeyDown}
-              disabled={saving}
-            />
-            <button type="button" className="onboarding-add-btn" onClick={handleAddSkill} disabled={saving}>
-              Add
-            </button>
+            <input type="text" value={skillInput} placeholder="Type a skill and press Enter" onChange={e => setSkillInput(e.target.value)} onKeyDown={handleSkillKeyDown} disabled={saving} />
+            <button type="button" className="onboarding-add-btn" onClick={handleAddSkill} disabled={saving}>Add</button>
           </div>
           <div className="skills-tags-wrap">
-            {skills.map((skill) => (
-              <span key={skill} className="skill-pill">
-                {skill}
-                <button 
-                  type="button" 
-                  onClick={() => setSkills((prev) => prev.filter((s) => s !== skill))}
-                  disabled={saving}
-                >
-                  ×
-                </button>
-              </span>
+            {skills.map(skill => (
+              <span key={skill} className="skill-pill">{skill} <button type="button" onClick={() => setSkills(prev => prev.filter(s => s !== skill))} disabled={saving}>×</button></span>
             ))}
           </div>
           <p className="onboarding-hint">Suggestions:</p>
           <div className="suggestions-row">
-            {suggestedSkills.map((skill) => (
-              <button 
-                key={skill} 
-                type="button" 
-                className="suggestion-chip" 
-                onClick={() => addSkill(skill)}
-                disabled={saving}
-              >
-                + {skill}
-              </button>
-            ))}
+            {suggestedSkills.map(skill => <button key={skill} type="button" className="suggestion-chip" onClick={() => addSkill(skill)} disabled={saving}>+ {skill}</button>)}
           </div>
         </div>
       )}
 
       {step === 3 && (
         <div className="onboarding-step">
-          <h2>Work Background</h2>
+          <h2>Work Background & Demographics</h2>
           <p className="onboarding-subtitle">Share your professional background and career goals.</p>
           <div className="onboarding-fields">
-            <label>
-              Desired Job Title
-              <input 
-                type="text" 
-                value={form.desiredJobTitle} 
-                onChange={(e) => updateField("desiredJobTitle", e.target.value)} 
-                disabled={saving}
-                placeholder="e.g. Administrative Assistant"
-              />
-            </label>
-            <label>
-              Educational Attainment
-              <select 
-                value={form.educationalAttainment} 
-                onChange={(e) => updateField("educationalAttainment", e.target.value)}
-                disabled={saving}
-              >
+            <label>Desired Job Title <input type="text" value={form.desiredJobTitle} onChange={e => updateField("desiredJobTitle", e.target.value)} disabled={saving} placeholder="e.g. Administrative Assistant" /></label>
+            <label>Educational Attainment
+              <select value={form.educationalAttainment} onChange={e => updateField("educationalAttainment", e.target.value)} disabled={saving}>
                 <option value="">Select</option>
                 <option value="Elementary Graduate">Elementary Graduate</option>
                 <option value="High School Graduate">High School Graduate</option>
@@ -357,13 +271,8 @@ export default function JobSeekerOnboarding() {
                 <option value="Doctorate">Doctorate</option>
               </select>
             </label>
-            <label>
-              Work Experience
-              <select 
-                value={form.workExperience} 
-                onChange={(e) => updateField("workExperience", e.target.value)}
-                disabled={saving}
-              >
+            <label>Work Experience
+              <select value={form.workExperience} onChange={e => updateField("workExperience", e.target.value)} disabled={saving}>
                 <option value="">Select</option>
                 <option value="Fresh Graduate">Fresh Graduate</option>
                 <option value="Less than 1 year">Less than 1 year</option>
@@ -375,16 +284,8 @@ export default function JobSeekerOnboarding() {
             <div>
               <span className="onboarding-label">Availability Status</span>
               <div className="pill-row">
-                {["Actively Looking", "Open to Offers", "Currently Employed"].map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={`pill-btn ${form.availabilityStatus === option ? "active" : ""}`}
-                    onClick={() => updateField("availabilityStatus", option)}
-                    disabled={saving}
-                  >
-                    {option}
-                  </button>
+                {["Actively Looking", "Open to Offers", "Currently Employed"].map(opt => (
+                  <button key={opt} type="button" className={`pill-btn ${form.availabilityStatus === opt ? "active" : ""}`} onClick={() => updateField("availabilityStatus", opt)} disabled={saving}>{opt}</button>
                 ))}
               </div>
             </div>
@@ -394,95 +295,211 @@ export default function JobSeekerOnboarding() {
 
       {step === 4 && (
         <div className="onboarding-step">
-          <h2>Upload Documents</h2>
-          <p className="onboarding-subtitle">Upload your resume and valid ID to complete your profile.</p>
+          <h2>NSRP Demographic Details</h2>
+          <p className="onboarding-subtitle">Complete the NSRP Form 1 profile.</p>
           <div className="onboarding-fields">
-            <label>
-              Resume upload (PDF, DOC, DOCX - Max 5MB)
-              <input 
-                type="file" 
-                accept=".pdf,.doc,.docx" 
-                onChange={handleResumeChange}
-                disabled={saving}
-              />
-              {resumeError && <span className="onboarding-field-error">{resumeError}</span>}
-              {resumeFile && <span className="file-upload-success">✓ {resumeFile.name}</span>}
+            <label>Civil Status
+              <select value={form.civilStatus} onChange={e => updateField("civilStatus", e.target.value)} disabled={saving}>
+                <option value="">Select</option>
+                <option value="Single">Single</option>
+                <option value="Married">Married</option>
+                <option value="Widowed">Widowed</option>
+                <option value="Separated">Separated</option>
+                <option value="Divorced">Divorced</option>
+              </select>
             </label>
-            <label>
-              Valid ID upload (PDF, DOC, DOCX, JPG, PNG - Max 5MB)
-              <input 
-                type="file" 
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" 
-                onChange={handleValidIdChange}
+            <label>Place of Birth <input type="text" value={form.placeOfBirth} onChange={e => updateField("placeOfBirth", e.target.value)} disabled={saving} /></label>
+            <label>Citizenship <input type="text" value={form.citizenship} onChange={e => updateField("citizenship", e.target.value)} disabled={saving} /></label>
+            <div className="onboarding-field-grid">
+              <label>Height (cm) <input type="number" value={form.height} onChange={e => updateField("height", e.target.value)} disabled={saving} /></label>
+              <label>Weight (kg) <input type="number" value={form.weight} onChange={e => updateField("weight", e.target.value)} disabled={saving} /></label>
+            </div>
+            <label>Landline <input type="tel" value={form.landline} onChange={e => updateField("landline", e.target.value)} disabled={saving} /></label>
+            <label>Secondary Mobile <input type="tel" value={form.mobileSecondary} onChange={e => updateField("mobileSecondary", e.target.value)} disabled={saving} /></label>
+
+            {/* Present Address */}
+            <div className="onboarding-address-group">
+              <span className="onboarding-label">Present Address</span>
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label htmlFor="presentStreet">Street</label>
+                <input
+                  id="presentStreet"
+                  type="text"
+                  value={form.presentAddress.street}
+                  onChange={e => updateAddress("presentAddress", "street", e.target.value)}
+                  disabled={saving}
+                />
+              </div>
+              <LocationSelect
+                value={`${form.presentAddress.barangay || ""}, ${form.presentAddress.municipality || ""}, ${form.presentAddress.province || ""}, ${form.presentAddress.region || ""}`}
+                onChange={(loc) => {
+                  const parts = loc.split(", ");
+                  const [barangay, municipality, province, region] = parts;
+                  updateAddress("presentAddress", "barangay", barangay || "");
+                  updateAddress("presentAddress", "municipality", municipality || "");
+                  updateAddress("presentAddress", "province", province || "");
+                  updateAddress("presentAddress", "region", region || "");
+                }}
                 disabled={saving}
+                required={false}
               />
-              {validIdError && <span className="onboarding-field-error">{validIdError}</span>}
-              {validIdFile && <span className="file-upload-success">✓ {validIdFile.name}</span>}
-            </label>
+            </div>
+
+            {/* Permanent Address */}
+            <div className="onboarding-address-group">
+              {/* Checkbox above the "Permanent Address" label */}
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setForm(prev => ({
+                          ...prev,
+                          permanentAddress: { ...prev.presentAddress }
+                        }));
+                      }
+                    }}
+                  />
+                  Same as Present Address
+                </label>
+              </div>
+              <span className="onboarding-label">Permanent Address</span>
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label htmlFor="permanentStreet">Street</label>
+                <input
+                  id="permanentStreet"
+                  type="text"
+                  value={form.permanentAddress.street}
+                  onChange={e => updateAddress("permanentAddress", "street", e.target.value)}
+                  disabled={saving}
+                />
+              </div>
+              <LocationSelect
+                value={`${form.permanentAddress.barangay || ""}, ${form.permanentAddress.municipality || ""}, ${form.permanentAddress.province || ""}, ${form.permanentAddress.region || ""}`}
+                onChange={(loc) => {
+                  const parts = loc.split(", ");
+                  const [barangay, municipality, province, region] = parts;
+                  updateAddress("permanentAddress", "barangay", barangay || "");
+                  updateAddress("permanentAddress", "municipality", municipality || "");
+                  updateAddress("permanentAddress", "province", province || "");
+                  updateAddress("permanentAddress", "region", region || "");
+                }}
+                disabled={saving}
+                required={false}
+              />
+            </div>
           </div>
-          <button 
-            type="button" 
-            className="skip-link" 
-            onClick={() => submitProfile({ skipDocs: true })} 
-            disabled={saving}
-          >
-            Skip for now
-          </button>
         </div>
       )}
 
       {step === 5 && (
+        <div className="onboarding-step">
+          <h2>Additional Demographics & Current Status</h2>
+          <div className="onboarding-fields">
+            <div>
+              <span className="onboarding-label">Disability (select all that apply)</span>
+              <div className="checkbox-row">
+                {["Visual", "Hearing", "Speech", "Physical", "Others"].map(d => (
+                  <label key={d} className="checkbox-label">
+                    <input type="checkbox" checked={form.disability.includes(d)} onChange={e => {
+                      if (e.target.checked) setForm(prev => ({ ...prev, disability: [...prev.disability, d] }));
+                      else setForm(prev => ({ ...prev, disability: prev.disability.filter(item => item !== d) }));
+                    }} disabled={saving} />
+                    {d}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <span className="onboarding-label">4Ps Beneficiary</span>
+              <div className="pill-row">
+                <button type="button" className={`pill-btn ${form.is4psBeneficiary === true ? "active" : ""}`} onClick={() => updateField("is4psBeneficiary", true)} disabled={saving}>Yes</button>
+                <button type="button" className={`pill-btn ${form.is4psBeneficiary === false ? "active" : ""}`} onClick={() => updateField("is4psBeneficiary", false)} disabled={saving}>No</button>
+              </div>
+            </div>
+            {form.is4psBeneficiary && (
+              <label>4Ps Household ID <input type="text" value={form._4psHouseholdId} onChange={e => updateField("_4psHouseholdId", e.target.value)} disabled={saving} /></label>
+            )}
+            <div>
+              <span className="onboarding-label">Are you an Overseas Filipino Worker (OFW)?</span>
+              <div className="pill-row">
+                <button type="button" className={`pill-btn ${form.isOfw === true ? "active" : ""}`} onClick={() => updateField("isOfw", true)} disabled={saving}>Yes</button>
+                <button type="button" className={`pill-btn ${form.isOfw === false ? "active" : ""}`} onClick={() => updateField("isOfw", false)} disabled={saving}>No</button>
+              </div>
+            </div>
+            {form.isOfw && (
+              <>
+                <div>
+                  <span className="onboarding-label">Are you repatriated / planning to return to PH to work?</span>
+                  <div className="pill-row">
+                    <button type="button" className={`pill-btn ${form.isRepatriated === true ? "active" : ""}`} onClick={() => updateField("isRepatriated", true)} disabled={saving}>Yes</button>
+                    <button type="button" className={`pill-btn ${form.isRepatriated === false ? "active" : ""}`} onClick={() => updateField("isRepatriated", false)} disabled={saving}>No</button>
+                  </div>
+                </div>
+                {form.isRepatriated && (
+                  <label>Repatriation Intent <input type="text" value={form.repatriationIntent} onChange={e => updateField("repatriationIntent", e.target.value)} disabled={saving} placeholder="e.g., Return to PH to work" /></label>
+                )}
+              </>
+            )}
+
+            <div>
+              <span className="onboarding-label">Employment Status</span>
+              <div className="pill-row">
+                <button type="button" className={`pill-btn ${form.employmentStatus === "employed" ? "active" : ""}`} onClick={() => updateField("employmentStatus", "employed")} disabled={saving}>Employed</button>
+                <button type="button" className={`pill-btn ${form.employmentStatus === "unemployed" ? "active" : ""}`} onClick={() => updateField("employmentStatus", "unemployed")} disabled={saving}>Unemployed</button>
+              </div>
+            </div>
+            {form.employmentStatus === "employed" && (
+              <div>
+                <span className="onboarding-label">Employment Type</span>
+                <div className="pill-row">
+                  <button type="button" className={`pill-btn ${form.employmentType === "wage" ? "active" : ""}`} onClick={() => updateField("employmentType", "wage")} disabled={saving}>Wage</button>
+                  <button type="button" className={`pill-btn ${form.employmentType === "self" ? "active" : ""}`} onClick={() => updateField("employmentType", "self")} disabled={saving}>Self</button>
+                </div>
+              </div>
+            )}
+            {form.employmentStatus === "unemployed" && (
+              <>
+                <label>Reason for Unemployment
+                  <select value={form.unemploymentReason} onChange={e => updateField("unemploymentReason", e.target.value)} disabled={saving}>
+                    <option value="">Select</option>
+                    <option value="fresh_grad">Fresh Graduate</option>
+                    <option value="finished_contract">Finished Contract</option>
+                    <option value="resigned">Resigned</option>
+                    <option value="retired">Retired</option>
+                    <option value="laidoff_local">Laid off (Local)</option>
+                    <option value="laidoff_abroad">Laid off (Abroad)</option>
+                  </select>
+                </label>
+                {form.unemploymentReason === "laidoff_abroad" && (
+                  <label>Country <input type="text" value={form.laidoffCountry} onChange={e => updateField("laidoffCountry", e.target.value)} disabled={saving} /></label>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {step === 6 && (
         <div className="onboarding-step onboarding-success-step">
           <div className="success-icon">✓</div>
           <h2>You're all set, {form.name || "Job Seeker"}!</h2>
           <p>Your profile is ready. Start exploring opportunities now.</p>
           <div className="onboarding-nav">
-            <button 
-              type="button" 
-              className="onboarding-primary" 
-              onClick={() => navigate("/profile")}
-            >
-              View My Profile
-            </button>
-            <button 
-              type="button" 
-              className="onboarding-secondary" 
-              onClick={() => navigate("/jobs")}
-            >
-              Browse Jobs
-            </button>
+            <button type="button" className="onboarding-primary" onClick={() => navigate("/profile")}>View My Profile</button>
+            <button type="button" className="onboarding-secondary" onClick={() => navigate("/jobs")}>Browse Jobs</button>
           </div>
         </div>
       )}
 
-      {step <= 4 && (
+      {step <= 5 && (
         <div className="onboarding-nav">
-          <button 
-            type="button" 
-            className="onboarding-secondary" 
-            onClick={handleBack} 
-            disabled={step === 1 || saving}
-          >
-            Back
-          </button>
-          {step < 4 ? (
-            <button 
-              type="button" 
-              className="onboarding-primary" 
-              onClick={handleNext}
-              disabled={saving}
-            >
-              Next
-            </button>
+          <button type="button" className="onboarding-secondary" onClick={handleBack} disabled={step === 1 || saving}>Back</button>
+          {step < 5 ? (
+            <button type="button" className="onboarding-primary" onClick={handleNext} disabled={saving}>Next</button>
           ) : (
-            <button 
-              type="button" 
-              className="onboarding-primary" 
-              onClick={() => submitProfile()} 
-              disabled={saving}
-            >
-              {saving ? "Finishing..." : "Finish Setup"}
-            </button>
+            <button type="button" className="onboarding-primary" onClick={submitProfile} disabled={saving}>{saving ? "Finishing..." : "Finish Setup"}</button>
           )}
         </div>
       )}

@@ -6,6 +6,8 @@ import "../styles/report.css";
 import AppModal from "../components/AppModal";
 import CoverLetterBuilder from "../components/CoverLetterBuilder.jsx";
 import "../styles/coverLetterBuilder.css";
+import QualificationsDisplay from "../components/QualificationsDisplay";
+import "../styles/qualifications-editor.css";
 
 export default function JobDetail() {
   const { id } = useParams();
@@ -100,7 +102,6 @@ export default function JobDetail() {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       setError(`File size exceeds 5MB limit. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB. Please compress your file.`);
       e.target.value = '';
@@ -108,7 +109,6 @@ export default function JobDetail() {
       return;
     }
 
-    // Validate file type
     const allowedTypes = [
       'application/pdf',
       'application/msword',
@@ -129,7 +129,6 @@ export default function JobDetail() {
   const handleApplyClick = async (e) => {
     e.preventDefault();
 
-    // Prevent double submission
     if (isSubmitting || submitting) return;
 
     if (!user) {
@@ -164,7 +163,6 @@ export default function JobDetail() {
       formData.append("coverLetter", coverLetter.trim());
       await jobAPI.applyToJob(id, formData);
       setSuccessMessage("Application submitted successfully!");
-      // Reset form
       setResumeFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -176,7 +174,6 @@ export default function JobDetail() {
       setIsSubmitting(false);
       setSubmitting(false);
     } finally {
-      // Only reset if not navigating
       if (!successMessage) {
         setIsSubmitting(false);
         setSubmitting(false);
@@ -235,7 +232,7 @@ export default function JobDetail() {
 
           <section className="job-section">
             <h3>Qualifications / Requirements</h3>
-            <p className="job-description-text">{job.requirements || "No requirements provided."}</p>
+            <QualificationsDisplay qualifications={job.qualifications || []} />
           </section>
 
           <section className="job-section">

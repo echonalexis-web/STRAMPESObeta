@@ -71,10 +71,8 @@ const hasDangerousContent = (text) => {
 // Validate and sanitize filename
 const sanitizeFilename = (filename) => {
   if (!filename) return '';
-  // Remove path traversal attempts
   let safe = filename.replace(/\.\./g, '');
   safe = safe.replace(/[\\/:*?"<>|]/g, '');
-  // Limit length
   safe = safe.slice(0, 100);
   return safe;
 };
@@ -82,7 +80,6 @@ const sanitizeFilename = (filename) => {
 // Sanitize HTML (allow safe tags)
 const sanitizeHtml = (html) => {
   if (!html) return '';
-  // Use xss with custom options to allow some safe tags
   return xss(html, {
     whiteList: {
       'b': [],

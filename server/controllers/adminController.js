@@ -292,7 +292,14 @@ exports.updateEmployerVerification = async (req, res) => {
       return res.status(400).json({ message: "Invalid verification status" });
     }
 
-    const user = await User.findById(id);
+    // Use findByIdAndUpdate with $set to only update verificationStatus,
+    // bypassing validation on other fields (e.g., companySize)
+    const user = await User.findByIdAndUpdate(
+      id,
+      { $set: { verificationStatus } },
+      { new: true, runValidators: true }   // still validates the enum on verificationStatus
+    );
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -300,9 +307,6 @@ exports.updateEmployerVerification = async (req, res) => {
     if (user.role !== "employer") {
       return res.status(400).json({ message: "Only employers can be verified" });
     }
-
-    user.verificationStatus = verificationStatus;
-    await user.save();
 
     return res.json({ message: "Employer verification updated", user });
   } catch (error) {

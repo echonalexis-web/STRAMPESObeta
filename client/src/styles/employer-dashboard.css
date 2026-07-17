@@ -1269,3 +1269,28 @@
     opacity: 1;
   }
 }
+
+.verification-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.verification-modal h3 {
+  margin-bottom: 0.5rem;
+}
+
+.verification-modal p {
+  margin-bottom: 1.5rem;
+  color: #555;
+}
+
+.verification-modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}

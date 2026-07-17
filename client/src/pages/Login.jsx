@@ -29,12 +29,7 @@ const formatApiError = (err, fallback = "Login failed") => {
     return "Request timed out. Please try again.";
   }
 
-  const safeData =
-    typeof data === "object" && data !== null
-      ? JSON.stringify(data)
-      : String(data || "none");
-
-  return `${fallback} | status:${status || "none"} | code:${err?.code || "none"}`;
+  return fallback;
 };
 
 export default function Login() {
@@ -46,17 +41,12 @@ export default function Login() {
   const { login, user } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user && !isRedirecting) {
       const role = normalizeRole(user.role);
-      if (role === "admin") {
-        navigate("/admin");
-      } else if (role === "employer") {
-        navigate("/employer-dashboard");
-      } else {
-        navigate("/dashboard");
-      }
+      if (role === "admin") navigate("/admin");
+      else if (role === "employer") navigate("/employer-dashboard");
+      else navigate("/dashboard");
     }
   }, [user, navigate, isRedirecting]);
 
@@ -72,14 +62,11 @@ export default function Login() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword((prev) => !prev);
-  };
+  const togglePasswordVisibility = () => setShowPassword((prev) => !prev);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Basic validation
+
     if (!formData.email.trim() || !formData.password) {
       setError("Please enter both email and password");
       return;
@@ -96,30 +83,49 @@ export default function Login() {
       };
 
       const { data } = await authAPI.login(loginPayload);
-      
-      if (!data.token || !data.user) {
-        throw new Error("Invalid response from server");
+
+      // 🔍 DEBUG: log the raw response
+      console.log("🔐 Login response:", data);
+
+      // Extract token – handle different response structures
+      const token = data.token || data.accessToken || data.data?.token || data.data?.accessToken;
+      if (!token) {
+        console.error("❌ No token found in response:", data);
+        throw new Error("No token received from server");
       }
 
-      // Get user profile for complete data
+      // Build user object from login response
+      let userData = data.user || data.data?.user || data;
+      if (!userData._id && !userData.id) {
+        // fallback: the whole response might be the user
+        userData = data;
+      }
+
+      // 🔹 STEP 1: Store token and user immediately
+      const normalizedUser = { ...userData, role: normalizeRole(userData.role) };
+      login(token, normalizedUser); // this sets localStorage and state
+
+      // 🔹 STEP 2: Now fetch full profile with the stored token
       let profileData = null;
       try {
         const profileResponse = await authAPI.getProfile();
         profileData = profileResponse.data;
+        console.log("✅ Profile fetched successfully:", profileData);
       } catch (profileErr) {
-        console.warn("Could not fetch profile, using login data:", profileErr);
+        console.warn("⚠️ Could not fetch profile, using login data:", profileErr);
       }
 
+      // 🔹 STEP 3: Merge profile data if available
       const mergedUser = {
-        ...data.user,
+        ...normalizedUser,
         ...(profileData || {}),
-        role: normalizeRole(profileData?.role || data.user?.role),
+        role: normalizeRole(profileData?.role || normalizedUser.role),
       };
 
-      // Store auth data
-      login(data.token, mergedUser);
+      // Update user state with merged data
+      login(token, mergedUser); // update user in context and localStorage
 
-      // Check onboarding status
+      // Check onboarding
       const hasCompletedOnboarding =
         typeof mergedUser?.hasCompletedOnboarding === "boolean"
           ? mergedUser.hasCompletedOnboarding
@@ -136,6 +142,7 @@ export default function Login() {
       setIsRedirecting(true);
       navigate(getDefaultRouteByRole(role));
     } catch (err) {
+      console.error("❌ Login error:", err);
       setError(formatApiError(err, "Login failed"));
       setLoading(false);
     }
@@ -195,9 +202,9 @@ export default function Login() {
             </div>
           </div>
 
-          <button 
-            type="submit" 
-            className="auth-button" 
+          <button
+            type="submit"
+            className="auth-button"
             disabled={loading || isRedirecting}
           >
             {loading ? "Logging in..." : isRedirecting ? "Redirecting..." : "Login"}
@@ -205,9 +212,7 @@ export default function Login() {
         </form>
 
         <p className="auth-link">
-          Don't have an account? <Link to="/register" onClick={(e) => {
-            if (loading || isRedirecting) e.preventDefault();
-          }}>Register</Link>
+          Don't have an account? <Link to="/register">Register</Link>
         </p>
       </div>
     </div>

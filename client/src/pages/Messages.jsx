@@ -168,7 +168,7 @@ export default function Messages() {
       if (!conversationId) return;
 
       const senderId = getSenderId(incoming);
-      if (senderId === currentUserId) return;
+      if (senderId === currentUserId) return; // Ignore own messages
 
       setMessagesByConversation((prev) => ({
         ...prev,
@@ -317,9 +317,23 @@ export default function Messages() {
     const rawContent = draft.trim();
     if (!rawContent || !selectedConversationId) return;
 
-    // Sanitize content before sending
-    const content = DOMPurify.sanitize(rawContent);
-    if (!content) return;
+    // Sanitize content but fallback to raw if empty
+    let sanitized = DOMPurify.sanitize(rawContent, {
+      ALLOWED_TAGS: [],
+      ALLOWED_ATTR: [],
+    });
+    const content = sanitized || rawContent;
+    if (!content.trim()) {
+      setError("Message cannot be empty");
+      return;
+    }
+
+    // Get receiver ID
+    const receiverId = selectedParticipant?._id;
+    if (!receiverId) {
+      setError("No receiver found for this conversation");
+      return;
+    }
 
     const tempId = `temp-${Date.now()}`;
     const optimisticMessage = {
@@ -356,7 +370,10 @@ export default function Messages() {
     }
 
     try {
-      const { data } = await messageAPI.sendMessage(selectedConversationId, { content });
+      // ✅ Send via REST only – this saves the message to DB
+      const { data } = await messageAPI.sendMessage(selectedConversationId, { content, receiverId });
+
+      // Replace optimistic message with the server response
       setMessagesByConversation((prev) => ({
         ...prev,
         [selectedConversationId]: (prev[selectedConversationId] || []).map((message) =>
@@ -364,14 +381,12 @@ export default function Messages() {
         ),
       }));
 
-      if (socket && isConnected) {
-        socket.emit("send_message", {
-          conversationId: selectedConversationId,
-          senderId: currentUserId,
-          content,
-        });
-      }
+      // ✅ The server will broadcast this message via socket.io to the conversation room
+      // so the receiver gets it in real-time. Do NOT emit "send_message" here.
+
     } catch (err) {
+      console.error("❌ Send error:", err.response?.data || err);
+      // Rollback optimistic message
       setMessagesByConversation((prev) => ({
         ...prev,
         [selectedConversationId]: (prev[selectedConversationId] || []).filter((message) => message._id !== tempId),
