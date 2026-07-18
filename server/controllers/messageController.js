@@ -5,6 +5,28 @@ const User = require("../models/User");
 const getUserId = (req) => req.user._id || req.user.id;
 const ACTIVE_USER_FILTER = { $ne: false };
 
+const getEntityId = (value) => {
+  if (!value) return null;
+  if (typeof value === "object") {
+    return value._id || value.id || null;
+  }
+  return value;
+};
+
+const getDistinctParticipantIds = (participants = []) => {
+  const ids = participants
+    .map((participant) => getEntityId(participant))
+    .filter(Boolean)
+    .map((participantId) => String(participantId));
+
+  return Array.from(new Set(ids));
+};
+
+const hasOtherParticipant = (conversation, userId) => {
+  const participantIds = getDistinctParticipantIds(conversation?.participants);
+  return participantIds.some((participantId) => participantId !== String(userId));
+};
+
 const normalizeRole = (role) => {
   const value = String(role || "").toLowerCase();
   if (value === "employee") return "resident";
@@ -32,6 +54,7 @@ const canMessageTarget = (sourceRole, targetRole) => {
 const ensureConversationBetweenUsers = async (userA, userB) => {
   const existing = await Conversation.findOne({
     participants: { $all: [userA, userB] },
+    $expr: { $eq: [{ $size: "$participants" }, 2] },
   });
 
   if (existing) {
@@ -132,7 +155,26 @@ exports.getConversations = async (req, res) => {
       .populate({ path: "participants", select: "name role desiredJobTitle" })
       .sort({ lastMessageAt: -1, createdAt: -1 });
 
-    return res.json(conversations);
+    const seen = new Set();
+    const validConversations = conversations.filter((conversation) => {
+      const participantIds = getDistinctParticipantIds(conversation.participants);
+      if (participantIds.length < 2 || !participantIds.includes(String(userId))) {
+        return false;
+      }
+
+      if (!hasOtherParticipant(conversation, userId)) {
+        return false;
+      }
+
+      const key = participantIds.slice().sort().join(":");
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+
+    return res.json(validConversations);
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch conversations" });
   }
@@ -177,7 +219,7 @@ exports.sendMessage = async (req, res) => {
   try {
     const userId = getUserId(req);
     const conversationId = req.params.conversationId || req.body.conversationId;
-    const { content, receiverId } = req.body;
+    const { content } = req.body;
 
     // Validate required fields
     if (!conversationId || !content || !String(content).trim()) {
@@ -198,14 +240,12 @@ exports.sendMessage = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // If receiverId is provided, verify it is the other participant
-    if (receiverId) {
-      const otherParticipant = conversation.participants.find(
-        (participant) => String(participant) !== String(userId)
-      );
-      if (String(otherParticipant) !== String(receiverId)) {
-        return res.status(400).json({ message: "Invalid receiver ID" });
-      }
+    const otherParticipant = conversation.participants.find(
+      (participant) => String(participant) !== String(userId)
+    );
+
+    if (!otherParticipant) {
+      return res.status(400).json({ message: "Conversation has no valid receiver" });
     }
 
     // Create and save message

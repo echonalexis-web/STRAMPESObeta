@@ -92,7 +92,6 @@ const globalLimiter = createLimiter({
 });
 
 // Auth limiter
-// Protects login and register endpoints in production.
 const authLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 50,
@@ -101,7 +100,6 @@ const authLimiter = createLimiter({
 });
 
 // Admin limiter
-// Protects admin routes from excessive repeated calls.
 const adminLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 300,
@@ -111,19 +109,10 @@ const adminLimiter = createLimiter({
 });
 
 // Upload limiter
-// Prevents repeated file upload attempts from being abused.
 const uploadLimiter = createLimiter({
   windowMs: 60 * 60 * 1000,
   max: 20,
   message: { message: "Too many upload attempts. Please try again later." },
-});
-
-// Message rate limiter for socket
-// Limits chat bursts on Socket.IO connections.
-const messageRateLimiter = createLimiter({
-  windowMs: 60 * 1000,
-  max: 30,
-  message: { message: "Too many messages sent. Please slow down." },
 });
 
 app.use(mongoSanitize());
@@ -272,6 +261,10 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   const userRoutes = require("./routes/userRoutes");
   console.log("✅ User routes loaded");
 
+  // --- NEW: Recommendation routes ---
+  const recommendationRoutes = require("./routes/recommendationRoutes");
+  console.log("✅ Recommendation routes loaded");
+
   const mountApiRoutes = (basePath) => {
     console.log(`📁 Mounting routes at ${basePath}...`);
     
@@ -318,6 +311,14 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       console.log(`✅ ${basePath}/users mounted`);
     } catch (e) {
       console.error(`❌ Failed to mount ${basePath}/users:`, e.message);
+    }
+
+    // --- NEW: Mount recommendation routes ---
+    try {
+      app.use(`${basePath}/recommendations`, recommendationRoutes);
+      console.log(`✅ ${basePath}/recommendations mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/recommendations:`, e.message);
     }
     
     console.log(`✅ All routes mounted at ${basePath}`);
@@ -408,7 +409,6 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
         return socket.emit("error", { message: "Invalid conversation ID" });
       }
       
-      // Store room membership for cleanup
       socket.rooms = socket.rooms || new Set();
       socket.rooms.add(conversationId);
       socket.join(String(conversationId));
@@ -436,7 +436,6 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
         return socket.emit("error", { message: "Invalid message content" });
       }
 
-      // Rate limiting per user
       const userMessageCount = messageCounts.get(socket.userId) || 0;
       if (userMessageCount > 30) {
         return socket.emit("error", { message: "Rate limit exceeded. Please wait a moment before sending more messages." });
@@ -444,11 +443,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       messageCounts.set(socket.userId, userMessageCount + 1);
       
       try {
-        // Save message to database
         const Message = require("./models/Message");
         const Conversation = require("./models/Conversation");
 
-        // Verify user is part of this conversation
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) {
           return socket.emit("error", { message: "Conversation not found" });
@@ -468,17 +465,14 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
           isRead: false,
         });
 
-        // Update conversation's last message
         await Conversation.findByIdAndUpdate(conversationId, {
           lastMessage: sanitizedContent,
           lastMessageAt: newMessage.createdAt,
         });
 
-        // Populate sender info
         const populatedMessage = await Message.findById(newMessage._id)
           .populate("sender", "name email");
 
-        // Broadcast to room
         io.to(String(conversationId)).emit("receive_message", {
           ...populatedMessage.toObject(),
           conversationId: conversationId,
@@ -506,11 +500,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
 
     socket.on("disconnect", () => {
       console.log(`❌ User disconnected: ${socket.userId}`);
-      
-      // Clean up rate limiting
       clearInterval(rateLimitInterval);
-      
-      // Remove socket from user connections
       if (userConnections.has(socket.userId)) {
         userConnections.get(socket.userId).delete(socket.id);
         if (userConnections.get(socket.userId).size === 0) {
@@ -518,8 +508,6 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
           messageCounts.delete(socket.userId);
         }
       }
-
-      // Notify rooms that user has left
       if (socket.rooms) {
         socket.rooms.forEach((room) => {
           if (room !== socket.id) {
@@ -529,10 +517,6 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
             });
           }
         });
-      }
-      
-      // Clean up socket rooms
-      if (socket.rooms) {
         socket.rooms.clear();
       }
     });

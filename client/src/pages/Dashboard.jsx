@@ -1,7 +1,7 @@
 ﻿import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { jobAPI } from "../services/api";
+import { jobAPI, messageAPI } from "../services/api";
 import Modal from "../components/Modal";
 import AppModal from "../components/AppModal";
 import EmployerModal from "../components/EmployerModal";
@@ -26,6 +26,13 @@ const formatAddress = (address) => {
   return address;
 };
 
+const getMatchClass = (score) => {
+  const percent = Math.round((score || 0) * 100);
+  if (percent >= 60) return 'match-high';
+  if (percent >= 30) return 'match-medium';
+  return 'match-low';
+};
+
 export default function Dashboard() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -45,6 +52,7 @@ export default function Dashboard() {
   const [editResumeFile, setEditResumeFile] = useState(null);
   const [isUpdatingApplication, setIsUpdatingApplication] = useState(false);
   const [isDeletingApplication, setIsDeletingApplication] = useState(false);
+  const [hasSkills, setHasSkills] = useState(true);
 
   useEffect(() => {
     fetchData();
@@ -73,14 +81,15 @@ export default function Dashboard() {
       }
       
       const [jobRes, applicationRes] = await Promise.all([
-        jobAPI.getJobs(),
+        jobAPI.searchJobsWithSemantic({}),
         jobAPI.getMyApplications(),
       ]);
       
       console.log('✅ Jobs response:', jobRes);
       console.log('✅ Applications response:', applicationRes);
       
-      setJobs(Array.isArray(jobRes.data) ? jobRes.data : []);
+      setJobs(Array.isArray(jobRes.data?.jobs) ? jobRes.data.jobs : []);
+      setHasSkills(jobRes.data?.hasSkills !== undefined ? jobRes.data.hasSkills : true);
       setApplications(Array.isArray(applicationRes.data) ? applicationRes.data : []);
       
     } catch (err) {
@@ -126,6 +135,42 @@ export default function Dashboard() {
     setSelectedEmployer(employer);
     setIsEmployerModalOpen(true);
   };
+
+  // ----- Final handleMessageEmployer (no alert) -----
+  const handleMessageEmployer = async (job) => {
+    let employerId = null;
+    if (job.employer && typeof job.employer === 'object') {
+      employerId = job.employer._id || job.employer.id || job.employer.userId;
+    } else if (typeof job.employer === 'string') {
+      employerId = job.employer;
+    }
+    if (!employerId && job.employerId) employerId = job.employerId;
+
+    const currentUserId = user?._id || user?.id;
+    console.log("Employer ID:", employerId);
+    console.log("Current user:", currentUserId);
+
+    if (!employerId) {
+      setError("Could not find employer for this job.");
+      return;
+    }
+
+    if (String(employerId) === String(currentUserId)) {
+      setError("You cannot message yourself.");
+      return;
+    }
+
+    try {
+      const { data } = await messageAPI.createConversation({ participantId: employerId });
+      const conversationId = data?._id;
+      if (!conversationId) throw new Error("Conversation was not created");
+      setIsModalOpen(false);
+      navigate("/messages", { state: { conversationId } });
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to start a conversation with the employer");
+    }
+  };
+  // -------------------------------------------------------------
 
   const getStatusClassName = (status) => {
     const normalized = String(status || "").toLowerCase();
@@ -227,6 +272,7 @@ export default function Dashboard() {
   const acceptedApplications = applications.filter(a => 
     a.status === 'accepted' || a.status === 'hired'
   ).length;
+  const dashboardJobs = jobs.slice(0, 4);
 
   return (
     <div className="dashboard-container">
@@ -289,13 +335,28 @@ export default function Dashboard() {
             <button className="section-view-all" onClick={() => navigate("/jobs")}>View All <FaArrowRight /></button>
           </div>
 
-          {jobs.length === 0 ? (
+          {!hasSkills && user && (
+            <div className="info-message">
+              <p>You haven't added any skills to your profile yet. Add skills to see your match percentage for each job.</p>
+              <button className="btn-profile-edit" onClick={() => navigate("/profile")}>Edit Profile</button>
+            </div>
+          )}
+
+          {dashboardJobs.length === 0 ? (
             <div className="empty-state-card"><p>No jobs are available right now.</p></div>
           ) : (
             <div className="jobs-grid">
-              {jobs.slice(0, 4).map((job) => (
+              {dashboardJobs.map((job) => (
                 <div key={job._id} className="job-card">
-                  <div className="job-card-header"><h3>{job.title}</h3><span className="job-status status-open">Open</span></div>
+                  <div className="job-card-header">
+                    <h3>{job.title}</h3>
+                    <span className="job-status status-open">Open</span>
+                    {hasSkills && (
+                      <div className={`match-badge ${getMatchClass(job.relevanceScore)}`}>
+                        {Math.round((job.relevanceScore || 0) * 100)}%
+                      </div>
+                    )}
+                  </div>
                   <div className="job-card-location"><FaMapMarkerAlt /> {formatAddress(job.location)}</div>
                   <p className="job-card-description">{job.description?.slice(0, 120) || ''}...</p>
                   <div className="job-card-footer">
@@ -350,8 +411,18 @@ export default function Dashboard() {
         </>
       )}
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} job={selectedJob} />
-      <EmployerModal isOpen={isEmployerModalOpen} onClose={() => setIsEmployerModalOpen(false)} employer={selectedEmployer} />
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        job={selectedJob}
+        onMessageEmployer={handleMessageEmployer}
+      />
+
+      <EmployerModal
+        isOpen={isEmployerModalOpen}
+        onClose={() => setIsEmployerModalOpen(false)}
+        employer={selectedEmployer}
+      />
 
       <AppModal isOpen={Boolean(viewingApplication)} onClose={() => setViewingApplication(null)} title="Application Details">
         {viewingApplication && (

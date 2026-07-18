@@ -28,14 +28,14 @@ const jobVacancySchema = new mongoose.Schema({
   location: { type: String, required: true },
   salary: { type: String, default: "", required: false },
   
-  // NEW: Structured qualifications array replacing requirements
+  // NEW: Structured qualifications
   qualifications: {
     type: [qualificationSchema],
     default: [],
     required: false,
   },
   
-  // DEPRECATED: Kept for backward compatibility during migration
+  // DEPRECATED: Kept for backward compatibility
   requirements: {
     type: String,
     default: "",
@@ -56,9 +56,33 @@ const jobVacancySchema = new mongoose.Schema({
   featuredOrder: { type: Number, default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+
+  // ===== NEW: Fields for filtering (semantic recommendation) =====
+  industry: {
+    type: String,
+    default: "",
+  },
+  workNature: {
+    type: String,
+    enum: ["remote", "onsite", "hybrid"],
+    default: null,
+  },
+  salaryMin: {
+    type: Number,
+    default: null,
+  },
+  salaryMax: {
+    type: Number,
+    default: null,
+  },
 });
 
-// Index for efficient qualification queries
+// Indexes for performance
 jobVacancySchema.index({ "qualifications.type": 1 });
+jobVacancySchema.index({ status: 1 });
+jobVacancySchema.index({ industry: 1 });
+jobVacancySchema.index({ workNature: 1 });
+jobVacancySchema.index({ location: 1 });
+jobVacancySchema.index({ salaryMin: 1, salaryMax: 1 });
 
 module.exports = mongoose.model("JobVacancy", jobVacancySchema);

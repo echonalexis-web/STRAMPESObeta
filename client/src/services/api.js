@@ -112,6 +112,7 @@ export const jobAPI = {
   createJob: (data) => api.post('/jobs', data, getAuthHeader()),
   getJobs: () => api.get('/jobs'),
   getHomepageJobs: () => api.get('/jobs/homepage'),
+  searchJobsWithSemantic: (params) => api.get('/recommendations/jobs', { params }),
   getJobById: (id) => api.get(`/jobs/${id}`),
   updateJob: (id, data) => api.put(`/jobs/${id}`, data, getAuthHeader()),
   deleteJob: (id) => api.delete(`/jobs/${id}`, getAuthHeader()),
@@ -165,6 +166,8 @@ export const employerAPI = {
   updateJob: (id, data) => api.put(`/employer/jobs/${id}`, data, getAuthHeader()),
   deleteJob: (id) => api.delete(`/employer/jobs/${id}`, getAuthHeader()),
   getApplicantsForJob: (jobId) => api.get(`/employer/jobs/${jobId}/applicants`, getAuthHeader()),
+  getRankedApplicants: (jobId, params = {}) => 
+    api.get(`/employer/jobs/${jobId}/applicants/ranked`, { ...getAuthHeader(), params }),
   updateApplicationStatus: (applicationId, data) => 
     api.put(`/employer/applications/${applicationId}/status`, data, getAuthHeader()),
 };

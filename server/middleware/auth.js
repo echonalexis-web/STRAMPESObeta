@@ -1,6 +1,9 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
+// ============================================
+// STANDARD AUTH (requires valid token)
+// ============================================
 exports.verifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
 
@@ -31,6 +34,9 @@ exports.verifyToken = async (req, res, next) => {
   }
 };
 
+// ============================================
+// ROLE CHECKS
+// ============================================
 exports.isResident = (req, res, next) => {
   if (!["resident", "employee", "jobseeker"].includes(req.user.role)) {
     return res.status(403).json({ message: "Access denied" });
@@ -85,4 +91,36 @@ exports.authorizeRoles = (...roles) => {
     }
     next();
   };
+};
+
+// ============================================
+// OPTIONAL AUTH (does not reject on missing token)
+// ============================================
+exports.optionalAuth = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      req.user = null;
+      return next();
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select("isActive role verificationStatus");
+
+    if (!user || user.isActive === false) {
+      req.user = null;
+      return next();
+    }
+
+    req.user = {
+      ...decoded,
+      role: user.role,
+      verificationStatus: user.verificationStatus,
+    };
+    next();
+  } catch (error) {
+    // If token is invalid, still proceed but without user
+    req.user = null;
+    next();
+  }
 };

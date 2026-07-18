@@ -1,6 +1,6 @@
 import React from "react";
 import "../styles/modal.css";
-import { FaTimes, FaMapMarkerAlt, FaMoneyBillWave, FaBuilding, FaBriefcase, FaCalendarAlt } from "react-icons/fa";
+import { FaTimes, FaMapMarkerAlt, FaMoneyBillWave, FaBuilding, FaBriefcase, FaCalendarAlt, FaEnvelope } from "react-icons/fa";
 import QualificationsDisplay from "./QualificationsDisplay";
 import "../styles/qualifications-editor.css";
 
@@ -17,7 +17,14 @@ const formatAddress = (address) => {
   return address;
 };
 
-export default function Modal({ isOpen, onClose, job }) {
+const getMatchClass = (score) => {
+  const percent = Math.round((score || 0) * 100);
+  if (percent >= 60) return 'match-high';
+  if (percent >= 30) return 'match-medium';
+  return 'match-low';
+};
+
+export default function Modal({ isOpen, onClose, job, onMessageEmployer }) {
   if (!isOpen || !job) return null;
 
   const formatDate = (date) => {
@@ -25,13 +32,29 @@ export default function Modal({ isOpen, onClose, job }) {
     return new Date(date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   };
 
+  const handleMessageClick = () => {
+    if (onMessageEmployer) {
+      onMessageEmployer(job);
+    } else {
+      console.warn("onMessageEmployer prop is missing – please pass it to Modal.");
+    }
+  };
+
   return (
     <div className="job-dialog-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="job-dialog-card" role="dialog" aria-modal="true" aria-label="Job details">
-        <button className="job-dialog-close" onClick={onClose} type="button" aria-label="Close"><FaTimes /></button>
+        <button className="job-dialog-close" onClick={onClose} type="button" aria-label="Close">
+          <FaTimes />
+        </button>
 
         <div className="job-dialog-header">
-          <div className="job-dialog-title-section"><h2>{job.title}</h2><span className="job-dialog-status">● Open</span></div>
+          <div className="job-dialog-title-section">
+            <h2>{job.title}</h2>
+            <span className="job-dialog-status">● Open</span>
+            <div className={`match-badge ${getMatchClass(job.relevanceScore)}`}>
+              {Math.round((job.relevanceScore || 0) * 100)}%
+            </div>
+          </div>
           <div className="job-dialog-company"><FaBuilding /><span>{job.employer?.companyName || job.employer?.name || "Company"}</span></div>
         </div>
 
@@ -58,6 +81,9 @@ export default function Modal({ isOpen, onClose, job }) {
 
         <div className="job-dialog-footer">
           <button className="job-dialog-apply-btn" onClick={() => window.location.href = `/jobs/${job._id}`}>Apply Now</button>
+          <button className="job-dialog-message-btn" onClick={handleMessageClick}>
+            <FaEnvelope /> Message Employer
+          </button>
           <button className="job-dialog-close-btn" onClick={onClose}>Close</button>
         </div>
       </div>

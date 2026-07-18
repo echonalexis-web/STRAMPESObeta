@@ -1171,3 +1171,79 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ============================================ */
+/* MATCH BADGE - CIRCULAR (ADDED) */
+/* ============================================ */
+
+.match-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffffff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: all 0.3s ease;
+}
+
+.match-high {
+  background: #2e7d32;
+}
+
+.match-medium {
+  background: #f5a623;
+}
+
+.match-low {
+  background: #dc2626;
+}
+
+.job-card-header .match-badge {
+  margin-left: auto;
+}
+
+/* ============================================ */
+/* INFO MESSAGE (No skills) - ADDED */
+/* ============================================ */
+
+.info-message {
+  max-width: 1200px;
+  margin: 0 auto 20px;
+  background: #fff8e1;
+  border: 1px solid #f5a623;
+  border-radius: 12px;
+  padding: 1.2rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.info-message p {
+  margin: 0;
+  color: #6d4c00;
+  font-size: 0.95rem;
+  flex: 1;
+}
+
+.info-message .btn-profile-edit {
+  background: #f5a623;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.info-message .btn-profile-edit:hover {
+  background: #d4920a;
+}

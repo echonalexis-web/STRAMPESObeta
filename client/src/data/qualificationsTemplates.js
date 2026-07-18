@@ -1,14 +1,5 @@
 // Pre‑built qualification templates for common job titles in the Philippines
 export const QUALIFICATION_TEMPLATES = {
-  Administrative_Assistant: [
-    { type: "education", value: "High school diploma or equivalent", optional: false },
-    { type: "experience", value: "2+ years of administrative experience", optional: false },
-    { type: "skill", value: "Microsoft Office Suite", optional: false },
-    { type: "skill", value: "Organizational skills", optional: false },
-    { type: "skill", value: "Communication skills", optional: false },
-    { type: "skill", value: "Time management", optional: false },
-    { type: "skill", value: "Customer service", optional: true },
-  ],
   Teacher: [
     { type: "education", value: "Bachelor's degree in Education", optional: false },
     { type: "license", value: "Professional Teacher License", optional: false },
@@ -37,14 +28,7 @@ export const QUALIFICATION_TEMPLATES = {
     { type: "skill", value: "Financial reporting", optional: false },
     { type: "skill", value: "Tax preparation", optional: true },
   ],
-  Cashier: [
-    { type: "education", value: "High school diploma or equivalent", optional: false },
-    { type: "experience", value: "1+ year of cashier or retail experience", optional: false },
-    { type: "skill", value: "Cash handling", optional: false },
-    { type: "skill", value: "Basic math skills", optional: false },
-    { type: "skill", value: "Customer service", optional: false },
-    { type: "skill", value: "POS systems", optional: false },
-  ],
+  
   General_Manager: [
     { type: "education", value: "Bachelor's degree in Business Administration or related", optional: false },
     { type: "experience", value: "5+ years of management experience", optional: false },

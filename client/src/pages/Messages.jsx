@@ -7,12 +7,11 @@ import "../styles/messages.css";
 import { FaSearch, FaPaperPlane, FaUserCircle, FaTrash, FaArrowLeft } from "react-icons/fa";
 import DOMPurify from 'dompurify';
 
-// Sanitize message before display
 const sanitizeMessage = (content) => {
   if (!content) return '';
   return DOMPurify.sanitize(content, {
-    ALLOWED_TAGS: [], // No HTML tags allowed
-    ALLOWED_ATTR: [], // No attributes allowed
+    ALLOWED_TAGS: [],
+    ALLOWED_ATTR: [],
   });
 };
 
@@ -53,14 +52,36 @@ const getDateLabel = (isoDate) => {
 
 const getSenderId = (message) => String(message?.sender?._id || message?.sender || "");
 
+const getParticipantId = (participant) => String(participant?._id || participant?.id || participant || "");
+
+// ----- Robust getOtherParticipant -----
 const getOtherParticipant = (conversation, currentUserId) => {
   const participants = Array.isArray(conversation?.participants) ? conversation.participants : [];
-  return (
-    participants.find((participant) => String(participant?._id || participant?.id) !== String(currentUserId)) ||
-    participants[0] ||
-    null
+  const valid = participants.filter((participant) => participant && getParticipantId(participant));
+  const other = valid.find(
+    (participant) => getParticipantId(participant) !== String(currentUserId)
   );
+  return other || null;
 };
+
+const getConversationKey = (conversation) => {
+  const participants = Array.isArray(conversation?.participants) ? conversation.participants : [];
+  return participants
+    .map((participant) => getParticipantId(participant))
+    .filter(Boolean)
+    .sort()
+    .join(":");
+};
+
+const normalizeConversation = (conversation) => {
+  if (!conversation || typeof conversation !== "object") return null;
+  const participants = Array.isArray(conversation.participants) ? conversation.participants : [];
+  return {
+    ...conversation,
+    participants: participants.filter((participant) => participant && getParticipantId(participant)),
+  };
+};
+// ----------------------------------------
 
 export default function Messages() {
   const { user } = useContext(AuthContext);
@@ -87,8 +108,16 @@ export default function Messages() {
   const stopTypingTimerRef = useRef(null);
   const messagesEndRef = useRef(null);
 
+  // ----- Load conversations -----
   useEffect(() => {
     let isActive = true;
+
+    if (!currentUserId) {
+      setConversations([]);
+      setSelectedConversationId(null);
+      setLoading(false);
+      return undefined;
+    }
 
     const loadConversations = async () => {
       setLoading(true);
@@ -99,12 +128,24 @@ export default function Messages() {
         if (!isActive) return;
 
         const list = Array.isArray(data) ? data : [];
-        setConversations(list);
+        // Filter out conversations where the other participant is null (i.e., only yourself)
+        const seenKeys = new Set();
+        const filtered = list.filter((conv) => {
+          const other = getOtherParticipant(conv, currentUserId);
+          const otherId = getParticipantId(other);
+          if (!other || !otherId || !other.name) return false;
 
-        if (preselectedConversationId && list.some((conversation) => conversation._id === preselectedConversationId)) {
+          const key = getConversationKey(conv);
+          if (!key || seenKeys.has(key)) return false;
+          seenKeys.add(key);
+          return true;
+        });
+        setConversations(filtered);
+
+        if (preselectedConversationId && filtered.some((conv) => conv._id === preselectedConversationId)) {
           setSelectedConversationId(preselectedConversationId);
-        } else if (list.length > 0) {
-          setSelectedConversationId((prev) => prev || list[0]._id);
+        } else if (filtered.length > 0) {
+          setSelectedConversationId((prev) => prev || filtered[0]._id);
         } else {
           setSelectedConversationId(null);
         }
@@ -123,8 +164,9 @@ export default function Messages() {
     return () => {
       isActive = false;
     };
-  }, [preselectedConversationId]);
+  }, [preselectedConversationId, currentUserId]);
 
+  // ----- Load messages for selected conversation -----
   useEffect(() => {
     if (!selectedConversationId) return undefined;
 
@@ -148,6 +190,7 @@ export default function Messages() {
     loadMessages();
   }, [selectedConversationId]);
 
+  // ----- Socket join/leave -----
   useEffect(() => {
     if (!socket || !selectedConversationId) return undefined;
 
@@ -160,6 +203,7 @@ export default function Messages() {
     };
   }, [socket, selectedConversationId]);
 
+  // ----- Socket listeners -----
   useEffect(() => {
     if (!socket || !isConnected || !currentUserId) return undefined;
 
@@ -168,7 +212,7 @@ export default function Messages() {
       if (!conversationId) return;
 
       const senderId = getSenderId(incoming);
-      if (senderId === currentUserId) return; // Ignore own messages
+      if (senderId === currentUserId) return;
 
       setMessagesByConversation((prev) => ({
         ...prev,
@@ -221,6 +265,7 @@ export default function Messages() {
     };
   }, [socket, isConnected, currentUserId, selectedConversationId]);
 
+  // ----- User search -----
   useEffect(() => {
     let active = true;
     const term = userSearchQuery.trim();
@@ -262,13 +307,15 @@ export default function Messages() {
     }
   }, [messagesByConversation, selectedConversationId]);
 
+  // ----- Derived state -----
   const filteredConversations = useMemo(() => {
     const search = searchQuery.trim().toLowerCase();
     if (!search) return conversations;
 
     return conversations.filter((conversation) => {
-      const participant = getOtherParticipant(conversation, currentUserId);
-      const name = participant?.name || "";
+      const otherUser = getOtherParticipant(conversation, currentUserId);
+      if (!otherUser) return false;
+      const name = otherUser?.name || "";
       const preview = conversation?.lastMessage || "";
       return name.toLowerCase().includes(search) || preview.toLowerCase().includes(search);
     });
@@ -285,6 +332,14 @@ export default function Messages() {
 
   const selectedMessages = selectedConversationId ? messagesByConversation[selectedConversationId] || [] : [];
 
+  // ----- Compute receiverId dynamically from conversation -----
+  const getReceiverIdFromConversation = (conversation) => {
+    if (!conversation) return null;
+    const other = getOtherParticipant(conversation, currentUserId);
+    return getParticipantId(other) || null;
+  };
+
+  // ----- Handlers -----
   const handleDeleteConversation = async (conversationId) => {
     const confirmed = window.confirm("Delete this conversation? This cannot be undone.");
     if (!confirmed) return;
@@ -292,7 +347,7 @@ export default function Messages() {
     try {
       await messageAPI.deleteConversation(conversationId);
 
-      setConversations((prev) => prev.filter((conversation) => conversation._id !== conversationId));
+      setConversations((prev) => prev.filter((conv) => conv._id !== conversationId));
       setMessagesByConversation((prev) => {
         const next = { ...prev };
         delete next[conversationId];
@@ -305,7 +360,7 @@ export default function Messages() {
       });
 
       if (selectedConversationId === conversationId) {
-        const remaining = conversations.filter((conversation) => conversation._id !== conversationId);
+        const remaining = conversations.filter((conv) => conv._id !== conversationId);
         setSelectedConversationId(remaining[0]?._id || null);
       }
     } catch (err) {
@@ -317,7 +372,7 @@ export default function Messages() {
     const rawContent = draft.trim();
     if (!rawContent || !selectedConversationId) return;
 
-    // Sanitize content but fallback to raw if empty
+    // Sanitize content
     let sanitized = DOMPurify.sanitize(rawContent, {
       ALLOWED_TAGS: [],
       ALLOWED_ATTR: [],
@@ -328,10 +383,9 @@ export default function Messages() {
       return;
     }
 
-    // Get receiver ID
-    const receiverId = selectedParticipant?._id;
+    const receiverId = getReceiverIdFromConversation(selectedConversation);
     if (!receiverId) {
-      setError("No receiver found for this conversation");
+      setError("No valid receiver found for this conversation");
       return;
     }
 
@@ -370,7 +424,6 @@ export default function Messages() {
     }
 
     try {
-      // ✅ Send via REST only – this saves the message to DB
       const { data } = await messageAPI.sendMessage(selectedConversationId, { content, receiverId });
 
       // Replace optimistic message with the server response
@@ -380,9 +433,6 @@ export default function Messages() {
           message._id === tempId ? data : message
         ),
       }));
-
-      // ✅ The server will broadcast this message via socket.io to the conversation room
-      // so the receiver gets it in real-time. Do NOT emit "send_message" here.
 
     } catch (err) {
       console.error("❌ Send error:", err.response?.data || err);
@@ -439,14 +489,28 @@ export default function Messages() {
   const handleStartConversation = async (targetUser) => {
     try {
       const { data } = await messageAPI.createConversation({ participantId: targetUser._id });
-      const createdConversation = data;
+      const createdConversation = normalizeConversation(data);
+
+      if (!createdConversation) {
+        throw new Error("Conversation was not created");
+      }
 
       setConversations((prev) => {
-        const exists = prev.some((item) => item._id === createdConversation._id);
-        if (exists) {
-          return prev.map((item) => (item._id === createdConversation._id ? createdConversation : item));
-        }
-        return [createdConversation, ...prev];
+        const merged = prev.some((item) => item._id === createdConversation._id)
+          ? prev.map((item) => (item._id === createdConversation._id ? createdConversation : item))
+          : [createdConversation, ...prev];
+
+        const seenKeys = new Set();
+        return merged.filter((conversation) => {
+          const other = getOtherParticipant(conversation, currentUserId);
+          const otherId = getParticipantId(other);
+          if (!other || !otherId || !other.name) return false;
+
+          const key = getConversationKey(conversation);
+          if (!key || seenKeys.has(key)) return false;
+          seenKeys.add(key);
+          return true;
+        });
       });
 
       setSelectedConversationId(createdConversation._id);
@@ -472,6 +536,7 @@ export default function Messages() {
     setMobileActiveTab("conversations");
   };
 
+  // ----- Render -----
   return (
     <div className="messages-page">
       <div className="messages-container">
@@ -521,7 +586,7 @@ export default function Messages() {
                       <strong>{item.name}</strong>
                       <small>{item.role === "employer" ? item.companyName || item.email : item.desiredJobTitle || item.email}</small>
                     </div>
-                    <button className="start-chat-btn">Message</button>
+                    <span className="start-chat-btn">Message</span>
                   </button>
                 ))}
             </div>
@@ -538,6 +603,9 @@ export default function Messages() {
 
             {filteredConversations.map((conversation) => {
               const otherUser = getOtherParticipant(conversation, currentUserId);
+              // Guard: if no other participant, skip rendering
+              if (!otherUser) return null;
+
               const isActive = selectedConversationId === conversation._id;
               const unreadCount = unreadByConversation[conversation._id] || 0;
 
@@ -584,7 +652,7 @@ export default function Messages() {
 
         {/* Chat Area */}
         <main className={`chat-area ${mobileActiveTab === "chat" ? "mobile-active" : "mobile-hidden"}`}>
-          {!selectedConversation ? (
+          {!selectedConversation || !selectedParticipant ? (
             <div className="empty-chat">
               <div className="empty-chat-content">
                 <FaUserCircle className="empty-chat-icon" />

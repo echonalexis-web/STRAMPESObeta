@@ -39,7 +39,6 @@ exports.register = async (req, res) => {
       role: "resident",
     });
 
-    // Create empty jobseeker profile
     await JobseekerProfile.create({ userId: user._id });
 
     const token = jwt.sign(
@@ -80,7 +79,6 @@ exports.registerEmployer = async (req, res) => {
       verificationStatus: "pending",
     });
 
-    // Create empty employer profile
     await EmployerProfile.create({ userId: user._id });
 
     const token = jwt.sign(
@@ -180,14 +178,12 @@ exports.deleteAccount = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Delete associated profile
     if (user.role === "resident") {
       await JobseekerProfile.deleteOne({ userId });
     } else if (user.role === "employer") {
       await EmployerProfile.deleteOne({ userId });
     }
 
-    // Delete uploaded files (resume, id, etc.)
     const filesToDelete = [user.resumeFile, user.validIdFile, user.businessPermitUrl, user.registrationDocUrl].filter(Boolean);
     await Promise.all(
       filesToDelete.map((filePath) =>
@@ -212,7 +208,7 @@ exports.deleteAccount = async (req, res) => {
   }
 };
 
-// ---------- Unified updateProfile (used by both auth and user routes) ----------
+// ---------- Unified updateProfile ----------
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.user._id || req.user.id;
@@ -243,17 +239,13 @@ exports.updateProfile = async (req, res) => {
       gender: req.body.gender || null,
     };
 
-    // For residents, also update career fields
+    // For residents, also update career fields (but NOT skills – moved to profile)
     if (currentUser.role === "resident") {
       commonUpdates.desiredJobTitle = req.body.desiredJobTitle || null;
       commonUpdates.workExperience = req.body.workExperience || null;
       commonUpdates.educationalAttainment = req.body.educationalAttainment || null;
       commonUpdates.availabilityStatus = req.body.availabilityStatus || null;
-      // Parse skills from JSON string
-      if (req.body.skills) {
-        const skills = parseJSON(req.body.skills, []);
-        if (Array.isArray(skills)) commonUpdates.skills = skills;
-      }
+      // skills are handled in profileData below
     }
 
     // For employers, update company fields
@@ -311,6 +303,8 @@ exports.updateProfile = async (req, res) => {
         employmentType: allFields.employmentType || null,
         unemploymentReason: allFields.unemploymentReason || null,
         laidoffCountry: allFields.laidoffCountry || null,
+        // ==== FIX: skills saved to jobseeker profile ====
+        skills: parseJSON(allFields.skills, []),
       };
     } else if (currentUser.role === "employer") {
       profileData = {

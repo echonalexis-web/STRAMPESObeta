@@ -1,0 +1,52 @@
+// Backup copy (original) of JobBoard.jsx
+// File labeled before modifications on 2026-07-17
+
+/* Original file content copied as backup. */
+
+import { useEffect, useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { jobAPI } from "../services/api";
+import "../styles/jobboard.css";  
+import Modal from "../components/Modal";
+import AppModal from "../components/AppModal";
+import EmployerModal from "../components/EmployerModal";
+import QualificationsDisplay from "../components/QualificationsDisplay";
+import JobSearchFilters from "../components/JobSearchFilters";
+import { AuthContext } from "../context/AuthContext"; // FIXED
+import "../styles/qualifications-editor.css";
+import { 
+  FaSearch, 
+  FaMapMarkerAlt, 
+  FaBuilding, 
+  FaUserCircle, 
+  FaBriefcase, 
+  FaCalendarAlt, 
+  FaFileAlt,
+  FaStar
+} from "react-icons/fa";
+
+// Helper to format address for display
+const formatAddress = (address) => {
+  if (!address) return "Not specified";
+  const parts = address.split(", ");
+  if (parts.length >= 2) {
+    return (
+      <>
+        <span>{parts[0]}</span>
+        <br />
+        <span className="text-muted">{parts.slice(1).join(", ")}</span>
+      </>
+    );
+  }
+  return address;
+};
+
+export default function JobBoard() {
+  const navigate = useNavigate();
+  const { user } = useContext(AuthContext); // FIXED
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedJob, setSelectedJob] = useState(null);
+  // ... rest of original file ...
+}

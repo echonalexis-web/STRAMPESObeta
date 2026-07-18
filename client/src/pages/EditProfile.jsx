@@ -5,6 +5,7 @@ import { authAPI } from "../services/api";
 import "../styles/profile.css";
 import { FaUser, FaEnvelope, FaPhone, FaBriefcase, FaBuilding, FaMapMarkerAlt, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaUpload, FaTrash, FaExclamationTriangle, FaTimes, FaPlus, FaSave } from "react-icons/fa";
 import LocationSelect from "../components/LocationSelect";
+import { COMMON_SKILLS as skillsList } from "../data/skills"; // CORRECTED IMPORT
 
 export default function EditProfile() {
   const { user, login, logout } = useContext(AuthContext);
@@ -94,15 +95,12 @@ export default function EditProfile() {
     const userData = data.user || {};
     const profileData = data.profile || {};
 
-    // Start with userData
     const merged = { ...userData };
 
-    // For employer, map profileData.businessAddress (object) to businessAddressStructured
     if (userData.role === "employer" && profileData.businessAddress) {
       merged.businessAddressStructured = profileData.businessAddress;
     }
 
-    // Merge other profile fields (excluding businessAddress to avoid conflict)
     const { businessAddress, ...restProfile } = profileData;
     Object.assign(merged, restProfile);
 
@@ -134,7 +132,6 @@ export default function EditProfile() {
           companySize: merged.companySize || "",
           website: merged.website || "",
           companyDescription: merged.companyDescription || "",
-          // NSRP jobseeker
           civilStatus: merged.civilStatus || "",
           placeOfBirth: merged.placeOfBirth || "",
           citizenship: merged.citizenship || "",
@@ -154,7 +151,6 @@ export default function EditProfile() {
           employmentType: merged.employmentType || "",
           unemploymentReason: merged.unemploymentReason || "",
           laidoffCountry: merged.laidoffCountry || "",
-          // NSRP employer
           tradeName: merged.tradeName || "",
           acronym: merged.acronym || "",
           tin: merged.tin || "",
@@ -203,9 +199,6 @@ export default function EditProfile() {
     fetchProfile();
   }, []);
 
-  // ... all handlers (handleChange, handleSubmit, etc.) remain exactly as before
-  // I'll include them for completeness, but they are unchanged.
-
   const handleChange = (event) => {
     setFormData((prev) => ({ ...prev, [event.target.name]: event.target.value }));
   };
@@ -217,7 +210,13 @@ export default function EditProfile() {
     }));
   };
 
-  const handleAddSkill = () => {
+  // ----- SKILL HANDLERS (UPDATED) -----
+  const handleSkillSelect = (e) => {
+    const selectedOptions = Array.from(e.target.selectedOptions).map(opt => opt.value);
+    setSkills(selectedOptions);
+  };
+
+  const handleAddCustomSkill = () => {
     const value = skillInput.trim();
     if (!value) return;
     if (skills.some((skill) => skill.toLowerCase() === value.toLowerCase())) {
@@ -231,13 +230,14 @@ export default function EditProfile() {
   const handleSkillKeyDown = (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      handleAddSkill();
+      handleAddCustomSkill();
     }
   };
 
   const handleRemoveSkill = (skillToRemove) => {
     setSkills((prev) => prev.filter((skill) => skill !== skillToRemove));
   };
+  // --------------------------------
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -301,7 +301,7 @@ export default function EditProfile() {
         data.append("workExperience", formData.workExperience);
         data.append("educationalAttainment", formData.educationalAttainment);
         data.append("availabilityStatus", formData.availabilityStatus);
-        data.append("skills", JSON.stringify(skills));
+        data.append("skills", JSON.stringify(skills)); // <-- skills are sent here
 
         data.append("civilStatus", formData.civilStatus);
         data.append("placeOfBirth", formData.placeOfBirth);
@@ -370,7 +370,6 @@ export default function EditProfile() {
     setDeleteError("");
   };
 
-  // JSX – unchanged (it already uses the fixed formData)
   return (
     <div className="profile-page">
       <div className="profile-overlay"></div>
@@ -555,11 +554,34 @@ export default function EditProfile() {
                 <label htmlFor="desiredJobTitle"><FaBriefcase /> Desired Job Title</label>
                 <input id="desiredJobTitle" type="text" name="desiredJobTitle" value={formData.desiredJobTitle} onChange={handleChange} />
               </div>
+
+              {/* ===== UPDATED SKILLS SECTION ===== */}
               <div className="profile-field">
                 <label htmlFor="skills"><FaPlus /> Skills</label>
+                <div className="skills-select-row">
+                  <select
+                    id="skills"
+                    multiple
+                    value={skills}
+                    onChange={handleSkillSelect}
+                    className="skills-multiselect"
+                    size={6}
+                  >
+                    {skillsList.map((skill) => (
+                      <option key={skill} value={skill}>{skill}</option>
+                    ))}
+                  </select>
+                  <p className="help-text">Hold Ctrl (or Cmd on Mac) to select multiple skills.</p>
+                </div>
                 <div className="skills-input-row">
-                  <input id="skills" type="text" value={skillInput} onChange={(e) => setSkillInput(e.target.value)} onKeyDown={handleSkillKeyDown} placeholder="Add a skill and press Enter" />
-                  <button type="button" className="skill-add-btn" onClick={handleAddSkill}><FaPlus /></button>
+                  <input
+                    type="text"
+                    value={skillInput}
+                    onChange={(e) => setSkillInput(e.target.value)}
+                    onKeyDown={handleSkillKeyDown}
+                    placeholder="Or add a custom skill and press Enter"
+                  />
+                  <button type="button" className="skill-add-btn" onClick={handleAddCustomSkill}><FaPlus /></button>
                 </div>
                 <div className="skills-tags-wrap">
                   {skills.map((skill) => (
@@ -570,6 +592,7 @@ export default function EditProfile() {
                   ))}
                 </div>
               </div>
+
               <div className="profile-field-grid">
                 <div className="profile-field">
                   <label htmlFor="workExperience">Work Experience</label>
@@ -615,6 +638,7 @@ export default function EditProfile() {
               <h3 className="profile-section-title">NSRP Form Details</h3>
               {isEmployer ? (
                 <div className="profile-field-group">
+                  {/* Employer NSRP fields – unchanged */}
                   <div className="profile-field">
                     <label htmlFor="tradeName">Trade Name</label>
                     <input id="tradeName" type="text" name="tradeName" value={formData.tradeName} onChange={handleChange} />

@@ -414,8 +414,18 @@ const validateJobPosting = (req, res, next) => {
     errors.push('Salary format too long');
   }
 
-  if (requirements && requirements.length > 2000) {
-    errors.push('Requirements too long');
+  // --- NEW VALIDATIONS for filter fields ---
+  if (req.body.industry !== undefined && typeof req.body.industry !== 'string') {
+    errors.push('Industry must be a string');
+  }
+  if (req.body.workNature !== undefined && !['remote','onsite','hybrid'].includes(req.body.workNature)) {
+    errors.push('Invalid work nature');
+  }
+  if (req.body.salaryMin !== undefined && isNaN(Number(req.body.salaryMin))) {
+    errors.push('Salary minimum must be a number');
+  }
+  if (req.body.salaryMax !== undefined && isNaN(Number(req.body.salaryMax))) {
+    errors.push('Salary maximum must be a number');
   }
 
   // Validate qualifications if provided

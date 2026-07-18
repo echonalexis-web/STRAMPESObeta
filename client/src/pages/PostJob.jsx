@@ -139,7 +139,7 @@ export default function PostJob() {
           <div className="post-job-form-grid">
             <div className="post-job-field post-job-field--full">
               <label htmlFor="title">Job Title <span className="required-star">*</span></label>
-              <input id="title" type="text" name="title" placeholder="e.g. Administrative Assistant" value={formData.title} onChange={handleChange} onBlur={handleBlur} className={validationErrors.title && touched.title ? "is-error" : ""} maxLength={100} required disabled={loading} />
+              <input id="title" type="text" name="title" placeholder="Enter job title" value={formData.title} onChange={handleChange} onBlur={handleBlur} className={validationErrors.title && touched.title ? "is-error" : ""} maxLength={100} required disabled={loading} />
               <div className="post-job-field-helper">
                 <span className="char-counter"><span className={getCharColor(getCharCount(formData.title), 100, 70)}>{getCharCount(formData.title)} / 100</span></span>
                 {validationErrors.title && touched.title && <span className="field-error post-job-field-error">{validationErrors.title}</span>}

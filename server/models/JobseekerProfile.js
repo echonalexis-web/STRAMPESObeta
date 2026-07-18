@@ -22,7 +22,7 @@ const jobseekerProfileSchema = new mongoose.Schema(
     // Contact
     landline: { type: String, default: null },
     mobileSecondary: { type: String, default: null },
-    // Addresses (structured) – now includes region
+    // Addresses (structured)
     presentAddress: {
       street: { type: String, default: "" },
       barangay: { type: String, default: "" },
@@ -72,6 +72,12 @@ const jobseekerProfileSchema = new mongoose.Schema(
       default: null,
     },
     laidoffCountry: { type: String, default: null },
+
+    // ===== NEW: Skills for semantic matching =====
+    skills: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );

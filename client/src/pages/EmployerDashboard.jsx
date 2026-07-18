@@ -7,6 +7,9 @@ import { AuthContext } from "../context/AuthContext";
 import LocationSelect from "../components/LocationSelect";
 import QualificationsEditor from "../components/QualificationsEditor";
 import "../styles/qualifications-editor.css";
+// Import modular components
+import RankedApplicantsTable from "../components/RankedApplicantsTable";
+import { useRankedApplicants } from "../hooks/useRankedApplicants";
 
 // ---------------------------------------------
 // Philippine Salary Grades (SG 1-33, 2023 rates)
@@ -143,6 +146,9 @@ export default function EmployerDashboard() {
   const [error, setError] = useState("");
   const [successToast, setSuccessToast] = useState("");
 
+  // Use custom hook for ranked applicants
+  const { applicants: rankedApplicants, loading: loadingRanked, refetch: refetchRanked } = useRankedApplicants(selectedJobId);
+
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [jobForm, setJobForm] = useState(defaultJobForm);
@@ -168,6 +174,13 @@ export default function EmployerDashboard() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Refetch ranked applicants when selected job changes
+  useEffect(() => {
+    if (selectedJobId && activeTab === "applicants") {
+      refetchRanked();
+    }
+  }, [selectedJobId, activeTab]);
 
   useEffect(() => {
     if (!successToast) return;
@@ -370,9 +383,22 @@ export default function EmployerDashboard() {
   // ---- APPLICANT DRAWER ----
   const openApplicantDrawer = (application) => {
     if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
-    setSelectedApplication(application);
-    setDrawerStatus(normalizeDrawerStatus(application.status));
-    setDrawerNote(application.employerNote || "");
+    // Fetch freshest application data for the selected job (best-effort)
+    (async () => {
+      try {
+        const resp = await employerAPI.getApplicantsForJob(selectedJobId);
+        const apps = resp.data || [];
+        const found = apps.find(a => String(a._id) === String(application._id)) || application;
+        setSelectedApplication(found);
+        setDrawerStatus(normalizeDrawerStatus(found.status));
+        setDrawerNote(found.employerNote || "");
+      } catch (err) {
+        // fallback to supplied object
+        setSelectedApplication(application);
+        setDrawerStatus(normalizeDrawerStatus(application.status));
+        setDrawerNote(application.employerNote || "");
+      }
+    })();
   };
 
   const handleSaveApplicationStatus = async () => {
@@ -405,6 +431,13 @@ export default function EmployerDashboard() {
       });
       setSuccessToast("Application updated successfully");
       setSelectedApplication(null);
+
+      // Immediately refresh ranked applicants list and employer dashboard data
+      try {
+        await refetchRanked();
+      } catch (e) {
+        console.warn("Failed to refetch ranked applicants:", e);
+      }
 
       try {
         const statsResponse = await employerAPI.getStats();
@@ -698,7 +731,7 @@ export default function EmployerDashboard() {
               </div>
             )}
 
-            {/* -------- APPLICANTS TAB -------- */}
+            {/* -------- APPLICANTS TAB (using modular components) -------- */}
             {activeTab === "applicants" && (
               <div className="employer-tab-panel applicants-layout">
                 <aside className="job-list-panel">
@@ -722,43 +755,25 @@ export default function EmployerDashboard() {
 
                 <section className="applicants-panel">
                   <div className="panel-header-row">
-                    <h2>{selectedJob ? `${selectedJob.title} Applicants` : "Applicants"}</h2>
+                    <h2>
+                      {selectedJob ? `${selectedJob.title} Applicants` : "Applicants"}
+                    </h2>
+                    {selectedJob && (
+                      <span className="applicant-count-badge">
+                        {rankedApplicants.length} applicants
+                      </span>
+                    )}
                   </div>
 
                   {!selectedJobId ? (
                     <p className="empty-muted">Select a job to view applicants.</p>
-                  ) : !selectedJobApplicants.length ? (
-                    <p className="empty-muted">No applicants yet for this job.</p>
                   ) : (
-                    <div className="applicant-list">
-                      {selectedJobApplicants.map((application) => (
-                        <article key={application._id} className="applicant-row">
-                          <span className="applicant-avatar">
-                            {(application.applicant?.name || "U").trim().charAt(0).toUpperCase()}
-                          </span>
-                          <div className="applicant-info">
-                            <strong>{application.applicant?.name || "Unknown"}</strong>
-                            <p>{application.applicant?.email || "No email"}</p>
-                          </div>
-                          <div className="applicant-date">{formatDate(application.createdAt || application.appliedAt)}</div>
-                          <span className={`status-pill ${statusClass(application.status)}`}>
-                            {normalizeApplicationStatus(application.status)}
-                          </span>
-                          <div className="applicant-row-actions">
-                            <button type="button" className="text-action-btn" onClick={() => openApplicantDrawer(application)}>
-                              View Details
-                            </button>
-                            <button
-                              type="button"
-                              className="text-action-btn"
-                              onClick={() => handleMessageApplicant(application.applicant?._id)}
-                            >
-                              Message Applicant
-                            </button>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
+                    <RankedApplicantsTable
+                      applicants={rankedApplicants}
+                      onViewApplicant={openApplicantDrawer}
+                      onMessageApplicant={handleMessageApplicant}
+                      loading={loadingRanked}
+                    />
                   )}
                 </section>
               </div>

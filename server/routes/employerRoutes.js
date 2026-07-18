@@ -9,6 +9,7 @@ const {
   getEmployerStats,
   getEmployerProfileStats,
 } = require("../controllers/employerController");
+const { getRankedApplicants } = require("../controllers/employerRecommendationController");
 const { verifyToken: protect, isEmployer, isVerifiedEmployer } = require("../middleware/auth");
 const {
   sanitizeRequestBody,
@@ -16,7 +17,7 @@ const {
   validateMongoId,
   validateRequest,
   validateJobPosting,
-  validateQualifications, // NEW
+  validateQualifications,
 } = require("../middleware/validation");
 const { detectMaliciousPayload } = require("../middleware/security");
 const rateLimit = require("express-rate-limit");
@@ -47,7 +48,7 @@ router.post("/jobs",
   sanitizeRequestBody, 
   detectMaliciousPayload, 
   validateJobPosting, 
-  validateQualifications, // NEW: validate qualifications array
+  validateQualifications,
   validateRequest, 
   createJob
 );
@@ -56,7 +57,7 @@ router.put("/jobs/:id",
   sanitizeRequestBody, 
   detectMaliciousPayload, 
   validateJobPosting, 
-  validateQualifications, // NEW: validate qualifications array
+  validateQualifications,
   validateRequest, 
   updateJob
 );
@@ -76,6 +77,13 @@ router.put("/applications/:applicationId/status",
   sanitizeRequestBody, 
   detectMaliciousPayload, 
   updateApplicationStatus
+);
+
+// --- Ranked applicants (semantic) ---
+router.get("/jobs/:jobId/applicants/ranked",
+  validateMongoId("jobId"),
+  sanitizeQueryParams,
+  getRankedApplicants
 );
 
 // Stats

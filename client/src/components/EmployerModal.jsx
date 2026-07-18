@@ -1,5 +1,5 @@
 import React from "react";
-import { FaStar, FaUsers, FaEnvelope, FaPhone, FaGlobe, FaMapMarkerAlt, FaBriefcase, FaRegClock } from "react-icons/fa";
+import { FaStar, FaUsers, FaEnvelope, FaPhone, FaGlobe, FaMapMarkerAlt, FaBriefcase, FaRegClock, FaTimes } from "react-icons/fa";
 import "../styles/EmployerModal.css";
 
 const formatAddress = (address) => {
@@ -21,10 +21,8 @@ export default function EmployerModal({ isOpen, onClose, employer }) {
   return (
     <div className="employer-modal-overlay" onClick={onClose}>
       <div className="employer-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="employer-modal-close" onClick={onClose}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+        <button className="employer-modal-close" onClick={onClose} type="button" aria-label="Close">
+          <FaTimes />
         </button>
 
         <div className="employer-modal-header">

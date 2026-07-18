@@ -1073,3 +1073,180 @@
     font-size: 16px;
   }
 }
+
+/* ============================================ */
+/* MATCH BADGE - CIRCULAR */
+/* ============================================ */
+
+.match-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  transition: all 0.3s ease;
+}
+
+.match-high {
+  background: #2e7d32;
+}
+
+.match-medium {
+  background: #f5a623;
+}
+
+.match-low {
+  background: #dc2626;
+}
+
+.job-card-header .match-badge {
+  margin-left: auto;
+}
+
+/* ============================================ */
+/* JOB SEARCH FILTERS – redesigned horizontal */
+/* ============================================ */
+
+.job-search-filters {
+  background: #ffffff;
+  padding: 1.25rem 1.5rem;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 1.5rem;
+}
+
+.filter-row {
+  display: flex;
+  flex: 1 1 200px;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.filter-input,
+.filter-select {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #dce0e6;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #fafbfc;
+  transition: border 0.2s, box-shadow 0.2s;
+  min-width: 0;
+}
+
+.filter-input:focus,
+.filter-select:focus {
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+  outline: none;
+}
+
+.filter-input.salary {
+  max-width: 100px;
+}
+
+.salary-row {
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.salary-row span {
+  color: #7a8a9a;
+  font-weight: 500;
+}
+
+.filter-submit-btn {
+  padding: 0.5rem 1.5rem;
+  background: #2e7d32;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.filter-submit-btn:hover {
+  background: #1b5e20;
+  transform: translateY(-1px);
+}
+
+.filter-submit-btn:active {
+  transform: translateY(0);
+}
+
+/* mobile: stack everything */
+@media (max-width: 600px) {
+  .job-search-filters {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem;
+  }
+  .filter-row {
+    flex: 1 1 auto;
+  }
+  .filter-input.salary {
+    max-width: 100%;
+  }
+  .salary-row {
+    flex-wrap: wrap;
+  }
+  .filter-submit-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ============================================ */
+/* INFO MESSAGE (No skills) */
+/* ============================================ */
+
+.info-message {
+  background: #fff8e1;
+  border: 1px solid #f5a623;
+  border-radius: 12px;
+  padding: 1.2rem 1.5rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.info-message p {
+  margin: 0;
+  color: #6d4c00;
+  font-size: 0.95rem;
+  flex: 1;
+}
+
+.info-message .btn-profile-edit {
+  background: #f5a623;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.info-message .btn-profile-edit:hover {
+  background: #d4920a;
+}
