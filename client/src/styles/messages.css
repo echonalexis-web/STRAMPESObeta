@@ -1,9 +1,8 @@
 /* Messages Page - STRAM PESO Design */
 .messages-page {
-  margin-top: 84px;
   height: calc(100vh - 84px);
   background: #f5f7f8;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: var(--sans);
 }
 
 .messages-container {

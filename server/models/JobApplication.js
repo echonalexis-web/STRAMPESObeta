@@ -5,6 +5,7 @@ const jobApplicationSchema = new mongoose.Schema({
   vacancy: { type: mongoose.Schema.Types.ObjectId, ref: "JobVacancy", required: true },
   resume: { type: String, required: false },
   coverLetter: { type: String, default: "", required: false },
+  coverLetterFile: { type: String, default: "", required: false },
   status: {
     type: String,
     enum: [

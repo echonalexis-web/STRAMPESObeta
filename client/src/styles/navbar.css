@@ -9,9 +9,172 @@
   left: 0;
   width: 100%;
   z-index: 1000;
-  border-bottom: 5px solid #f0e809;
   min-height: 75px;
   transition: all 0.3s ease-in-out;
+}
+
+body.app-with-sidebar {
+  padding-left: 280px;
+}
+
+/* ============================================ */
+/* AUTH SIDEBAR — LOGGED IN ONLY                */
+/* ============================================ */
+.navbar--auth-sidebar {
+  width: 280px;
+  height: 100vh;
+  border-bottom: none;
+  padding: 1.25rem 0.85rem 1.25rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow-y: auto;
+  /* Toned-down institutional green gradient */
+  background: linear-gradient(180deg, #15803d 0%, #166534 50%, #14532d 100%);
+  position: fixed;
+  left: 0;
+  top: 0;
+}
+
+/* Subtle noise texture overlay for depth */
+.navbar--auth-sidebar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+.auth-sidebar-top,
+.auth-sidebar-profile,
+.auth-sidebar-nav,
+.auth-sidebar-logout {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-sidebar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.auth-sidebar-logo {
+  margin-left: 0;
+}
+
+/* Profile area — more breathing room + avatar */
+.auth-sidebar-profile {
+  margin-bottom: 1.5rem;
+}
+
+.auth-sidebar-profile .user-pill-button {
+  width: 100%;
+  padding: 0;
+}
+
+.auth-sidebar-profile .user-name {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0.65rem 0.9rem;
+  gap: 0.65rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all 0.2s ease;
+}
+
+.auth-sidebar-profile .user-name:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Avatar circle with initials */
+.user-avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Navigation links */
+.auth-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.auth-sidebar-nav a,
+.auth-sidebar-nav button {
+  color: #ffffff;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.72rem 0.86rem;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  text-align: left;
+  position: relative;
+}
+
+/* Hover sweep with subtle yellow glow */
+.auth-sidebar-nav a:hover,
+.auth-sidebar-nav button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(2px);
+  box-shadow: 0 0 12px rgba(234, 179, 8, 0.25);
+}
+
+/* Active state — subtle yellow glow */
+.auth-sidebar-nav a.is-active {
+  background: rgba(130, 245, 35, 0.108);
+  box-shadow: 0 0 16px rgba(2, 147, 28, 0.3);
+  border-radius: 10px;
+}
+
+.auth-sidebar-nav .messages-link {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding-right: 2rem;
+}
+
+.auth-sidebar-nav .user-unread-badge {
+  right: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.auth-sidebar-logout {
+  margin-top: auto;
+  width: 100%;
+  padding: 0.72rem 0.86rem;
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  position: relative;
+  z-index: 1;
+}
+
+.navbar--auth-sidebar .mobile-menu-toggle--auth {
+  display: none;
 }
 
 /* Ensure the background image stays visible on all devices */
@@ -32,7 +195,6 @@
 }
 
 /* Large screens (desktops) */
-
 @media (min-width: 1200px) {
   .navbar {
     background-size: cover;
@@ -205,18 +367,12 @@
   top: 0;
   right: 0;
   height: 100vh;
-
-  /* Expanded width */
   width: min(85vw, 550px);
-
   background: #165f2f;
   border-left: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: -10px 0 24px rgba(0, 0, 0, 0.3);
-
   padding: 88px 1.25rem 1rem;
-
   overflow-y: auto;
-
   animation: slideMenuIn 0.3s ease;
 }
 
@@ -293,6 +449,12 @@
 .mobile-menu-links .user-name {
   width: 100%;
   justify-content: flex-start;
+}
+
+/* Mobile active state — gold accent */
+.mobile-menu-links a.is-active {
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 4px 0 0 0 #eab308;
 }
 
 /* Navigation Links */
@@ -649,6 +811,37 @@
 
 /* Tablet Responsive */
 @media (max-width: 768px) {
+  body.app-with-sidebar {
+    padding-left: 0;
+    padding-top: 74px;
+  }
+
+  .navbar--auth-sidebar {
+    width: 100%;
+    height: 74px;
+    border-right: none;
+    border-bottom: 3px solid #f0e809;
+    padding: 0.5rem 0.6rem 0.5rem 0.35rem;
+    overflow: visible;
+    background: url('../assets/images/navbar-bg.png') center center no-repeat;
+    background-size: cover;
+  }
+
+  /* Remove sidebar texture on mobile top-bar */
+  .navbar--auth-sidebar::after {
+    display: none;
+  }
+
+  .auth-sidebar-profile,
+  .auth-sidebar-nav,
+  .auth-sidebar-logout {
+    display: none;
+  }
+
+  .navbar--auth-sidebar .mobile-menu-toggle--auth {
+    display: inline-flex;
+  }
+
   .nav-logo-icon {
     width: 40px;
     height: 40px;
@@ -683,6 +876,12 @@
   /* Hide dropdown on mobile (handled by mobile menu instead) */
   .register-dropdown {
     display: none;
+  }
+}
+
+@media (min-width: 769px) {
+  body.app-with-sidebar {
+    padding-top: 0;
   }
 }
 
@@ -823,3 +1022,166 @@
   }
 }
 
+/* ============================================ */
+/* SUBMENU STYLES - DESKTOP SIDEBAR            */
+/* ============================================ */
+
+.nav-submenu-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.nav-submenu-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #ffffff;
+  background: transparent;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.72rem 0.86rem;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+}
+
+.nav-submenu-toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(2px);
+  box-shadow: 0 0 12px rgba(234, 179, 8, 0.25);
+}
+
+/* NOTE: No is-active styling on parent toggle to avoid double-highlight */
+
+.submenu-chevron {
+  font-size: 0.7rem;
+  transition: transform 0.3s ease;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.submenu-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+/* ===== SPACING FIX: Submenu container and links ===== */
+.nav-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;              /* added */
+  margin-top: 6px;        /* increased from 4px */
+  margin-left: 0.86rem;
+  padding-left: 0;
+  border-left: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+.nav-submenu a {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  padding: 0.6rem 1rem 0.6rem 1.2rem;  /* more padding */
+  margin-bottom: 2px;       /* added */
+  border-radius: 0 8px 8px 0;
+  transition: all 0.2s ease;
+  text-align: left;
+  position: relative;
+  display: block;
+  width: calc(100% - 2px);
+  margin-left: 2px;
+}
+
+.nav-submenu a:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  transform: translateX(2px);
+}
+
+.nav-submenu a.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: inset 4px 0 0 0 rgba(234, 179, 8, 0.6);
+}
+
+/* ============================================ */
+/* SUBMENU STYLES - MOBILE                      */
+/* ============================================ */
+
+.mobile-nav-submenu-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.mobile-nav-submenu-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #ffffff;
+  background: transparent;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  padding: 0.9rem 1rem;
+  font-size: 1rem;
+  border-radius: 10px;
+  text-align: left;
+  position: relative;
+}
+
+.mobile-nav-submenu-toggle:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* ===== SPACING FIX: Mobile submenu container and links ===== */
+.mobile-nav-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;              /* added */
+  margin-top: 6px;        /* increased */
+  margin-left: 1rem;
+  padding-left: 0;
+  border-left: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+.mobile-nav-submenu a {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  width: calc(100% - 2px);
+  padding: 0.7rem 1rem 0.7rem 1.2rem;  /* more padding */
+  font-size: 0.95rem;
+  border-radius: 0 8px 8px 0;
+  text-align: left;
+  position: relative;
+  display: block;
+  margin-left: 2px;
+  margin-bottom: 2px;      /* added */
+}
+
+.mobile-nav-submenu a:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.mobile-nav-submenu a.is-active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: inset 4px 0 0 0 #eab308;
+}

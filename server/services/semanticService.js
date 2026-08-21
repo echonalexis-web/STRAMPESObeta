@@ -132,7 +132,7 @@ function experienceScore(job, applicant) {
 }
 
 // ---------- Unified scoring ----------
-function computeUnifiedScore(job, applicant) {
+function computeUnifiedScore(job, applicant, industryScore = 0) {
   const skillScore = skillCoverageScore(job, getApplicantSkills(applicant));
   const eduScore = educationScore(job, applicant);
   const expScore = experienceScore(job, applicant);
@@ -142,16 +142,20 @@ function computeUnifiedScore(job, applicant) {
   if (eduScore !== null) scores.push(eduScore);
   if (expScore !== null) scores.push(expScore);
 
-  if (scores.length === 0) return null;
+  if (scores.length === 0) {
+    // If no skill/edu/exp data, use industry score as fallback
+    return industryScore > 0 ? industryScore : null;
+  }
 
-  // Weighted average: skills 50%, education 25%, experience 25%
+  // Weighted average: skills 40%, education 20%, experience 20%, industry 20%
   let weightedSum = 0;
   let weightSum = 0;
-  if (skillScore !== null) { weightedSum += skillScore * 0.5; weightSum += 0.5; }
-  if (eduScore !== null) { weightedSum += eduScore * 0.25; weightSum += 0.25; }
-  if (expScore !== null) { weightedSum += expScore * 0.25; weightSum += 0.25; }
+  if (skillScore !== null) { weightedSum += skillScore * 0.4; weightSum += 0.4; }
+  if (eduScore !== null) { weightedSum += eduScore * 0.2; weightSum += 0.2; }
+  if (expScore !== null) { weightedSum += expScore * 0.2; weightSum += 0.2; }
+  if (industryScore > 0) { weightedSum += industryScore * 0.2; weightSum += 0.2; }
 
-  return weightedSum / weightSum;
+  return weightedSum / (weightSum || 1);
 }
 
 // ---------- Unified ranker (used by both endpoints) ----------
@@ -188,7 +192,7 @@ function rankItemsByUnifiedScore(job, items, options = {}) {
 
   // Use structured scoring
   const ranked = items.map(item => {
-    const score = computeUnifiedScore(job, item);
+    const score = computeUnifiedScore(job, item, 0);
     return { ...item, relevanceScore: score !== null ? parseFloat(score.toFixed(4)) : 0 };
   });
   ranked.sort((a, b) => b.relevanceScore - a.relevanceScore);
@@ -197,21 +201,36 @@ function rankItemsByUnifiedScore(job, items, options = {}) {
 
 // ---------- For jobs ranking (Phase 1) ----------
 function rankJobsBySkills(jobs, skills, options = {}) {
-  const { limit = 50, skip = 0 } = options;
+  const { limit = 50, skip = 0, preferredIndustries = [], industryPreferenceLevel = 'flexible' } = options;
 
-  if (!jobs.length || !skills || !skills.length) {
+  if (!jobs.length) {
     return jobs.map(job => ({ ...job, relevanceScore: 0 }));
   }
 
   // Build a fake applicant object with the user's skills
   const fakeApplicant = {
-    user: { skills: skills },
-    profile: { skills: skills },
+    user: { skills: skills && skills.length > 0 ? skills : [] },
+    profile: { skills: skills && skills.length > 0 ? skills : [] },
   };
 
-  // Score each job using the unified scoring function
+  // Score each job using the unified scoring function with industry weighting
   const ranked = jobs.map(job => {
-    const score = computeUnifiedScore(job, fakeApplicant);
+    // Industry scoring: 1.0 if matches preferred, 0.5 if no preference, 0 if strict mode and doesn't match
+    let industryScore = 0;
+    if (preferredIndustries && preferredIndustries.length > 0) {
+      const isPreferred = preferredIndustries.includes(job.industry);
+      if (isPreferred) {
+        industryScore = 1.0; // Perfect match
+      } else if (industryPreferenceLevel === 'strict') {
+        industryScore = 0; // Non-matching in strict mode gets penalized
+      } else {
+        industryScore = 0.2; // Slight boost for non-matching in flexible mode
+      }
+    } else if (job.industry) {
+      industryScore = 0.5; // Default boost if no preferences set
+    }
+
+    const score = computeUnifiedScore(job, fakeApplicant, industryScore);
     return {
       ...job,
       relevanceScore: score !== null ? parseFloat(score.toFixed(4)) : 0,

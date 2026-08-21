@@ -24,8 +24,11 @@ const getMatchClass = (score) => {
   return 'match-low';
 };
 
-export default function Modal({ isOpen, onClose, job, onMessageEmployer }) {
+export default function Modal({ isOpen, onClose, job, onMessageEmployer, applications = [], onViewApplication }) {
   if (!isOpen || !job) return null;
+
+  const isAlreadyApplied = applications.some((app) => String(app.vacancy?._id) === String(job._id));
+  const application = applications.find((app) => String(app.vacancy?._id) === String(job._id));
 
   const formatDate = (date) => {
     if (!date) return "Not specified";
@@ -38,6 +41,17 @@ export default function Modal({ isOpen, onClose, job, onMessageEmployer }) {
     } else {
       console.warn("onMessageEmployer prop is missing – please pass it to Modal.");
     }
+  };
+
+  const handleViewApplication = () => {
+    if (onViewApplication && application) {
+      onViewApplication(application);
+      onClose();
+    }
+  };
+
+  const handleApplyClick = () => {
+    window.location.href = `/jobs/${job._id}`;
   };
 
   return (
@@ -80,7 +94,13 @@ export default function Modal({ isOpen, onClose, job, onMessageEmployer }) {
         )}
 
         <div className="job-dialog-footer">
-          <button className="job-dialog-apply-btn" onClick={() => window.location.href = `/jobs/${job._id}`}>Apply Now</button>
+          {isAlreadyApplied ? (
+            <button className="job-dialog-apply-btn job-dialog-apply-btn--applied" onClick={handleViewApplication}>
+              View Application
+            </button>
+          ) : (
+            <button className="job-dialog-apply-btn" onClick={handleApplyClick}>Apply Now</button>
+          )}
           <button className="job-dialog-message-btn" onClick={handleMessageClick}>
             <FaEnvelope /> Message Employer
           </button>

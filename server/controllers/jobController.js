@@ -5,6 +5,7 @@ const Message = require("../models/Message");
 const { ensureConversationBetweenUsers } = require("./messageController");
 const { getHomepageJobsPayload, getApplicationCountMap } = require("../utils/jobDisplay");
 const EmployerProfile = require("../models/EmployerProfile");
+const { createNotificationForUser } = require("../services/notificationService");
 const fs = require("fs");
 const path = require("path");
 
@@ -14,6 +15,26 @@ const logger = {
   error: (...args) => console.error("[ERROR]", ...args),
   warn: (...args) => console.warn("[WARN]", ...args),
   debug: (...args) => console.debug("[DEBUG]", ...args),
+};
+
+// Helper to check if a job is past its deadline
+const isJobPastDeadline = (job) => {
+  if (!job.applicationDeadline) return false;
+  return new Date() > new Date(job.applicationDeadline);
+};
+
+// Helper to check if a job should be visible to jobseekers (not closed and not past deadline)
+const isJobVisibleToJobseekers = (job) => {
+  // Job must be active and not closed
+  if (job.status === "closed") return false;
+  
+  // Job must not be past its deadline
+  if (isJobPastDeadline(job)) return false;
+  
+  // Job must not be archived
+  if (job.archived) return false;
+  
+  return true;
 };
 
 // Helper to format qualifications for response
@@ -83,12 +104,28 @@ exports.createJob = async (req, res) => {
 
 // ---------------------------------------------------------------------
 // Get all active jobs (public) – with employer profiles
+// Filters out closed jobs and jobs past their deadline
+// Also filters out jobs where the user has applied and been hired
 // ---------------------------------------------------------------------
 exports.getJobs = async (req, res) => {
   try {
-    const jobs = await JobVacancy.find({ isActive: true })
+    let jobs = await JobVacancy.find({ isActive: true })
       .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone")
       .sort({ createdAt: -1 });
+
+    // Filter out closed, expired, and archived jobs
+    jobs = jobs.filter(job => isJobVisibleToJobseekers(job));
+
+    // If user is logged in as a jobseeker, filter out jobs where they've been hired
+    if (req.user && req.user.role === "resident") {
+      const userHiredJobs = await JobApplication.find({
+        applicant: req.user.id,
+        status: { $in: ["hired", "Accepted"] }
+      }).select("vacancy");
+      
+      const hiredJobIds = new Set(userHiredJobs.map(app => String(app.vacancy)));
+      jobs = jobs.filter(job => !hiredJobIds.has(String(job._id)));
+    }
 
     // Fetch employer profiles
     const employerIds = jobs.map(job => job.employer?._id).filter(Boolean);
@@ -119,12 +156,28 @@ exports.getJobs = async (req, res) => {
 
 // ---------------------------------------------------------------------
 // Get featured jobs for homepage (with employer profiles)
+// Filters out closed jobs, jobs past deadline, and archived jobs
+// Also filters out jobs where the user has applied and been hired
 // ---------------------------------------------------------------------
 exports.getHomepageJobs = async (req, res) => {
   try {
-    const jobs = await JobVacancy.find({ isActive: true, status: { $ne: "closed" } })
+    let jobs = await JobVacancy.find({ isActive: true, status: { $ne: "closed" } })
       .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone")
       .sort({ createdAt: -1 });
+
+    // Filter out closed, expired, and archived jobs
+    jobs = jobs.filter(job => isJobVisibleToJobseekers(job));
+
+    // If user is logged in as a jobseeker, filter out jobs where they've been hired
+    if (req.user && req.user.role === "resident") {
+      const userHiredJobs = await JobApplication.find({
+        applicant: req.user.id,
+        status: { $in: ["hired", "Accepted"] }
+      }).select("vacancy");
+      
+      const hiredJobIds = new Set(userHiredJobs.map(app => String(app.vacancy)));
+      jobs = jobs.filter(job => !hiredJobIds.has(String(job._id)));
+    }
 
     // Attach employer profiles
     const employerIds = jobs.map(job => job.employer?._id).filter(Boolean);
@@ -275,16 +328,20 @@ exports.deleteJob = async (req, res) => {
 // Apply to a job (resident)
 // ---------------------------------------------------------------------
 exports.applyToJob = async (req, res) => {
-  let uploadedFile = req.file;
+  const resumeUpload = Array.isArray(req.files?.resume) ? req.files.resume[0] : req.file;
+  const coverLetterUpload = Array.isArray(req.files?.coverLetterFile) ? req.files.coverLetterFile[0] : null;
+  const uploadedFiles = [resumeUpload, coverLetterUpload].filter(Boolean);
   const session = await JobApplication.startSession();
 
   try {
     const job = await JobVacancy.findById(req.params.id);
     if (!job) {
-      if (uploadedFile && fs.existsSync(uploadedFile.path)) {
-        fs.unlinkSync(uploadedFile.path);
-        logger.info(`Cleaned up orphan file: ${uploadedFile.path}`);
-      }
+      uploadedFiles.forEach((file) => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+          logger.info(`Cleaned up orphan file: ${file.path}`);
+        }
+      });
       return res.status(404).json({ message: "Job not found" });
     }
 
@@ -296,35 +353,68 @@ exports.applyToJob = async (req, res) => {
     }).session(session);
 
     if (existingApplication) {
-      if (uploadedFile && fs.existsSync(uploadedFile.path)) {
-        fs.unlinkSync(uploadedFile.path);
-      }
+      uploadedFiles.forEach((file) => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
       await session.abortTransaction();
       session.endSession();
       return res.status(400).json({ message: "You have already applied to this job" });
     }
 
+    if (!resumeUpload) {
+      uploadedFiles.forEach((file) => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: "Please upload your resume before applying." });
+    }
+
     const application = await JobApplication.create([{
       applicant: req.user.id,
       vacancy: job._id,
-      resume: req.file ? req.file.path : undefined,
+      resume: resumeUpload ? resumeUpload.path : undefined,
       coverLetter: req.body.coverLetter || "",
+      coverLetterFile: coverLetterUpload ? coverLetterUpload.path : "",
     }], { session });
 
     await session.commitTransaction();
     session.endSession();
 
+    const io = req.app.get("io");
+    await createNotificationForUser({
+      recipientId: job.employer,
+      actorId: req.user.id,
+      type: "job_application",
+      title: "New job application",
+      message: `A candidate applied for ${job.title}.`,
+      relatedEntityType: "application",
+      relatedEntityId: application[0]._id,
+      actionUrl: "/employer",
+      metadata: {
+        jobId: String(job._id),
+        applicationId: String(application[0]._id),
+      },
+      io,
+    });
+
     logger.info(`Application submitted: ${application[0]._id} for job ${job._id} by user ${req.user.id}`);
     res.json({ message: "Application submitted successfully", application: application[0] });
   } catch (error) {
-    if (uploadedFile && fs.existsSync(uploadedFile.path)) {
-      try {
-        fs.unlinkSync(uploadedFile.path);
-        logger.info(`Cleaned up orphan file on error: ${uploadedFile.path}`);
-      } catch (unlinkError) {
-        logger.error("Failed to delete uploaded file:", unlinkError);
+    uploadedFiles.forEach((file) => {
+      if (fs.existsSync(file.path)) {
+        try {
+          fs.unlinkSync(file.path);
+          logger.info(`Cleaned up orphan file on error: ${file.path}`);
+        } catch (unlinkError) {
+          logger.error("Failed to delete uploaded file:", unlinkError);
+        }
       }
-    }
+    });
 
     await session.abortTransaction();
     session.endSession();
@@ -467,11 +557,10 @@ exports.updateMyApplication = async (req, res) => {
       return res.status(403).json({ message: "You can only update your own applications" });
     }
 
-    if (typeof req.body.coverLetter === "string") {
-      application.coverLetter = req.body.coverLetter;
-    }
+    const resumeUpload = Array.isArray(req.files?.resume) ? req.files.resume[0] : req.file;
+    const coverLetterUpload = Array.isArray(req.files?.coverLetterFile) ? req.files.coverLetterFile[0] : null;
 
-    if (req.file) {
+    if (resumeUpload) {
       if (application.resume && fs.existsSync(application.resume)) {
         try {
           fs.unlinkSync(application.resume);
@@ -479,7 +568,19 @@ exports.updateMyApplication = async (req, res) => {
           logger.error("Failed to delete old resume:", unlinkError);
         }
       }
-      application.resume = req.file.path;
+      application.resume = resumeUpload.path;
+    }
+
+    if (coverLetterUpload) {
+      if (application.coverLetterFile && fs.existsSync(application.coverLetterFile)) {
+        try {
+          fs.unlinkSync(application.coverLetterFile);
+        } catch (unlinkError) {
+          logger.error("Failed to delete old cover letter file:", unlinkError);
+        }
+      }
+      application.coverLetterFile = coverLetterUpload.path;
+      application.coverLetter = "";
     }
 
     await application.save();
@@ -563,16 +664,128 @@ exports.deleteMyApplication = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------
+// Close a job (employer or admin) - marks job as closed
+// If deadline is past, this happens automatically
+// If no deadline, employer can manually close it
+// ---------------------------------------------------------------------
+exports.closeJob = async (req, res) => {
+  try {
+    const job = await JobVacancy.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    if (job.employer.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "You can only close your own job postings" });
+    }
+
+    // Update job status to closed
+    job.status = "closed";
+    job.closedAt = new Date();
+    await job.save();
+
+    logger.info(`Job closed: ${req.params.id} by user ${req.user.id}`);
+    res.json({ message: "Job closed successfully", job: job.toObject() });
+  } catch (error) {
+    logger.error("Close job error:", { jobId: req.params.id, error: error.message });
+    res.status(500).json({ message: "Failed to close job" });
+  }
+};
+
+// ---------------------------------------------------------------------
+// Archive a job (employer or admin) - marks closed job as archived
+// Archived jobs don't appear in employer's active list but are stored
+// ---------------------------------------------------------------------
+exports.archiveJob = async (req, res) => {
+  try {
+    const job = await JobVacancy.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    if (job.employer.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "You can only archive your own job postings" });
+    }
+
+    // Only allow archiving if job is closed
+    if (job.status !== "closed") {
+      return res.status(400).json({ message: "Only closed jobs can be archived" });
+    }
+
+    // Mark as archived
+    job.archived = true;
+    await job.save();
+
+    logger.info(`Job archived: ${req.params.id} by user ${req.user.id}`);
+    res.json({ message: "Job archived successfully", job: job.toObject() });
+  } catch (error) {
+    logger.error("Archive job error:", { jobId: req.params.id, error: error.message });
+    res.status(500).json({ message: "Failed to archive job" });
+  }
+};
+
+// ---------------------------------------------------------------------
+// Reopen a closed job (employer or admin)
+// ---------------------------------------------------------------------
+exports.reopenJob = async (req, res) => {
+  try {
+    const job = await JobVacancy.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    if (job.employer.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "You can only reopen your own job postings" });
+    }
+
+    // Only allow reopening if job is closed
+    if (job.status !== "closed") {
+      return res.status(400).json({ message: "Only closed jobs can be reopened" });
+    }
+
+    // Update job status back to active
+    job.status = "active";
+    job.closedAt = null;
+    job.archived = false;
+    await job.save();
+
+    logger.info(`Job reopened: ${req.params.id} by user ${req.user.id}`);
+    res.json({ message: "Job reopened successfully", job: job.toObject() });
+  } catch (error) {
+    logger.error("Reopen job error:", { jobId: req.params.id, error: error.message });
+    res.status(500).json({ message: "Failed to reopen job" });
+  }
+};
+
+// ---------------------------------------------------------------------
 // Get jobs for the logged-in employer (employer)
+// Returns ALL jobs including closed and archived (for employer management)
+// Automatically closes jobs past their deadline
+// Includes applicant count
 // ---------------------------------------------------------------------
 exports.getEmployerJobs = async (req, res) => {
   try {
     const jobs = await JobVacancy.find({ employer: req.user.id }).sort({ createdAt: -1 });
-    const jobsWithFormatted = jobs.map(job => {
+    
+    // Automatically close jobs that are past their deadline
+    const jobsToUpdate = jobs.filter(job => 
+      job.status === "active" && isJobPastDeadline(job)
+    );
+    
+    for (const job of jobsToUpdate) {
+      job.status = "closed";
+      job.closedAt = new Date();
+      await job.save();
+      logger.info(`Auto-closed overdue job: ${job._id}`);
+    }
+    
+    // Re-fetch after auto-closing
+    const updatedJobs = await JobVacancy.find({ employer: req.user.id }).sort({ createdAt: -1 });
+    
+    // Get applicant counts
+    const countMap = await getApplicationCountMap(updatedJobs.map(job => job._id));
+    
+    const jobsWithFormatted = updatedJobs.map(job => {
       const obj = job.toObject();
       obj.qualifications = formatQualifications(obj.qualifications);
+      obj.applicationCount = Number(countMap[String(job._id)] || 0);
       return obj;
     });
+    
     res.json(jobsWithFormatted);
   } catch (error) {
     logger.error("Get employer jobs error:", { userId: req.user.id, error: error.message });

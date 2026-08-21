@@ -2,7 +2,7 @@
 .job-detail-page {
   min-height: 100vh;
   background: #f5f7f6;
-  padding-top: 84px;
+  padding-top: 0px;
 }
 
 .job-hero {
@@ -140,6 +140,20 @@
   color: #374151;
 }
 
+.job-link-button {
+  border: none;
+  background: none;
+  color: #166534;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.job-link-button:hover {
+  color: #14532d;
+}
+
 .job-apply-column {
   position: relative;
 }
@@ -159,6 +173,45 @@
   margin: 0 0 1rem;
   color: #1f2937;
   font-size: 1.2rem;
+}
+
+.admin-actions-card {
+  gap: 0.9rem;
+}
+
+.apply-card-note {
+  margin: 0;
+  color: #5b6775;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.admin-job-actions {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.btn-admin-action {
+  border: 1px solid #1a5c2a;
+  background: #1a5c2a;
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 0.72rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-admin-action:hover {
+  background: #124621;
+}
+
+.btn-admin-action.danger {
+  border-color: #b91c1c;
+  background: #b91c1c;
+}
+
+.btn-admin-action.danger:hover {
+  background: #991b1b;
 }
 
 .apply-form {

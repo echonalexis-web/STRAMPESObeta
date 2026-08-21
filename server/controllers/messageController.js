@@ -1,6 +1,7 @@
 const Conversation = require("../models/Conversation");
 const Message = require("../models/Message");
 const User = require("../models/User");
+const { createNotificationForUser } = require("../services/notificationService");
 
 const getUserId = (req) => req.user._id || req.user.id;
 const ACTIVE_USER_FILTER = { $ne: false };
@@ -215,24 +216,22 @@ exports.getMessages = async (req, res) => {
   }
 };
 
+// ===== FIXED: sendMessage with broadcast only to other participants =====
 exports.sendMessage = async (req, res) => {
   try {
     const userId = getUserId(req);
     const conversationId = req.params.conversationId || req.body.conversationId;
     const { content } = req.body;
 
-    // Validate required fields
     if (!conversationId || !content || !String(content).trim()) {
       return res.status(400).json({ message: "conversationId and content are required" });
     }
 
-    // Find conversation
     const conversation = await Conversation.findById(conversationId).select("participants");
     if (!conversation) {
       return res.status(404).json({ message: "Conversation not found" });
     }
 
-    // Check if sender is a participant
     const isParticipant = conversation.participants.some(
       (participant) => String(participant) === String(userId)
     );
@@ -248,14 +247,12 @@ exports.sendMessage = async (req, res) => {
       return res.status(400).json({ message: "Conversation has no valid receiver" });
     }
 
-    // Create and save message
     const message = await Message.create({
       conversationId,
       sender: userId,
       content: String(content).trim(),
     });
 
-    // Update conversation's last message
     await Conversation.findByIdAndUpdate(conversationId, {
       $set: {
         lastMessage: message.content,
@@ -263,16 +260,39 @@ exports.sendMessage = async (req, res) => {
       },
     });
 
-    // Populate sender info for response
     const populatedMessage = await Message.findById(message._id).populate("sender", "name role");
 
-    // Broadcast via Socket.IO to the conversation room
+    // Broadcast only to the other participant (not the sender)
     const io = req.app.get("io");
-    if (io) {
-      io.to(String(conversationId)).emit("receive_message", {
+    if (io && otherParticipant) {
+      io.to(String(otherParticipant)).emit("receive_message", {
         ...populatedMessage.toObject(),
         conversationId: conversationId,
       });
+    }
+
+    // Create notification for the other participant
+    if (otherParticipant) {
+      try {
+        const { createNotificationForUser } = require("../services/notificationService");
+        await createNotificationForUser({
+          recipientId: otherParticipant,
+          actorId: userId,
+          type: "message",
+          title: "New message",
+          message: String(content).trim().slice(0, 120),
+          relatedEntityType: "conversation",
+          relatedEntityId: conversationId,
+          actionUrl: "/messages",
+          metadata: {
+            conversationId: String(conversationId),
+            messageId: String(message._id),
+          },
+          io,
+        });
+      } catch (notifErr) {
+        console.warn("⚠️ Failed to create notification for message:", notifErr.message);
+      }
     }
 
     return res.status(201).json(populatedMessage);

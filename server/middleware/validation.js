@@ -273,7 +273,7 @@ const validateUserRegistration = (req, res, next) => {
     errors.push('Password must be at least 8 characters');
   }
   
-  if (password && !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/.test(password)) {
+  if (password && !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])/.test(password)) {
     errors.push('Password must contain uppercase, lowercase, number, and special character');
   }
   

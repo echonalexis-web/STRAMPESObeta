@@ -13,7 +13,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import JobBoard from "./pages/JobBoard";
 import JobDetail from "./pages/JobDetail";
-import Profile from "./pages/Profile";
+import ProfilePage from "./pages/ProfilePage";
 import EditProfile from "./pages/EditProfile";
 import Onboarding from "./pages/Onboarding";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -21,6 +21,8 @@ import EmployerDashboard from "./pages/EmployerDashboard";
 import EmployeeRegister from "./pages/EmployeeRegister";
 import PostJob from "./pages/PostJob";
 import Messages from "./pages/Messages";
+import Notifications from "./pages/Notifications";
+import YourApplications from "./pages/YourApplications";
 
 import "./styles/style.css";
 
@@ -50,15 +52,22 @@ function AppRoutes() {
           <Route path="/register-employer" element={<EmployeeRegister />} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/profile/favorites" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/profile/followers" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/profile/edit" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute requiredRole="resident"><Dashboard /></ProtectedRoute>} />
+          <Route path="/applications" element={<ProtectedRoute requiredRole="resident"><YourApplications /></ProtectedRoute>} />
           <Route path="/jobs" element={<ProtectedRoute requiredRole="resident"><JobBoard /></ProtectedRoute>} />
           <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/post-job" element={<ProtectedRoute requiredRole="employer"><PostJob /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/users/:userId" element={<ProtectedRoute requiredRole="admin"><ProfilePage isAdminView={true} /></ProtectedRoute>} />
+          <Route path="/admin/users/:userId/*" element={<ProtectedRoute requiredRole="admin"><ProfilePage isAdminView={true} /></ProtectedRoute>} />
           <Route path="/employer" element={<ProtectedRoute requiredRole="employer"><EmployerDashboard /></ProtectedRoute>} />
           <Route path="/employer-dashboard" element={<ProtectedRoute requiredRole="employer"><EmployerDashboard /></ProtectedRoute>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </SocketProvider>

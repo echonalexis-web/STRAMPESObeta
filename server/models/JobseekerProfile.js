@@ -6,8 +6,6 @@ const jobseekerProfileSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      unique: true,
-      index: true,
     },
     // Personal Identity
     civilStatus: {
@@ -73,15 +71,41 @@ const jobseekerProfileSchema = new mongoose.Schema(
     },
     laidoffCountry: { type: String, default: null },
 
-    // ===== NEW: Skills for semantic matching =====
+    // ===== NEW: Skills & Preferences for semantic matching =====
     skills: {
       type: [String],
       default: [],
+    },
+    preferredIndustries: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: function (v) {
+          return v.length <= 10; // Prevent users from selecting unlimited industries
+        },
+        message: "You can select a maximum of 10 preferred industries.",
+      },
+    },
+    preferredJobTypes: {
+      type: [String],
+      enum: ["Full-time", "Part-time", "Contract", "Temporary", "Internship"],
+      default: [],
+    },
+    preferredWorkNature: {
+      type: [String],
+      enum: ["Remote", "Onsite", "Hybrid"],
+      default: [],
+    },
+    industrySelectionStep: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }
 );
 
 jobseekerProfileSchema.index({ userId: 1 }, { unique: true });
+// Performance index for querying by preferred industries
+jobseekerProfileSchema.index({ preferredIndustries: 1 });
 
 module.exports = mongoose.model("JobseekerProfile", jobseekerProfileSchema);

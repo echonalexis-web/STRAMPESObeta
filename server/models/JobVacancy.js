@@ -75,6 +75,16 @@ const jobVacancySchema = new mongoose.Schema({
     type: Number,
     default: null,
   },
+  
+  // NEW: Job archival and closure tracking
+  archived: {
+    type: Boolean,
+    default: false,
+  },
+  closedAt: {
+    type: Date,
+    default: null,
+  },
 });
 
 // Indexes for performance
@@ -84,5 +94,7 @@ jobVacancySchema.index({ industry: 1 });
 jobVacancySchema.index({ workNature: 1 });
 jobVacancySchema.index({ location: 1 });
 jobVacancySchema.index({ salaryMin: 1, salaryMax: 1 });
+jobVacancySchema.index({ archived: 1 });
+jobVacancySchema.index({ closedAt: 1 });
 
 module.exports = mongoose.model("JobVacancy", jobVacancySchema);

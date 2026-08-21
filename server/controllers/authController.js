@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const JobApplication = require("../models/JobApplication");
 const fs = require("fs");
 const path = require("path");
+const VALID_INDUSTRIES = require("../data/industries");
 
 // Helper to update or create role profile
 const upsertProfile = async (userId, role, data) => {
@@ -246,6 +247,23 @@ exports.updateProfile = async (req, res) => {
       commonUpdates.educationalAttainment = req.body.educationalAttainment || null;
       commonUpdates.availabilityStatus = req.body.availabilityStatus || null;
       // skills are handled in profileData below
+      
+      // Handle industry preferences
+      if (req.body.preferredIndustries) {
+        const industries = parseJSON(req.body.preferredIndustries, []);
+        if (Array.isArray(industries) && industries.length > 0) {
+          const validSelectedIndustries = industries.filter((ind) => VALID_INDUSTRIES.includes(ind));
+          if (validSelectedIndustries.length > 0) {
+            commonUpdates.preferredIndustries = validSelectedIndustries;
+          }
+        }
+      }
+      if (req.body.industryPreferenceLevel) {
+        const level = req.body.industryPreferenceLevel;
+        if (level === "strict" || level === "flexible") {
+          commonUpdates.industryPreferenceLevel = level;
+        }
+      }
     }
 
     // For employers, update company fields
@@ -305,6 +323,8 @@ exports.updateProfile = async (req, res) => {
         laidoffCountry: allFields.laidoffCountry || null,
         // ==== FIX: skills saved to jobseeker profile ====
         skills: parseJSON(allFields.skills, []),
+        // Industry preferences
+        preferredIndustries: parseJSON(allFields.preferredIndustries, []),
       };
     } else if (currentUser.role === "employer") {
       profileData = {

@@ -27,6 +27,15 @@ const userSchema = new mongoose.Schema(
     },
     desiredJobTitle: { type: String, default: null },
     skills: { type: [String], default: [] },
+    
+    // ===== NEW: Industry Preferences (Mirrored from JobseekerProfile for quick access) =====
+    preferredIndustries: { type: [String], default: [] },
+    industryPreferenceLevel: {
+      type: String,
+      enum: ["strict", "flexible"],
+      default: "flexible",
+    },
+
     workExperience: {
       type: String,
       enum: [

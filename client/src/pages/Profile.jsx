@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { authAPI, employerAPI } from "../services/api";
+import { authAPI, employerAPI, adminAPI } from "../services/api";
 import "../styles/profile.css";
 
 // Helper: format simple address (string) – displays as a single line
@@ -39,10 +39,11 @@ const formatUnemploymentReason = (value) => {
   return unemploymentReasonMap[value] || value;
 };
 
-export default function Profile() {
+export default function Profile({ isAdminView = false }) {
   const { user, setUser } = useContext(AuthContext);
+  const { userId } = useParams();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState(user);
+  const [profile, setProfile] = useState(isAdminView ? null : user);
   const [loading, setLoading] = useState(true);
   const [employerStats, setEmployerStats] = useState({
     activeJobs: 0,
@@ -52,6 +53,7 @@ export default function Profile() {
 
   const isEmployer = profile?.role === "employer";
   const isAdmin = profile?.role === "admin";
+  const isReadOnly = isAdminView;
 
   const fallback = (value) => {
     if (!value) return <span className="profile-missing">Not provided</span>;
@@ -61,10 +63,20 @@ export default function Profile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const { data } = await authAPI.getProfile();
-        // Backend returns { user, profile }
-        const userData = data.user || {};
-        const profileData = data.profile || {};
+        let userData = {};
+        let profileData = {};
+        let statsData = null;
+
+        if (isAdminView && userId) {
+          const { data } = await adminAPI.getUserById(userId);
+          userData = data.user || {};
+          profileData = data.profile || {};
+          statsData = data.stats || null;
+        } else {
+          const { data } = await authAPI.getProfile();
+          userData = data.user || {};
+          profileData = data.profile || {};
+        }
 
         // Start with userData (this has the string businessAddress)
         const mergedProfile = { ...userData };
@@ -79,19 +91,35 @@ export default function Profile() {
         Object.assign(mergedProfile, restProfile);
 
         setProfile(mergedProfile);
-        setUser(mergedProfile);
+        if (!isAdminView) {
+          setUser(mergedProfile);
+        }
 
         if (userData?.role === "employer") {
-          const { data: statsData } = await employerAPI.getProfileStats();
+          if (isAdminView && statsData) {
+            setEmployerStats({
+              activeJobs: Number(statsData?.activeJobs || 0),
+              totalApplicants: Number(statsData?.totalApplicants || 0),
+              closedJobs: Number(statsData?.closedJobs || 0),
+            });
+          } else {
+            const { data: ownStatsData } = await employerAPI.getProfileStats();
+            setEmployerStats({
+              activeJobs: Number(ownStatsData?.activeJobs || 0),
+              totalApplicants: Number(ownStatsData?.totalApplicants || 0),
+              closedJobs: Number(ownStatsData?.closedJobs || 0),
+            });
+          }
+        } else {
           setEmployerStats({
-            activeJobs: Number(statsData?.activeJobs || 0),
-            totalApplicants: Number(statsData?.totalApplicants || 0),
-            closedJobs: Number(statsData?.closedJobs || 0),
+            activeJobs: 0,
+            totalApplicants: 0,
+            closedJobs: 0,
           });
         }
       } catch (err) {
         // Fallback to user from context
-        if (user) {
+        if (!isAdminView && user) {
           setProfile(user);
         }
       } finally {
@@ -101,7 +129,7 @@ export default function Profile() {
 
     fetchProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAdminView, userId]);
 
   const skills = Array.isArray(profile?.skills) ? profile.skills : [];
 
@@ -139,9 +167,11 @@ export default function Profile() {
 
       <section className="profile-view-card">
         <header className="profile-view-header">
-          <button className="profile-edit-btn" type="button" onClick={() => navigate("/profile/edit")}>
-            Edit Profile
-          </button>
+          {!isReadOnly ? (
+            <button className="profile-edit-btn" type="button" onClick={() => navigate("/profile/edit")}>
+              Edit Profile
+            </button>
+          ) : null}
           <div className="profile-view-avatar">
             {profile?.name ? profile.name.trim().charAt(0).toUpperCase() : "U"}
           </div>
@@ -222,7 +252,7 @@ export default function Profile() {
                 <p className="profile-company-description">{profile.companyDescription}</p>
               ) : (
                 <p className="profile-company-description profile-company-description--empty">
-                  No company description added yet. <Link to="/profile/edit" className="profile-inline-link">Add Description</Link>
+                  No company description added yet.
                 </p>
               )}
             </div>
@@ -253,9 +283,9 @@ export default function Profile() {
                   {permitName ? permitName : <span className="profile-missing">No business permit uploaded</span>}
                   {permitUrl ? (
                     <a className="profile-doc-upload-btn" href={permitUrl} target="_blank" rel="noreferrer">Download</a>
-                  ) : (
+                  ) : !isReadOnly ? (
                     <button type="button" className="profile-doc-upload-btn" onClick={() => navigate("/profile/edit")}>Upload</button>
-                  )}
+                  ) : null}
                 </strong>
               </div>
               <div className="profile-detail-row profile-detail-row--document">
@@ -264,9 +294,9 @@ export default function Profile() {
                   {registrationName ? registrationName : <span className="profile-missing">No registration document uploaded</span>}
                   {registrationUrl ? (
                     <a className="profile-doc-upload-btn" href={registrationUrl} target="_blank" rel="noreferrer">Download</a>
-                  ) : (
+                  ) : !isReadOnly ? (
                     <button type="button" className="profile-doc-upload-btn" onClick={() => navigate("/profile/edit")}>Upload</button>
-                  )}
+                  ) : null}
                 </strong>
               </div>
               <div className="profile-detail-row">
@@ -280,7 +310,7 @@ export default function Profile() {
             </div>
           </>
         ) : (
-          // Jobseeker view – unchanged
+          // Jobseeker view
           <>
             <div className="profile-view-section">
               <h2>Personal Details</h2>
@@ -345,7 +375,7 @@ export default function Profile() {
                     <span className="profile-missing">No skills added yet</span>
                   )}
                 </div>
-                {skills.length === 0 ? <Link to="/profile/edit" className="profile-inline-link">Add skills</Link> : null}
+                {skills.length === 0 && !isReadOnly ? <Link to="/profile/edit" className="profile-inline-link">Add skills</Link> : null}
               </div>
             </div>
 
@@ -368,9 +398,9 @@ export default function Profile() {
                   {resumeName ? resumeName : <span className="profile-missing">No resume uploaded</span>}
                   {resumeUrl ? (
                     <a className="profile-doc-upload-btn" href={resumeUrl} target="_blank" rel="noreferrer">Download</a>
-                  ) : (
+                  ) : !isReadOnly ? (
                     <button type="button" className="profile-doc-upload-btn" onClick={() => navigate("/profile/edit")}>Upload</button>
-                  )}
+                  ) : null}
                 </strong>
               </div>
               <div className="profile-detail-row profile-detail-row--document">
@@ -379,9 +409,9 @@ export default function Profile() {
                   {validIdName ? validIdName : <span className="profile-missing">No valid ID uploaded</span>}
                   {validIdUrl ? (
                     <a className="profile-doc-upload-btn" href={validIdUrl} target="_blank" rel="noreferrer">Download</a>
-                  ) : (
+                  ) : !isReadOnly ? (
                     <button type="button" className="profile-doc-upload-btn" onClick={() => navigate("/profile/edit")}>Upload</button>
-                  )}
+                  ) : null}
                 </strong>
               </div>
             </div>

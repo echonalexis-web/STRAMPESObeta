@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
 import { FaStar, FaUsers, FaEnvelope, FaPhone, FaGlobe, FaMapMarkerAlt, FaBriefcase, FaRegClock, FaTimes } from "react-icons/fa";
+import { AuthContext } from "../context/AuthContext";
+import { useFollow } from "../hooks/useFollow";
 import "../styles/EmployerModal.css";
 
 const formatAddress = (address) => {
@@ -16,6 +18,21 @@ const formatAddress = (address) => {
 };
 
 export default function EmployerModal({ isOpen, onClose, employer }) {
+  const { user } = useContext(AuthContext);
+
+  const employerId = employer?._id || employer?.id || employer?.userId || null;
+  const currentUserId = user?._id || user?.id;
+  const isOwnProfile = Boolean(employerId && currentUserId && String(employerId) === String(currentUserId));
+
+  const {
+    isFollowing,
+    followerCount,
+    followingCount,
+    loading: followLoading,
+    error: followError,
+    toggleFollow,
+  } = useFollow(employerId);
+
   if (!isOpen || !employer) return null;
 
   return (
@@ -30,6 +47,23 @@ export default function EmployerModal({ isOpen, onClose, employer }) {
           <div className="employer-header-info">
             <h2>{employer.companyName || "Unknown Employer"}</h2>
             <div className="employer-badge"><FaStar className="badge-icon" /><span>Verified Employer</span></div>
+            {employerId && !isOwnProfile ? (
+              <div className="employer-follow-bar">
+                <button
+                  type="button"
+                  className={`employer-follow-btn ${isFollowing ? "following" : ""}`}
+                  onClick={toggleFollow}
+                  disabled={followLoading}
+                >
+                  {followLoading ? "Please wait..." : isFollowing ? "Following" : "Follow"}
+                </button>
+                <div className="employer-follow-counts">
+                  <span>{Number(followerCount || 0)} followers</span>
+                  <span>{Number(followingCount || 0)} following</span>
+                </div>
+              </div>
+            ) : null}
+            {followError ? <p className="employer-follow-error">{followError}</p> : null}
           </div>
         </div>
 

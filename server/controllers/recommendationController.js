@@ -1,22 +1,29 @@
 const JobVacancy = require('../models/JobVacancy');
 const JobseekerProfile = require('../models/JobseekerProfile');
-const User = require('../models/User');
 const { rankJobsBySkills } = require('../services/semanticService');
+const { getApplicationCountMap } = require('../utils/jobDisplay');
 
 exports.hybridSearch = async (req, res) => {
   try {
     const {
       industry,
       workNature,
+      jobType,
       location,
       salaryMin,
       salaryMax,
       q,
+      page,
       limit = 50,
-      skip = 0,
+      skip,
     } = req.query;
 
-    // Use both id and _id (fallback)
+    const parsedLimit = Math.max(1, Number(limit) || 50);
+    const parsedPage = Math.max(1, Number(page) || 1);
+    const parsedSkip = Number.isFinite(Number(skip)) && Number(skip) >= 0
+      ? Number(skip)
+      : (parsedPage - 1) * parsedLimit;
+
     const userId = req.user?.id || req.user?._id;
 
     console.log(`[Job Board] === START ===`);
@@ -24,9 +31,10 @@ exports.hybridSearch = async (req, res) => {
     console.log(`[Job Board] Full req.user:`, req.user);
 
     // --- 1. Build filter ---
-    const filter = { status: 'active' };
+    const filter = { isActive: true, status: { $ne: 'closed' } };
     if (industry) filter.industry = industry;
     if (workNature) filter.workNature = workNature;
+    if (jobType) filter.jobType = jobType;
     if (location) filter.location = { $regex: location, $options: 'i' };
 
     if (salaryMin !== undefined || salaryMax !== undefined) {
@@ -43,71 +51,127 @@ exports.hybridSearch = async (req, res) => {
       ];
     }
 
-    // --- 2. Fetch jobs ---
-    const fetchLimit = Math.min(Number(limit) + Number(skip), 300);
-    const jobs = await JobVacancy.find(filter)
-      .select('title description responsibilities qualifications industry workNature location salary createdAt salaryMin salaryMax employer')
-      .populate('employer', 'name email phone companyName companyDescription website verificationStatus industry companySize businessAddress')
-      .limit(fetchLimit)
-      .lean();
-
-    if (!jobs.length) {
-      console.log('[Job Board] No jobs found.');
-      return res.json({ jobs: [], total: 0, hasSkills: false });
-    }
-
-    // --- 3. Get user skills ---
-    let rankedJobs = jobs;
+    // --- 2. Get user skills, preferred industries, and preference level ---
     let hasSkills = false;
     let skills = [];
+    let preferredIndustries = [];
+    let industryPreferenceLevel = 'flexible';
 
     if (userId) {
       try {
-        // Fetch profile
-        const profile = await JobseekerProfile.findOne({ userId }).select('skills').lean();
+        const profile = await JobseekerProfile.findOne({ userId }).select('skills preferredIndustries').lean();
+        const User = require('../models/User');
+        const user = await User.findById(userId).select('preferredIndustries industryPreferenceLevel').lean();
+        
         console.log(`[Job Board] Profile found:`, profile ? 'YES' : 'NO');
         console.log(`[Job Board] Profile skills:`, profile?.skills);
-
-        // Fetch user (for skills stored directly on user)
-        const user = await User.findById(userId).select('skills').lean();
-        console.log(`[Job Board] User found:`, user ? 'YES' : 'NO');
-        console.log(`[Job Board] User skills:`, user?.skills);
-
-        // Merge
+        console.log(`[Job Board] Preferred Industries:`, profile?.preferredIndustries);
+        
         const profileSkills = Array.isArray(profile?.skills) ? profile.skills : [];
-        const userSkills = Array.isArray(user?.skills) ? user.skills : [];
-
         const skillSet = new Set();
-        [...profileSkills, ...userSkills].forEach(skill => {
+        profileSkills.forEach(skill => {
           const normalized = String(skill).trim();
           if (normalized) skillSet.add(normalized);
         });
         skills = Array.from(skillSet);
         hasSkills = skills.length > 0;
 
-        console.log(`[Job Board] Merged skills (${skills.length}):`, skills);
+        // Fetch preferred industries from both profile and user model (use user model as source of truth)
+        preferredIndustries = Array.isArray(user?.preferredIndustries) ? user.preferredIndustries : 
+                            (Array.isArray(profile?.preferredIndustries) ? profile.preferredIndustries : []);
+        industryPreferenceLevel = user?.industryPreferenceLevel || 'flexible';
+
+        console.log(`[Job Board] Profile skills (${skills.length}):`, skills);
+        console.log(`[Job Board] Preferred Industries (${preferredIndustries.length}):`, preferredIndustries);
+        console.log(`[Job Board] Industry Preference Level:`, industryPreferenceLevel);
       } catch (err) {
-        console.error('[Job Board] Error fetching skills:', err);
+        console.error('[Job Board] Error fetching skills/preferences:', err);
       }
     }
 
-    console.log(`[Job Board] hasSkills: ${hasSkills}`);
+    console.log(`[Job Board] hasSkills: ${hasSkills}, Preferred Industries: ${preferredIndustries.length}`);
 
-    // --- 4. Ranking ---
-    if (userId && hasSkills) {
-      rankedJobs = rankJobsBySkills(jobs, skills, { limit, skip });
+    // --- 2.5. Get user's applied jobs (to filter them out) ---
+    let appliedJobIds = new Set();
+    if (userId) {
+      try {
+        const JobApplication = require('../models/JobApplication');
+        const userApplications = await JobApplication.find({
+          applicant: userId
+        }).select('vacancy');
+        appliedJobIds = new Set(userApplications.map(app => String(app.vacancy)));
+        console.log(`[Job Board] User has applied to ${appliedJobIds.size} jobs`);
+      } catch (err) {
+        console.error('[Job Board] Error fetching user applications:', err);
+      }
+    }
+
+    // --- 3. Fetch jobs ---
+    const jobs = await JobVacancy.find(filter)
+      .select('title description responsibilities qualifications industry workNature jobType location salary createdAt salaryMin salaryMax employer status isActive')
+      .populate('employer', 'name email phone companyName companyDescription website verificationStatus industry companySize businessAddress')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!jobs.length) {
+      console.log('[Job Board] No jobs found.');
+      return res.json({ jobs: [], total: 0, hasSkills });
+    }
+
+    // --- 3.5 Get application counts for all jobs ---
+    const jobIds = jobs.map(job => job._id);
+    const countMap = await getApplicationCountMap(jobIds);
+
+    let rankedJobs = [];
+
+    // --- 4. Filter out jobs user has already applied to ---
+    let filteredJobs = jobs.filter(job => !appliedJobIds.has(String(job._id)));
+    if (appliedJobIds.size > 0) {
+      console.log(`[Job Board] Filtered out ${jobs.length - filteredJobs.length} applied jobs`);
+    }
+
+    // --- 5. Apply strict mode filtering if needed ---
+    let finalFilteredJobs = filteredJobs;
+    if (industryPreferenceLevel === 'strict' && preferredIndustries.length > 0) {
+      finalFilteredJobs = filteredJobs.filter(job => preferredIndustries.includes(job.industry));
+      console.log(`[Job Board] Strict mode: ${finalFilteredJobs.length}/${filteredJobs.length} jobs match preferred industries`);
+    }
+
+    // --- 6. Ranking ---
+    if (hasSkills || preferredIndustries.length > 0) {
+      rankedJobs = rankJobsBySkills(finalFilteredJobs, skills, { 
+        limit: parsedLimit,
+        skip: parsedSkip,
+        preferredIndustries, 
+        industryPreferenceLevel 
+      });
     } else {
-      rankedJobs = jobs.slice(skip, skip + limit);
+      rankedJobs = finalFilteredJobs.slice(parsedSkip, parsedSkip + parsedLimit);
       rankedJobs = rankedJobs.map(job => ({ ...job, relevanceScore: 0 }));
     }
 
-    // --- 5. Response ---
+    // --- 7. Attach application counts and format ---
+    const jobsWithCounts = rankedJobs.map(job => {
+      const jobObj = { ...job };
+      jobObj.applicationCount = Number(countMap[String(job._id)] || 0);
+      return jobObj;
+    });
+
+    // --- 8. Response ---
     res.json({
-      jobs: rankedJobs,
-      total: jobs.length,
-      limit: Number(limit),
-      skip: Number(skip),
+      jobs: jobsWithCounts,
+      total: finalFilteredJobs.length,
+      limit: parsedLimit,
+      skip: parsedSkip,
+      pagination: {
+        total: filteredJobs.length,
+        page: parsedPage,
+        pages: Math.max(1, Math.ceil(filteredJobs.length / parsedLimit)),
+        limit: parsedLimit,
+      },
       hasSkills,
+      preferredIndustries, // Send back to frontend so it can update user context
+      industryPreferenceLevel,
     });
   } catch (error) {
     console.error('[Job Board] ERROR:', error);

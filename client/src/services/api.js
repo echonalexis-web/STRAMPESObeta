@@ -133,12 +133,15 @@ export const adminAPI = {
     await delay(150);
     return api.get('/admin/analytics', getAuthHeader());
   },
+  getUserById: (id) => api.get(`/admin/users/${id}`, getAuthHeader()),
   getHomepageJobManagement: async () => {
     await delay(150);
     return api.get('/admin/jobs/homepage-display', getAuthHeader());
   },
   toggleHomepageFeature: (id, isFeatured) =>
     api.put(`/admin/jobs/${id}/homepage-feature`, { isFeatured }, getAuthHeader()),
+  updateJobStatus: (id, status) => api.put(`/admin/jobs/${id}/status`, { status }, getAuthHeader()),
+  deleteJob: (id) => api.delete(`/admin/jobs/${id}`, getAuthHeader()),
   updateUserRole: (id, role) => api.put(`/admin/users/${id}/role`, { role }, getAuthHeader()),
   deactivateUser: (id) => api.put(`/admin/users/${id}/deactivate`, {}, getAuthHeader()),
   reactivateUser: (id) => api.put(`/admin/users/${id}/reactivate`, {}, getAuthHeader()),
@@ -165,6 +168,9 @@ export const employerAPI = {
   createJob: (data) => api.post('/employer/jobs', data, getAuthHeader()),
   updateJob: (id, data) => api.put(`/employer/jobs/${id}`, data, getAuthHeader()),
   deleteJob: (id) => api.delete(`/employer/jobs/${id}`, getAuthHeader()),
+  closeJob: (id) => api.post(`/jobs/${id}/close`, {}, getAuthHeader()),
+  archiveJob: (id) => api.post(`/jobs/${id}/archive`, {}, getAuthHeader()),
+  reopenJob: (id) => api.post(`/jobs/${id}/reopen`, {}, getAuthHeader()),
   getApplicantsForJob: (jobId) => api.get(`/employer/jobs/${jobId}/applicants`, getAuthHeader()),
   getRankedApplicants: (jobId, params = {}) => 
     api.get(`/employer/jobs/${jobId}/applicants/ranked`, { ...getAuthHeader(), params }),
@@ -174,6 +180,32 @@ export const employerAPI = {
 
 export const usersAPI = {
   completeOnboarding: (data) => api.put('/users/onboarding', data, getAuthHeader()),
+};
+
+export const notificationAPI = {
+  getNotifications: (params = {}) => api.get('/notifications', { ...getAuthHeader(), params }),
+  getUnreadCount: () => api.get('/notifications/unread-count', getAuthHeader()),
+  markAsRead: (notificationId) => api.put(`/notifications/${notificationId}/read`, {}, getAuthHeader()),
+  markAllAsRead: () => api.put('/notifications/mark-all-read', {}, getAuthHeader()),
+  deleteNotification: (notificationId) => api.delete(`/notifications/${notificationId}`, getAuthHeader()),
+};
+
+export const followAPI = {
+  followUser: (userId) => api.post(`/follows/${userId}/follow`, {}, getAuthHeader()),
+  unfollowUser: (userId) => api.post(`/follows/${userId}/unfollow`, {}, getAuthHeader()),
+  // Added authentication headers to getFollowers and getFollowing
+  getFollowers: (userId, params = {}) => api.get(`/follows/${userId}/followers`, { ...getAuthHeader(), params }),
+  getFollowing: (userId, params = {}) => api.get(`/follows/${userId}/following`, { ...getAuthHeader(), params }),
+  getFollowStatus: (userId) => api.get(`/follows/${userId}/follow-status`, getAuthHeader()),
+  getFollowerCounts: (userId) => api.get(`/follows/${userId}/counts`),
+};
+
+export const jobLikeAPI = {
+  likeJob: (jobId) => api.post(`/job-likes/${jobId}/like`, {}, getAuthHeader()),
+  unlikeJob: (jobId) => api.post(`/job-likes/${jobId}/unlike`, {}, getAuthHeader()),
+  getLikedJobs: (params = {}) => api.get('/job-likes/liked', { ...getAuthHeader(), params }),
+  getJobLikeStatus: (jobId) => api.get(`/job-likes/${jobId}/like-status`, getAuthHeader()),
+  getJobLikeCount: (jobId) => api.get(`/job-likes/${jobId}/like-count`),
 };
 
 export default api;

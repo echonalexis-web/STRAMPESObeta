@@ -23,7 +23,7 @@ html {
 }
 
 body {
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--sans);
   background: #f8f9ff;
   color: #333;
   line-height: 1.6;

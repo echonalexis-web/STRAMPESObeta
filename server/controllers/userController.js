@@ -2,6 +2,7 @@ const User = require("../models/User");
 const JobseekerProfile = require("../models/JobseekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
 const authController = require("./authController");
+const VALID_INDUSTRIES = require("../data/industries"); // Import industry validation list
 
 // Helper to update or create profile
 const upsertProfile = async (userId, role, data) => {
@@ -64,10 +65,37 @@ exports.completeOnboarding = async (req, res) => {
       commonUpdates.workExperience = req.body.workExperience || null;
       commonUpdates.educationalAttainment = req.body.educationalAttainment || null;
       commonUpdates.availabilityStatus = req.body.availabilityStatus || null;
+      
       // Parse skills from JSON string
       if (req.body.skills) {
         const skills = parseJSON(req.body.skills, []);
         if (Array.isArray(skills)) commonUpdates.skills = skills;
+      }
+
+      // ===== NEW: Parse and validate Industry Preferences =====
+      if (req.body.preferredIndustries) {
+        const industries = parseJSON(req.body.preferredIndustries, []);
+        if (Array.isArray(industries) && industries.length > 0) {
+          // Filter out any invalid industries submitted by the client
+          const validSelectedIndustries = industries.filter((ind) => VALID_INDUSTRIES.includes(ind));
+          
+          // If user submitted industries but none were valid, throw an error
+          if (validSelectedIndustries.length === 0) {
+            return res.status(400).json({ message: "Please select at least one valid industry." });
+          }
+          
+          commonUpdates.preferredIndustries = validSelectedIndustries;
+          
+          // Add preference level (strict vs flexible) - defaults to flexible
+          const preferenceLevel = req.body.industryPreferenceLevel;
+          commonUpdates.industryPreferenceLevel = 
+            preferenceLevel === "strict" || preferenceLevel === "flexible" 
+              ? preferenceLevel 
+              : "flexible";
+        } else if (industries.length === 0) {
+          // If they explicitly passed an empty array, clear preferences
+          commonUpdates.preferredIndustries = [];
+        }
       }
     }
 
@@ -105,6 +133,12 @@ exports.completeOnboarding = async (req, res) => {
         employmentType: req.body.employmentType || null,
         unemploymentReason: req.body.unemploymentReason || null,
         laidoffCountry: req.body.laidoffCountry || null,
+        
+        // ===== NEW: Save mirror fields and extra preferences to JobseekerProfile =====
+        preferredIndustries: commonUpdates.preferredIndustries || [],
+        preferredJobTypes: parseJSON(req.body.preferredJobTypes, []) || [],
+        preferredWorkNature: parseJSON(req.body.preferredWorkNature, []) || [],
+        industrySelectionStep: req.body.industrySelectionStep === "true" || req.body.industrySelectionStep === true,
       };
     } else if (user.role === "employer") {
       profileData = {

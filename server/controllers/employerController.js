@@ -3,6 +3,7 @@ const JobApplication = require("../models/JobApplication");
 const Message = require("../models/Message");
 const { ensureConversationBetweenUsers } = require("./messageController");
 const JobseekerProfile = require("../models/JobseekerProfile");
+const { createNotificationForUser } = require("../services/notificationService");
 
 const getUserId = (req) => req.user._id || req.user.id;
 
@@ -277,37 +278,69 @@ exports.updateApplicationStatus = async (req, res) => {
 
     await application.save();
 
-    if (["reviewed", "shortlisted", "hired"].includes(status)) {
+    const io = req.app.get("io");
+    await createNotificationForUser({
+      recipientId: application.applicant?._id,
+      actorId: employerId,
+      type: "application_status",
+      title: "Application status updated",
+      message: `Your application for ${application.vacancy?.title || "this job"} is now ${status}.`,
+      relatedEntityType: "application",
+      relatedEntityId: application._id,
+      actionUrl: "/dashboard",
+      metadata: {
+        status,
+        jobTitle: application.vacancy?.title || null,
+      },
+      io,
+    });
+
+    // Send automated status update message to jobseeker
+    if (["reviewed", "shortlisted", "rejected", "hired"].includes(status)) {
       const conversation = await ensureConversationBetweenUsers(employerId, application.applicant);
 
-      const hasExistingMessage = await Message.exists({ conversationId: conversation._id });
-      if (!hasExistingMessage) {
-        const applicantName = application.applicant?.name || "there";
-        const jobTitle = application.vacancy?.title || "this role";
-        const autoContent = `Hi ${applicantName}, we've reviewed your application for ${jobTitle}. We'd like to get in touch with you.`;
+      const applicantName = application.applicant?.name || "there";
+      const jobTitle = application.vacancy?.title || "this role";
+      let autoContent = "";
 
-        const autoMessage = await Message.create({
+      // Customize message based on status
+      switch (status) {
+        case "reviewed":
+          autoContent = `Hi ${applicantName}, we've reviewed your application for ${jobTitle}. We're impressed and would like to learn more about you!`;
+          break;
+        case "shortlisted":
+          autoContent = `Great news, ${applicantName}! Your application for ${jobTitle} has been shortlisted. We'd love to move forward with you to the next stage.`;
+          break;
+        case "hired":
+          autoContent = `Congratulations, ${applicantName}! We're pleased to offer you the position of ${jobTitle}. Please review the details and let us know if you have any questions.`;
+          break;
+        case "rejected":
+          autoContent = `Hi ${applicantName}, thank you for your interest in ${jobTitle}. Unfortunately, we've decided to move forward with other candidates. We appreciate your time and wish you the best in your job search.`;
+          break;
+        default:
+          autoContent = `Hi ${applicantName}, there's an update on your application for ${jobTitle}. Please check your profile for more details.`;
+      }
+
+      const autoMessage = await Message.create({
+        conversationId: conversation._id,
+        sender: employerId,
+        content: autoContent,
+        isRead: false,
+      });
+
+      conversation.lastMessage = autoMessage.content;
+      conversation.lastMessageAt = autoMessage.createdAt;
+      await conversation.save();
+
+      if (io) {
+        io.to(String(conversation._id)).emit("receive_message", {
+          _id: autoMessage._id,
           conversationId: conversation._id,
           sender: employerId,
-          content: autoContent,
+          content: autoMessage.content,
+          createdAt: autoMessage.createdAt,
           isRead: false,
         });
-
-        conversation.lastMessage = autoMessage.content;
-        conversation.lastMessageAt = autoMessage.createdAt;
-        await conversation.save();
-
-        const io = req.app.get("io");
-        if (io) {
-          io.to(String(conversation._id)).emit("receive_message", {
-            _id: autoMessage._id,
-            conversationId: conversation._id,
-            sender: employerId,
-            content: autoMessage.content,
-            createdAt: autoMessage.createdAt,
-            isRead: false,
-          });
-        }
       }
     }
 

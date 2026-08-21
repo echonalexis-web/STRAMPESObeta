@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authAPI } from "../services/api";
 import "../styles/auth.css";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
+import pesoLogo from "../assets/images/peso-logo.png";
+import provincialSeal from "../assets/images/provincial-seal.png";
 
 const validatePassword = (password) => {
   const errors = [];
@@ -82,6 +85,23 @@ export default function EmployerRegister() {
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const navigate = useNavigate();
 
+  /* ─── Spotlight mouse tracking ─── */
+  useEffect(() => {
+    const container = document.querySelector(".auth-container");
+    if (!container) return;
+
+    const handleMouseMove = (e) => {
+      const rect = container.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      container.style.setProperty("--x", `${x}%`);
+      container.style.setProperty("--y", `${y}%`);
+    };
+
+    container.addEventListener("mousemove", handleMouseMove);
+    return () => container.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -114,6 +134,27 @@ export default function EmployerRegister() {
     setError("");
     setSuccess("");
 
+    // ─── Empty-field validation ───
+    const newTouched = { name: true, email: true, password: true };
+    setTouched(newTouched);
+
+    if (!formData.name.trim() && !formData.email.trim() && !formData.password) {
+      setError("Please fill in all required fields.");
+      return;
+    }
+    if (!formData.name.trim()) {
+      setError("Please enter the business name.");
+      return;
+    }
+    if (!formData.email.trim()) {
+      setError("Please enter the business email.");
+      return;
+    }
+    if (!formData.password) {
+      setError("Please enter a password.");
+      return;
+    }
+
     // Validate password
     const passwordValidationErrors = validatePassword(formData.password);
     if (passwordValidationErrors.length > 0) {
@@ -129,7 +170,7 @@ export default function EmployerRegister() {
 
     // Name validation
     if (formData.name.trim().length < 2) {
-      setError("Please enter your full name.");
+      setError("Please enter the business name.");
       return;
     }
 
@@ -169,109 +210,131 @@ export default function EmployerRegister() {
 
   return (
     <div className="auth-container">
-      <div className="auth-card">
-        <h2>Register as Employer</h2>
-        <p className="auth-subtitle">Create an employer account to post vacancies and manage applicants.</p>
-
-        {error && (
-          <div className="error-message" role="alert">
-            {error}
+      <div className="auth-panel">
+        {/* ─── Branding Side ─── */}
+        <div className="auth-branding">
+          <div className="auth-branding-content">
+            <img src={pesoLogo} alt="PESO Marinduque Logo" className="auth-branding-logo" />
+            <h1 className="auth-branding-title">TRABAHO MANDIN!</h1>
+            <p className="auth-branding-tagline">Trabaho para sa Marinduqueño</p>
+            <p className="auth-branding-desc">
+              Marinduque, the Heart of the Philippines. Connect with local talent,
+              post job vacancies, and grow your business with the right people.
+            </p>
+            <img src={provincialSeal} alt="Provincial Seal of Marinduque" className="auth-branding-seal" />
+            <div className="auth-branding-footer">
+              PUBLIC EMPLOYMENT SERVICE OFFICE<br />
+              Ialawigan ng Marinduque
+            </div>
           </div>
-        )}
+        </div>
 
-        {success && (
-          <div className="success-message" role="alert">
-            {success}
-          </div>
-        )}
+        {/* ─── Form Side ─── */}
+        <div className="auth-card">
+          <h2>Register as Employer</h2>
+          <p className="auth-subtitle">Create an employer account to post vacancies and manage applicants.</p>
 
-        <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          <div className="form-group">
-            <label htmlFor="name">Full Name</label>
-            <input
-              id="name"
-              type="text"
-              name="name"
-              placeholder="Enter your full name"
-              value={formData.name}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              onFocus={handleFocus}
-              required
-              disabled={loading}
-              autoComplete="name"
-              className={touched.name && formData.name.trim().length < 2 && formData.name.length > 0 ? "is-error" : ""}
-            />
-          </div>
+          {error && (
+            <div className="error-message" role="alert">
+              {error}
+            </div>
+          )}
 
-          <div className="form-group">
-            <label htmlFor="email">Email Address</label>
-            <input
-              id="email"
-              type="email"
-              name="email"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              onFocus={handleFocus}
-              required
-              disabled={loading}
-              autoComplete="email"
-              className={touched.email && (!formData.email.includes("@") || !formData.email.includes(".")) && formData.email.length > 0 ? "is-error" : ""}
-            />
-          </div>
+          {success && (
+            <div className="success-message" role="alert">
+              {success}
+            </div>
+          )}
 
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <div className="password-wrapper">
+          <form className="auth-form" onSubmit={handleSubmit} noValidate>
+            <div className="form-group">
+              <label htmlFor="name">Business Name</label>
               <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                name="password"
-                placeholder="Create a password"
-                value={formData.password}
+                id="name"
+                type="text"
+                name="name"
+                placeholder="Enter the business name"
+                value={formData.name}
                 onChange={handleChange}
                 onBlur={handleBlur}
                 onFocus={handleFocus}
                 required
                 disabled={loading}
-                autoComplete="new-password"
-                className={touched.password && passwordErrors.length > 0 ? "is-error" : ""}
+                autoComplete="name"
+                className={touched.name && !formData.name.trim() ? "is-error" : ""}
               />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
-                tabIndex="-1"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? "🙈" : "👁️"}
-              </button>
             </div>
 
-            {showPasswordRequirements && (
-              <div className="password-requirements">
-                <span className="password-requirements-title">Password must contain:</span>
-                {passwordErrors.map((err, index) => (
-                  <span key={index} className="password-error">• {err}</span>
-                ))}
+            <div className="form-group">
+              <label htmlFor="email">Business Email</label>
+              <input
+                id="email"
+                type="email"
+                name="email"
+                placeholder="Enter the business email"
+                value={formData.email}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                onFocus={handleFocus}
+                required
+                disabled={loading}
+                autoComplete="email"
+                className={touched.email && !formData.email.trim() ? "is-error" : ""}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <div className="password-wrapper">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Create a password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  onFocus={handleFocus}
+                  required
+                  disabled={loading}
+                  autoComplete="new-password"
+                  className={touched.password && !formData.password ? "is-error" : ""}
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex="-1"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  disabled={loading}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
               </div>
-            )}
 
-            {showPasswordSuccess && (
-              <span className="password-valid">✓ Password meets all requirements</span>
-            )}
-          </div>
+              {showPasswordRequirements && (
+                <div className="password-requirements">
+                  <span className="password-requirements-title">Password must contain:</span>
+                  {passwordErrors.map((err, index) => (
+                    <span key={index} className="password-error">• {err}</span>
+                  ))}
+                </div>
+              )}
 
-          <button type="submit" className="auth-button" disabled={loading}>
-            {loading ? "Creating Account..." : "Create Employer Account"}
-          </button>
-        </form>
+              {showPasswordSuccess && (
+                <span className="password-valid">✓ Password meets all requirements</span>
+              )}
+            </div>
 
-        <p className="auth-link">
-          Already have an account? <Link to="/login">Log in</Link>
-        </p>
+            <button type="submit" className="auth-button" disabled={loading}>
+              {loading ? "Creating Account..." : "Create Employer Account"}
+            </button>
+          </form>
+
+          <p className="auth-link">
+            Already have an account? <Link to="/login">Log in</Link>
+          </p>
+        </div>
       </div>
     </div>
   );

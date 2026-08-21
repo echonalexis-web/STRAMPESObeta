@@ -4,6 +4,7 @@ import { AuthContext } from "../../context/AuthContext";
 import { usersAPI } from "../../services/api";
 import "../../styles/onboarding.css";
 import LocationSelect from "../../components/LocationSelect";
+import { usePersistentState } from "../../hooks/usePersistentState";
 
 const industries = [
   "Retail", "Manufacturing", "Government", "Healthcare", "Education", "NGO / Non-profit",
@@ -12,38 +13,66 @@ const industries = [
 ];
 const companySizes = ["1-10", "11-50", "51-200", "201-500", "500+"];
 
+const getInitialForm = (user) => ({
+  companyName: user?.companyName || "",
+  industry: user?.industry || "",
+  companySize: user?.companySize || "",
+  businessAddress: user?.businessAddress || user?.address || "",
+  phone: user?.phone || "",
+  website: user?.website || "",
+  companyDescription: user?.companyDescription || "",
+  tradeName: "",
+  acronym: "",
+  tin: "",
+  officeType: "",
+  employerClassificationType: "",
+  employerClassificationSubtype: "",
+  totalWorkforceSize: "",
+  ownerName: "",
+  contactPersonName: "",
+  contactPersonPosition: "",
+  fax: "",
+  businessAddressStructured: { street: "", barangay: "", municipality: "", province: "" },
+});
+
 export default function EmployerOnboarding() {
   const { user, login } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
+
+  const defaultState = {
+    form: getInitialForm(user),
+    step: 1,
+  };
+
+  // Normalize form to ensure nested objects exist
+  const normalizeForm = (formData) => {
+    const defaultForm = getInitialForm(user);
+    return {
+      ...defaultForm,
+      ...formData,
+      businessAddressStructured: { ...defaultForm.businessAddressStructured, ...(formData?.businessAddressStructured || {}) },
+    };
+  };
+
+  const [persistedState, setPersistedState, clearPersistedState] = usePersistentState('employerOnboarding', defaultState);
+
+  const safeState = (persistedState && typeof persistedState === 'object' && persistedState.form)
+    ? { ...persistedState, form: normalizeForm(persistedState.form) }
+    : defaultState;
+
+  const { form, step } = safeState;
+  const setForm = (updater) => setPersistedState(prev => {
+    const newForm = typeof updater === 'function' ? updater(prev.form) : updater;
+    return { ...prev, form: newForm };
+  });
+  const setStep = (updater) => setPersistedState(prev => {
+    const newVal = typeof updater === 'function' ? updater(prev.step) : updater;
+    return { ...prev, step: newVal };
+  });
+
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [errors, setErrors] = useState({});
-
-  // ===== NSRP Form 2 fields =====
-  const [form, setForm] = useState({
-    companyName: user?.companyName || "",
-    industry: user?.industry || "",
-    companySize: user?.companySize || "",
-    businessAddress: user?.businessAddress || user?.address || "",
-    phone: user?.phone || "",
-    website: user?.website || "",
-    companyDescription: user?.companyDescription || "",
-    // NSRP fields
-    tradeName: "",
-    acronym: "",
-    tin: "",
-    officeType: "",
-    employerClassificationType: "",
-    employerClassificationSubtype: "",
-    totalWorkforceSize: "",
-    ownerName: "",
-    contactPersonName: "",
-    contactPersonPosition: "",
-    fax: "",
-    // structured business address (will be built from LocationSelect)
-    businessAddressStructured: { street: "", barangay: "", municipality: "", province: "" },
-  });
 
   useEffect(() => {
     if (user?.hasCompletedOnboarding === true || user?.onboardingComplete === true) {
@@ -51,6 +80,9 @@ export default function EmployerOnboarding() {
     }
     if (user && user.role !== "employer") {
       navigate("/dashboard");
+    }
+    if (user && !localStorage.getItem('employerOnboarding')) {
+      setForm(getInitialForm(user));
     }
   }, [user, navigate]);
 
@@ -108,11 +140,10 @@ export default function EmployerOnboarding() {
         companyName: form.companyName.trim(),
         industry: form.industry,
         companySize: form.companySize,
-        businessAddress: form.businessAddress.trim(), // string version
+        businessAddress: form.businessAddress.trim(),
         website: form.website.trim(),
         companyDescription: form.companyDescription.trim(),
         phone: form.phone.trim(),
-        // NSRP fields
         tradeName: form.tradeName.trim(),
         acronym: form.acronym.trim(),
         tin: form.tin.trim(),
@@ -126,11 +157,12 @@ export default function EmployerOnboarding() {
         contactPersonName: form.contactPersonName.trim(),
         contactPersonPosition: form.contactPersonPosition.trim(),
         fax: form.fax.trim(),
-        businessAddressStructured: form.businessAddressStructured, // will be sent as JSON
+        businessAddressStructured: form.businessAddressStructured,
       };
       const { data } = await usersAPI.completeOnboarding(payload);
       const token = localStorage.getItem("token");
       if (token && data.user) login(token, data.user);
+      clearPersistedState();
       navigate("/employer-dashboard");
     } catch (err) {
       setSubmitError(err.response?.data?.message || "Failed to complete onboarding. Please try again.");
@@ -173,7 +205,6 @@ export default function EmployerOnboarding() {
               {errors.companySize && <span className="onboarding-field-error">{errors.companySize}</span>}
             </div>
 
-            {/* Business Address (string) */}
             <div>
               <span className="onboarding-label">Business Address *</span>
               <LocationSelect
@@ -185,7 +216,6 @@ export default function EmployerOnboarding() {
               {errors.businessAddress && <span className="onboarding-field-error">{errors.businessAddress}</span>}
             </div>
 
-            {/* Additional NSRP employer fields */}
             <label>Trade Name (if any) <input type="text" value={form.tradeName} onChange={e => updateField("tradeName", e.target.value)} disabled={saving} /></label>
             <label>Acronym <input type="text" value={form.acronym} onChange={e => updateField("acronym", e.target.value)} disabled={saving} /></label>
             <label>TIN (Tax Identification Number) <input type="text" value={form.tin} onChange={e => updateField("tin", e.target.value)} disabled={saving} /></label>
@@ -247,7 +277,6 @@ export default function EmployerOnboarding() {
               <span className="onboarding-char-counter">{form.companyDescription.length} / 500 characters</span>
             </label>
 
-            {/* Corporate Contacts */}
             <label>Owner / President Name <input type="text" value={form.ownerName} onChange={e => updateField("ownerName", e.target.value)} disabled={saving} /></label>
             <label>Authorized Contact Person <input type="text" value={form.contactPersonName} onChange={e => updateField("contactPersonName", e.target.value)} disabled={saving} /></label>
             <label>Contact Person Position <input type="text" value={form.contactPersonPosition} onChange={e => updateField("contactPersonPosition", e.target.value)} disabled={saving} /></label>

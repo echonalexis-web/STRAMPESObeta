@@ -4,6 +4,8 @@ import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
 import "../styles/auth.css";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import pesoLogo from "../assets/images/peso-logo.png";
+import provincialSeal from "../assets/images/provincial-seal.png";
 
 const normalizeRole = (role) => (role === "employee" || role === "jobseeker" ? "resident" : role);
 
@@ -38,8 +40,26 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [touched, setTouched] = useState({});
   const { login, user } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  /* ─── Spotlight mouse tracking ─── */
+  useEffect(() => {
+    const container = document.querySelector(".auth-container");
+    if (!container) return;
+
+    const handleMouseMove = (e) => {
+      const rect = container.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      container.style.setProperty("--x", `${x}%`);
+      container.style.setProperty("--y", `${y}%`);
+    };
+
+    container.addEventListener("mousemove", handleMouseMove);
+    return () => container.removeEventListener("mousemove", handleMouseMove);
+  }, []);
 
   useEffect(() => {
     if (user && !isRedirecting) {
@@ -67,8 +87,20 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.email.trim() || !formData.password) {
-      setError("Please enter both email and password");
+    // ─── Empty-field validation ───
+    const newTouched = { email: true, password: true };
+    setTouched(newTouched);
+
+    if (!formData.email.trim() && !formData.password) {
+      setError("Please enter your email and password.");
+      return;
+    }
+    if (!formData.email.trim()) {
+      setError("Please enter your email address.");
+      return;
+    }
+    if (!formData.password) {
+      setError("Please enter your password.");
       return;
     }
 
@@ -84,28 +116,22 @@ export default function Login() {
 
       const { data } = await authAPI.login(loginPayload);
 
-      // 🔍 DEBUG: log the raw response
       console.log("🔐 Login response:", data);
 
-      // Extract token – handle different response structures
       const token = data.token || data.accessToken || data.data?.token || data.data?.accessToken;
       if (!token) {
         console.error("❌ No token found in response:", data);
         throw new Error("No token received from server");
       }
 
-      // Build user object from login response
       let userData = data.user || data.data?.user || data;
       if (!userData._id && !userData.id) {
-        // fallback: the whole response might be the user
         userData = data;
       }
 
-      // 🔹 STEP 1: Store token and user immediately
       const normalizedUser = { ...userData, role: normalizeRole(userData.role) };
-      login(token, normalizedUser); // this sets localStorage and state
+      login(token, normalizedUser);
 
-      // 🔹 STEP 2: Now fetch full profile with the stored token
       let profileData = null;
       try {
         const profileResponse = await authAPI.getProfile();
@@ -115,17 +141,14 @@ export default function Login() {
         console.warn("⚠️ Could not fetch profile, using login data:", profileErr);
       }
 
-      // 🔹 STEP 3: Merge profile data if available
       const mergedUser = {
         ...normalizedUser,
         ...(profileData || {}),
         role: normalizeRole(profileData?.role || normalizedUser.role),
       };
 
-      // Update user state with merged data
-      login(token, mergedUser); // update user in context and localStorage
+      login(token, mergedUser);
 
-      // Check onboarding
       const hasCompletedOnboarding =
         typeof mergedUser?.hasCompletedOnboarding === "boolean"
           ? mergedUser.hasCompletedOnboarding
@@ -150,70 +173,93 @@ export default function Login() {
 
   return (
     <div className="auth-container">
-      <div className="auth-card">
-        <h2>Login</h2>
-        <p className="auth-subtitle">Access your account to view jobs and manage applications.</p>
-
-        {error && (
-          <div className="error-message" role="alert" aria-live="polite">
-            {error}
+      <div className="auth-panel">
+        {/* ─── Branding Side ─── */}
+        <div className="auth-branding">
+          <div className="auth-branding-content">
+            <img src={pesoLogo} alt="PESO Marinduque Logo" className="auth-branding-logo" />
+            <h1 className="auth-branding-title">TRABAHO MANDIN!</h1>
+            <p className="auth-branding-tagline">Trabaho para sa Marinduqueño</p>
+            <p className="auth-branding-desc">
+              Marinduque, the Heart of the Philippines. Connect with local employers,
+              discover livelihood opportunities, and build your future right here at home.
+            </p>
+            <img src={provincialSeal} alt="Provincial Seal of Marinduque" className="auth-branding-seal" />
+            <div className="auth-branding-footer">
+              PUBLIC EMPLOYMENT SERVICE OFFICE<br />
+              Lalawigan ng Marinduque
+            </div>
           </div>
-        )}
+        </div>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email">Email Address</label>
-            <input
-              id="email"
-              type="email"
-              name="email"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              disabled={loading || isRedirecting}
-              autoComplete="email"
-            />
-          </div>
+        {/* ─── Form Side ─── */}
+        <div className="auth-card">
+          <h2>Login</h2>
+          <p className="auth-subtitle">Access your account to view jobs and manage applications.</p>
 
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <div className="password-container">
+          {error && (
+            <div className="error-message" role="alert" aria-live="polite">
+              {error}
+            </div>
+          )}
+
+          <form className="auth-form" onSubmit={handleSubmit} noValidate>
+            <div className="form-group">
+              <label htmlFor="email">Email Address</label>
               <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                name="password"
-                placeholder="Enter your password"
-                value={formData.password}
+                id="email"
+                type="email"
+                name="email"
+                placeholder="Enter your email"
+                value={formData.email}
                 onChange={handleChange}
                 required
                 disabled={loading || isRedirecting}
-                autoComplete="current-password"
+                autoComplete="email"
+                className={touched.email && !formData.email.trim() ? "is-error" : ""}
               />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={togglePasswordVisibility}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                disabled={loading || isRedirecting}
-              >
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
-              </button>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            className="auth-button"
-            disabled={loading || isRedirecting}
-          >
-            {loading ? "Logging in..." : isRedirecting ? "Redirecting..." : "Login"}
-          </button>
-        </form>
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <div className="password-container">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Enter your password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  disabled={loading || isRedirecting}
+                  autoComplete="current-password"
+                  className={touched.password && !formData.password ? "is-error" : ""}
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={togglePasswordVisibility}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  disabled={loading || isRedirecting}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
+            </div>
 
-        <p className="auth-link">
-          Don't have an account? <Link to="/register">Register</Link>
-        </p>
+            <button
+              type="submit"
+              className="auth-button"
+              disabled={loading || isRedirecting}
+            >
+              {loading ? "Logging in..." : isRedirecting ? "Redirecting..." : "Login"}
+            </button>
+          </form>
+
+          <p className="auth-link">
+            Don't have an account? <Link to="/register">Register</Link>
+          </p>
+        </div>
       </div>
     </div>
   );

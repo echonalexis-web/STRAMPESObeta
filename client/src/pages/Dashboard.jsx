@@ -7,7 +7,7 @@ import AppModal from "../components/AppModal";
 import EmployerModal from "../components/EmployerModal";
 import "../styles/dashboard.css";
 import "../styles/EmployerModal.css";
-import { FaBriefcase, FaFileAlt, FaUserCircle, FaBuilding, FaMapMarkerAlt, FaCalendarAlt, FaSearch, FaArrowRight, FaExclamationTriangle, FaSpinner } from "react-icons/fa";
+import { FaBriefcase, FaFileAlt, FaUserCircle, FaBuilding, FaMapMarkerAlt, FaCalendarAlt, FaSearch, FaArrowRight, FaExclamationTriangle, FaSpinner, FaUsers, FaEnvelope, FaStar } from "react-icons/fa";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -34,8 +34,10 @@ const getMatchClass = (score) => {
 };
 
 export default function Dashboard() {
-  const { user } = useContext(AuthContext);
+  const { user, login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const preferredIndustries = user?.preferredIndustries || [];
+
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,8 +50,8 @@ export default function Dashboard() {
   const [editingApplication, setEditingApplication] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
-  const [editCoverLetter, setEditCoverLetter] = useState("");
   const [editResumeFile, setEditResumeFile] = useState(null);
+  const [editCoverLetterFile, setEditCoverLetterFile] = useState(null);
   const [isUpdatingApplication, setIsUpdatingApplication] = useState(false);
   const [isDeletingApplication, setIsDeletingApplication] = useState(false);
   const [hasSkills, setHasSkills] = useState(true);
@@ -71,9 +73,6 @@ export default function Dashboard() {
     setError("");
     
     try {
-      console.log('📡 Fetching dashboard data...');
-      console.log('👤 User:', user?.email || 'Not logged in');
-      
       if (!user) {
         setError('Please login to view your dashboard');
         setLoading(false);
@@ -85,18 +84,21 @@ export default function Dashboard() {
         jobAPI.getMyApplications(),
       ]);
       
-      console.log('✅ Jobs response:', jobRes);
-      console.log('✅ Applications response:', applicationRes);
-      
       setJobs(Array.isArray(jobRes.data?.jobs) ? jobRes.data.jobs : []);
       setHasSkills(jobRes.data?.hasSkills !== undefined ? jobRes.data.hasSkills : true);
       setApplications(Array.isArray(applicationRes.data) ? applicationRes.data : []);
       
-    } catch (err) {
-      console.error('❌ Dashboard fetch error:', err);
-      console.error('❌ Error response:', err.response);
-      console.error('❌ Error message:', err.message);
+      // Sync preferredIndustries from backend to user context
+      if (jobRes.data?.preferredIndustries && Array.isArray(jobRes.data.preferredIndustries)) {
+        console.log("📌 [Dashboard] Syncing preferredIndustries from API:", jobRes.data.preferredIndustries);
+        const token = localStorage.getItem("token");
+        const updatedUser = { ...user, preferredIndustries: jobRes.data.preferredIndustries };
+        if (token) {
+          login(token, updatedUser);
+        }
+      }
       
+    } catch (err) {
       if (err.response?.status === 401) {
         setError('Your session has expired. Please login again.');
         setTimeout(() => navigate('/login'), 2000);
@@ -136,7 +138,6 @@ export default function Dashboard() {
     setIsEmployerModalOpen(true);
   };
 
-  // ----- Final handleMessageEmployer (no alert) -----
   const handleMessageEmployer = async (job) => {
     let employerId = null;
     if (job.employer && typeof job.employer === 'object') {
@@ -147,8 +148,6 @@ export default function Dashboard() {
     if (!employerId && job.employerId) employerId = job.employerId;
 
     const currentUserId = user?._id || user?.id;
-    console.log("Employer ID:", employerId);
-    console.log("Current user:", currentUserId);
 
     if (!employerId) {
       setError("Could not find employer for this job.");
@@ -170,7 +169,6 @@ export default function Dashboard() {
       setError(err.response?.data?.message || "Failed to start a conversation with the employer");
     }
   };
-  // -------------------------------------------------------------
 
   const getStatusClassName = (status) => {
     const normalized = String(status || "").toLowerCase();
@@ -179,6 +177,10 @@ export default function Dashboard() {
     if (normalized === "accepted" || normalized === "hired") return "status-accepted";
     if (normalized === "applied" || normalized === "pending" || normalized === "reviewed") return "status-applied";
     return "status-open";
+  };
+
+  const isJobAlreadyApplied = (jobId) => {
+    return applications.some((app) => String(app.vacancy?._id) === String(jobId));
   };
 
   const formatAppliedDate = (appliedAt) => {
@@ -200,6 +202,12 @@ export default function Dashboard() {
     return `${API_BASE_URL}/${sanitized}`;
   };
 
+  const getUploadedFileUrl = (filePath) => {
+    if (!filePath) return null;
+    const sanitized = String(filePath).replace(/\\/g, "/").replace(/^\/+/, "");
+    return `${API_BASE_URL}/${sanitized}`;
+  };
+
   const getEmployerDisplay = (employer) => {
     if (!employer || typeof employer !== "object") {
       return { accountName: "Unknown", companyName: "No company name" };
@@ -209,8 +217,8 @@ export default function Dashboard() {
 
   const handleOpenEditModal = (application) => {
     setEditingApplication(application);
-    setEditCoverLetter(application.coverLetter || "");
     setEditResumeFile(null);
+    setEditCoverLetterFile(null);
   };
 
   const handleUpdateApplication = async (event) => {
@@ -220,8 +228,8 @@ export default function Dashboard() {
     setIsUpdatingApplication(true);
     try {
       const formData = new FormData();
-      formData.append("coverLetter", editCoverLetter || "");
       if (editResumeFile) formData.append("resume", editResumeFile);
+      if (editCoverLetterFile) formData.append("coverLetterFile", editCoverLetterFile);
 
       const { data } = await jobAPI.updateApplication(editingApplication._id, formData);
       const updatedApplication = data?.application;
@@ -272,7 +280,11 @@ export default function Dashboard() {
   const acceptedApplications = applications.filter(a => 
     a.status === 'accepted' || a.status === 'hired'
   ).length;
-  const dashboardJobs = jobs.slice(0, 4);
+
+  // Separate recommended jobs from other jobs
+  const recommendedJobs = jobs.filter(job => preferredIndustries.includes(job.industry)).slice(0, 4);
+  const otherJobs = jobs.filter(job => !preferredIndustries.includes(job.industry)).slice(0, 4 - recommendedJobs.length);
+  const dashboardJobs = [...recommendedJobs, ...otherJobs];
 
   return (
     <div className="dashboard-container">
@@ -330,6 +342,7 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Recent Job Openings Section */}
           <div className="section-header">
             <h2>Recent Job Openings</h2>
             <button className="section-view-all" onClick={() => navigate("/jobs")}>View All <FaArrowRight /></button>
@@ -346,11 +359,74 @@ export default function Dashboard() {
             <div className="empty-state-card"><p>No jobs are available right now.</p></div>
           ) : (
             <div className="jobs-grid">
-              {dashboardJobs.map((job) => (
-                <div key={job._id} className="job-card">
+              {dashboardJobs.map((job) => {
+                const isPreferred = preferredIndustries.includes(job.industry);
+                return (
+                  <div key={job._id} className={`job-card ${isPreferred ? 'preferred-card' : ''}`}>
+                    <div className="job-card-header">
+                      <h3>{job.title}</h3>
+                      <span className="job-status status-open">Open</span>
+                      {isJobAlreadyApplied(job._id) && (
+                        <span className="job-applied-badge">Applied</span>
+                      )}
+                      {isPreferred && (
+                        <span className="preferred-industry-badge"><FaStar /> Preferred</span>
+                      )}
+                      {hasSkills && (
+                        <div className={`match-badge ${getMatchClass(job.relevanceScore)}`}>
+                          {Math.round((job.relevanceScore || 0) * 100)}%
+                        </div>
+                      )}
+                    </div>
+                    <div className="job-card-location"><FaMapMarkerAlt /> {formatAddress(job.location)}</div>
+                    <p className="job-card-description">{job.description?.slice(0, 120) || ''}...</p>
+                    <p className="job-card-applicants"><FaUsers /> {Number(job.applicationCount || 0)} jobseekers applied</p>
+                    <div className="job-card-footer">
+                      <div className="job-card-company"><FaBuilding /><span>{job.employer?.companyName || "Employer"}</span></div>
+                      {isJobAlreadyApplied(job._id) ? (
+                        <button type="button" className="btn btn-primary btn-apply btn-apply-disabled" disabled title="You have already applied to this job">Already Applied</button>
+                      ) : (
+                        <button type="button" className="btn btn-primary btn-apply" onClick={() => handleApplyJob(job._id)}>Apply Now</button>
+                      )}
+                    </div>
+                    <div className="job-card-actions">
+                      <button type="button" className="btn btn-info btn-view-job" onClick={() => handleViewJob(job)}>View Details</button>
+                      <button type="button" className="btn-employer-icon" onClick={() => handleMessageEmployer(job)} title="Message employer" aria-label="Message employer"><FaEnvelope /></button>
+                      <button type="button" className="btn-employer" onClick={() => handleViewEmployer(job)}><FaUserCircle /> Employer</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Recommended for You Section */}
+          <div className="section-header">
+            <h2><FaStar style={{ color: '#f59e0b', marginRight: '8px' }} /> Recommended for You</h2>
+          </div>
+
+          {preferredIndustries.length === 0 ? (
+            <div className="setup-industries-prompt">
+              <div className="setup-industries-content">
+                <FaStar className="setup-industries-icon" />
+                <h3>Set Up Your Preferred Industries</h3>
+                <p>To get personalized job recommendations, add your preferred industries to your profile. This helps us suggest jobs that match your career interests.</p>
+                <button className="btn-setup-industries" onClick={() => navigate("/profile")}>
+                  Go to Edit Profile
+                </button>
+              </div>
+            </div>
+          ) : recommendedJobs.length > 0 ? (
+            <div className="jobs-grid">
+              {recommendedJobs.map((job) => (
+                <div key={job._id} className="job-card preferred-card">
                   <div className="job-card-header">
                     <h3>{job.title}</h3>
                     <span className="job-status status-open">Open</span>
+                    {isJobAlreadyApplied(job._id) && (
+                      <span className="job-applied-badge">Applied</span>
+                    )}
+                    <span className="preferred-industry-badge"><FaStar /> Preferred</span>
                     {hasSkills && (
                       <div className={`match-badge ${getMatchClass(job.relevanceScore)}`}>
                         {Math.round((job.relevanceScore || 0) * 100)}%
@@ -359,54 +435,25 @@ export default function Dashboard() {
                   </div>
                   <div className="job-card-location"><FaMapMarkerAlt /> {formatAddress(job.location)}</div>
                   <p className="job-card-description">{job.description?.slice(0, 120) || ''}...</p>
+                  <p className="job-card-applicants"><FaUsers /> {Number(job.applicationCount || 0)} jobseekers applied</p>
                   <div className="job-card-footer">
                     <div className="job-card-company"><FaBuilding /><span>{job.employer?.companyName || "Employer"}</span></div>
-                    <button className="btn-apply" onClick={() => handleApplyJob(job._id)}>Apply Now</button>
+                    {isJobAlreadyApplied(job._id) ? (
+                      <button type="button" className="btn btn-primary btn-apply btn-apply-disabled" disabled title="You have already applied to this job">Already Applied</button>
+                    ) : (
+                      <button type="button" className="btn btn-primary btn-apply" onClick={() => handleApplyJob(job._id)}>Apply Now</button>
+                    )}
                   </div>
                   <div className="job-card-actions">
-                    <button className="btn-view-job" onClick={() => handleViewJob(job)}>View Details</button>
-                    <button className="btn-employer" onClick={() => handleViewEmployer(job)}><FaUserCircle /> Employer</button>
+                    <button type="button" className="btn btn-info btn-view-job" onClick={() => handleViewJob(job)}>View Details</button>
+                    <button type="button" className="btn-employer-icon" onClick={() => handleMessageEmployer(job)} title="Message employer" aria-label="Message employer"><FaEnvelope /></button>
+                    <button type="button" className="btn-employer" onClick={() => handleViewEmployer(job)}><FaUserCircle /> Employer</button>
                   </div>
                 </div>
               ))}
             </div>
-          )}
-
-          <div className="section-header">
-            <h2>Your Applications</h2><span className="application-count">{applications.length} total</span>
-          </div>
-
-          {applications.length === 0 ? (
-            <div className="empty-state-card"><p>You haven't applied to any jobs yet.</p><button className="btn-browse-jobs" onClick={() => navigate("/jobs")}>Browse Jobs</button></div>
           ) : (
-            <div className="applications-grid">
-              {applications.map((application) => (
-                <div key={application._id} className="application-card">
-                  <div className="application-card-header"><h3>{application.vacancy?.title || "Untitled"}</h3><span className={`application-status ${getStatusClassName(application.status)}`}>{application.status || "Pending"}</span></div>
-                  <div className="application-card-details">
-                    <p className="application-company"><FaBuilding /> {getEmployerDisplay(application.vacancy?.employer).companyName}</p>
-                    <p className="application-location"><FaMapMarkerAlt /> {formatAddress(application.vacancy?.location || "N/A")}</p>
-                    <p className="application-date"><FaCalendarAlt /> Applied on {formatAppliedDate(application.appliedAt)}</p>
-                  </div>
-
-                  {confirmDeleteId === application._id ? (
-                    <div className="withdraw-confirm">
-                      <p>Are you sure you want to withdraw this application?</p>
-                      <div className="withdraw-confirm-actions">
-                        <button type="button" className="btn-withdraw-confirm" onClick={() => handleDeleteApplication(application._id)} disabled={isDeletingApplication}>Yes, Withdraw</button>
-                        <button type="button" className="btn-withdraw-cancel" onClick={() => setConfirmDeleteId(null)} disabled={isDeletingApplication}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="application-actions">
-                      <button type="button" className="btn-app-view" onClick={() => setViewingApplication(application)}>View Details</button>
-                      <button type="button" className="btn-app-edit" onClick={() => handleOpenEditModal(application)}>Edit</button>
-                      <button type="button" className="btn-app-withdraw" onClick={() => setConfirmDeleteId(application._id)}>Withdraw</button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+            <div className="empty-state-card"><p>No recommended jobs available. Check back soon!</p></div>
           )}
         </>
       )}
@@ -416,6 +463,8 @@ export default function Dashboard() {
         onClose={() => setIsModalOpen(false)}
         job={selectedJob}
         onMessageEmployer={handleMessageEmployer}
+        applications={applications}
+        onViewApplication={setViewingApplication}
       />
 
       <EmployerModal
@@ -432,7 +481,16 @@ export default function Dashboard() {
             <p><strong>Company:</strong> {getEmployerDisplay(viewingApplication.vacancy?.employer).companyName}</p>
             <p><strong>Location:</strong> {formatAddress(viewingApplication.vacancy?.location || "N/A")}</p>
             <p><strong>Status:</strong> <span className={`status-badge ${getStatusClassName(viewingApplication.status)}`}>{viewingApplication.status || "Pending"}</span></p>
-            <p><strong>Cover Letter:</strong> {viewingApplication.coverLetter || "No cover letter submitted."}</p>
+            <p>
+              <strong>Cover Letter:</strong>{" "}
+              {viewingApplication.coverLetterFile ? (
+                <a href={getUploadedFileUrl(viewingApplication.coverLetterFile)} target="_blank" rel="noreferrer" className="resume-link">View Cover Letter</a>
+              ) : viewingApplication.coverLetter ? (
+                viewingApplication.coverLetter
+              ) : (
+                "No cover letter uploaded."
+              )}
+            </p>
             <div className="employer-note-box"><p><strong>Employer Note:</strong> {viewingApplication.employerNote || "No note from employer yet."}</p>{viewingApplication.statusUpdatedAt && <p className="employer-note-date">Last update: {formatAppliedDate(viewingApplication.statusUpdatedAt)}</p>}</div>
             <p><strong>Resume:</strong> {viewingApplication.resume ? <a href={getResumeUrl(viewingApplication.resume)} target="_blank" rel="noreferrer" className="resume-link">View Resume</a> : "No resume uploaded."}</p>
             <p><strong>Date applied:</strong> {formatAppliedDate(viewingApplication.appliedAt)}</p>
@@ -443,14 +501,15 @@ export default function Dashboard() {
       <AppModal isOpen={Boolean(editingApplication)} onClose={() => setEditingApplication(null)} title="Edit Application">
         {editingApplication && (
           <form className="edit-application-form" onSubmit={handleUpdateApplication}>
-            <label htmlFor="editCoverLetter">Cover Letter</label>
-            <textarea id="editCoverLetter" value={editCoverLetter} onChange={(e) => setEditCoverLetter(e.target.value)} rows="6" />
             <label htmlFor="editResume">Resume</label>
             <input id="editResume" type="file" accept=".pdf,.doc,.docx" onChange={(e) => setEditResumeFile(e.target.files?.[0] || null)} />
             <p className="current-file-name">{editResumeFile ? editResumeFile.name : editingApplication.resume ? editingApplication.resume.split("/").pop() : "No resume uploaded"}</p>
+            <label htmlFor="editCoverLetterFile">Cover Letter <span className="optional-label">(Optional)</span></label>
+            <input id="editCoverLetterFile" type="file" accept=".pdf,.doc,.docx" onChange={(e) => setEditCoverLetterFile(e.target.files?.[0] || null)} />
+            <p className="current-file-name">{editCoverLetterFile ? editCoverLetterFile.name : editingApplication.coverLetterFile ? editingApplication.coverLetterFile.split("/").pop() : "No cover letter uploaded"}</p>
             <div className="edit-application-actions">
-              <button type="submit" className="btn-save-changes" disabled={isUpdatingApplication}>{isUpdatingApplication ? "Saving..." : "Save Changes"}</button>
-              <button type="button" className="btn-cancel-edit" onClick={() => setEditingApplication(null)} disabled={isUpdatingApplication}>Cancel</button>
+              <button type="submit" className="btn btn-success btn-save-changes" disabled={isUpdatingApplication}>{isUpdatingApplication ? "Saving..." : "Save Changes"}</button>
+              <button type="button" className="btn btn-secondary btn-cancel-edit" onClick={() => setEditingApplication(null)} disabled={isUpdatingApplication}>Cancel</button>
             </div>
           </form>
         )}

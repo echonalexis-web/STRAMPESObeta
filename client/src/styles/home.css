@@ -1,6 +1,6 @@
 /* Home Page Styles */
 .home-root {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--sans);
   color: #1f254f;
   background: #f4f5ff;
 }
@@ -26,7 +26,7 @@ body, html {
   width: 100%;
   min-height: 100vh;
   background: #f8f9ff;
-  padding: 0;
+  padding-top: 70px;
   margin: 0;
   position: relative;
 }
@@ -53,10 +53,7 @@ body, html {
     min-height: calc(100vh - 70px);
     margin-top: 0;
   }
-  
-  .home-container {
-    padding-top: 70px;
-  }
+
 }
 
 /* Tablet and mobile - NO white space */

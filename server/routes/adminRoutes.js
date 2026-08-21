@@ -2,7 +2,10 @@ const router = require("express").Router();
 const {
   getAdminAnalytics,
   getAllUsers,
+  getUserProfileDetails,
   getHomepageJobManagement,
+  deleteJob,
+  updateJobStatus,
   updateUserRole,
   deactivateUser,
   reactivateUser,
@@ -27,6 +30,7 @@ router.get("/analytics", sanitizeQueryParams, getAdminAnalytics);
 
 // User management
 router.get("/users", sanitizeQueryParams, getAllUsers);
+router.get("/users/:id", validateMongoId("id"), sanitizeQueryParams, validateRequest, getUserProfileDetails);
 router.put("/users/:id/role", validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, updateUserRole);
 router.put("/users/:id/deactivate", validateMongoId("id"), sanitizeRequestBody, deactivateUser);
 router.put("/users/:id/reactivate", validateMongoId("id"), sanitizeRequestBody, reactivateUser);
@@ -36,5 +40,7 @@ router.delete("/users/:id", validateMongoId("id"), deleteUser);
 // Job management
 router.get("/jobs/homepage-display", sanitizeQueryParams, getHomepageJobManagement);
 router.put("/jobs/:id/homepage-feature", validateMongoId("id"), sanitizeRequestBody, toggleHomepageFeature);
+router.put("/jobs/:id/status", validateMongoId("id"), sanitizeRequestBody, validateRequest, updateJobStatus);
+router.delete("/jobs/:id", validateMongoId("id"), deleteJob);
 
 module.exports = router;

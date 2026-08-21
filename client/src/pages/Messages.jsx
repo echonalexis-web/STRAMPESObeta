@@ -50,11 +50,53 @@ const getDateLabel = (isoDate) => {
   return date.toLocaleDateString([], { month: "long", day: "numeric" });
 };
 
-const getSenderId = (message) => String(message?.sender?._id || message?.sender || "");
+// ===== FIXED: String-only ID extraction =====
+const getEntityId = (value) => {
+  if (!value) return "";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (typeof value === "object") {
+    if (value._id) return String(value._id);
+    if (value.id) return String(value.id);
+    if (value.$oid) return String(value.$oid);
+    if (typeof value.toString === "function" && value.toString() !== "[object Object]") {
+      return value.toString();
+    }
+  }
+  return "";
+};
 
-const getParticipantId = (participant) => String(participant?._id || participant?.id || participant || "");
+const getSenderId = (message) => {
+  const raw = message?.sender?._id || message?.sender?.id || message?.sender || message?.senderId;
+  return raw ? String(raw) : "";
+};
 
-// ----- Robust getOtherParticipant -----
+const getParticipantId = (participant) => {
+  const raw = participant?._id || participant?.id || participant;
+  return raw ? String(raw) : "";
+};
+
+// ===== FIXED: Better message key with fallback =====
+const getMessageKey = (message) => {
+  const id = message?._id ? String(message._id) : "";
+  if (id) return id;
+  const sender = getSenderId(message);
+  const content = message?.content || "";
+  const time = message?.createdAt || Date.now();
+  return `${sender}:${String(time)}:${String(content)}`;
+};
+
+// ===== FIXED: Dedupe by key =====
+const dedupeMessages = (list) => {
+  const seen = new Set();
+  return (Array.isArray(list) ? list : []).filter((message) => {
+    const key = getMessageKey(message);
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const getOtherParticipant = (conversation, currentUserId) => {
   const participants = Array.isArray(conversation?.participants) ? conversation.participants : [];
   const valid = participants.filter((participant) => participant && getParticipantId(participant));
@@ -81,7 +123,6 @@ const normalizeConversation = (conversation) => {
     participants: participants.filter((participant) => participant && getParticipantId(participant)),
   };
 };
-// ----------------------------------------
 
 export default function Messages() {
   const { user } = useContext(AuthContext);
@@ -89,7 +130,7 @@ export default function Messages() {
   const location = useLocation();
   const preselectedConversationId = location.state?.conversationId || null;
 
-  const currentUserId = String(user?._id || user?.id || "");
+  const currentUserId = getEntityId(user?._id || user?.id || user);
   const [conversations, setConversations] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedConversationId, setSelectedConversationId] = useState(null);
@@ -128,7 +169,6 @@ export default function Messages() {
         if (!isActive) return;
 
         const list = Array.isArray(data) ? data : [];
-        // Filter out conversations where the other participant is null (i.e., only yourself)
         const seenKeys = new Set();
         const filtered = list.filter((conv) => {
           const other = getOtherParticipant(conv, currentUserId);
@@ -173,9 +213,11 @@ export default function Messages() {
     const loadMessages = async () => {
       try {
         const { data } = await messageAPI.getMessages(selectedConversationId);
+        const deduplicated = dedupeMessages(data);
+
         setMessagesByConversation((prev) => ({
           ...prev,
-          [selectedConversationId]: Array.isArray(data) ? data : [],
+          [selectedConversationId]: deduplicated,
         }));
 
         setUnreadByConversation((prev) => ({
@@ -203,7 +245,7 @@ export default function Messages() {
     };
   }, [socket, selectedConversationId]);
 
-  // ----- Socket listeners -----
+  // ===== FIXED: Socket listeners with sender self-ignore =====
   useEffect(() => {
     if (!socket || !isConnected || !currentUserId) return undefined;
 
@@ -211,13 +253,20 @@ export default function Messages() {
       const conversationId = String(incoming?.conversationId || "");
       if (!conversationId) return;
 
+      // Ignore messages sent by the current user (socket broadcasts to all, including sender)
       const senderId = getSenderId(incoming);
-      if (senderId === currentUserId) return;
+      if (senderId && senderId === String(currentUserId)) return;
 
-      setMessagesByConversation((prev) => ({
-        ...prev,
-        [conversationId]: [...(prev[conversationId] || []), incoming],
-      }));
+      setMessagesByConversation((prev) => {
+        const existing = prev[conversationId] || [];
+        const merged = dedupeMessages([...existing, incoming]);
+        if (merged.length === existing.length) return prev;
+
+        return {
+          ...prev,
+          [conversationId]: merged,
+        };
+      });
 
       setConversations((prev) =>
         prev
@@ -332,7 +381,6 @@ export default function Messages() {
 
   const selectedMessages = selectedConversationId ? messagesByConversation[selectedConversationId] || [] : [];
 
-  // ----- Compute receiverId dynamically from conversation -----
   const getReceiverIdFromConversation = (conversation) => {
     if (!conversation) return null;
     const other = getOtherParticipant(conversation, currentUserId);
@@ -368,11 +416,11 @@ export default function Messages() {
     }
   };
 
+  // ===== FIXED: Send handler with better dedupe =====
   const handleSend = async () => {
     const rawContent = draft.trim();
     if (!rawContent || !selectedConversationId) return;
 
-    // Sanitize content
     let sanitized = DOMPurify.sanitize(rawContent, {
       ALLOWED_TAGS: [],
       ALLOWED_ATTR: [],
@@ -401,7 +449,7 @@ export default function Messages() {
 
     setMessagesByConversation((prev) => ({
       ...prev,
-      [selectedConversationId]: [...(prev[selectedConversationId] || []), optimisticMessage],
+      [selectedConversationId]: dedupeMessages([...(prev[selectedConversationId] || []), optimisticMessage]),
     }));
 
     setConversations((prev) =>
@@ -426,14 +474,15 @@ export default function Messages() {
     try {
       const { data } = await messageAPI.sendMessage(selectedConversationId, { content, receiverId });
 
-      // Replace optimistic message with the server response
+      // Replace optimistic with real message and dedupe globally
       setMessagesByConversation((prev) => ({
         ...prev,
-        [selectedConversationId]: (prev[selectedConversationId] || []).map((message) =>
-          message._id === tempId ? data : message
+        [selectedConversationId]: dedupeMessages(
+          (prev[selectedConversationId] || []).map((message) =>
+            message._id === tempId ? data : message
+          )
         ),
       }));
-
     } catch (err) {
       console.error("❌ Send error:", err.response?.data || err);
       // Rollback optimistic message
@@ -603,7 +652,6 @@ export default function Messages() {
 
             {filteredConversations.map((conversation) => {
               const otherUser = getOtherParticipant(conversation, currentUserId);
-              // Guard: if no other participant, skip rendering
               if (!otherUser) return null;
 
               const isActive = selectedConversationId === conversation._id;
@@ -692,7 +740,7 @@ export default function Messages() {
                     const mine = getSenderId(message) === currentUserId;
 
                     return (
-                      <div key={message._id || `${message.createdAt}-${index}`}>
+                      <div key={getMessageKey(message) || `${message.createdAt}-${index}`}>
                         {showSeparator && <div className="date-divider">{currentLabel}</div>}
                         <div className={`message ${mine ? "sent" : "received"}`}>
                           <div className="message-bubble">

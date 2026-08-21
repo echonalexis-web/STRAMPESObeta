@@ -411,3 +411,52 @@
     font-size: 12px;
   }
 }
+
+.employer-follow-bar {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.employer-follow-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #2e7d32;
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.employer-follow-btn:hover:not(:disabled) {
+  background: #1b5e20;
+}
+
+.employer-follow-btn.following {
+  background: #f0f2f4;
+  color: #1a2a3a;
+}
+
+.employer-follow-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.employer-follow-counts {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a5a6a;
+}
+
+.employer-follow-error {
+  margin: 8px 0 0;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 500;
+}

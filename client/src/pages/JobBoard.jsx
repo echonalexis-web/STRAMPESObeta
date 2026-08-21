@@ -5,18 +5,21 @@ import "../styles/jobboard.css";
 import Modal from "../components/Modal";
 import AppModal from "../components/AppModal";
 import EmployerModal from "../components/EmployerModal";
+import JobFavoriteButton from "../components/JobFavoriteButton";
 import QualificationsDisplay from "../components/QualificationsDisplay";
 import JobSearchFilters from "../components/JobSearchFilters";
 import { AuthContext } from "../context/AuthContext";
 import "../styles/qualifications-editor.css";
+import phLocationsRaw from "../data/philippine_provinces_cities_municipalities_and_barangays_2019v2.json";
 import { 
-  FaSearch, 
   FaMapMarkerAlt, 
   FaBuilding, 
-  FaUserCircle, 
   FaBriefcase, 
   FaCalendarAlt, 
-  FaFileAlt
+  FaFileAlt,
+  FaUsers,
+  FaEnvelope,
+  FaStar
 } from "react-icons/fa";
 
 const formatAddress = (address) => {
@@ -43,7 +46,9 @@ const getMatchClass = (score) => {
 
 export default function JobBoard() {
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user, login } = useContext(AuthContext);
+  const preferredIndustries = user?.preferredIndustries || [];
+
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -56,25 +61,77 @@ export default function JobBoard() {
   const [editingApplication, setEditingApplication] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
-  const [editCoverLetter, setEditCoverLetter] = useState("");
   const [editResumeFile, setEditResumeFile] = useState(null);
+  const [editCoverLetterFile, setEditCoverLetterFile] = useState(null);
   const [isUpdatingApplication, setIsUpdatingApplication] = useState(false);
   const [isDeletingApplication, setIsDeletingApplication] = useState(false);
   const [hasSkills, setHasSkills] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [jobsPerPage] = useState(6);
+  const [activeFilters, setActiveFilters] = useState({});
 
-  const fetchJobs = async (filters = {}) => {
+  const fetchJobs = async (filters = activeFilters, page = 1) => {
     setLoading(true);
     setError("");
     try {
-      const params = { ...filters };
-      delete params.userId;
+      const sanitizedFilters = { ...filters };
+      Object.keys(sanitizedFilters).forEach((key) => {
+        if (sanitizedFilters[key] === '' || sanitizedFilters[key] === null || sanitizedFilters[key] === undefined) {
+          delete sanitizedFilters[key];
+        }
+      });
+
+      const params = {
+        ...sanitizedFilters,
+        page,
+        limit: jobsPerPage
+      };
+
+      setActiveFilters(sanitizedFilters);
+
       const [jobsResponse, applicationsResponse] = await Promise.all([
         jobAPI.searchJobsWithSemantic(params),
         jobAPI.getMyApplications(),
       ]);
-      setJobs(jobsResponse.data.jobs || []);
+
+      const responseJobs = Array.isArray(jobsResponse.data.jobs) ? jobsResponse.data.jobs : [];
+      const responsePagination = jobsResponse.data.pagination;
+
+      if (responsePagination && typeof responsePagination === "object") {
+        const backendTotal = Number(responsePagination.total || responseJobs.length || 0);
+        const backendPages = Number(responsePagination.pages || Math.ceil(backendTotal / jobsPerPage) || 1);
+        setJobs(responseJobs);
+        setTotalJobs(backendTotal);
+        setTotalPages(Math.max(1, backendPages));
+        setCurrentPage(Number(responsePagination.page || page || 1));
+      } else {
+        const computedTotal = responseJobs.length;
+        const computedPages = Math.max(1, Math.ceil(computedTotal / jobsPerPage));
+        const safePage = Math.min(Math.max(page, 1), computedPages);
+        const startIndex = (safePage - 1) * jobsPerPage;
+        const endIndex = startIndex + jobsPerPage;
+
+        setJobs(responseJobs.slice(startIndex, endIndex));
+        setTotalJobs(computedTotal);
+        setTotalPages(computedPages);
+        setCurrentPage(safePage);
+      }
+
       setHasSkills(jobsResponse.data.hasSkills !== undefined ? jobsResponse.data.hasSkills : true);
       setApplications(applicationsResponse.data || []);
+
+      // Sync preferredIndustries from backend to user context
+      if (jobsResponse.data.preferredIndustries && Array.isArray(jobsResponse.data.preferredIndustries)) {
+        console.log("📌 Syncing preferredIndustries from API:", jobsResponse.data.preferredIndustries);
+        // Update user in context with preferred industries
+        const token = localStorage.getItem("token");
+        const updatedUser = { ...user, preferredIndustries: jobsResponse.data.preferredIndustries };
+        if (token) {
+          login(token, updatedUser);
+        }
+      }
     } catch (err) {
       console.error("❌ Error fetching jobs:", err);
       setError(err.response?.data?.message || "Failed to load jobs");
@@ -94,6 +151,21 @@ export default function JobBoard() {
     }, 3000);
     return () => clearTimeout(timer);
   }, [toastMessage]);
+
+  // --- Filter Handlers ---
+  const handleFilterChange = (newFilters) => {
+    setActiveFilters(newFilters);
+  };
+
+  const handleSearch = () => {
+    fetchJobs(activeFilters, 1);
+  };
+
+  const handleReset = () => {
+    setActiveFilters({});
+    fetchJobs({}, 1);
+  };
+  // -----------------------
 
   const handleViewJob = (job) => {
     setSelectedJob(job);
@@ -123,7 +195,6 @@ export default function JobBoard() {
     setIsEmployerModalOpen(true);
   };
 
-  // ----- Final handleMessageEmployer (no alert) -----
   const handleMessageEmployer = async (job) => {
     let employerId = null;
     if (job.employer && typeof job.employer === 'object') {
@@ -134,8 +205,6 @@ export default function JobBoard() {
     if (!employerId && job.employerId) employerId = job.employerId;
 
     const currentUserId = user?._id || user?.id;
-    console.log("Employer ID:", employerId);
-    console.log("Current user:", currentUserId);
 
     if (!employerId) {
       setError("Could not find employer for this job.");
@@ -157,14 +226,18 @@ export default function JobBoard() {
       setError(err.response?.data?.message || "Failed to start a conversation with the employer");
     }
   };
-  // -------------------------------------------------------------
 
   const getStatusClassName = (status) => {
     const normalized = String(status || "").toLowerCase();
     if (normalized === "open") return "status-open";
     if (normalized === "rejected") return "status-rejected";
     if (normalized === "applied" || normalized === "pending" || normalized === "reviewed") return "status-applied";
+    if (normalized === "accepted" || normalized === "hired") return "status-accepted";
     return "status-open";
+  };
+
+  const isJobAlreadyApplied = (jobId) => {
+    return applications.some((app) => String(app.vacancy?._id) === String(jobId));
   };
 
   const formatAppliedDate = (appliedAt) => {
@@ -182,6 +255,12 @@ export default function JobBoard() {
     return `http://localhost:3000/${sanitized}`;
   };
 
+  const getUploadedFileUrl = (filePath) => {
+    if (!filePath) return null;
+    const sanitized = String(filePath).replace(/\\/g, "/");
+    return `http://localhost:3000/${sanitized}`;
+  };
+
   const getEmployerDisplay = (employer) => {
     if (!employer || typeof employer !== "object") {
       return { accountName: "Unknown", companyName: "No company name" };
@@ -194,8 +273,8 @@ export default function JobBoard() {
 
   const handleOpenEditModal = (application) => {
     setEditingApplication(application);
-    setEditCoverLetter(application.coverLetter || "");
     setEditResumeFile(null);
+    setEditCoverLetterFile(null);
   };
 
   const handleUpdateApplication = async (event) => {
@@ -204,8 +283,8 @@ export default function JobBoard() {
     setIsUpdatingApplication(true);
     try {
       const formData = new FormData();
-      formData.append("coverLetter", editCoverLetter || "");
       if (editResumeFile) formData.append("resume", editResumeFile);
+      if (editCoverLetterFile) formData.append("coverLetterFile", editCoverLetterFile);
       const { data } = await jobAPI.updateApplication(editingApplication._id, formData);
       const updatedApplication = data?.application;
       if (updatedApplication) {
@@ -242,14 +321,24 @@ export default function JobBoard() {
         <div className="jobboard-hero-content">
           <h1>Available Jobs in Marinduque</h1>
           <p>Browse open vacancies and apply with your resume.</p>
-          <JobSearchFilters onSearch={fetchJobs} initialFilters={{}} />
+          <JobSearchFilters 
+            filters={activeFilters} 
+            onChange={handleFilterChange} 
+            onSearch={handleSearch} 
+            onReset={handleReset}
+            phLocationsData={phLocationsRaw}
+            preferredIndustries={preferredIndustries}
+          />
         </div>
       </section>
 
       <div className="jobboard-content">
-        <div className="jobboard-count">{jobs.length} jobs available</div>
+        <div className="jobboard-count">
+          {totalJobs > 0 ? `${totalJobs} jobs available` : "No jobs available"}
+          {totalJobs > 0 && ` • Page ${currentPage} of ${totalPages}`}
+        </div>
 
-        {user && !hasSkills && (
+        {user && !hasSkills && totalJobs > 0 && (
           <div className="info-message">
             <p>You haven't added any skills to your profile yet. Add skills to see your match percentage for each job.</p>
             <button className="btn-profile-edit" onClick={() => navigate("/profile")}>Edit Profile</button>
@@ -270,35 +359,84 @@ export default function JobBoard() {
           </div>
         ) : (
           <div className="jobboard-grid">
-            {jobs.map((job) => (
-              <div key={job._id} className="job-card">
-                <div className="job-card-header">
-                  <h3>{job.title}</h3>
-                  <span className="job-status status-open">Open</span>
-                  <div className={`match-badge ${getMatchClass(job.relevanceScore)}`}>
-                    {Math.round((job.relevanceScore || 0) * 100)}%
+            {jobs.map((job) => {
+              const isApplied = isJobAlreadyApplied(job._id);
+              const isPreferred = preferredIndustries.includes(job.industry);
+              return (
+                <div key={job._id} className={`job-card ${isPreferred ? 'preferred-card' : ''}`}>
+                  <div className="job-card-header">
+                    <div className="job-brand-block">
+                      <div className="job-brand-logo">{(job.employer?.companyName || "E").charAt(0)}</div>
+                      <div className="job-brand-text">
+                        <span className="job-company-name">{job.employer?.companyName || "Employer"}</span>
+                        <h3 onClick={() => handleViewJob(job)} role="button" tabIndex={0} onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            handleViewJob(job);
+                          }
+                        }}>{job.title}</h3>
+                      </div>
+                    </div>
+
+                    <div className="job-badge-cluster">
+                      {isPreferred && (
+                        <span className="preferred-industry-badge" title="Matches your preferred industry">
+                          <FaStar /> Preferred
+                        </span>
+                      )}
+                      <span className="job-status status-open">Open</span>
+                      <div className={`match-badge ${getMatchClass(job.relevanceScore)}`}>
+                        {Math.round((job.relevanceScore || 0) * 100)}%
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="job-card-location">
+                    <FaMapMarkerAlt /> {formatAddress(job.location)}
+                  </div>
+
+                  <p className="job-card-description">{job.description}</p>
+                  <p className="job-card-applicants"><FaUsers /> {Number(job.applicationCount || 0)} jobseekers applied</p>
+
+                  <div className="job-requirements-box">
+                    <QualificationsDisplay qualifications={job.qualifications || []} compact maxBadges={3} />
+                  </div>
+
+                  <div className="job-card-actions job-card-actions--compact">
+                    {isApplied ? (
+                      <button className="btn-apply btn-apply-disabled" disabled title="You have already applied to this job">Applied</button>
+                    ) : (
+                      <button className="btn-apply" onClick={() => handleApplyJob(job._id)}>Apply Now</button>
+                    )}
+                    <JobFavoriteButton jobId={job._id} hideCount={isApplied} variant="heart" />
+                    <button className="btn-employer-icon" onClick={() => handleMessageEmployer(job)} title="Message employer" aria-label="Message employer"><FaEnvelope /></button>
+                    <button className="btn-employer-icon" onClick={() => handleViewEmployer(job)} title="Employer info" aria-label="Employer info"><FaBuilding /></button>
                   </div>
                 </div>
-                <div className="job-card-location">
-                  <FaMapMarkerAlt /> {formatAddress(job.location)}
-                </div>
-                <p className="job-card-description">{job.description}</p>
-                <div className="job-card-qualifications">
-                  <QualificationsDisplay qualifications={job.qualifications || []} compact maxBadges={3} />
-                </div>
-                <div className="job-card-footer">
-                  <div className="job-card-company">
-                    <FaBuilding />
-                    <span>{job.employer?.companyName || "Employer"}</span>
-                  </div>
-                </div>
-                <div className="job-card-actions">
-                  <button className="btn-view" onClick={() => handleViewJob(job)}>View Details</button>
-                  <button className="btn-apply" onClick={() => handleApplyJob(job._id)}>Apply Now</button>
-                  <button className="btn-employer" onClick={() => handleViewEmployer(job)}><FaUserCircle /> Employer</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        )}
+
+        {jobs.length > 0 && (
+          <div className="pagination-controls">
+            <button
+              className="pagination-btn"
+              onClick={() => fetchJobs(activeFilters, currentPage - 1)}
+              disabled={currentPage === 1 || loading}
+            >
+              ← Previous
+            </button>
+            <div className="pagination-info">
+              Page {currentPage} of {totalPages}
+            </div>
+            <button
+              className="pagination-btn"
+              onClick={() => fetchJobs(activeFilters, currentPage + 1)}
+              disabled={currentPage === totalPages || loading}
+            >
+              Next →
+            </button>
           </div>
         )}
 
@@ -349,6 +487,8 @@ export default function JobBoard() {
         onClose={() => setIsModalOpen(false)}
         job={selectedJob}
         onMessageEmployer={handleMessageEmployer}
+        applications={applications}
+        onViewApplication={setViewingApplication}
       />
 
       <EmployerModal
@@ -365,7 +505,16 @@ export default function JobBoard() {
             <p><strong>Company:</strong> {getEmployerDisplay(viewingApplication.vacancy?.employer).companyName}</p>
             <p><strong>Location:</strong> {formatAddress(viewingApplication.vacancy?.location || "N/A")}</p>
             <p><strong>Status:</strong> <span className={`status-badge ${getStatusClassName(viewingApplication.status)}`}>{viewingApplication.status}</span></p>
-            <p><strong>Cover Letter:</strong> {viewingApplication.coverLetter || "No cover letter submitted."}</p>
+            <p>
+              <strong>Cover Letter:</strong>{" "}
+              {viewingApplication.coverLetterFile ? (
+                <a href={getUploadedFileUrl(viewingApplication.coverLetterFile)} target="_blank" rel="noreferrer" className="resume-link">View Cover Letter</a>
+              ) : viewingApplication.coverLetter ? (
+                viewingApplication.coverLetter
+              ) : (
+                "No cover letter uploaded."
+              )}
+            </p>
             <div className="employer-note-box">
               <p><strong>Employer Note:</strong> {viewingApplication.employerNote || "No note from employer yet."}</p>
               {viewingApplication.statusUpdatedAt && <p className="employer-note-date">Last update: {formatAppliedDate(viewingApplication.statusUpdatedAt)}</p>}
@@ -379,11 +528,12 @@ export default function JobBoard() {
       <AppModal isOpen={Boolean(editingApplication)} onClose={() => setEditingApplication(null)} title="Edit Application">
         {editingApplication && (
           <form className="edit-application-form" onSubmit={handleUpdateApplication}>
-            <label htmlFor="editCoverLetter">Cover Letter</label>
-            <textarea id="editCoverLetter" value={editCoverLetter} onChange={(e) => setEditCoverLetter(e.target.value)} rows="6" />
             <label htmlFor="editResume">Resume</label>
             <input id="editResume" type="file" accept=".pdf,.doc,.docx" onChange={(e) => setEditResumeFile(e.target.files?.[0] || null)} />
             <p className="current-file-name">{editResumeFile ? editResumeFile.name : editingApplication.resume ? editingApplication.resume.split("/").pop() : "No resume uploaded"}</p>
+            <label htmlFor="editCoverLetterFile">Cover Letter <span className="optional-label">(Optional)</span></label>
+            <input id="editCoverLetterFile" type="file" accept=".pdf,.doc,.docx" onChange={(e) => setEditCoverLetterFile(e.target.files?.[0] || null)} />
+            <p className="current-file-name">{editCoverLetterFile ? editCoverLetterFile.name : editingApplication.coverLetterFile ? editingApplication.coverLetterFile.split("/").pop() : "No cover letter uploaded"}</p>
             <div className="edit-application-actions">
               <button type="submit" className="btn-save-changes" disabled={isUpdatingApplication}>{isUpdatingApplication ? "Saving..." : "Save Changes"}</button>
               <button type="button" className="btn-cancel-edit" onClick={() => setEditingApplication(null)} disabled={isUpdatingApplication}>Cancel</button>

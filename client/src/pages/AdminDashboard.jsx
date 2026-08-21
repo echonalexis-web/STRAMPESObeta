@@ -75,7 +75,7 @@ const verificationBadge = (status) => {
   }
 };
 
-function ActionsMenu({ row, isBusy, onDeactivate, onReactivate, onDelete, onToggleVerification }) {
+function ActionsMenu({ row, isBusy, onViewProfile, onDeactivate, onReactivate, onDelete, onToggleVerification }) {
   const [open, setOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -183,7 +183,7 @@ function ActionsMenu({ row, isBusy, onDeactivate, onReactivate, onDelete, onTogg
             }}
             data-direction={openUpward ? "up" : "down"}
           >
-            <button onClick={() => { closeMenu(); window.alert(`${row.name}\n${row.email}`); }}>
+            <button onClick={() => { closeMenu(); onViewProfile(); }}>
               <FaEye /> View Profile
             </button>
 
@@ -433,6 +433,10 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleViewUserProfile = (targetUser) => {
+    navigate(`/admin/users/${targetUser._id}`);
+  };
+
   const getEmployerDisplay = (job) => {
     if (!job?.employer || typeof job.employer !== "object") {
       return "Unknown employer";
@@ -552,13 +556,14 @@ export default function AdminDashboard() {
                       <th>Employer</th>
                       <th>Posted</th>
                       <th>Applications</th>
+                      <th>Details</th>
                       <th>Featured</th>
                     </tr>
                   </thead>
                   <tbody>
                     {homepageJobs.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="admin-empty-state">
+                        <td colSpan={6} className="admin-empty-state">
                           <FaBriefcase className="empty-icon" />
                           <p>No active job postings found.</p>
                         </td>
@@ -574,6 +579,15 @@ export default function AdminDashboard() {
                             <td>{getEmployerDisplay(job)}</td>
                             <td>{formatDate(job.createdAt)}</td>
                             <td>{Number(job.applicationCount || 0)}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="admin-inline-btn"
+                                onClick={() => navigate(`/jobs/${job._id}`)}
+                              >
+                                <FaEye /> View
+                              </button>
+                            </td>
                             <td>
                               <label className="admin-toggle">
                                 <input
@@ -723,6 +737,7 @@ export default function AdminDashboard() {
                           <ActionsMenu
                             row={row}
                             isBusy={isBusy}
+                            onViewProfile={() => handleViewUserProfile(row)}
                             onDeactivate={() => handleDeactivate(row)}
                             onReactivate={() => handleReactivate(row)}
                             onDelete={() => handleDelete(row)}
@@ -790,6 +805,7 @@ export default function AdminDashboard() {
           </button>
         </div>
       </section>
+
     </div>
   );
 }

@@ -265,6 +265,15 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   const recommendationRoutes = require("./routes/recommendationRoutes");
   console.log("✅ Recommendation routes loaded");
 
+  const notificationRoutes = require("./routes/notificationRoutes");
+  console.log("✅ Notification routes loaded");
+
+  const followRoutes = require("./routes/followRoutes");
+  console.log("✅ Follow routes loaded");
+
+  const jobLikeRoutes = require("./routes/jobLikeRoutes");
+  console.log("✅ Job Like routes loaded");
+
   const mountApiRoutes = (basePath) => {
     console.log(`📁 Mounting routes at ${basePath}...`);
     
@@ -313,12 +322,35 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       console.error(`❌ Failed to mount ${basePath}/users:`, e.message);
     }
 
+    try {
+      app.use(`${basePath}/notifications`, notificationRoutes);
+      console.log(`✅ ${basePath}/notifications mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/notifications:`, e.message);
+    }
+
     // --- NEW: Mount recommendation routes ---
     try {
       app.use(`${basePath}/recommendations`, recommendationRoutes);
       console.log(`✅ ${basePath}/recommendations mounted`);
     } catch (e) {
       console.error(`❌ Failed to mount ${basePath}/recommendations:`, e.message);
+    }
+
+    // --- NEW: Mount follow routes ---
+    try {
+      app.use(`${basePath}/follows`, followRoutes);
+      console.log(`✅ ${basePath}/follows mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/follows:`, e.message);
+    }
+
+    // --- NEW: Mount job like routes ---
+    try {
+      app.use(`${basePath}/job-likes`, jobLikeRoutes);
+      console.log(`✅ ${basePath}/job-likes mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/job-likes:`, e.message);
     }
     
     console.log(`✅ All routes mounted at ${basePath}`);
@@ -387,6 +419,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
 
   io.on("connection", (socket) => {
     console.log(`✅ User connected: ${socket.userId}`);
+
+    // Join a user-specific room for real-time notifications.
+    socket.join(`user:${String(socket.userId)}`);
 
     // Track user's active sockets
     if (!userConnections.has(socket.userId)) {

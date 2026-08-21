@@ -3,6 +3,8 @@ const JobVacancy = require("../models/JobVacancy");
 const JobApplication = require("../models/JobApplication");
 const Conversation = require("../models/Conversation");
 const Message = require("../models/Message");
+const JobseekerProfile = require("../models/JobseekerProfile");
+const EmployerProfile = require("../models/EmployerProfile");
 const { getApplicationCountMap, normalizeFeaturedOrdering } = require("../utils/jobDisplay");
 
 const monthBuckets = () => Array.from({ length: 12 }, () => 0);
@@ -350,5 +352,119 @@ exports.deleteUser = async (req, res) => {
     return res.json({ message: "User deleted successfully" });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to delete user" });
+  }
+};
+
+exports.getUserProfileDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    let profile = null;
+    let stats = {};
+    let employerJobs = [];
+
+    if (user.role === "resident") {
+      profile = await JobseekerProfile.findOne({ userId: user._id });
+      const totalApplications = await JobApplication.countDocuments({ applicant: user._id });
+      stats = { totalApplications };
+    }
+
+    if (user.role === "employer") {
+      profile = await EmployerProfile.findOne({ userId: user._id });
+
+      const jobs = await JobVacancy.find({ employer: user._id })
+        .select("title location status isActive createdAt")
+        .sort({ createdAt: -1 });
+
+      const countMap = await getApplicationCountMap(jobs.map((job) => job._id));
+      employerJobs = jobs.map((job) => ({
+        ...job.toObject(),
+        applicationCount: Number(countMap[String(job._id)] || 0),
+      }));
+
+      const [activeJobs, closedJobs] = await Promise.all([
+        JobVacancy.countDocuments({ employer: user._id, status: { $ne: "closed" }, isActive: true }),
+        JobVacancy.countDocuments({ employer: user._id, status: "closed" }),
+      ]);
+
+      const totalApplicants = employerJobs.reduce(
+        (sum, job) => sum + Number(job.applicationCount || 0),
+        0
+      );
+
+      stats = {
+        activeJobs,
+        closedJobs,
+        totalApplicants,
+      };
+    }
+
+    return res.json({
+      user,
+      profile,
+      stats,
+      employerJobs,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to fetch user profile details" });
+  }
+};
+
+exports.deleteJob = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const job = await JobVacancy.findById(id);
+
+    if (!job) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+
+    await Promise.all([
+      JobApplication.deleteMany({ vacancy: job._id }),
+      JobVacancy.findByIdAndDelete(job._id),
+    ]);
+
+    return res.json({ message: "Job deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to delete job" });
+  }
+};
+
+exports.updateJobStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["active", "closed"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    const job = await JobVacancy.findById(id);
+    if (!job) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+
+    job.status = status;
+    job.isActive = status === "active";
+    job.updatedAt = new Date();
+
+    if (status === "closed") {
+      job.isFeatured = false;
+      job.featuredOrder = null;
+    }
+
+    await job.save();
+
+    return res.json({
+      message: status === "closed" ? "Job closed" : "Job reopened",
+      job,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to update job status" });
   }
 };

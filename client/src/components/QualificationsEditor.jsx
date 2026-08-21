@@ -3,6 +3,7 @@ import { FaPlus, FaTrash, FaArrowUp, FaArrowDown, FaCheck } from "react-icons/fa
 import "../styles/qualifications-editor.css";
 import { COMMON_SKILLS } from "../data/skills";
 import { QUALIFICATION_TEMPLATES } from "../data/qualificationsTemplates";
+import { usePersistentState } from "../hooks/usePersistentState";
 
 const TYPE_LABELS = {
   education: "Education",
@@ -39,10 +40,19 @@ export default function QualificationsEditor({
   required = false,
   showTemplates = true,
 }) {
-  const [newType, setNewType] = useState("skill");
-  const [newValue, setNewValue] = useState("");
-  const [newOptional, setNewOptional] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState("");
+  // Persist internal UI state so that refresh doesn't lose what user typed
+  const [internalState, setInternalState, clearInternalState] = usePersistentState('qualificationsEditorState', {
+    newType: "skill",
+    newValue: "",
+    newOptional: false,
+    selectedTemplate: "",
+  });
+
+  const { newType, newValue, newOptional, selectedTemplate } = internalState;
+  const setNewType = (val) => setInternalState(prev => ({ ...prev, newType: val }));
+  const setNewValue = (val) => setInternalState(prev => ({ ...prev, newValue: val }));
+  const setNewOptional = (val) => setInternalState(prev => ({ ...prev, newOptional: val }));
+  const setSelectedTemplate = (val) => setInternalState(prev => ({ ...prev, selectedTemplate: val }));
 
   // Move qualification up/down
   const moveQualification = (index, direction) => {
@@ -50,7 +60,6 @@ export default function QualificationsEditor({
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= newList.length) return;
     [newList[index], newList[targetIndex]] = [newList[targetIndex], newList[index]];
-    // Update order
     newList.forEach((q, i) => q.order = i);
     onChange(newList);
   };
@@ -74,6 +83,7 @@ export default function QualificationsEditor({
     onChange([...value, newQual]);
     setNewValue("");
     setNewOptional(false);
+    // Optionally clear the internal persistence after adding? Keep as is.
   };
 
   // Load template

@@ -5,8 +5,8 @@
 .admin-panel-page {
   min-height: 100vh;
   background: #f5f7fa;
-  padding: 116px 24px 32px;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  padding: 24px;
+  font-family: var(--sans);
 }
 
 /* ============================================ */
@@ -409,6 +409,24 @@
   color: #2e7d32;
 }
 
+.admin-inline-btn {
+  border: 1px solid #dbe5dd;
+  background: #ffffff;
+  color: #2e7d32;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.admin-inline-btn:hover {
+  background: #edf7ee;
+}
+
 /* ============================================ */
 /* RANK LIST */
 /* ============================================ */
@@ -416,6 +434,10 @@
 .admin-rank-list {
   display: grid;
   gap: 8px;
+}
+
+.admin-modal-error {
+  color: #b91c1c;
 }
 
 .admin-rank-item {
@@ -428,6 +450,66 @@
   border-radius: 8px;
   border: 1px solid #e8ecf0;
   transition: all 0.2s ease;
+}
+
+.admin-profile-section {
+  border: 1px solid #e6edf1;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fbfdff;
+}
+
+.admin-profile-section h4 {
+  margin: 0 0 8px 0;
+  color: #1a2a3a;
+}
+
+.admin-profile-section p {
+  margin: 4px 0;
+  color: #3e4e5e;
+  font-size: 13px;
+}
+
+.admin-profile-jobs-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-profile-job-item {
+  border: 1px solid #e6edf1;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #ffffff;
+}
+
+.admin-profile-job-item strong {
+  display: block;
+  color: #1a2a3a;
+  margin-bottom: 2px;
+}
+
+.admin-profile-job-item span {
+  color: #6f8090;
+  font-size: 12px;
+}
+
+.admin-profile-job-item button {
+  border: 1px solid #dbe5dd;
+  background: #ffffff;
+  color: #2e7d32;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-profile-job-item button:hover {
+  background: #edf7ee;
 }
 
 .admin-rank-item:hover {
@@ -976,7 +1058,7 @@
   font-weight: 700;
   letter-spacing: 2px;
   color: #1a2a3a;
-  font-family: 'Courier New', monospace;
+  font-family: var(--mono);
   margin-bottom: 16px;
 }
 
@@ -1040,7 +1122,7 @@
 
 @media (max-width: 768px) {
   .admin-panel-page {
-    padding: 100px 12px 24px;
+    padding: 12px 24px;
   }
 
   .admin-banner {

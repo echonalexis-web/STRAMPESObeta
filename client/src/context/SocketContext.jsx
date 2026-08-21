@@ -11,9 +11,11 @@ export const SocketProvider = ({ children, userId }) => {
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
 
+  // Convert userId to string for consistency
+  const socketUserId = userId ? String(userId) : null;
+
   useEffect(() => {
-    // Don't connect if no userId
-    if (!userId) {
+    if (!socketUserId) {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
@@ -23,7 +25,6 @@ export const SocketProvider = ({ children, userId }) => {
       return;
     }
 
-    // Get token from localStorage
     const token = localStorage.getItem("token");
     if (!token) {
       console.warn("⚠️ No token found, skipping socket connection");
@@ -32,7 +33,6 @@ export const SocketProvider = ({ children, userId }) => {
       return;
     }
 
-    // Only create socket if none exists or existing is disconnected
     if (socketRef.current && socketRef.current.connected) {
       console.log("✅ Socket already connected");
       setSocket(socketRef.current);
@@ -42,13 +42,11 @@ export const SocketProvider = ({ children, userId }) => {
 
     console.log("🔌 Connecting to Socket.io server at:", SOCKET_URL);
 
-    // Clear any pending reconnect timeouts
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
 
-    // Create socket connection with auth token
     const newSocket = io(SOCKET_URL, {
       auth: {
         token: token,
@@ -65,12 +63,10 @@ export const SocketProvider = ({ children, userId }) => {
 
     socketRef.current = newSocket;
 
-    // Connection event handlers
     newSocket.on("connect", () => {
       console.log("✅ Socket connected with ID:", newSocket.id);
       setIsConnected(true);
       setSocket(newSocket);
-      // Clear any pending reconnect attempts
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
@@ -80,8 +76,7 @@ export const SocketProvider = ({ children, userId }) => {
     newSocket.on("connect_error", (error) => {
       console.error("❌ Socket connection error:", error.message);
       setIsConnected(false);
-      
-      // Don't set socket to null on first error - let reconnection work
+
       if (error.message === "Authentication required" || error.message === "Invalid token") {
         setSocket(null);
         if (socketRef.current) {
@@ -94,8 +89,7 @@ export const SocketProvider = ({ children, userId }) => {
     newSocket.on("disconnect", (reason) => {
       console.log("🔌 Socket disconnected:", reason);
       setIsConnected(false);
-      
-      // Only clear socket if not reconnecting
+
       if (reason === "io server disconnect" || reason === "transport close") {
         setSocket(null);
       }
@@ -115,17 +109,14 @@ export const SocketProvider = ({ children, userId }) => {
       console.error("❌ Socket reconnection failed");
       setIsConnected(false);
       setSocket(null);
-      
-      // Attempt a fresh connection after a delay
+
       reconnectTimeoutRef.current = setTimeout(() => {
-        if (userId && !socketRef.current?.connected) {
+        if (socketUserId && !socketRef.current?.connected) {
           console.log("🔄 Attempting fresh socket connection");
           if (socketRef.current) {
             socketRef.current.disconnect();
             socketRef.current = null;
           }
-          // Trigger reconnection by re-running the effect
-          // This will create a new socket
           window.dispatchEvent(new Event('socket-reconnect'));
         }
       }, 5000);
@@ -135,31 +126,28 @@ export const SocketProvider = ({ children, userId }) => {
       console.error("❌ Socket error:", error);
     });
 
-    // Cleanup on unmount
     return () => {
       console.log("🔌 Cleaning up socket connection");
-      
+
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
-      
+
       if (socketRef.current) {
         socketRef.current.removeAllListeners();
         socketRef.current.disconnect();
         socketRef.current = null;
       }
-      
+
       setSocket(null);
       setIsConnected(false);
     };
-  }, [userId]);
+  }, [socketUserId]);
 
-  // Listen for reconnect events
   useEffect(() => {
     const handleReconnect = () => {
-      if (userId && !socketRef.current?.connected) {
-        // Trigger reconnection
+      if (socketUserId && !socketRef.current?.connected) {
         const token = localStorage.getItem("token");
         if (token && socketRef.current) {
           socketRef.current.auth = { token };
@@ -172,9 +160,8 @@ export const SocketProvider = ({ children, userId }) => {
     return () => {
       window.removeEventListener('socket-reconnect', handleReconnect);
     };
-  }, [userId]);
+  }, [socketUserId]);
 
-  // Memoize the value to prevent unnecessary re-renders
   const value = useMemo(() => ({ socket, isConnected }), [socket, isConnected]);
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;

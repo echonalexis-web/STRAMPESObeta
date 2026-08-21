@@ -7,13 +7,24 @@ import { AuthContext } from "../context/AuthContext";
 import LocationSelect from "../components/LocationSelect";
 import QualificationsEditor from "../components/QualificationsEditor";
 import "../styles/qualifications-editor.css";
-// Import modular components
 import RankedApplicantsTable from "../components/RankedApplicantsTable";
 import { useRankedApplicants } from "../hooks/useRankedApplicants";
+import {
+  FaBriefcase,
+  FaMapMarkerAlt,
+  FaMoneyBillWave,
+  FaCalendarAlt,
+  FaUserPlus,
+  FaSave,
+  FaSpinner,
+  FaBuilding,
+  FaListUl,
+  FaClipboardList,
+  FaCoins,
+  FaUsers,
+  FaClock,
+} from "react-icons/fa";
 
-// ---------------------------------------------
-// Philippine Salary Grades (SG 1-33, 2023 rates)
-// ---------------------------------------------
 const SALARY_GRADES = [
   { grade: 1,  label: "SG 1   – ₱11,068",   value: "SG 1 - ₱11,068" },
   { grade: 2,  label: "SG 2   – ₱11,518",   value: "SG 2 - ₱11,518" },
@@ -146,13 +157,13 @@ export default function EmployerDashboard() {
   const [error, setError] = useState("");
   const [successToast, setSuccessToast] = useState("");
 
-  // Use custom hook for ranked applicants
   const { applicants: rankedApplicants, loading: loadingRanked, refetch: refetchRanked } = useRankedApplicants(selectedJobId);
 
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [jobForm, setJobForm] = useState(defaultJobForm);
   const [isSavingJob, setIsSavingJob] = useState(false);
+  const [modalActiveSection, setModalActiveSection] = useState("details");
 
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [drawerStatus, setDrawerStatus] = useState("pending");
@@ -167,7 +178,6 @@ export default function EmployerDashboard() {
 
   const isVerifiedEmployer = user?.role === "employer" && user?.verificationStatus === "verified";
 
-  // ---- EFFECTS ----
   useEffect(() => {
     loadDashboardData();
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -175,7 +185,6 @@ export default function EmployerDashboard() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Refetch ranked applicants when selected job changes
   useEffect(() => {
     if (selectedJobId && activeTab === "applicants") {
       refetchRanked();
@@ -194,16 +203,12 @@ export default function EmployerDashboard() {
     [jobs, selectedJobId]
   );
 
-  // ---- DATA FETCHING ----
   const loadDashboardData = async () => {
     setLoading(true);
     setError("");
     try {
-      console.log("📡 Fetching employer dashboard data...");
       const statsResponse = await employerAPI.getStats();
-      console.log("📊 Stats:", statsResponse.data);
       const jobsResponse = await employerAPI.getJobs();
-      console.log("💼 Jobs:", jobsResponse.data);
 
       const statsData = statsResponse.data;
       const jobsData = jobsResponse.data;
@@ -223,12 +228,9 @@ export default function EmployerDashboard() {
       if (jobsArray.length > 0) {
         const applicantRequests = jobsArray.map(async (job) => {
           try {
-            console.log(`🔍 Fetching applicants for job: ${job._id} (${job.title})`);
             const response = await employerAPI.getApplicantsForJob(job._id);
-            console.log(`✅ Found ${response.data?.length || 0} applicants for ${job.title}`);
             return { jobId: job._id, applicants: response.data || [] };
           } catch (err) {
-            console.error(`❌ Failed to fetch applicants for job ${job._id}:`, err);
             return { jobId: job._id, applicants: [] };
           }
         });
@@ -254,8 +256,6 @@ export default function EmployerDashboard() {
           return dateB - dateA;
         });
 
-        console.log(`📋 Total applicants across all jobs: ${allApplicants.length}`);
-
         setJobApplicants(nextApplicants);
         setRecentApplicants(allApplicants.slice(0, 5));
 
@@ -269,19 +269,15 @@ export default function EmployerDashboard() {
         setSelectedJobId(null);
       }
     } catch (err) {
-      console.error("❌ Dashboard load error:", err);
       setError(err.response?.data?.message || "Failed to load employer dashboard");
     } finally {
       setLoading(false);
     }
   };
 
-  // ---- OPEN MODALS ----
   const openCreateJobModal = () => {
     if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
-    setEditingJob(null);
-    setJobForm(defaultJobForm);
-    setIsJobModalOpen(true);
+    navigate("/post-job");
   };
 
   const openEditJobModal = (job) => {
@@ -298,10 +294,10 @@ export default function EmployerDashboard() {
       qualifications: quals,
       applicationDeadline: job.applicationDeadline ? String(job.applicationDeadline).slice(0, 10) : "",
     });
+    setModalActiveSection("details");
     setIsJobModalOpen(true);
   };
 
-  // ---- SAVE JOB ----
   const handleSaveJob = async (event) => {
     event.preventDefault();
     if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
@@ -340,21 +336,39 @@ export default function EmployerDashboard() {
     }
   };
 
-  // ---- JOB STATUS TOGGLE ----
   const handleCloseOrReopen = async (job) => {
     if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
     setError("");
     try {
-      const newStatus = job.status === "closed" ? "active" : "closed";
-      await employerAPI.updateJob(job._id, { status: newStatus });
-      setSuccessToast(`Job ${newStatus === "closed" ? "closed" : "reopened"} successfully`);
+      if (job.status === "closed") {
+        await employerAPI.reopenJob(job._id);
+        setSuccessToast("Job reopened successfully");
+      } else {
+        await employerAPI.closeJob(job._id);
+        setSuccessToast("Job closed successfully");
+      }
       await loadDashboardData();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update job status");
     }
   };
 
-  // ---- JOB DELETE ----
+  const handleArchiveJob = async (job) => {
+    if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
+    if (job.status !== "closed") {
+      setError("Only closed jobs can be archived");
+      return;
+    }
+    setError("");
+    try {
+      await employerAPI.archiveJob(job._id);
+      setSuccessToast("Job archived successfully");
+      await loadDashboardData();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to archive job");
+    }
+  };
+
   const handleDeleteJob = async () => {
     if (!jobToDelete) return;
     setIsDeletingJob(true);
@@ -380,10 +394,8 @@ export default function EmployerDashboard() {
     }
   };
 
-  // ---- APPLICANT DRAWER ----
   const openApplicantDrawer = (application) => {
     if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
-    // Fetch freshest application data for the selected job (best-effort)
     (async () => {
       try {
         const resp = await employerAPI.getApplicantsForJob(selectedJobId);
@@ -393,7 +405,6 @@ export default function EmployerDashboard() {
         setDrawerStatus(normalizeDrawerStatus(found.status));
         setDrawerNote(found.employerNote || "");
       } catch (err) {
-        // fallback to supplied object
         setSelectedApplication(application);
         setDrawerStatus(normalizeDrawerStatus(application.status));
         setDrawerNote(application.employerNote || "");
@@ -432,21 +443,13 @@ export default function EmployerDashboard() {
       setSuccessToast("Application updated successfully");
       setSelectedApplication(null);
 
-      // Immediately refresh ranked applicants list and employer dashboard data
-      try {
-        await refetchRanked();
-      } catch (e) {
-        console.warn("Failed to refetch ranked applicants:", e);
-      }
-
+      try { await refetchRanked(); } catch (e) { console.warn(e); }
       try {
         const statsResponse = await employerAPI.getStats();
         setStats(statsResponse.data || {
           totalJobs: 0, activeJobs: 0, totalApplicants: 0, pendingReview: 0, shortlisted: 0, hired: 0,
         });
-      } catch (statsErr) {
-        console.warn("⚠️ Failed to update stats:", statsErr);
-      }
+      } catch (statsErr) { console.warn(statsErr); }
 
       setTimeout(() => loadDashboardData(), 3000);
     } catch (err) {
@@ -462,9 +465,7 @@ export default function EmployerDashboard() {
     if (!applicantId) { setError("No applicant selected"); return; }
 
     try {
-      console.log("💬 Starting conversation with applicant:", applicantId);
       const { data } = await messageAPI.createConversation({ participantId: applicantId });
-      console.log("✅ Conversation created:", data);
       const conversationId = data?._id;
       if (conversationId) {
         navigate("/messages", { state: { conversationId } });
@@ -472,12 +473,16 @@ export default function EmployerDashboard() {
         setError("Failed to create conversation");
       }
     } catch (err) {
-      console.error("❌ Failed to start conversation:", err);
       setError(err.response?.data?.message || "Failed to start conversation");
     }
   };
 
-  // ---- STATS CARDS ----
+  const modalSections = [
+    { id: "details", label: "Job Details", icon: <FaClipboardList /> },
+    { id: "logistics", label: "Logistics", icon: <FaCoins /> },
+    { id: "requirements", label: "Requirements", icon: <FaListUl /> },
+  ];
+
   const statsCards = [
     { icon: "📁", label: "Total Jobs", value: stats.totalJobs, tone: "green" },
     { icon: "✅", label: "Active Jobs", value: stats.activeJobs, tone: "green" },
@@ -487,7 +492,6 @@ export default function EmployerDashboard() {
     { icon: "🎉", label: "Hired", value: stats.hired, tone: "green" },
   ];
 
-  // ==================== RENDER ====================
   return (
     <div className="dashboard-container employer-dashboard-page">
       {/* Verification Modal */}
@@ -613,8 +617,13 @@ export default function EmployerDashboard() {
                             </thead>
                             <tbody>
                               {recentApplicants.map((application) => (
-                                <tr key={application._id}>
-                                  <td>{application.applicant?.name || "Unknown Applicant"}</td>
+                                <tr key={application._id} className="applicant-row-enhanced">
+                                  <td className="applicant-name-cell">
+                                    <div className="applicant-avatar-name">
+                                      <div className="applicant-avatar">{getInitials(application.applicant?.name)}</div>
+                                      <span className="applicant-name">{application.applicant?.name || "Unknown Applicant"}</span>
+                                    </div>
+                                  </td>
                                   <td>{application.vacancy?.title || "Unknown Job"}</td>
                                   <td>{formatDate(application.createdAt || application.appliedAt)}</td>
                                   <td>
@@ -667,7 +676,7 @@ export default function EmployerDashboard() {
               </div>
             )}
 
-            {/* -------- JOBS TAB -------- */}
+            {/* -------- JOBS TAB (REDESIGNED) -------- */}
             {activeTab === "jobs" && (
               <div className="employer-tab-panel">
                 <div className="panel-header-row">
@@ -689,18 +698,43 @@ export default function EmployerDashboard() {
                             {job.status || "active"}
                           </span>
                         </div>
-                        <p className="job-meta">{job.location}</p>
-                        <p className="job-meta">Salary: {job.salary || "Negotiable"}</p>
-                        <p className="job-meta">Applicants: {job.applicantCount || 0}</p>
-                        <p className="job-meta">Posted: {formatDate(job.createdAt)}</p>
+
+                        <p className="job-meta">📍 {job.location}</p>
+                        <p className="job-meta">💰 {job.salary || "Negotiable"}</p>
+
+                        <div className="job-stats-row">
+                          <div className="job-stat">
+                            <span className="job-stat-value">{job.applicantCount || 0}</span>
+                            <span className="job-stat-label">Applicants</span>
+                          </div>
+                          <div className="job-stat">
+                            <span className="job-stat-value">{formatDate(job.createdAt)}</span>
+                            <span className="job-stat-label">Posted</span>
+                          </div>
+                        </div>
 
                         <div className="job-actions">
                           <button type="button" className="outline-btn" onClick={() => openEditJobModal(job)}>
                             Edit
                           </button>
-                          <button type="button" className="outline-btn" onClick={() => handleCloseOrReopen(job)}>
+                          <button 
+                            type="button" 
+                            className={`outline-btn ${job.status === "closed" ? "btn-reopen" : "btn-close"}`}
+                            onClick={() => handleCloseOrReopen(job)}
+                          >
                             {job.status === "closed" ? "Reopen" : "Close"}
                           </button>
+                          {job.status === "closed" && (
+                            <button
+                              type="button"
+                              className="outline-btn btn-archive"
+                              onClick={() => handleArchiveJob(job)}
+                              disabled={job.archived}
+                              title={job.archived ? "Job is already archived" : "Archive this closed job"}
+                            >
+                              {job.archived ? "Archived" : "Archive"}
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="outline-btn"
@@ -712,17 +746,6 @@ export default function EmployerDashboard() {
                           >
                             View Applicants
                           </button>
-                          <button
-                            type="button"
-                            className="outline-btn"
-                            style={{ color: "#dc2626", borderColor: "#dc2626" }}
-                            onClick={() => {
-                              if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
-                              setJobToDelete(job);
-                            }}
-                          >
-                            Delete
-                          </button>
                         </div>
                       </article>
                     ))
@@ -731,7 +754,7 @@ export default function EmployerDashboard() {
               </div>
             )}
 
-            {/* -------- APPLICANTS TAB (using modular components) -------- */}
+            {/* -------- APPLICANTS TAB -------- */}
             {activeTab === "applicants" && (
               <div className="employer-tab-panel applicants-layout">
                 <aside className="job-list-panel">
@@ -782,210 +805,435 @@ export default function EmployerDashboard() {
         )}
       </section>
 
-      {/* ===== JOB MODAL WITH QUALIFICATIONS EDITOR ===== */}
-      {isJobModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsJobModalOpen(false)}>
-          <div className="job-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>{editingJob ? "Edit Job Posting" : "Post New Job"}</h3>
-            {error && <div className="error-message">{error}</div>}
 
-            <form className="job-form-grid" onSubmit={handleSaveJob}>
-              <label>
-                Job Title *
-                <input
-                  type="text"
-                  value={jobForm.title}
-                  onChange={(event) => setJobForm((prev) => ({ ...prev, title: event.target.value }))}
-                  required
-                  disabled={isSavingJob}
-                />
-              </label>
 
-              <LocationSelect
-                value={jobForm.location}
-                onChange={(loc) => setJobForm(prev => ({ ...prev, location: loc }))}
-                disabled={isSavingJob}
-                required
-              />
-
-              <label>
-                Job Type
-                <select
-                  value={jobForm.jobType}
-                  onChange={(event) => setJobForm((prev) => ({ ...prev, jobType: event.target.value }))}
-                  disabled={isSavingJob}
-                >
-                  <option value="Full-time">Full-time</option>
-                  <option value="Part-time">Part-time</option>
-                  <option value="Contract">Contract</option>
-                  <option value="Internship">Internship</option>
-                  <option value="Temporary">Temporary</option>
-                  <option value="Remote">Remote</option>
-                </select>
-              </label>
-
-              <label>
-                Salary Grade *
-                <select
-                  value={jobForm.salary}
-                  onChange={(event) => setJobForm((prev) => ({ ...prev, salary: event.target.value }))}
-                  required
-                  disabled={isSavingJob}
-                >
-                  <option value="">-- Select Salary Grade --</option>
-                  <option value="Negotiable">Negotiable / Open</option>
-                  {SALARY_GRADES.map((sg) => (
-                    <option key={sg.value} value={sg.value}>{sg.label}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Slots Available *
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={jobForm.slots}
-                  onChange={(event) => setJobForm((prev) => ({ ...prev, slots: Number(event.target.value) || 1 }))}
-                  required
-                  disabled={isSavingJob}
-                />
-              </label>
-
-              <label className="full-width">
-                Description *
-                <textarea
-                  value={jobForm.description}
-                  onChange={(event) => setJobForm((prev) => ({ ...prev, description: event.target.value }))}
-                  rows="4"
-                  required
-                  disabled={isSavingJob}
-                  placeholder="Describe the job responsibilities, role scope, and expectations..."
-                />
-              </label>
-
-              {/* Qualifications Editor */}
-              <div className="full-width">
-                <QualificationsEditor
-                  value={jobForm.qualifications}
-                  onChange={(newQuals) => setJobForm(prev => ({ ...prev, qualifications: newQuals }))}
-                  disabled={isSavingJob}
-                  label="Qualifications / Requirements"
-                  required
-                />
-              </div>
-
-              <label>
-                Application Deadline
-                <input
-                  type="date"
-                  value={jobForm.applicationDeadline}
-                  onChange={(event) => setJobForm((prev) => ({ ...prev, applicationDeadline: event.target.value }))}
-                  min={new Date().toISOString().split("T")[0]}
-                  disabled={isSavingJob}
-                />
-              </label>
-
-              <div className="job-modal-actions full-width">
-                <button type="button" className="outline-btn" onClick={() => setIsJobModalOpen(false)} disabled={isSavingJob}>
-                  Cancel
-                </button>
-                <button type="submit" className="green-btn" disabled={isSavingJob}>
-                  {isSavingJob ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Applicant Drawer */}
+      {/* ===== APPLICANT DETAIL - CENTER MODAL ===== */}
       {selectedApplication && (
-        <div className="drawer-overlay" onClick={() => setSelectedApplication(null)}>
-          <aside className="applicant-drawer" onClick={(event) => event.stopPropagation()}>
-            <div className="drawer-handle" aria-hidden="true" />
-            <header className="drawer-header">
-              <div className="drawer-header-main">
-                <div className="drawer-avatar">{getInitials(selectedApplication.applicant?.name)}</div>
-                <div className="drawer-header-text">
-                  <h3>{selectedApplication.applicant?.name || "N/A"}</h3>
-                  <p>{selectedApplication.vacancy?.title || "Applied Position"}</p>
-                </div>
+        <div className="modal-overlay" onClick={() => setSelectedApplication(null)}>
+          <div className="applicant-detail-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="applicant-modal-header">
+              <div className="applicant-modal-avatar">
+                {getInitials(selectedApplication.applicant?.name)}
               </div>
-              <button type="button" className="drawer-close-btn" onClick={() => setSelectedApplication(null)} aria-label="Close details">×</button>
+              <div className="applicant-modal-title">
+                <h3>{selectedApplication.applicant?.name || "N/A"}</h3>
+                <p>{selectedApplication.vacancy?.title || "Applied Position"}</p>
+              </div>
+              <button
+                type="button"
+                className="applicant-modal-close"
+                onClick={() => setSelectedApplication(null)}
+                aria-label="Close details"
+              >
+                ×
+              </button>
             </header>
 
-            <div className="drawer-body">
-              <div className="drawer-info-list">
-                <div className="drawer-info-row"><span className="drawer-info-label">Full name</span><span className="drawer-info-value">{selectedApplication.applicant?.name || "N/A"}</span></div>
-                <div className="drawer-info-row"><span className="drawer-info-label">Email</span><span className="drawer-info-value">{selectedApplication.applicant?.email || "N/A"}</span></div>
-                <div className="drawer-info-row"><span className="drawer-info-label">Phone</span><span className="drawer-info-value">{selectedApplication.applicant?.phone || "N/A"}</span></div>
-                <div className="drawer-info-row"><span className="drawer-info-label">Address</span><span className="drawer-info-value">{selectedApplication.applicant?.address || "N/A"}</span></div>
-                <div className="drawer-info-row"><span className="drawer-info-label">Application date</span><span className="drawer-info-value">{formatDate(selectedApplication.createdAt || selectedApplication.appliedAt)}</span></div>
-              </div>
+            <div className="applicant-modal-body">
+              {/* Left Column */}
+              <div className="applicant-info-section">
+                <h4>Applicant Info</h4>
 
-              <div className="drawer-section">
-                <p className="drawer-section-label">Skills</p>
-                <div className="drawer-skill-list">
+                <div className="applicant-info-row">
+                  <span className="applicant-info-label">Full Name</span>
+                  <span className="applicant-info-value">
+                    {selectedApplication.applicant?.name || "N/A"}
+                  </span>
+                </div>
+                <div className="applicant-info-row">
+                  <span className="applicant-info-label">Email</span>
+                  <span className="applicant-info-value">
+                    {selectedApplication.applicant?.email || "N/A"}
+                  </span>
+                </div>
+                <div className="applicant-info-row">
+                  <span className="applicant-info-label">Phone</span>
+                  <span className="applicant-info-value">
+                    {selectedApplication.applicant?.phone || "N/A"}
+                  </span>
+                </div>
+                <div className="applicant-info-row">
+                  <span className="applicant-info-label">Address</span>
+                  <span className="applicant-info-value">
+                    {selectedApplication.applicant?.address || "N/A"}
+                  </span>
+                </div>
+                <div className="applicant-info-row">
+                  <span className="applicant-info-label">Applied On</span>
+                  <span className="applicant-info-value">
+                    {formatDate(selectedApplication.createdAt || selectedApplication.appliedAt)}
+                  </span>
+                </div>
+
+                <h4 style={{ marginTop: 12 }}>Skills</h4>
+                <div className="applicant-skills-section">
                   {selectedApplication.applicant?.skills?.length ? (
-                    selectedApplication.applicant.skills.map((skill) => <span key={skill}>{skill}</span>)
+                    selectedApplication.applicant.skills.map((skill) => (
+                      <span key={skill}>{skill}</span>
+                    ))
                   ) : (
                     <span className="skill-empty">No skills listed</span>
                   )}
                 </div>
+
+                {selectedApplication.resume && (
+                  <a
+                    className="applicant-resume-link"
+                    href={`${API_URL.replace(/\/api\/v1$/, '')}/${String(selectedApplication.resume).replace(/^\/+/, "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <span>↓</span>
+                    <span>Download Resume</span>
+                  </a>
+                )}
               </div>
 
-              {selectedApplication.resume && (
-                <a
-                  className="drawer-resume-link"
-                  href={`${API_URL.replace(/\/api\/v1$/, '')}/${String(selectedApplication.resume).replace(/^\/+/, "")}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <span aria-hidden="true">↓</span>
-                  <span>Download Resume</span>
-                </a>
-              )}
+              {/* Right Column */}
+              <div className="applicant-info-section">
+                <h4>Application Status</h4>
 
-              <label className="drawer-field">
-                <span className="drawer-section-label">Status</span>
-                <select
-                  className={`drawer-status-select status-${drawerStatus}`}
-                  value={drawerStatus}
-                  onChange={(event) => setDrawerStatus(event.target.value)}
-                  disabled={isSavingApplication}
-                >
-                  <option value="pending">Pending</option>
-                  <option value="shortlisted">Shortlisted</option>
-                  <option value="hired">Hired</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-              </label>
+                <div className="applicant-modal-field">
+                  <label>Current Status</label>
+                  <select
+                    className={`status-${drawerStatus}`}
+                    value={drawerStatus}
+                    onChange={(event) => setDrawerStatus(event.target.value)}
+                    disabled={isSavingApplication}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="shortlisted">Shortlisted</option>
+                    <option value="hired">Hired</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
 
-              <label className="drawer-field">
-                <span className="drawer-section-label">Note to Applicant</span>
-                <textarea
-                  rows="4"
-                  value={drawerNote}
-                  onChange={(event) => setDrawerNote(event.target.value)}
-                  placeholder="Add a quick status note…"
-                  disabled={isSavingApplication}
-                />
-              </label>
-
-              <footer className="drawer-footer">
-                <button
-                  type="button"
-                  className="drawer-save-btn"
-                  onClick={handleSaveApplicationStatus}
-                  disabled={isSavingApplication}
-                >
-                  {isSavingApplication ? "Saving..." : "Save & Notify"}
-                </button>
-              </footer>
+                <div className="applicant-modal-field">
+                  <label>Note to Applicant</label>
+                  <textarea
+                    rows="5"
+                    value={drawerNote}
+                    onChange={(event) => setDrawerNote(event.target.value)}
+                    placeholder="Add a quick status note or feedback…"
+                    disabled={isSavingApplication}
+                  />
+                </div>
+              </div>
             </div>
-          </aside>
+
+            <footer className="applicant-modal-footer">
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={() => setSelectedApplication(null)}
+                disabled={isSavingApplication}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-save"
+                onClick={handleSaveApplicationStatus}
+                disabled={isSavingApplication}
+              >
+                {isSavingApplication ? "Saving..." : "Save & Notify"}
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {/* ===== JOB FORM MODAL - REDESIGNED ===== */}
+      {isJobModalOpen && (
+        <div className="modal-overlay" onClick={() => { if (!isSavingJob) setIsJobModalOpen(false); }}>
+          <div className="job-form-modal" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <header className="job-form-modal-header">
+              <div className="job-form-modal-title">
+                <FaBriefcase />
+                <h2>{editingJob ? "Edit Job Posting" : "Post a New Job"}</h2>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => { if (!isSavingJob) setIsJobModalOpen(false); }}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </header>
+
+            {/* Modal Body with Sidebar + Main */}
+            <div className="job-form-content">
+              {/* Sidebar */}
+              <aside className="job-form-sidebar">
+                <div className="job-form-sidebar-card">
+                  <h3><FaListUl /> Progress</h3>
+                  <nav className="job-form-progress-nav">
+                    {modalSections.map((sec) => (
+                      <button
+                        key={sec.id}
+                        type="button"
+                        className={`job-form-progress-item ${modalActiveSection === sec.id ? "active" : ""}`}
+                        onClick={() => {
+                          setModalActiveSection(sec.id);
+                          document.getElementById(`modal-section-${sec.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
+                      >
+                        <span className="job-form-progress-icon">{sec.icon}</span>
+                        <span>{sec.label}</span>
+                        {sec.id === "details" && jobForm.title && jobForm.description && (
+                          <span className="job-form-progress-check">✓</span>
+                        )}
+                        {sec.id === "logistics" && jobForm.location && (
+                          <span className="job-form-progress-check">✓</span>
+                        )}
+                        {sec.id === "requirements" && jobForm.qualifications?.length > 0 && (
+                          <span className="job-form-progress-check">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+
+                <div className="job-form-sidebar-card job-form-preview-card">
+                  <h3><FaBuilding /> Live Preview</h3>
+                  <div className="job-form-preview-content">
+                    <div className="job-form-preview-title">{jobForm.title || "Job Title"}</div>
+                    <div className="job-form-preview-meta">
+                      {jobForm.location ? (
+                        <span><FaMapMarkerAlt /> {jobForm.location}</span>
+                      ) : (
+                        <span className="placeholder">Location</span>
+                      )}
+                      <span className="job-form-preview-dot">•</span>
+                      <span>{jobForm.jobType}</span>
+                    </div>
+                    {jobForm.salary && (
+                      <div className="job-form-preview-salary">
+                        <FaMoneyBillWave /> {jobForm.salary}
+                      </div>
+                    )}
+                    <div className="job-form-preview-slots">
+                      <FaUsers /> {jobForm.slots} slot{jobForm.slots !== 1 ? "s" : ""} available
+                    </div>
+                    {jobForm.applicationDeadline && (
+                      <div className="job-form-preview-deadline">
+                        <FaClock /> Until {new Date(jobForm.applicationDeadline).toLocaleDateString()}
+                      </div>
+                    )}
+                    <div className="job-form-preview-qual-count">
+                      {jobForm.qualifications?.length || 0} requirement{(jobForm.qualifications?.length || 0) !== 1 ? "s" : ""} set
+                    </div>
+                  </div>
+                </div>
+              </aside>
+
+              {/* Main Form Content */}
+              <main className="job-form-main">
+                <form onSubmit={handleSaveJob} noValidate>
+                  {/* Job Details Section */}
+                  <section id="modal-section-details" className="job-form-section">
+                    <div className="job-form-section-header">
+                      <div className="job-form-section-icon"><FaClipboardList /></div>
+                      <div>
+                        <h3>Job Details</h3>
+                        <p>Start with the basics about the role</p>
+                      </div>
+                    </div>
+
+                    <div className="form-section form-field-full">
+                      <label className="form-label">
+                        Job Title <span className="pj-required">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={jobForm.title}
+                        onChange={(e) => setJobForm({ ...jobForm, title: e.target.value })}
+                        placeholder="e.g. Senior Frontend Developer"
+                        disabled={isSavingJob}
+                        required
+                        maxLength={100}
+                      />
+                      <div className="form-field-footer">
+                        <span />
+                        <span className={`form-char-count ${jobForm.title.length > 70 ? "warning" : jobForm.title.length > 0 ? "success" : "muted"}`}>
+                          {jobForm.title.length} / 100
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="form-section form-field-full" style={{ marginTop: '20px' }}>
+                      <label className="form-label">
+                        Job Description <span className="pj-required">*</span>
+                      </label>
+                      <textarea
+                        className="form-textarea"
+                        rows="8"
+                        value={jobForm.description}
+                        onChange={(e) => setJobForm({ ...jobForm, description: e.target.value })}
+                        placeholder="Describe the role, responsibilities, and what success looks like..."
+                        disabled={isSavingJob}
+                        required
+                        maxLength={5000}
+                      />
+                      <div className="form-field-footer">
+                        <span />
+                        <span className={`form-char-count ${jobForm.description.length > 4000 ? "warning" : jobForm.description.length > 0 ? "success" : "muted"}`}>
+                          {jobForm.description.length} / 5000
+                        </span>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Logistics Section */}
+                  <section id="modal-section-logistics" className="job-form-section">
+                    <div className="job-form-section-header">
+                      <div className="job-form-section-icon"><FaCoins /></div>
+                      <div>
+                        <h3>Compensation & Logistics</h3>
+                        <p>Where, how, and how much</p>
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-section">
+                        <label className="form-label">
+                          <FaMapMarkerAlt /> Location <span className="pj-required">*</span>
+                        </label>
+                        <LocationSelect
+                          value={jobForm.location}
+                          onChange={(value) => setJobForm({ ...jobForm, location: value })}
+                          disabled={isSavingJob}
+                        />
+                      </div>
+
+                      <div className="form-section">
+                        <label className="form-label">
+                          <FaMoneyBillWave /> Salary <span className="pj-optional">(Optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={jobForm.salary}
+                          onChange={(e) => setJobForm({ ...jobForm, salary: e.target.value })}
+                          placeholder="PHP 18,000 - 25,000"
+                          disabled={isSavingJob}
+                        />
+                        <span className="form-hint">Example: PHP 18,000 or 18,000 - 25,000</span>
+                      </div>
+
+                      <div className="form-section">
+                        <label className="form-label">
+                          <FaBriefcase /> Job Type
+                        </label>
+                        <div className="form-select-wrapper">
+                          <select
+                            className="form-input"
+                            value={jobForm.jobType}
+                            onChange={(e) => setJobForm({ ...jobForm, jobType: e.target.value })}
+                            disabled={isSavingJob}
+                          >
+                            <option>Full-time</option>
+                            <option>Part-time</option>
+                            <option>Contract</option>
+                            <option>Internship</option>
+                            <option>Temporary</option>
+                            <option>Remote</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="form-section">
+                        <label className="form-label">
+                          <FaUserPlus /> Slots <span className="pj-required">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          min="1"
+                          max="100"
+                          value={jobForm.slots}
+                          onChange={(e) => setJobForm({ ...jobForm, slots: Math.max(1, parseInt(e.target.value) || 1) })}
+                          disabled={isSavingJob}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-section form-field-full">
+                        <label className="form-label">
+                          <FaCalendarAlt /> Deadline <span className="pj-optional">(Optional)</span>
+                        </label>
+                        <input
+                          type="date"
+                          className="form-input"
+                          value={jobForm.applicationDeadline}
+                          onChange={(e) => setJobForm({ ...jobForm, applicationDeadline: e.target.value })}
+                          disabled={isSavingJob}
+                          min={new Date().toISOString().split("T")[0]}
+                        />
+                        <span className="form-hint">Leave blank for no deadline</span>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Requirements Section */}
+                  <section id="modal-section-requirements" className="job-form-section">
+                    <div className="job-form-section-header">
+                      <div className="job-form-section-icon"><FaListUl /></div>
+                      <div>
+                        <h3>Requirements</h3>
+                        <p>What candidates need to qualify</p>
+                      </div>
+                    </div>
+
+                    <div className="form-section form-field-full">
+                      <label className="form-label">
+                        Qualifications <span className="pj-required">*</span>
+                      </label>
+                      <QualificationsEditor
+                        qualifications={jobForm.qualifications}
+                        onChange={(quals) => setJobForm({ ...jobForm, qualifications: quals })}
+                        disabled={isSavingJob}
+                      />
+                    </div>
+                  </section>
+                </form>
+              </main>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="job-form-modal-footer">
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={() => { if (!isSavingJob) setIsJobModalOpen(false); }}
+                disabled={isSavingJob}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-save"
+                onClick={(e) => {
+                  const form = e.target.closest('.job-form-modal').querySelector('form');
+                  if (form) form.requestSubmit();
+                }}
+                disabled={isSavingJob}
+              >
+                {isSavingJob ? (
+                  <>
+                    <FaSpinner className="btn-spin" /> Saving...
+                  </>
+                ) : (
+                  <>
+                    <FaSave /> {editingJob ? "Update Job" : "Post Job Vacancy"}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

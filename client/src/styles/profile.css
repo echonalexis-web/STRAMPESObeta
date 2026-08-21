@@ -10,7 +10,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 156px 1rem 4rem;
+  padding: 20px 0.8rem 3.6rem;
   box-sizing: border-box;
   position: relative;
   background: transparent;
@@ -233,8 +233,9 @@
   align-items: center;
   gap: 8px;
   color: #1a2a3a;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
 }
 
 .profile-field label svg {
@@ -246,12 +247,12 @@
 .profile-field textarea,
 .profile-field select {
   width: 100%;
-  border: 1px solid #e8ecf0;
-  border-radius: 8px;
-  padding: 10px 14px;
+  border: 2px solid #e8ecf0;
+  border-radius: 10px;
+  padding: 12px 16px;
   font-size: 14px;
   color: #1a2a3a;
-  background: #f8fafb;
+  background: #ffffff;
   transition: all 0.2s ease;
 }
 
@@ -261,21 +262,22 @@
   outline: none;
   border-color: #2e7d32;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.08);
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
 }
 
 .profile-field textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 100px;
   font-family: inherit;
+  line-height: 1.5;
 }
 
 .profile-field select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a8a9a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232e7d32' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 36px;
+  background-position: right 16px center;
+  padding-right: 40px;
   cursor: pointer;
 }
 
@@ -335,16 +337,22 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #e8f5e9;
+  background: linear-gradient(135deg, #e8f5e9 0%, #f1f8f1 100%);
   color: #2e7d32;
   border: 1px solid #c8e6c9;
   border-radius: 20px;
-  padding: 4px 12px;
+  padding: 6px 12px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
+  transition: all 0.2s ease;
 }
 
-.skill-tag button {
+.skill-tag:hover {
+  background: linear-gradient(135deg, #dcfce7 0%, #e8f5e9 100%);
+  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.15);
+}
+
+.skill-tag-remove {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -354,11 +362,16 @@
   cursor: pointer;
   padding: 0;
   font-size: 12px;
-  transition: color 0.2s ease;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+  line-height: 1;
+  width: 16px;
+  height: 16px;
 }
 
-.skill-tag button:hover {
+.skill-tag-remove:hover {
   color: #dc2626;
+  opacity: 1;
 }
 
 /* ============================================ */
@@ -907,6 +920,275 @@
 }
 
 /* ============================================ */
+/* MODERN SKILLS SELECTOR */
+/* ============================================ */
+
+.skills-modern-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.skills-search-box {
+  position: relative;
+  width: 100%;
+}
+
+.skills-search-input {
+  width: 100%;
+  border: 2px solid #e8ecf0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #1a2a3a;
+  background: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.skills-search-input:focus {
+  outline: none;
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+}
+
+.skills-search-input::placeholder {
+  color: #a0aab5;
+}
+
+.skills-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 8px;
+  background: #ffffff;
+  border: 1px solid #e8ecf0;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: slideDown 0.15s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.skills-dropdown-item {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #1a2a3a;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skills-dropdown-item:hover {
+  background: #f0f7f0;
+  color: #2e7d32;
+}
+
+.skills-dropdown-item--custom {
+  border-top: 1px solid #e8ecf0;
+  background: #f8fafb;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.skills-dropdown-item--custom:hover {
+  background: #e8f5e9;
+}
+
+/* ============================================ */
+/* NUMBER INPUTS (NO SPINNERS) */
+/* ============================================ */
+
+.number-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ============================================ */
+/* CUSTOM CHECKBOXES */
+/* ============================================ */
+
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.custom-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  color: #1a2a3a;
+  transition: color 0.2s ease;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.custom-checkbox-label:hover {
+  background: #f0f7f0;
+  color: #2e7d32;
+}
+
+.custom-checkbox-input {
+  display: none;
+}
+
+.custom-checkbox-box {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e8ecf0;
+  border-radius: 6px;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custom-checkbox-input:checked + .custom-checkbox-box {
+  background: #2e7d32;
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+}
+
+.custom-checkbox-input:checked + .custom-checkbox-box::after {
+  content: "✓";
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.custom-checkbox-text {
+  font-weight: 500;
+}
+
+.custom-checkbox-input:checked ~ .custom-checkbox-text {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+/* ============================================ */
+/* INDUSTRY PREFERENCES - Pills */
+/* ============================================ */
+
+.industry-pills-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.industry-pill {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.industry-pill:hover {
+  border-color: #16a34a;
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+.industry-pill.active {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+
+.industry-pill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pill-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pill-btn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pill-btn:hover {
+  border-color: #16a34a;
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+.pill-btn.active {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+
+.pill-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.profile-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.profile-section-hint {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
+/* ============================================ */
 /* RESPONSIVE */
 /* ============================================ */
 
@@ -1005,6 +1287,18 @@
 
   .delete-account-modal-actions {
     flex-direction: column;
+  }
+
+  .skills-dropdown-menu {
+    max-height: 240px;
+  }
+
+  .checkbox-group {
+    gap: 8px;
+  }
+
+  .custom-checkbox-label {
+    padding: 6px;
   }
 }
 

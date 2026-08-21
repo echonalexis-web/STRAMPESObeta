@@ -10,6 +10,9 @@ const {
   getHomepageJobs,
   updateJob,
   deleteJob,
+  closeJob,
+  archiveJob,
+  reopenJob,
   applyToJob,
   updateMyApplication,
   deleteMyApplication,
@@ -28,7 +31,7 @@ const {
   validateQualifications, // NEW
 } = require("../middleware/validation");
 const { detectMaliciousPayload } = require("../middleware/security");
-const { validateFile, cleanupUploadedFiles } = require("../middleware/upload");
+const { cleanupUploadedFiles } = require("../middleware/upload");
 
 // Ensure upload directory exists
 const uploadDir = path.join(__dirname, "../uploads/resumes");
@@ -53,7 +56,7 @@ const upload = multer({
   storage,
   limits: { 
     fileSize: 5 * 1024 * 1024,
-    files: 1
+    files: 2
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
@@ -82,6 +85,9 @@ router.get("/mine", verifyToken, isEmployer, isVerifiedEmployer, getEmployerJobs
 router.post("/", verifyToken, isEmployer, isVerifiedEmployer, validateJobPosting, validateQualifications, validateRequest, createJob);
 router.put("/:id", verifyToken, isEmployer, isVerifiedEmployer, validateJobPosting, validateQualifications, validateRequest, updateJob);
 router.delete("/:id", verifyToken, isEmployer, isVerifiedEmployer, deleteJob);
+router.post("/:id/close", verifyToken, isEmployer, isVerifiedEmployer, closeJob);
+router.post("/:id/archive", verifyToken, isEmployer, isVerifiedEmployer, archiveJob);
+router.post("/:id/reopen", verifyToken, isEmployer, isVerifiedEmployer, reopenJob);
 
 // Job applications - Employer viewing (also verified)
 router.get("/:id/applications", verifyToken, isEmployer, isVerifiedEmployer, getApplicationsForJob);
@@ -89,7 +95,7 @@ router.get("/:id/applications", verifyToken, isEmployer, isVerifiedEmployer, get
 // Resident (Job Seeker) routes
 router.get("/applications/me", verifyToken, isResident, getMyApplications);
 
-// Apply to job with cover letter validation
+// Apply to job with resume and optional cover letter file upload
 router.post(
   "/:id/apply",
   verifyToken,
@@ -99,13 +105,15 @@ router.post(
   detectMaliciousPayload,
   validateJobApplication,
   validateRequest,
-  upload.single("resume"),
-  validateFile,
+  upload.fields([
+    { name: "resume", maxCount: 1 },
+    { name: "coverLetterFile", maxCount: 1 },
+  ]),
   cleanupUploadedFiles,
   applyToJob
 );
 
-// Update application with cover letter validation
+// Update application files
 router.put(
   "/applications/:id",
   verifyToken,
@@ -115,8 +123,10 @@ router.put(
   detectMaliciousPayload,
   validateJobApplication,
   validateRequest,
-  upload.single("resume"),
-  validateFile,
+  upload.fields([
+    { name: "resume", maxCount: 1 },
+    { name: "coverLetterFile", maxCount: 1 },
+  ]),
   cleanupUploadedFiles,
   updateMyApplication
 );

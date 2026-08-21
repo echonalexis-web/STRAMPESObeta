@@ -5,8 +5,8 @@
 .dashboard-container {
   min-height: 100vh;
   background: #f5f7fa;
-  padding: 100px 24px 40px;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  padding: 24px 24px 40px;
+  font-family: var(--sans);
 }
 
 /* ============================================ */
@@ -370,6 +370,17 @@
   color: #2e7d32;
 }
 
+.job-applied-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  background: #dcfce7;
+  color: #16a34a;
+  flex-shrink: 0;
+}
+
 .job-card-location {
   display: flex;
   align-items: center;
@@ -381,6 +392,16 @@
 
 .job-card-location svg {
   flex-shrink: 0;
+
+.job-card-applicants {
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #1f5c8a;
+  font-size: 13px;
+  font-weight: 600;
+}
 }
 
 .job-card-description {
@@ -446,6 +467,18 @@
 .btn-apply:hover {
   background: #1b5e20;
   transform: scale(1.02);
+}
+
+.btn-apply-disabled {
+  background: #b0bec5;
+  color: #ffffff;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.btn-apply-disabled:hover {
+  background: #b0bec5;
+  transform: none;
 }
 
 .job-card-actions {
@@ -601,6 +634,11 @@
   color: #dc2626;
 }
 
+.application-status.status-accepted {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
 .application-card-details {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -749,6 +787,72 @@
 
 .btn-browse-jobs:hover {
   background: #1b5e20;
+}
+
+/* ============================================ */
+/* SETUP INDUSTRIES PROMPT */
+/* ============================================ */
+
+.setup-industries-prompt {
+  max-width: 1200px;
+  margin: 0 auto 40px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 14px;
+  padding: 40px;
+  border: 2px solid #fcd34d;
+}
+
+.setup-industries-content {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.setup-industries-icon {
+  font-size: 48px;
+  color: #f59e0b;
+  margin-bottom: 8px;
+}
+
+.setup-industries-prompt h3 {
+  color: #92400e;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  padding: 0;
+}
+
+.setup-industries-prompt p {
+  color: #b45309;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 500px;
+}
+
+.btn-setup-industries {
+  background: #f59e0b;
+  color: #ffffff;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+}
+
+.btn-setup-industries:hover {
+  background: #d97706;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.btn-setup-industries:active {
+  transform: translateY(0);
 }
 
 /* ============================================ */
@@ -1006,7 +1110,7 @@
 
 @media (max-width: 768px) {
   .dashboard-container {
-    padding: 88px 16px 24px;
+    padding: 16px 24px;
   }
 
   .dashboard-hero {
@@ -1079,6 +1183,24 @@
   .app-modal-card {
     padding: 20px;
     margin: 16px;
+  }
+
+  .setup-industries-prompt {
+    padding: 24px;
+    margin: 0 auto 32px;
+  }
+
+  .setup-industries-prompt h3 {
+    font-size: 18px;
+  }
+
+  .setup-industries-prompt p {
+    font-size: 14px;
+  }
+
+  .btn-setup-industries {
+    width: 100%;
+    padding: 12px 16px;
   }
 }
 
