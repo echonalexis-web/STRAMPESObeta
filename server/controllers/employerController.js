@@ -7,6 +7,24 @@ const { createNotificationForUser } = require("../services/notificationService")
 
 const getUserId = (req) => req.user._id || req.user.id;
 
+const autoCloseOverdueJobsForEmployer = async (employerId) => {
+  const now = new Date();
+
+  await JobVacancy.updateMany(
+    {
+      employer: employerId,
+      status: "active",
+      applicationDeadline: { $ne: null, $lt: now },
+    },
+    {
+      $set: {
+        status: "closed",
+        closedAt: now,
+      },
+    }
+  );
+};
+
 // Helper to format qualifications for response
 const formatQualifications = (qualifications) => {
   if (!qualifications || !Array.isArray(qualifications)) return [];
@@ -21,6 +39,8 @@ const formatQualifications = (qualifications) => {
 exports.getEmployerJobs = async (req, res) => {
   try {
     const employerId = getUserId(req);
+    await autoCloseOverdueJobsForEmployer(employerId);
+
     const jobs = await JobVacancy.find({ employer: employerId }).sort({ createdAt: -1 });
 
     const jobsWithCounts = await Promise.all(
@@ -370,6 +390,7 @@ exports.updateApplicationStatus = async (req, res) => {
 exports.getEmployerStats = async (req, res) => {
   try {
     const employerId = getUserId(req);
+    await autoCloseOverdueJobsForEmployer(employerId);
 
     const jobs = await JobVacancy.find({ employer: employerId }).select("_id status");
     const jobIds = jobs.map((job) => job._id);
@@ -412,6 +433,7 @@ exports.getEmployerStats = async (req, res) => {
 exports.getEmployerProfileStats = async (req, res) => {
   try {
     const employerId = getUserId(req);
+    await autoCloseOverdueJobsForEmployer(employerId);
 
     const jobs = await JobVacancy.find({ employer: employerId }).select("_id status");
     const jobIds = jobs.map((job) => job._id);

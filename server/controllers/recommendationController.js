@@ -25,13 +25,28 @@ exports.hybridSearch = async (req, res) => {
       : (parsedPage - 1) * parsedLimit;
 
     const userId = req.user?.id || req.user?._id;
+    const now = new Date();
+
+    await JobVacancy.updateMany(
+      {
+        status: "active",
+        archived: { $ne: true },
+        applicationDeadline: { $ne: null, $lt: now },
+      },
+      {
+        $set: {
+          status: "closed",
+          closedAt: now,
+        },
+      }
+    );
 
     console.log(`[Job Board] === START ===`);
     console.log(`[Job Board] userId from req.user: ${userId}`);
     console.log(`[Job Board] Full req.user:`, req.user);
 
     // --- 1. Build filter ---
-    const filter = { isActive: true, status: { $ne: 'closed' } };
+    const filter = { isActive: true, status: { $ne: 'closed' }, archived: { $ne: true } };
     if (industry) filter.industry = industry;
     if (workNature) filter.workNature = workNature;
     if (jobType) filter.jobType = jobType;
@@ -108,7 +123,7 @@ exports.hybridSearch = async (req, res) => {
 
     // --- 3. Fetch jobs ---
     const jobs = await JobVacancy.find(filter)
-      .select('title description responsibilities qualifications industry workNature jobType location salary createdAt salaryMin salaryMax employer status isActive')
+      .select('title description responsibilities qualifications industry workNature jobType location salary createdAt salaryMin salaryMax employer status isActive archived applicationDeadline')
       .populate('employer', 'name email phone companyName companyDescription website verificationStatus industry companySize businessAddress')
       .sort({ createdAt: -1 })
       .lean();
@@ -122,10 +137,20 @@ exports.hybridSearch = async (req, res) => {
     const jobIds = jobs.map(job => job._id);
     const countMap = await getApplicationCountMap(jobIds);
 
+    const visibleJobs = jobs.filter((job) => {
+      if (job.archived || job.status === "closed") return false;
+      if (!job.applicationDeadline) return true;
+
+      const deadline = new Date(job.applicationDeadline);
+      if (Number.isNaN(deadline.getTime())) return true;
+
+      return deadline >= now;
+    });
+
     let rankedJobs = [];
 
     // --- 4. Filter out jobs user has already applied to ---
-    let filteredJobs = jobs.filter(job => !appliedJobIds.has(String(job._id)));
+    let filteredJobs = visibleJobs.filter(job => !appliedJobIds.has(String(job._id)));
     if (appliedJobIds.size > 0) {
       console.log(`[Job Board] Filtered out ${jobs.length - filteredJobs.length} applied jobs`);
     }
