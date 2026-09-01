@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState, useContext } from "react";
+import { useEffect, useMemo, useRef, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { employerAPI, messageAPI } from "../services/api";
 import "../styles/employer-dashboard.css";
 import { API_URL } from "../services/api";
 import { AuthContext } from "../context/AuthContext";
-import LocationSelect from "../components/LocationSelect";
+import phData from "../data/philippine_provinces_cities_municipalities_and_barangays_2019v2.json";
 import QualificationsEditor from "../components/QualificationsEditor";
+import LocationSelect from "../components/LocationSelect";
 import "../styles/qualifications-editor.css";
 import RankedApplicantsTable from "../components/RankedApplicantsTable";
 import { useRankedApplicants } from "../hooks/useRankedApplicants";
@@ -23,6 +24,13 @@ import {
   FaCoins,
   FaUsers,
   FaClock,
+  FaStar,
+  FaTimes,
+  FaBan,
+  FaEdit,
+  FaArchive,
+  FaTimesCircle,
+  FaArchive as FaArchiveIcon,
 } from "react-icons/fa";
 
 const SALARY_GRADES = [
@@ -61,7 +69,339 @@ const SALARY_GRADES = [
   { grade: 33, label: "SG 33 – ₱131,124",  value: "SG 33 - ₱131,124" },
 ];
 
-const tabList = ["overview", "jobs", "applicants"];
+const tabList = ["overview", "jobs", "applicants", "archived"];
+
+const phLocationEntries = Object.entries(phData).map(([code, regionData]) => ({
+  code,
+  region: regionData.region_name,
+  provinces: Object.entries(regionData.province_list || {}).map(([provinceName, provinceData]) => ({
+    name: provinceName,
+    cities: Object.keys(provinceData.municipality_list || {}),
+  })),
+}));
+
+const parseLocationValue = (value) => {
+  if (!value) return { region: "", province: "", city: "" };
+
+  const parts = String(value)
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (!parts.length) return { region: "", province: "", city: "" };
+
+  const regionNames = phLocationEntries.map((entry) => entry.region);
+  const provinceNames = phLocationEntries.flatMap((entry) => entry.provinces.map((province) => province.name));
+
+  const region = parts.find((part) =>
+    regionNames.some((regionName) => regionName.toLowerCase() === part.toLowerCase())
+  ) || parts[0] || "";
+
+  const province = parts.find((part) =>
+    provinceNames.some((provinceName) => provinceName.toLowerCase() === part.toLowerCase())
+  ) || parts[1] || "";
+
+  const city = parts.find((part) =>
+    !regionNames.some((regionName) => regionName.toLowerCase() === part.toLowerCase()) &&
+    !provinceNames.some((provinceName) => provinceName.toLowerCase() === part.toLowerCase())
+  ) || parts[2] || "";
+
+  return { region, province, city };
+};
+
+const LocationFilterSelector = ({ value, onChange }) => {
+  const parsed = useMemo(() => parseLocationValue(value), [value]);
+  const shellRef = useRef(null);
+  const [isCompact, setIsCompact] = useState(() => window.innerWidth <= 768);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [draft, setDraft] = useState(parsed);
+
+  useEffect(() => {
+    setDraft(parsed);
+  }, [parsed]);
+
+  useEffect(() => {
+    const measure = () => {
+      const width = shellRef.current?.parentElement?.clientWidth ?? shellRef.current?.clientWidth ?? 0;
+      setIsCompact(window.innerWidth <= 768 || width <= 540);
+    };
+
+    measure();
+    window.addEventListener("resize", measure);
+
+    const observer = new ResizeObserver(measure);
+    if (shellRef.current) observer.observe(shellRef.current);
+
+    return () => {
+      window.removeEventListener("resize", measure);
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setModalOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [modalOpen]);
+
+  const selectedRegion = draft.region
+    ? phLocationEntries.find((entry) => entry.region === draft.region) || null
+    : null;
+
+  const provinceOptions = selectedRegion ? selectedRegion.provinces.map((province) => province.name) : [];
+  const selectedProvinceObj = selectedRegion
+    ? selectedRegion.provinces.find((province) => province.name === draft.province) || null
+    : null;
+  const cityOptions = selectedProvinceObj ? selectedProvinceObj.cities : [];
+
+  const emit = (nextRegion, nextProvince, nextCity) => {
+    const parts = [nextRegion, nextProvince, nextCity].filter(Boolean);
+    onChange(parts.join(", "));
+  };
+
+  const handleRegionChange = (e) => {
+    setRegionWarning("");
+    const nextRegion = e.target.value;
+    const nextDraft = { region: nextRegion, province: "", city: "" };
+    setDraft(nextDraft);
+    emit(nextRegion, "", "");
+  };
+
+  const [regionWarning, setRegionWarning] = useState("");
+
+  useEffect(() => {
+    if (!regionWarning) return;
+    const timer = window.setTimeout(() => setRegionWarning(""), 2500);
+    return () => window.clearTimeout(timer);
+  }, [regionWarning]);
+
+  const handleProvinceChange = (e) => {
+    if (!draft.region) {
+      setRegionWarning("Please select a region first.");
+      return;
+    }
+
+    setRegionWarning("");
+    const nextProvince = e.target.value;
+    const nextDraft = { ...draft, province: nextProvince, city: "" };
+    setDraft(nextDraft);
+    emit(draft.region, nextProvince, "");
+  };
+
+  const handleCityChange = (e) => {
+    if (!draft.region || !draft.province) {
+      setRegionWarning("Please select a region and province first.");
+      return;
+    }
+
+    setRegionWarning("");
+    const nextCity = e.target.value;
+    const nextDraft = { ...draft, city: nextCity };
+    setDraft(nextDraft);
+    emit(draft.region, draft.province, nextCity);
+  };
+
+  const handleApplyLocation = () => {
+    emit(draft.region, draft.province, draft.city);
+    setModalOpen(false);
+  };
+
+  const handleCancelLocation = () => {
+    setDraft(parsed);
+    setModalOpen(false);
+  };
+
+  const handleClearLocation = () => {
+    const empty = { region: "", province: "", city: "" };
+    setDraft(empty);
+    onChange("");
+    setModalOpen(false);
+  };
+
+  const triggerText = parsed.city
+    ? `${parsed.city}, ${parsed.province}`
+    : parsed.province
+      ? parsed.province
+      : parsed.region || "Select Location";
+
+  return (
+    <div ref={shellRef} className="location-filter-wrapper">
+      {!isCompact ? (
+        <div className="location-filter-selector location-desktop">
+          <label>
+            <span>Region</span>
+            <select value={draft.region} onChange={handleRegionChange}>
+              <option value="">Select region</option>
+              {phLocationEntries.map((entry) => (
+                <option key={entry.code} value={entry.region}>{entry.region}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span>Province</span>
+            <select
+              value={draft.province}
+              onFocus={() => {
+                if (!draft.region) {
+                  setRegionWarning("Please select a region first.");
+                }
+              }}
+              onChange={handleProvinceChange}
+            >
+              <option value="">Select province</option>
+              {provinceOptions.map((province) => (
+                <option key={province} value={province}>{province}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span>City / Municipality</span>
+            <select
+              value={draft.city}
+              onFocus={() => {
+                if (!draft.region) {
+                  setRegionWarning("Please select a region first.");
+                } else if (!draft.province) {
+                  setRegionWarning("Please select a region and province first.");
+                }
+              }}
+              onChange={handleCityChange}
+            >
+              <option value="">Select city</option>
+              {cityOptions.map((city) => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+          </label>
+
+          {regionWarning && (
+            <div className="location-filter-warning-overlay" role="alert">
+              <span className="location-filter-warning-icon" aria-hidden="true">!</span>
+              <span>{regionWarning}</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="location-mobile-trigger"
+          onClick={() => {
+            setDraft(parsed);
+            setModalOpen(true);
+          }}
+        >
+          <span>{triggerText}</span>
+          <span className="location-mobile-trigger-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path d="M12 2.5a7.5 7.5 0 0 1 7.5 7.5c0 5.7-7.5 12.5-7.5 12.5S4.5 15.7 4.5 10A7.5 7.5 0 0 1 12 2.5Zm0 3.25A4.25 4.25 0 1 0 12 14.25A4.25 4.25 0 0 0 12 5.75Z" fill="currentColor"/>
+            </svg>
+          </span>
+        </button>
+      )}
+
+      {modalOpen && (
+        <div className="location-modal-overlay" onClick={() => setModalOpen(false)}>
+          <div className="location-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="location-modal-title">
+            <div className="location-modal-header">
+              <h4 id="location-modal-title">Select Location</h4>
+              <button type="button" className="location-modal-close" onClick={() => setModalOpen(false)} aria-label="Close location selector">×</button>
+            </div>
+
+            <div className="location-modal-body">
+              <label>
+                <span>Region</span>
+                <select value={draft.region} onChange={(e) => setDraft({ region: e.target.value, province: "", city: "" })}>
+                  <option value="">Select region</option>
+                  {phLocationEntries.map((entry) => (
+                    <option key={entry.code} value={entry.region}>{entry.region}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Province</span>
+                <select
+                  value={draft.province}
+                  onFocus={() => {
+                    if (!draft.region) {
+                      setRegionWarning("Please select a region first.");
+                    }
+                  }}
+                  onChange={(e) => {
+                    if (!draft.region) {
+                      setRegionWarning("Please select a region first.");
+                      return;
+                    }
+                    setRegionWarning("");
+                    setDraft({ ...draft, province: e.target.value, city: "" });
+                  }}
+                >
+                  <option value="">Select province</option>
+                  {(phLocationEntries.find((entry) => entry.region === draft.region)?.provinces || []).map((province) => (
+                    <option key={province.name} value={province.name}>{province.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>City / Municipality</span>
+                <select
+                  value={draft.city}
+                  onFocus={() => {
+                    if (!draft.region) {
+                      setRegionWarning("Please select a region first.");
+                    } else if (!draft.province) {
+                      setRegionWarning("Please select a region and province first.");
+                    }
+                  }}
+                  onChange={(e) => {
+                    if (!draft.region || !draft.province) {
+                      setRegionWarning("Please select a region and province first.");
+                      return;
+                    }
+                    setRegionWarning("");
+                    setDraft({ ...draft, city: e.target.value });
+                  }}
+                >
+                  <option value="">Select city</option>
+                  {(
+                    (phLocationEntries.find((entry) => entry.region === draft.region)?.provinces || []).find(
+                      (province) => province.name === draft.province
+                    )?.cities || []
+                  ).map((city) => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {regionWarning && (
+              <div className="location-filter-warning-overlay" role="alert">
+                <span className="location-filter-warning-icon" aria-hidden="true">!</span>
+                <span>{regionWarning}</span>
+              </div>
+            )}
+
+            <div className="location-modal-actions">
+              <button type="button" className="location-cancel-btn" onClick={handleCancelLocation}>Cancel</button>
+              <button type="button" className="location-clear-btn" onClick={handleClearLocation}>Clear</button>
+              <button type="button" className="green-btn" onClick={handleApplyLocation}>Apply Location</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const defaultJobForm = {
   title: "",
@@ -72,6 +412,15 @@ const defaultJobForm = {
   description: "",
   qualifications: [],
   applicationDeadline: "",
+};
+
+const isValidSalaryFormat = (value) => {
+  if (value === null || value === undefined) return true;
+  const trimmed = String(value).trim();
+  if (!trimmed) return true;
+
+  const salaryPattern = /^(?:PHP\s*)?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)(?:\s*-\s*(?:PHP\s*)?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?))?$/i;
+  return salaryPattern.test(trimmed);
 };
 
 const statusClass = (value) => {
@@ -102,6 +451,16 @@ const formatDate = (value) => {
     day: "numeric",
     year: "numeric",
   });
+};
+
+const formatJobLocation = (value) => {
+  const text = String(value || "").trim();
+  if (!text) return "Location not specified";
+  return text
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 };
 
 const getApplicantContact = (application) => {
@@ -136,6 +495,99 @@ const normalizeDrawerStatus = (value) => {
   return "pending";
 };
 
+// ===== SWIPEABLE JOB CARD COMPONENT =====
+function SwipeableJobCard({
+  job,
+  formatDate,
+  isVerifiedEmployer,
+  setShowVerificationModal,
+  setActiveTab,
+  setSelectedJobId,
+  openEditJobModal,
+  handleCloseOrReopen,
+  handleArchiveJob,
+}) {
+  return (
+    <div className="swipeable-card-wrapper">
+      <div className="swipeable-card">
+        {/* Main content – left side */}
+        <div className="job-card-compact-content">
+          <div className="job-card-compact-row">
+            <h3 className="job-card-compact-title">{job.title}</h3>
+            <span className={`status-pill ${statusClass(job.status)}`}>
+              {job.status || "active"}
+            </span>
+          </div>
+          <div className="job-card-compact-stats">
+            <div className="job-card-compact-stat">
+              <span className="job-stat-value">{job.applicantCount || 0}</span>
+              <span className="job-stat-label">Applicants</span>
+            </div>
+            <div className="job-card-compact-stat">
+              <span className="job-stat-value">{formatDate(job.createdAt)}</span>
+              <span className="job-stat-label">Posted</span>
+            </div>
+          </div>
+          {/* Expanded details – shown on hover */}
+          <div className="job-card-compact-expanded">
+            <p className="job-meta">📍 {job.location}</p>
+            <p className="job-meta">💰 {job.salary || "Negotiable"}</p>
+            <button
+              type="button"
+              className="view-applicants-btn"
+              onClick={() => {
+                if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
+                setActiveTab("applicants");
+                setSelectedJobId(job._id);
+              }}
+            >
+              View Applicants
+            </button>
+          </div>
+        </div>
+
+        {/* Right action sidebar – hidden by default, revealed on swipe */}
+        <div className="job-card-compact-actions">
+          <button
+            type="button"
+            className="action-btn edit-btn"
+            onClick={() => openEditJobModal(job)}
+            aria-label="Edit job"
+            title="Edit job"
+          >
+            <span className="action-btn-label">Edit</span>
+            <span className="action-btn-icon"><FaEdit /></span>
+          </button>
+          <button
+            type="button"
+            className={`action-btn ${job.status === "closed" ? "reopen-btn" : "close-btn"}`}
+            onClick={() => handleCloseOrReopen(job)}
+            aria-label={job.status === "closed" ? "Reopen job" : "Close job"}
+            title={job.status === "closed" ? "Reopen job" : "Close job"}
+          >
+            <span className="action-btn-label">{job.status === "closed" ? "Reopen" : "Close"}</span>
+            <span className="action-btn-icon">{job.status === "closed" ? <FaStar /> : <FaTimesCircle />}</span>
+          </button>
+          {job.status === "closed" && (
+            <button
+              type="button"
+              className="action-btn archive-btn"
+              onClick={() => handleArchiveJob(job)}
+              disabled={job.archived}
+              aria-label={job.archived ? "Archived" : "Archive job"}
+              title={job.archived ? "Archived" : "Archive job"}
+            >
+              <span className="action-btn-label">{job.archived ? "Archived" : "Archive"}</span>
+              <span className="action-btn-icon"><FaArchive /></span>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== MAIN COMPONENT =====
 export default function EmployerDashboard() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
@@ -150,18 +602,21 @@ export default function EmployerDashboard() {
     hired: 0,
   });
   const [jobs, setJobs] = useState([]);
+  const [jobsPage, setJobsPage] = useState(1);
   const [jobApplicants, setJobApplicants] = useState({});
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [recentApplicants, setRecentApplicants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successToast, setSuccessToast] = useState("");
+  const applicantsPanelRef = useRef(null);
 
   const { applicants: rankedApplicants, loading: loadingRanked, refetch: refetchRanked } = useRankedApplicants(selectedJobId);
 
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [jobForm, setJobForm] = useState(defaultJobForm);
+  const [salaryError, setSalaryError] = useState("");
   const [isSavingJob, setIsSavingJob] = useState(false);
   const [modalActiveSection, setModalActiveSection] = useState("details");
 
@@ -175,6 +630,23 @@ export default function EmployerDashboard() {
 
   const [jobToDelete, setJobToDelete] = useState(null);
   const [isDeletingJob, setIsDeletingJob] = useState(false);
+
+  const [selectedApplicants, setSelectedApplicants] = useState([]);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [rejectDialog, setRejectDialog] = useState(null);
+
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("match");
+  const [applicantsJobsPage, setApplicantsJobsPage] = useState(1);
+  const [applicantsPage, setApplicantsPage] = useState(1);
+  const [jobsSearchTerm, setJobsSearchTerm] = useState("");
+  const [jobsFilters, setJobsFilters] = useState({ date: "all", jobType: "all", salary: "all", location: "" });
+  const [applicantSearchTerm, setApplicantSearchTerm] = useState("");
+  const [applicantFilters, setApplicantFilters] = useState({ date: "all", jobType: "all", salary: "all", location: "" });
+  const [archivedSearchTerm, setArchivedSearchTerm] = useState("");
+  const [archivedFilters, setArchivedFilters] = useState({ date: "all", jobType: "all", salary: "all", location: "" });
+
+  const [expandedArchivedJobs, setExpandedArchivedJobs] = useState({});
 
   const isVerifiedEmployer = user?.role === "employer" && user?.verificationStatus === "verified";
 
@@ -202,6 +674,102 @@ export default function EmployerDashboard() {
     () => jobs.find((job) => job._id === selectedJobId) || null,
     [jobs, selectedJobId]
   );
+
+  const handleSelectApplicantsJob = (jobId) => {
+    setSelectedJobId(jobId);
+    window.requestAnimationFrame(() => {
+      applicantsPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  };
+
+  const jobsPageSize = 8;
+  const parseSalaryNumber = (value) => {
+    if (!value || value === "Negotiable") return null;
+    const numbers = String(value).match(/\d+(?:,\d{3})*(?:\.\d+)?/g);
+    if (!numbers) return null;
+    return Number(String(numbers.join("")).replace(/,/g, ""));
+  };
+
+  const matchesDateFilter = (dateValue, filterValue) => {
+    if (!dateValue || filterValue === "all") return true;
+    const jobDate = new Date(dateValue);
+    if (Number.isNaN(jobDate.getTime())) return true;
+    const diffMs = Date.now() - jobDate.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+    if (filterValue === "7d") return diffDays <= 7;
+    if (filterValue === "30d") return diffDays <= 30;
+    if (filterValue === "90d") return diffDays <= 90;
+    if (filterValue === "365d") return diffDays <= 365;
+    return true;
+  };
+
+  const matchesJobFilters = (job, filters, searchTerm = "") => {
+    const search = searchTerm.trim().toLowerCase();
+    const locationText = String(job.location || "").toLowerCase();
+    const jobTitleText = String(job.title || "").toLowerCase();
+    const salaryValue = parseSalaryNumber(job.salary);
+    const matchesSearch = !search || jobTitleText.includes(search) || locationText.includes(search);
+    const matchesLocation = !filters.location || locationText.includes(filters.location.trim().toLowerCase());
+    const matchesJobType = filters.jobType === "all" || (job.jobType || "Full-time") === filters.jobType;
+    const matchesSalary =
+      filters.salary === "all" ||
+      (salaryValue === null && filters.salary === "negotiable") ||
+      (filters.salary === "20k" && salaryValue !== null && salaryValue < 20000) ||
+      (filters.salary === "50k" && salaryValue !== null && salaryValue >= 20000 && salaryValue <= 50000) ||
+      (filters.salary === "50k+" && salaryValue !== null && salaryValue > 50000) ||
+      (filters.salary === "100k+" && salaryValue !== null && salaryValue > 100000);
+    const matchesDate = matchesDateFilter(job.createdAt || job.updatedAt, filters.date);
+
+    return matchesSearch && matchesLocation && matchesJobType && matchesSalary && matchesDate;
+  };
+
+  const archivedJobs = useMemo(
+    () => jobs.filter((job) => job.archived || job.status === "closed"),
+    [jobs]
+  );
+  const filteredArchivedJobs = useMemo(() => {
+    return archivedJobs.filter((job) => matchesJobFilters(job, archivedFilters, archivedSearchTerm));
+  }, [archivedJobs, archivedFilters, archivedSearchTerm]);
+  const liveJobs = useMemo(
+    () => jobs.filter((job) => !job.archived && job.status !== "closed"),
+    [jobs]
+  );
+
+  const filteredJobs = useMemo(() => {
+    return liveJobs.filter((job) => matchesJobFilters(job, jobsFilters, jobsSearchTerm));
+  }, [liveJobs, jobsFilters, jobsSearchTerm]);
+
+  const jobsTotalPages = Math.max(1, Math.ceil(filteredJobs.length / jobsPageSize));
+  const paginatedJobs = useMemo(() => {
+    const safePage = Math.min(jobsPage, jobsTotalPages);
+    const startIndex = (safePage - 1) * jobsPageSize;
+    return filteredJobs.slice(startIndex, startIndex + jobsPageSize);
+  }, [filteredJobs, jobsPage, jobsTotalPages]);
+
+  const applicantsJobsPageSize = 4;
+  const applicantsJobsTotalPages = Math.max(1, Math.ceil(liveJobs.length / applicantsJobsPageSize));
+  const applicantsPaginatedJobs = useMemo(() => {
+    const safePage = Math.min(applicantsJobsPage, applicantsJobsTotalPages);
+    const startIndex = (safePage - 1) * applicantsJobsPageSize;
+    return liveJobs.slice(startIndex, startIndex + applicantsJobsPageSize);
+  }, [liveJobs, applicantsJobsPage, applicantsJobsTotalPages]);
+
+  useEffect(() => {
+    setJobsPage((page) => Math.min(page, Math.max(1, Math.ceil(liveJobs.length / jobsPageSize))));
+  }, [liveJobs]);
+
+  useEffect(() => {
+    if (!selectedJobId || !liveJobs.length) return;
+    const selectedIndex = liveJobs.findIndex((job) => job._id === selectedJobId);
+    if (selectedIndex >= 0) {
+      const nextPage = Math.floor(selectedIndex / applicantsJobsPageSize) + 1;
+      setApplicantsJobsPage((page) => (page === nextPage ? page : nextPage));
+    }
+  }, [selectedJobId, liveJobs]);
 
   const loadDashboardData = async () => {
     setLoading(true);
@@ -294,8 +862,28 @@ export default function EmployerDashboard() {
       qualifications: quals,
       applicationDeadline: job.applicationDeadline ? String(job.applicationDeadline).slice(0, 10) : "",
     });
+    setSalaryError("");
     setModalActiveSection("details");
     setIsJobModalOpen(true);
+  };
+
+  const handleSalaryChange = (value) => {
+    setJobForm((prev) => ({ ...prev, salary: value }));
+    if (!value) {
+      setSalaryError("");
+      return;
+    }
+
+    const valid = isValidSalaryFormat(value);
+    setSalaryError(valid ? "" : "Invalid salary format. Use PHP 18,000 or 18,000 - 25,000.");
+  };
+
+  const handleSalaryBlur = () => {
+    if (jobForm.salary && !isValidSalaryFormat(jobForm.salary)) {
+      setSalaryError("Invalid salary format. Use PHP 18,000 or 18,000 - 25,000.");
+    } else {
+      setSalaryError("");
+    }
   };
 
   const handleSaveJob = async (event) => {
@@ -308,6 +896,13 @@ export default function EmployerDashboard() {
       if (!jobForm.title.trim()) { setError("Job title is required"); setIsSavingJob(false); return; }
       if (!jobForm.description.trim()) { setError("Job description is required"); setIsSavingJob(false); return; }
       if (!jobForm.location.trim()) { setError("Location is required"); setIsSavingJob(false); return; }
+      if (jobForm.salary && !isValidSalaryFormat(jobForm.salary)) {
+        const message = "Invalid salary format. Use PHP 18,000 or 18,000 - 25,000.";
+        setError(message);
+        setSalaryError(message);
+        setIsSavingJob(false);
+        return;
+      }
 
       const payload = {
         title: jobForm.title.trim(),
@@ -416,6 +1011,15 @@ export default function EmployerDashboard() {
     if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
     if (!selectedApplication?._id) return;
 
+    if (drawerStatus === "rejected") {
+      setRejectDialog({
+        kind: "drawer",
+        applicationId: selectedApplication._id,
+        applicantName: selectedApplication.applicant?.name || "this applicant",
+      });
+      return;
+    }
+
     const updatedApplication = { ...selectedApplication, status: drawerStatus, employerNote: drawerNote };
 
     setRecentApplicants((prev) =>
@@ -477,6 +1081,207 @@ export default function EmployerDashboard() {
     }
   };
 
+  const handleSelectApplicant = (applicationId, checked) => {
+    if (checked) {
+      setSelectedApplicants(prev => [...prev, applicationId]);
+    } else {
+      setSelectedApplicants(prev => prev.filter(id => id !== applicationId));
+    }
+  };
+
+  const handleBulkAction = async (status) => {
+    if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
+    if (selectedApplicants.length === 0) {
+      setError("Please select at least one applicant");
+      return;
+    }
+
+    if (status === "rejected") {
+      setRejectDialog({
+        kind: "bulk",
+        applicationIds: [...selectedApplicants],
+        applicantName: selectedApplicants.length === 1
+          ? "1 selected applicant"
+          : `${selectedApplicants.length} selected applicants`,
+      });
+      return;
+    }
+
+    setIsBulkUpdating(true);
+    setError("");
+
+    try {
+      const response = await employerAPI.bulkUpdateApplicationStatuses({
+        applicationIds: selectedApplicants,
+        status,
+      });
+
+      setSuccessToast(`Successfully ${status === 'shortlisted' ? 'shortlisted' : status === 'rejected' ? 'rejected' : 'updated'} ${response.data.updated} applicants`);
+      setSelectedApplicants([]);
+
+      await refetchRanked();
+      const statsResponse = await employerAPI.getStats();
+      setStats(statsResponse.data || {
+        totalJobs: 0, activeJobs: 0, totalApplicants: 0, pendingReview: 0, shortlisted: 0, hired: 0,
+      });
+
+      setTimeout(() => loadDashboardData(), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to bulk update applicants");
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const confirmRejectDialog = async () => {
+    if (!rejectDialog) return;
+
+    try {
+      if (rejectDialog.kind === "single") {
+        await employerAPI.updateApplicationStatus(rejectDialog.applicationId, { status: "rejected" });
+        setSuccessToast("Applicant rejected successfully");
+      } else if (rejectDialog.kind === "bulk") {
+        const response = await employerAPI.bulkUpdateApplicationStatuses({
+          applicationIds: rejectDialog.applicationIds,
+          status: "rejected",
+        });
+        const updatedCount = Number(response.data?.updated || 0);
+        setSuccessToast(`Successfully rejected ${updatedCount} applicant${updatedCount === 1 ? '' : 's'}`);
+        setSelectedApplicants([]);
+      } else if (rejectDialog.kind === "drawer") {
+        await employerAPI.updateApplicationStatus(rejectDialog.applicationId, {
+          status: "rejected",
+          employerNote: drawerNote,
+        });
+        setSuccessToast("Applicant rejected successfully");
+      }
+
+      setRejectDialog(null);
+      await refetchRanked();
+      const statsResponse = await employerAPI.getStats();
+      setStats(statsResponse.data || {
+        totalJobs: 0, activeJobs: 0, totalApplicants: 0, pendingReview: 0, shortlisted: 0, hired: 0,
+      });
+
+      if (rejectDialog.kind === "drawer") {
+        setSelectedApplication(null);
+      }
+
+      setTimeout(() => loadDashboardData(), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to reject applicant");
+    }
+  };
+
+  const handleQuickStatusChange = async (applicationId, status) => {
+    if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
+
+    if (status === "rejected") {
+      const applicant = rankedApplicants.find((app) => app._id === applicationId);
+      setRejectDialog({
+        kind: "single",
+        applicationId,
+        applicantName: applicant?.applicant?.name || "this applicant",
+      });
+      return;
+    }
+
+    try {
+      await employerAPI.updateApplicationStatus(applicationId, { status });
+      setSuccessToast(`Application ${status === 'shortlisted' ? 'shortlisted' : status === 'rejected' ? 'rejected' : 'updated'} successfully`);
+
+      await refetchRanked();
+      const statsResponse = await employerAPI.getStats();
+      setStats(statsResponse.data || {
+        totalJobs: 0, activeJobs: 0, totalApplicants: 0, pendingReview: 0, shortlisted: 0, hired: 0,
+      });
+
+      setTimeout(() => loadDashboardData(), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update application status");
+    }
+  };
+
+  const filteredAndSortedApplicants = useMemo(() => {
+    let filtered = [...rankedApplicants];
+
+    const query = applicantSearchTerm.trim().toLowerCase();
+    if (query) {
+      filtered = filtered.filter((app) => {
+        const name = (app.applicant?.name || "").toLowerCase();
+        const appliedVacancy = (app.vacancy?.title || "").toLowerCase();
+        return name.includes(query) || appliedVacancy.includes(query);
+      });
+    }
+
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(app => {
+        const normalizedStatus = normalizeApplicationStatus(app.status);
+        return normalizedStatus === statusFilter;
+      });
+    }
+
+    if (applicantFilters.location) {
+      const locationQuery = applicantFilters.location.trim().toLowerCase();
+      filtered = filtered.filter((app) => {
+        const locationText = String(app.vacancy?.location || selectedJob?.location || "").toLowerCase();
+        return locationText.includes(locationQuery);
+      });
+    }
+
+    if (applicantFilters.jobType !== "all" && selectedJob) {
+      filtered = filtered.filter((app) => (selectedJob.jobType || "Full-time") === applicantFilters.jobType);
+    }
+
+    if (applicantFilters.date !== "all") {
+      filtered = filtered.filter((app) => matchesDateFilter(app.appliedAt || app.createdAt, applicantFilters.date));
+    }
+
+    if (applicantFilters.salary !== "all" && selectedJob) {
+      const selectedSalary = parseSalaryNumber(selectedJob.salary);
+      const matchesSalary =
+        (applicantFilters.salary === "20k" && selectedSalary !== null && selectedSalary < 20000) ||
+        (applicantFilters.salary === "50k" && selectedSalary !== null && selectedSalary >= 20000 && selectedSalary <= 50000) ||
+        (applicantFilters.salary === "50k+" && selectedSalary !== null && selectedSalary > 50000) ||
+        (applicantFilters.salary === "100k+" && selectedSalary !== null && selectedSalary > 100000) ||
+        (applicantFilters.salary === "negotiable" && (selectedSalary === null || selectedJob.salary === "Negotiable"));
+      if (!matchesSalary) filtered = [];
+    }
+
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "match":
+          return (b.relevanceScore || 0) - (a.relevanceScore || 0);
+        case "date":
+          return new Date(b.appliedAt || b.createdAt || 0) - new Date(a.appliedAt || a.createdAt || 0);
+        case "name":
+          const nameA = (a.applicant?.name || "").toLowerCase();
+          const nameB = (b.applicant?.name || "").toLowerCase();
+          return nameA.localeCompare(nameB);
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [rankedApplicants, statusFilter, sortBy, applicantSearchTerm, applicantFilters, selectedJob]);
+
+  const applicantPageSize = 6;
+  const applicantsTotalPages = Math.max(1, Math.ceil(filteredAndSortedApplicants.length / applicantPageSize));
+  const paginatedApplicants = useMemo(() => {
+    const safePage = Math.min(applicantsPage, applicantsTotalPages);
+    const startIndex = (safePage - 1) * applicantPageSize;
+    return filteredAndSortedApplicants.slice(startIndex, startIndex + applicantPageSize);
+  }, [filteredAndSortedApplicants, applicantsPage, applicantsTotalPages]);
+
+  useEffect(() => {
+    setApplicantsPage(1);
+  }, [selectedJobId, statusFilter, sortBy]);
+
+  useEffect(() => {
+    setApplicantsPage((page) => Math.min(page, Math.max(1, applicantsTotalPages)));
+  }, [applicantsTotalPages]);
+
   const modalSections = [
     { id: "details", label: "Job Details", icon: <FaClipboardList /> },
     { id: "logistics", label: "Logistics", icon: <FaCoins /> },
@@ -491,6 +1296,13 @@ export default function EmployerDashboard() {
     { icon: "📌", label: "Shortlisted", value: stats.shortlisted, tone: "blue" },
     { icon: "🎉", label: "Hired", value: stats.hired, tone: "green" },
   ];
+
+  const toggleArchivedJobDetails = (jobId) => {
+    setExpandedArchivedJobs((prev) => ({
+      ...prev,
+      [jobId]: !prev[jobId],
+    }));
+  };
 
   return (
     <div className="dashboard-container employer-dashboard-page">
@@ -562,7 +1374,7 @@ export default function EmployerDashboard() {
               onClick={() => setActiveTab(tab)}
               aria-selected={activeTab === tab}
             >
-              {tab === "overview" ? "Overview" : tab === "jobs" ? "My Job Postings" : "Applicants"}
+              {tab === "overview" ? "Overview" : tab === "jobs" ? "My Job Postings" : tab === "archived" ? "Archived Jobs" : "Applicants"}
             </button>
           ))}
         </div>
@@ -676,7 +1488,7 @@ export default function EmployerDashboard() {
               </div>
             )}
 
-            {/* -------- JOBS TAB (REDESIGNED) -------- */}
+            {/* -------- JOBS TAB – SWIPEABLE CARDS -------- */}
             {activeTab === "jobs" && (
               <div className="employer-tab-panel">
                 <div className="panel-header-row">
@@ -686,69 +1498,288 @@ export default function EmployerDashboard() {
                   </button>
                 </div>
 
-                <div className="jobs-grid">
-                  {!jobs.length ? (
-                    <p className="empty-muted">You have no job postings yet.</p>
+                <div className="tab-search-toolbar">
+                  <input
+                    type="text"
+                    value={jobsSearchTerm}
+                    onChange={(e) => setJobsSearchTerm(e.target.value)}
+                    className="tab-search-input"
+                    placeholder="Search jobs or locations"
+                    aria-label="Search jobs"
+                  />
+                  <div className="tab-filter-row">
+                    <select value={jobsFilters.date} onChange={(e) => setJobsFilters((prev) => ({ ...prev, date: e.target.value }))} className="filter-select mini-filter">
+                      <option value="all">All dates</option>
+                      <option value="7d">Last 7 days</option>
+                      <option value="30d">Last 30 days</option>
+                      <option value="90d">Last 90 days</option>
+                      <option value="365d">Last 365 days</option>
+                    </select>
+                    <select value={jobsFilters.jobType} onChange={(e) => setJobsFilters((prev) => ({ ...prev, jobType: e.target.value }))} className="filter-select mini-filter">
+                      <option value="all">All job types</option>
+                      <option value="Full-time">Full-time</option>
+                      <option value="Part-time">Part-time</option>
+                      <option value="Contract">Contract</option>
+                      <option value="Internship">Internship</option>
+                      <option value="Temporary">Temporary</option>
+                      <option value="Remote">Remote</option>
+                    </select>
+                    <select value={jobsFilters.salary} onChange={(e) => setJobsFilters((prev) => ({ ...prev, salary: e.target.value }))} className="filter-select mini-filter">
+                      <option value="all">All salaries</option>
+                      <option value="20k">Under ₱20k</option>
+                      <option value="50k">₱20k - ₱50k</option>
+                      <option value="50k+">Above ₱50k</option>
+                      <option value="100k+">Above ₱100k</option>
+                      <option value="negotiable">Negotiable</option>
+                    </select>
+                    <LocationFilterSelector
+                      value={jobsFilters.location}
+                      onChange={(nextValue) => setJobsFilters((prev) => ({ ...prev, location: nextValue }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="swipeable-job-list">
+                  {!paginatedJobs.length ? (
+                    <p className="empty-muted">You have no job postings matching the current search.</p>
                   ) : (
-                    jobs.map((job) => (
-                      <article key={job._id} className="job-card">
-                        <div className="job-card-head">
-                          <h3>{job.title}</h3>
-                          <span className={`status-pill ${statusClass(job.status)}`}>
-                            {job.status || "active"}
-                          </span>
-                        </div>
+                    paginatedJobs.map((job) => (
+                      <SwipeableJobCard
+                        key={job._id}
+                        job={job}
+                        formatDate={formatDate}
+                        isVerifiedEmployer={isVerifiedEmployer}
+                        setShowVerificationModal={setShowVerificationModal}
+                        setActiveTab={setActiveTab}
+                        setSelectedJobId={setSelectedJobId}
+                        openEditJobModal={openEditJobModal}
+                        handleCloseOrReopen={handleCloseOrReopen}
+                        handleArchiveJob={handleArchiveJob}
+                      />
+                    ))
+                  )}
+                </div>
 
-                        <p className="job-meta">📍 {job.location}</p>
-                        <p className="job-meta">💰 {job.salary || "Negotiable"}</p>
+                {liveJobs.length > 0 && (
+                  <div className="pagination-controls employer-pagination-controls" role="navigation" aria-label="Job postings pagination">
+                    <div className="pagination-info pagination-summary">
+                      Showing {Math.min((jobsPage - 1) * jobsPageSize + 1, liveJobs.length)}-
+                      {Math.min(jobsPage * jobsPageSize, liveJobs.length)} of {liveJobs.length} job postings
+                    </div>
+                    <div className="pagination-actions">
+                      <button
+                        type="button"
+                        className="pagination-btn employer-pagination-btn"
+                        onClick={() => setJobsPage((page) => Math.max(1, page - 1))}
+                        disabled={jobsPage === 1}
+                      >
+                        ← Previous
+                      </button>
+                      <div className="pagination-info">
+                        Page {jobsPage} of {jobsTotalPages}
+                      </div>
+                      <button
+                        type="button"
+                        className="pagination-btn employer-pagination-btn"
+                        onClick={() => setJobsPage((page) => Math.min(jobsTotalPages, page + 1))}
+                        disabled={jobsPage >= jobsTotalPages}
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-                        <div className="job-stats-row">
-                          <div className="job-stat">
-                            <span className="job-stat-value">{job.applicantCount || 0}</span>
-                            <span className="job-stat-label">Applicants</span>
-                          </div>
-                          <div className="job-stat">
-                            <span className="job-stat-value">{formatDate(job.createdAt)}</span>
-                            <span className="job-stat-label">Posted</span>
-                          </div>
-                        </div>
+            {/* -------- ARCHIVED JOBS TAB -------- */}
+            {activeTab === "archived" && (
+              <div className="employer-tab-panel archived-jobs-layout">
+                <div className="archived-summary-strip">
+                  <div className="archived-summary-item">
+                    <span className="archived-summary-label">Archived jobs</span>
+                    <strong>{archivedJobs.length}</strong>
+                  </div>
+                  <div className="archived-summary-item">
+                    <span className="archived-summary-label">Total applicants</span>
+                    <strong>{archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.totalApplicants || job.applicationCount || 0), 0)}</strong>
+                  </div>
+                  <div className="archived-summary-item">
+                    <span className="archived-summary-label">Avg. days active</span>
+                    <strong>{archivedJobs.length ? (archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.daysActive || 0), 0) / archivedJobs.length).toFixed(1) : "0.0"}</strong>
+                  </div>
+                  <div className="archived-summary-item archived-hired-banner">
+                    <span className="archived-summary-label">Hired candidates</span>
+                    <strong>{archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.hiredCount || 0), 0)}</strong>
+                  </div>
+                </div>
 
-                        <div className="job-actions">
-                          <button type="button" className="outline-btn" onClick={() => openEditJobModal(job)}>
-                            Edit
-                          </button>
-                          <button 
-                            type="button" 
-                            className={`outline-btn ${job.status === "closed" ? "btn-reopen" : "btn-close"}`}
-                            onClick={() => handleCloseOrReopen(job)}
-                          >
-                            {job.status === "closed" ? "Reopen" : "Close"}
-                          </button>
-                          {job.status === "closed" && (
-                            <button
-                              type="button"
-                              className="outline-btn btn-archive"
-                              onClick={() => handleArchiveJob(job)}
-                              disabled={job.archived}
-                              title={job.archived ? "Job is already archived" : "Archive this closed job"}
-                            >
-                              {job.archived ? "Archived" : "Archive"}
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            className="outline-btn"
-                            onClick={() => {
-                              if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
-                              setActiveTab("applicants");
-                              setSelectedJobId(job._id);
+                <div className="tab-search-toolbar archived-toolbar">
+                  <input
+                    type="text"
+                    value={archivedSearchTerm}
+                    onChange={(e) => setArchivedSearchTerm(e.target.value)}
+                    className="tab-search-input"
+                    placeholder="Search archived jobs or locations"
+                    aria-label="Search archived jobs"
+                  />
+                  <div className="tab-filter-row">
+                    <select value={archivedFilters.date} onChange={(e) => setArchivedFilters((prev) => ({ ...prev, date: e.target.value }))} className="filter-select mini-filter">
+                      <option value="all">All dates</option>
+                      <option value="7d">Last 7 days</option>
+                      <option value="30d">Last 30 days</option>
+                      <option value="90d">Last 90 days</option>
+                      <option value="365d">Last 365 days</option>
+                    </select>
+                    <select value={archivedFilters.jobType} onChange={(e) => setArchivedFilters((prev) => ({ ...prev, jobType: e.target.value }))} className="filter-select mini-filter">
+                      <option value="all">All job types</option>
+                      <option value="Full-time">Full-time</option>
+                      <option value="Part-time">Part-time</option>
+                      <option value="Contract">Contract</option>
+                      <option value="Internship">Internship</option>
+                      <option value="Temporary">Temporary</option>
+                      <option value="Remote">Remote</option>
+                    </select>
+                    <select value={archivedFilters.salary} onChange={(e) => setArchivedFilters((prev) => ({ ...prev, salary: e.target.value }))} className="filter-select mini-filter">
+                      <option value="all">All salaries</option>
+                      <option value="20k">Under ₱20k</option>
+                      <option value="50k">₱20k - ₱50k</option>
+                      <option value="50k+">Above ₱50k</option>
+                      <option value="100k+">Above ₱100k</option>
+                      <option value="negotiable">Negotiable</option>
+                    </select>
+                    <LocationFilterSelector
+                      value={archivedFilters.location}
+                      onChange={(nextValue) => setArchivedFilters((prev) => ({ ...prev, location: nextValue }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="archived-list-controls">
+                  <label className="select-all-toggle"><input type="checkbox" /> Select All</label>
+                </div>
+
+                <div className="archived-card-grid">
+                  {filteredArchivedJobs.length ? (
+                    filteredArchivedJobs.map((job) => {
+                      const isExpanded = !!expandedArchivedJobs[job._id];
+
+                      return (
+                        <article key={job._id} className={`archived-job-card ${isExpanded ? "expanded" : "compact"}`}>
+                          <div
+                            className="archived-card-header"
+                            onClick={() => toggleArchivedJobDetails(job._id)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                toggleArchivedJobDetails(job._id);
+                              }
                             }}
                           >
-                            View Applicants
-                          </button>
-                        </div>
-                      </article>
-                    ))
+                            <div className="archived-card-title-block">
+                              <label className="archived-card-checkbox"><input type="checkbox" /></label>
+                              <div>
+                                <h3>{job.title}</h3>
+                                <p>{job.location}</p>
+                              </div>
+                            </div>
+                            <div className="archived-card-summary-meta">
+                              <span className="status-pill archived-status-pill">Archived</span>
+                              <span className="archived-mini-stat">{job.archivedMetrics?.totalApplicants || job.applicationCount || 0} applicants</span>
+                            </div>
+                          </div>
+
+                          <div className={`archived-card-details ${isExpanded ? "visible" : "hidden"}`}>
+                            <div className="archived-kpi-row">
+                              <div className="archived-kpi-tile"><span>Total</span><strong>{job.archivedMetrics?.totalApplicants || job.applicationCount || 0}</strong></div>
+                              <div className="archived-kpi-tile"><span>Qualified %</span><strong>{job.archivedMetrics?.qualifiedRate ?? 0}%</strong></div>
+                              <div className="archived-kpi-tile"><span>Shortlisted %</span><strong>{job.archivedMetrics?.shortlistedRate ?? 0}%</strong></div>
+                              <div className="archived-kpi-tile"><span>Days Active</span><strong>{job.archivedMetrics?.daysActive ?? 0}</strong></div>
+                            </div>
+
+                            <div className="archived-metadata-row">
+                              <div className="archived-meta-block">
+                                <span>Hired employee(s)</span>
+                                <strong>{(job.archivedMetrics?.hiredCandidateNames || []).length ? job.archivedMetrics.hiredCandidateNames.join(", ") : "None"}</strong>
+                              </div>
+                              <div className="archived-meta-block">
+                                <span>Reason</span>
+                                <strong>{job.archiveReason ? job.archiveReason.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "N/A"}</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className={`archived-post-mortem ${isExpanded ? "is-open" : ""}`}>
+                            <button
+                              type="button"
+                              className="archived-expander-btn"
+                              aria-expanded={isExpanded}
+                              onClick={() => toggleArchivedJobDetails(job._id)}
+                            >
+                              <span>View post-mortem</span>
+                              <span className={`archived-expander-caret ${isExpanded ? "expanded" : ""}`}>›</span>
+                            </button>
+                            <div className={`archived-post-mortem-panel ${isExpanded ? "visible" : "hidden"}`}>
+                              <div className="archived-post-mortem-header">
+                                <h4>Post-mortem report</h4>
+                              </div>
+                              <div className="archived-post-mortem-grid">
+                                <div className="archived-post-mortem-row">
+                                  <span>Total Applicants</span>
+                                  <strong>{job.archivedMetrics?.totalApplicants ?? 0}</strong>
+                                </div>
+                                <div className="archived-post-mortem-row">
+                                  <span>Qualified / Shortlisted</span>
+                                  <strong>{job.archivedMetrics?.qualifiedCount ?? 0} / {job.archivedMetrics?.shortlistedCount ?? 0}</strong>
+                                </div>
+                                <div className="archived-post-mortem-row">
+                                  <span>Time-to-Close</span>
+                                  <strong>{job.archivedMetrics?.daysActive ?? 0} days</strong>
+                                </div>
+                                <div className="archived-post-mortem-row">
+                                  <span>Hired Candidate(s)</span>
+                                  <strong>{(job.archivedMetrics?.hiredCandidateNames || []).length ? job.archivedMetrics.hiredCandidateNames.join(", ") : "None"}</strong>
+                                </div>
+                                <div className="archived-post-mortem-row">
+                                  <span>Archive Reason</span>
+                                  <strong>{job.archiveReason ? job.archiveReason.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "N/A"}</strong>
+                                </div>
+                              </div>
+                              <div className="archived-progress-list">
+                                <div className="archived-progress-item">
+                                  <label>Qualified rate</label>
+                                  <div className="progress-bar"><span style={{ width: `${job.archivedMetrics?.qualifiedRate ?? 0}%` }} /></div>
+                                  <small>{job.archivedMetrics?.qualifiedRate ?? 0}%</small>
+                                </div>
+                                <div className="archived-progress-item">
+                                  <label>Shortlist rate</label>
+                                  <div className="progress-bar"><span style={{ width: `${job.archivedMetrics?.shortlistedRate ?? 0}%` }} /></div>
+                                  <small>{job.archivedMetrics?.shortlistedRate ?? 0}%</small>
+                                </div>
+                                <div className="archived-progress-item">
+                                  <label>Hire rate</label>
+                                  <div className="progress-bar"><span style={{ width: `${job.archivedMetrics?.hireRate ?? 0}%` }} /></div>
+                                  <small>{job.archivedMetrics?.hireRate ?? 0}%</small>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="archived-card-actions">
+                            <button type="button" className="outline-btn archived-export-btn">CSV export</button>
+                            <button type="button" className="outline-btn archived-export-btn">PDF export</button>
+                            <button type="button" className="red-btn archived-purge-btn">Purge</button>
+                          </div>
+                        </article>
+                      );
+                    })
+                  ) : (
+                    <div className="empty-state archived-empty-state">
+                      <div className="empty-state-icon">🗂️</div>
+                      <p className="empty-state-text">No archived jobs yet.</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -757,46 +1788,281 @@ export default function EmployerDashboard() {
             {/* -------- APPLICANTS TAB -------- */}
             {activeTab === "applicants" && (
               <div className="employer-tab-panel applicants-layout">
-                <aside className="job-list-panel">
-                  <h3>Your Jobs</h3>
-                  {!jobs.length ? (
-                    <p className="empty-muted">No jobs yet.</p>
-                  ) : (
-                    jobs.map((job) => (
-                      <button
-                        type="button"
-                        key={job._id}
-                        className={`job-list-item ${selectedJobId === job._id ? "active" : ""}`}
-                        onClick={() => setSelectedJobId(job._id)}
-                      >
-                        <strong>{job.title}</strong>
-                        <small>{job.location}</small>
-                      </button>
-                    ))
-                  )}
-                </aside>
+                <div className="jobs-top-panel">
+                  <div className="panel-header-row job-strip-header">
+                    <h2>Your Jobs</h2>
+                    <button type="button" className="green-btn" onClick={openCreateJobModal}>
+                      + Post New Job
+                    </button>
+                  </div>
 
-                <section className="applicants-panel">
+                  {!liveJobs.length ? (
+                    <p className="empty-muted">No active jobs yet.</p>
+                  ) : (
+                    <>
+                      <div className="job-card-row">
+                        {applicantsPaginatedJobs.map((job) => (
+                          <button
+                            type="button"
+                            key={job._id}
+                            className={`job-select-card ${selectedJobId === job._id ? "active" : ""}`}
+                            onClick={() => handleSelectApplicantsJob(job._id)}
+                          >
+                            <div className="job-card-main-row">
+                              <div>
+                                <h3>{job.title}</h3>
+                                <p className="job-card-location">
+                                  <FaMapMarkerAlt />
+                                  <span>{formatJobLocation(job.location)}</span>
+                                </p>
+                              </div>
+                              <span className={`status-pill ${statusClass(job.status)}`}>
+                                {job.status || "active"}
+                              </span>
+                            </div>
+
+                            <div className="job-card-meta-row">
+                              <span>{job.applicantCount || 0} applicants</span>
+                              <span>{job.jobType || "Full-time"}</span>
+                              <span>{job.salary || "Negotiable"}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+
+                      {liveJobs.length > 0 && (
+                        <div className="pagination-controls employer-pagination-controls compact-job-pagination" role="navigation" aria-label="Job selection pagination">
+                          <div className="pagination-info pagination-summary">
+                            Jobs {Math.min((applicantsJobsPage - 1) * applicantsJobsPageSize + 1, liveJobs.length)}-
+                            {Math.min(applicantsJobsPage * applicantsJobsPageSize, liveJobs.length)} of {liveJobs.length}
+                          </div>
+                          <div className="pagination-actions">
+                            <button
+                              type="button"
+                              className="pagination-btn employer-pagination-btn"
+                              onClick={() => setApplicantsJobsPage((page) => Math.max(1, page - 1))}
+                              disabled={applicantsJobsPage === 1}
+                            >
+                              ← Previous
+                            </button>
+                            <div className="pagination-info">Page {applicantsJobsPage} of {applicantsJobsTotalPages}</div>
+                            <button
+                              type="button"
+                              className="pagination-btn employer-pagination-btn"
+                              onClick={() => setApplicantsJobsPage((page) => Math.min(applicantsJobsTotalPages, page + 1))}
+                              disabled={applicantsJobsPage >= applicantsJobsTotalPages}
+                            >
+                              Next →
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <section className="applicants-panel" ref={applicantsPanelRef}>
                   <div className="panel-header-row">
                     <h2>
                       {selectedJob ? `${selectedJob.title} Applicants` : "Applicants"}
                     </h2>
                     {selectedJob && (
                       <span className="applicant-count-badge">
-                        {rankedApplicants.length} applicants
+                        {filteredAndSortedApplicants.length} of {rankedApplicants.length} applicants
                       </span>
                     )}
                   </div>
 
-                  {!selectedJobId ? (
-                    <p className="empty-muted">Select a job to view applicants.</p>
-                  ) : (
-                    <RankedApplicantsTable
-                      applicants={rankedApplicants}
-                      onViewApplicant={openApplicantDrawer}
-                      onMessageApplicant={handleMessageApplicant}
-                      loading={loadingRanked}
+                  {selectedJob && (
+                    <div className="hiring-progress-bar">
+                      <div className="progress-stages">
+                        <div className="progress-stage">
+                          <div className="stage-dot stage-pending"></div>
+                          <span className="stage-label">Pending</span>
+                          <span className="stage-count">{rankedApplicants.filter(app => normalizeApplicationStatus(app.status) === 'pending').length}</span>
+                        </div>
+                        <div className="progress-connector"></div>
+                        <div className="progress-stage">
+                          <div className="stage-dot stage-shortlisted"></div>
+                          <span className="stage-label">Shortlisted</span>
+                          <span className="stage-count">{rankedApplicants.filter(app => normalizeApplicationStatus(app.status) === 'shortlisted').length}</span>
+                        </div>
+                        <div className="progress-connector"></div>
+                        <div className="progress-stage">
+                          <div className="stage-dot stage-hired"></div>
+                          <span className="stage-label">Hired</span>
+                          <span className="stage-count">{rankedApplicants.filter(app => normalizeApplicationStatus(app.status) === 'hired').length}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="tab-search-toolbar applicants-toolbar">
+                    <input
+                      type="text"
+                      value={applicantSearchTerm}
+                      onChange={(e) => setApplicantSearchTerm(e.target.value)}
+                      className="tab-search-input"
+                      placeholder="Search applicants or jobs"
+                      aria-label="Search applicants"
                     />
+                    <div className="tab-filter-row">
+                      <select value={applicantFilters.date} onChange={(e) => setApplicantFilters((prev) => ({ ...prev, date: e.target.value }))} className="filter-select mini-filter">
+                        <option value="all">All dates</option>
+                        <option value="7d">Last 7 days</option>
+                        <option value="30d">Last 30 days</option>
+                        <option value="90d">Last 90 days</option>
+                        <option value="365d">Last 365 days</option>
+                      </select>
+                      <select value={applicantFilters.jobType} onChange={(e) => setApplicantFilters((prev) => ({ ...prev, jobType: e.target.value }))} className="filter-select mini-filter">
+                        <option value="all">All job types</option>
+                        <option value="Full-time">Full-time</option>
+                        <option value="Part-time">Part-time</option>
+                        <option value="Contract">Contract</option>
+                        <option value="Internship">Internship</option>
+                        <option value="Temporary">Temporary</option>
+                        <option value="Remote">Remote</option>
+                      </select>
+                      <select value={applicantFilters.salary} onChange={(e) => setApplicantFilters((prev) => ({ ...prev, salary: e.target.value }))} className="filter-select mini-filter">
+                        <option value="all">All salaries</option>
+                        <option value="20k">Under ₱20k</option>
+                        <option value="50k">₱20k - ₱50k</option>
+                        <option value="50k+">Above ₱50k</option>
+                        <option value="100k+">Above ₱100k</option>
+                        <option value="negotiable">Negotiable</option>
+                      </select>
+                      <LocationFilterSelector
+                        value={applicantFilters.location}
+                        onChange={(nextValue) => setApplicantFilters((prev) => ({ ...prev, location: nextValue }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="filter-sort-bar">
+                    <div className="filter-group">
+                      <label>Status:</label>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="filter-select"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="shortlisted">Shortlisted</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="hired">Hired</option>
+                      </select>
+                    </div>
+                    <div className="sort-group">
+                      <label>Sort by:</label>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="sort-select"
+                      >
+                        <option value="match">Match %</option>
+                        <option value="date">Applied Date</option>
+                        <option value="name">Name</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {selectedJobId && selectedApplicants.length > 0 && (
+                    <div className="bulk-actions-bar">
+                      <span className="selected-count">
+                        {selectedApplicants.length} applicant{selectedApplicants.length !== 1 ? 's' : ''} selected
+                      </span>
+                      <div className="bulk-action-buttons">
+                        <button
+                          type="button"
+                          className="bulk-action-btn bulk-shortlist"
+                          onClick={() => handleBulkAction('shortlisted')}
+                          disabled={isBulkUpdating}
+                        >
+                          {isBulkUpdating ? 'Processing...' : 'Shortlist'}
+                        </button>
+                        <button
+                          type="button"
+                          className="bulk-action-btn bulk-reject"
+                          onClick={() => handleBulkAction('rejected')}
+                          disabled={isBulkUpdating}
+                        >
+                          {isBulkUpdating ? 'Processing...' : 'Reject'}
+                        </button>
+                        <button
+                          type="button"
+                          className="bulk-action-btn bulk-clear"
+                          onClick={() => setSelectedApplicants([])}
+                          disabled={isBulkUpdating}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!selectedJobId ? (
+                    <div className="empty-state">
+                      <div className="empty-state-icon">📁</div>
+                      <p className="empty-state-text">Select a job to view applicants.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <RankedApplicantsTable
+                        applicants={paginatedApplicants}
+                        onViewApplicant={openApplicantDrawer}
+                        onMessageApplicant={handleMessageApplicant}
+                        loading={loadingRanked}
+                        selectedApplicants={selectedApplicants}
+                        onSelectApplicant={handleSelectApplicant}
+                        onSelectAll={(checked, visibleApplicants) => {
+                          if (checked) {
+                            const visibleIds = (visibleApplicants || []).map((app) => app._id);
+                            setSelectedApplicants((prev) => {
+                              const nextIds = new Set(prev);
+                              visibleIds.forEach((id) => nextIds.add(id));
+                              return Array.from(nextIds);
+                            });
+                          } else {
+                            const visibleIds = new Set((visibleApplicants || []).map((app) => app._id));
+                            setSelectedApplicants((prev) => prev.filter((id) => !visibleIds.has(id)));
+                          }
+                        }}
+                        onQuickStatusChange={handleQuickStatusChange}
+                        emptyStateMessage={statusFilter === "all" ? "No applicants for this job yet." : `No ${statusFilter} applicants found.`}
+                        emptyStateIcon={statusFilter === "all" ? "👥" : "🔍"}
+                      />
+
+                      {filteredAndSortedApplicants.length > 0 && (
+                        <div className="pagination-controls employer-pagination-controls" role="navigation" aria-label="Ranked applicants pagination">
+                          <div className="pagination-info pagination-summary">
+                            Showing {Math.min((applicantsPage - 1) * applicantPageSize + 1, filteredAndSortedApplicants.length)}-
+                            {Math.min(applicantsPage * applicantPageSize, filteredAndSortedApplicants.length)} of {filteredAndSortedApplicants.length} applicants
+                          </div>
+                          <div className="pagination-actions">
+                            <button
+                              type="button"
+                              className="pagination-btn employer-pagination-btn"
+                              onClick={() => setApplicantsPage((page) => Math.max(1, page - 1))}
+                              disabled={applicantsPage === 1}
+                            >
+                              ← Previous
+                            </button>
+                            <div className="pagination-info">
+                              Page {applicantsPage} of {applicantsTotalPages}
+                            </div>
+                            <button
+                              type="button"
+                              className="pagination-btn employer-pagination-btn"
+                              onClick={() => setApplicantsPage((page) => Math.min(applicantsTotalPages, page + 1))}
+                              disabled={applicantsPage >= applicantsTotalPages}
+                            >
+                              Next →
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </section>
               </div>
@@ -805,7 +2071,36 @@ export default function EmployerDashboard() {
         )}
       </section>
 
-
+      {rejectDialog && (
+        <div className="modal-overlay" onClick={() => setRejectDialog(null)}>
+          <div className="verification-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>{rejectDialog.kind === "bulk" ? "Confirm Bulk Rejection" : "Confirm Rejection"}</h3>
+            <p>
+              {rejectDialog.kind === "bulk"
+                ? rejectDialog.applicantName === "1 selected applicant"
+                  ? "Are you sure you want to reject 1 selected applicant? This will mark the selected applicant as rejected."
+                  : `Are you sure you want to reject ${rejectDialog.applicantName}? This will mark all selected applicants as rejected.`
+                : `Are you sure you want to reject ${rejectDialog.applicantName}? This action will notify the applicant and update their status to rejected.`}
+            </p>
+            <div className="verification-modal-actions">
+              <button
+                className="green-btn"
+                style={{ background: "#dc2626" }}
+                onClick={confirmRejectDialog}
+              >
+                {rejectDialog.kind === "bulk"
+                  ? rejectDialog.applicantName === "1 selected applicant"
+                    ? "Confirm Reject Applicant"
+                    : "Confirm Reject Applicants"
+                  : "Confirm Reject Applicant"}
+              </button>
+              <button className="outline-btn" onClick={() => setRejectDialog(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== APPLICANT DETAIL - CENTER MODAL ===== */}
       {selectedApplication && (
@@ -833,7 +2128,6 @@ export default function EmployerDashboard() {
               {/* Left Column */}
               <div className="applicant-info-section">
                 <h4>Applicant Info</h4>
-
                 <div className="applicant-info-row">
                   <span className="applicant-info-label">Full Name</span>
                   <span className="applicant-info-value">
@@ -892,7 +2186,6 @@ export default function EmployerDashboard() {
               {/* Right Column */}
               <div className="applicant-info-section">
                 <h4>Application Status</h4>
-
                 <div className="applicant-modal-field">
                   <label>Current Status</label>
                   <select
@@ -907,7 +2200,6 @@ export default function EmployerDashboard() {
                     <option value="rejected">Rejected</option>
                   </select>
                 </div>
-
                 <div className="applicant-modal-field">
                   <label>Note to Applicant</label>
                   <textarea
@@ -943,11 +2235,10 @@ export default function EmployerDashboard() {
         </div>
       )}
 
-      {/* ===== JOB FORM MODAL - REDESIGNED ===== */}
+      {/* ===== JOB FORM MODAL ===== */}
       {isJobModalOpen && (
         <div className="modal-overlay" onClick={() => { if (!isSavingJob) setIsJobModalOpen(false); }}>
           <div className="job-form-modal" onClick={(e) => e.stopPropagation()}>
-            {/* Modal Header */}
             <header className="job-form-modal-header">
               <div className="job-form-modal-title">
                 <FaBriefcase />
@@ -963,9 +2254,7 @@ export default function EmployerDashboard() {
               </button>
             </header>
 
-            {/* Modal Body with Sidebar + Main */}
             <div className="job-form-content">
-              {/* Sidebar */}
               <aside className="job-form-sidebar">
                 <div className="job-form-sidebar-card">
                   <h3><FaListUl /> Progress</h3>
@@ -995,7 +2284,6 @@ export default function EmployerDashboard() {
                     ))}
                   </nav>
                 </div>
-
                 <div className="job-form-sidebar-card job-form-preview-card">
                   <h3><FaBuilding /> Live Preview</h3>
                   <div className="job-form-preview-content">
@@ -1029,10 +2317,8 @@ export default function EmployerDashboard() {
                 </div>
               </aside>
 
-              {/* Main Form Content */}
               <main className="job-form-main">
                 <form onSubmit={handleSaveJob} noValidate>
-                  {/* Job Details Section */}
                   <section id="modal-section-details" className="job-form-section">
                     <div className="job-form-section-header">
                       <div className="job-form-section-icon"><FaClipboardList /></div>
@@ -1087,7 +2373,6 @@ export default function EmployerDashboard() {
                     </div>
                   </section>
 
-                  {/* Logistics Section */}
                   <section id="modal-section-logistics" className="job-form-section">
                     <div className="job-form-section-header">
                       <div className="job-form-section-icon"><FaCoins /></div>
@@ -1115,12 +2400,20 @@ export default function EmployerDashboard() {
                         </label>
                         <input
                           type="text"
-                          className="form-input"
+                          className={`form-input ${salaryError ? "form-input-error" : ""}`}
                           value={jobForm.salary}
-                          onChange={(e) => setJobForm({ ...jobForm, salary: e.target.value })}
+                          onChange={(e) => handleSalaryChange(e.target.value)}
+                          onBlur={() => {
+                            if (jobForm.salary && !isValidSalaryFormat(jobForm.salary)) {
+                              setSalaryError("Invalid salary format. Use PHP 18,000 or 18,000 - 25,000.");
+                            } else {
+                              setSalaryError("");
+                            }
+                          }}
                           placeholder="PHP 18,000 - 25,000"
                           disabled={isSavingJob}
                         />
+                        {salaryError && <span className="form-field-error">{salaryError}</span>}
                         <span className="form-hint">Example: PHP 18,000 or 18,000 - 25,000</span>
                       </div>
 
@@ -1178,7 +2471,6 @@ export default function EmployerDashboard() {
                     </div>
                   </section>
 
-                  {/* Requirements Section */}
                   <section id="modal-section-requirements" className="job-form-section">
                     <div className="job-form-section-header">
                       <div className="job-form-section-icon"><FaListUl /></div>
@@ -1203,7 +2495,6 @@ export default function EmployerDashboard() {
               </main>
             </div>
 
-            {/* Footer Actions */}
             <div className="job-form-modal-footer">
               <button
                 type="button"

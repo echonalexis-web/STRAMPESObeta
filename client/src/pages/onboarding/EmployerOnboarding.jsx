@@ -32,7 +32,7 @@ const getInitialForm = (user) => ({
   contactPersonName: "",
   contactPersonPosition: "",
   fax: "",
-  businessAddressStructured: { street: "", barangay: "", municipality: "", province: "" },
+  businessAddressStructured: { street: "", barangay: "", municipality: "", province: "", region: "" },
 });
 
 export default function EmployerOnboarding() {

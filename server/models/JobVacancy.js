@@ -27,6 +27,14 @@ const jobVacancySchema = new mongoose.Schema({
   description: { type: String, required: true },
   location: { type: String, required: true },
   salary: { type: String, default: "", required: false },
+  salaryMin: {
+    type: Number,
+    default: null,
+  },
+  salaryMax: {
+    type: Number,
+    default: null,
+  },
   
   // NEW: Structured qualifications
   qualifications: {
@@ -67,23 +75,42 @@ const jobVacancySchema = new mongoose.Schema({
     enum: ["remote", "onsite", "hybrid"],
     default: null,
   },
-  salaryMin: {
-    type: Number,
-    default: null,
-  },
-  salaryMax: {
-    type: Number,
-    default: null,
-  },
   
   // NEW: Job archival and closure tracking
   archived: {
     type: Boolean,
     default: false,
   },
+  archivedAt: {
+    type: Date,
+    default: null,
+  },
+  archiveReason: {
+    type: String,
+    enum: ["quota_reached", "manual_close", "deadline_passed", null],
+    default: null,
+  },
   closedAt: {
     type: Date,
     default: null,
+  },
+  archivedMetrics: {
+    totalApplicants: { type: Number, default: 0 },
+    qualifiedCount: { type: Number, default: 0 },
+    shortlistedCount: { type: Number, default: 0 },
+    hiredCount: { type: Number, default: 0 },
+    hiredCandidateIds: [{ type: String, default: [] }],
+    hiredCandidateNames: [{ type: String, default: [] }],
+    qualifiedRate: { type: Number, default: 0 },
+    shortlistedRate: { type: Number, default: 0 },
+    hireRate: { type: Number, default: 0 },
+    daysActive: { type: Number, default: 0 },
+    archiveReason: {
+      type: String,
+      enum: ["quota_reached", "manual_close", "deadline_passed", null],
+      default: null,
+    },
+    archivedAt: { type: Date, default: null },
   },
 });
 

@@ -6,6 +6,7 @@ const {
   deleteJob,
   getApplicantsForJob,
   updateApplicationStatus,
+  bulkUpdateApplicationStatuses,
   getEmployerStats,
   getEmployerProfileStats,
 } = require("../controllers/employerController");
@@ -77,6 +78,11 @@ router.put("/applications/:applicationId/status",
   sanitizeRequestBody, 
   detectMaliciousPayload, 
   updateApplicationStatus
+);
+router.put("/applications/bulk-status", 
+  sanitizeRequestBody, 
+  detectMaliciousPayload, 
+  bulkUpdateApplicationStatuses
 );
 
 // --- Ranked applicants (semantic) ---

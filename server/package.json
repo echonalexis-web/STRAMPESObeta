@@ -8,7 +8,8 @@
     "start": "node server.js",
     "test": "jest --passWithNoTests",
     "test:coverage": "jest --coverage --passWithNoTests",
-    "migrate:qualifications": "node scripts/migrateRequirementsToQualifications.js"
+    "migrate:qualifications": "node scripts/migrateRequirementsToQualifications.js",
+    "migrate:salary-numbers": "node scripts/migrateJobSalaryNumbers.js"
   },
   "jest": {
     "testMatch": [

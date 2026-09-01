@@ -45,6 +45,100 @@ const formatQualifications = (qualifications) => {
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 };
 
+const normalizeApplicationStatusValue = (status) => String(status || "").trim().toLowerCase();
+
+const getRate = (value, total) => {
+  if (!total || Number(total) === 0) return 0;
+  return Number(((Number(value || 0) / Number(total)) * 100).toFixed(2));
+};
+
+const toSequentialHiredCandidateIds = (hiredIds = []) => {
+  const uniqueIds = [...new Set(hiredIds.filter(Boolean).map(String))];
+  return uniqueIds.map((_, index) => String(index + 1));
+};
+
+exports.buildArchivedJobSnapshot = (job, metrics = {}) => {
+  const totalApplicants = Number(metrics.totalApplicants || 0);
+  const qualifiedCount = Number(metrics.qualifiedCount || 0);
+  const shortlistedCount = Number(metrics.shortlistedCount || 0);
+  const hiredIds = Array.isArray(metrics.hiredIds)
+    ? metrics.hiredIds.filter(Boolean).map(String)
+    : [];
+  const hiredCandidateNames = Array.isArray(metrics.hiredCandidateNames)
+    ? metrics.hiredCandidateNames.filter(Boolean).map(String)
+    : [];
+  const sequentialHiredIds = toSequentialHiredCandidateIds(hiredIds);
+  const archivedAt = metrics.archivedAt ? new Date(metrics.archivedAt) : new Date(job.archivedAt || job.closedAt || new Date());
+  const createdAt = job.createdAt ? new Date(job.createdAt) : new Date();
+  const closedAt = job.closedAt ? new Date(job.closedAt) : new Date(archivedAt);
+  const daysActive = Math.max(0, Math.ceil((new Date(archivedAt).getTime() - new Date(createdAt).getTime()) / 86400000));
+
+  return {
+    archiveReason: metrics.archiveReason || job.archiveReason || null,
+    archivedAt: new Date(archivedAt),
+    closedAt: new Date(closedAt),
+    totalApplicants,
+    qualifiedCount,
+    shortlistedCount,
+    hiredCount: hiredIds.length,
+    hiredCandidateIds: sequentialHiredIds,
+    hiredCandidateNames: hiredCandidateNames.length ? hiredCandidateNames : sequentialHiredIds,
+    qualifiedRate: getRate(qualifiedCount, totalApplicants),
+    shortlistedRate: getRate(shortlistedCount, totalApplicants),
+    hireRate: getRate(hiredIds.length, totalApplicants),
+    daysActive,
+  };
+};
+
+const archiveJobRecord = async (job, archiveReason = "manual_close") => {
+  if (!job || job.archived) return job;
+
+  const applications = await JobApplication.find({ vacancy: job._id });
+  const totalApplicants = applications.length;
+  const qualifiedCount = applications.filter((app) => {
+    const status = normalizeApplicationStatusValue(app.status);
+    return ["reviewed", "shortlisted", "hired", "accepted"].includes(status);
+  }).length;
+  const shortlistedCount = applications.filter((app) => {
+    const status = normalizeApplicationStatusValue(app.status);
+    return ["shortlisted", "hired", "accepted"].includes(status);
+  }).length;
+  const hiredApplications = applications.filter((app) => ["hired", "accepted"].includes(normalizeApplicationStatusValue(app.status)));
+  const hiredCandidateIds = hiredApplications.map((app) => String(app.applicant));
+  const hiredCandidateNames = hiredApplications
+    .map((app) => {
+      if (app.applicant && typeof app.applicant === "object" && app.applicant.name) {
+        return String(app.applicant.name);
+      }
+      return "";
+    })
+    .filter(Boolean);
+
+  const snapshot = exports.buildArchivedJobSnapshot(job, {
+    totalApplicants,
+    qualifiedCount,
+    shortlistedCount,
+    hiredIds: hiredCandidateIds,
+    hiredCandidateNames,
+    archiveReason,
+    archivedAt: new Date(),
+  });
+
+  job.status = "closed";
+  job.closedAt = job.closedAt || snapshot.closedAt;
+  job.archived = true;
+  job.archivedAt = snapshot.archivedAt;
+  job.archiveReason = archiveReason;
+  job.archivedMetrics = {
+    ...snapshot,
+    archiveReason,
+    archivedAt: snapshot.archivedAt,
+  };
+
+  await job.save();
+  return job;
+};
+
 // ---------------------------------------------------------------------
 // Create a job (employer only)
 // ---------------------------------------------------------------------
@@ -677,13 +771,16 @@ exports.closeJob = async (req, res) => {
       return res.status(403).json({ message: "You can only close your own job postings" });
     }
 
-    // Update job status to closed
+    if (job.archived) {
+      return res.json({ message: "Job already archived", job: job.toObject() });
+    }
+
     job.status = "closed";
     job.closedAt = new Date();
-    await job.save();
+    const archivedJob = await archiveJobRecord(job, "manual_close");
 
-    logger.info(`Job closed: ${req.params.id} by user ${req.user.id}`);
-    res.json({ message: "Job closed successfully", job: job.toObject() });
+    logger.info(`Job closed and archived: ${req.params.id} by user ${req.user.id}`);
+    res.json({ message: "Job closed and archived successfully", job: archivedJob.toObject() });
   } catch (error) {
     logger.error("Close job error:", { jobId: req.params.id, error: error.message });
     res.status(500).json({ message: "Failed to close job" });
@@ -703,17 +800,19 @@ exports.archiveJob = async (req, res) => {
       return res.status(403).json({ message: "You can only archive your own job postings" });
     }
 
-    // Only allow archiving if job is closed
-    if (job.status !== "closed") {
-      return res.status(400).json({ message: "Only closed jobs can be archived" });
+    if (job.archived) {
+      return res.json({ message: "Job already archived", job: job.toObject() });
     }
 
-    // Mark as archived
-    job.archived = true;
-    await job.save();
+    if (job.status !== "closed") {
+      job.status = "closed";
+      job.closedAt = job.closedAt || new Date();
+    }
+
+    const archivedJob = await archiveJobRecord(job, req.body?.reason || "manual_close");
 
     logger.info(`Job archived: ${req.params.id} by user ${req.user.id}`);
-    res.json({ message: "Job archived successfully", job: job.toObject() });
+    res.json({ message: "Job archived successfully", job: archivedJob.toObject() });
   } catch (error) {
     logger.error("Archive job error:", { jobId: req.params.id, error: error.message });
     res.status(500).json({ message: "Failed to archive job" });
@@ -760,32 +859,40 @@ exports.reopenJob = async (req, res) => {
 exports.getEmployerJobs = async (req, res) => {
   try {
     const jobs = await JobVacancy.find({ employer: req.user.id }).sort({ createdAt: -1 });
-    
-    // Automatically close jobs that are past their deadline
-    const jobsToUpdate = jobs.filter(job => 
-      job.status === "active" && isJobPastDeadline(job)
-    );
-    
-    for (const job of jobsToUpdate) {
-      job.status = "closed";
-      job.closedAt = new Date();
-      await job.save();
-      logger.info(`Auto-closed overdue job: ${job._id}`);
+
+    for (const job of jobs) {
+      if (job.archived && job.status === "closed") continue;
+
+      if (job.status === "closed") {
+        await archiveJobRecord(job, job.archiveReason || "manual_close");
+        continue;
+      }
+
+      const hiredCount = await JobApplication.countDocuments({
+        vacancy: job._id,
+        status: { $in: ["hired", "Accepted"] },
+      });
+
+      if (job.status === "active" && isJobPastDeadline(job)) {
+        await archiveJobRecord(job, "deadline_passed");
+        continue;
+      }
+
+      if (hiredCount >= Number(job.slots || 1) && job.status !== "closed") {
+        await archiveJobRecord(job, "quota_reached");
+      }
     }
-    
-    // Re-fetch after auto-closing
+
     const updatedJobs = await JobVacancy.find({ employer: req.user.id }).sort({ createdAt: -1 });
-    
-    // Get applicant counts
     const countMap = await getApplicationCountMap(updatedJobs.map(job => job._id));
-    
+
     const jobsWithFormatted = updatedJobs.map(job => {
       const obj = job.toObject();
       obj.qualifications = formatQualifications(obj.qualifications);
       obj.applicationCount = Number(countMap[String(job._id)] || 0);
       return obj;
     });
-    
+
     res.json(jobsWithFormatted);
   } catch (error) {
     logger.error("Get employer jobs error:", { userId: req.user.id, error: error.message });

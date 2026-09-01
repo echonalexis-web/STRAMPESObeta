@@ -428,6 +428,154 @@ exports.getEmployerStats = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------
+// Bulk update application statuses
+// ---------------------------------------------------------------------
+exports.bulkUpdateApplicationStatuses = async (req, res) => {
+  try {
+    const employerId = String(getUserId(req));
+    const { applicationIds, status, employerNote } = req.body;
+
+    if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
+      return res.status(400).json({ message: "applicationIds must be a non-empty array" });
+    }
+
+    const allowed = ["pending", "reviewed", "shortlisted", "rejected", "hired"];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    // Fetch all applications with their vacancies
+    const applications = await JobApplication.find({ _id: { $in: applicationIds } })
+      .populate("vacancy", "title employer")
+      .populate("applicant", "name");
+
+    if (applications.length === 0) {
+      return res.status(404).json({ message: "No applications found" });
+    }
+
+    // Verify ownership and filter valid applications
+    const validApplications = applications.filter(app => {
+      return app.vacancy && String(app.vacancy.employer) === employerId;
+    });
+
+    if (validApplications.length === 0) {
+      return res.status(403).json({ message: "You can only update applications for your own jobs" });
+    }
+
+    // Update all valid applications
+    const updatePromises = validApplications.map(async (application) => {
+      application.status = status;
+      if (typeof employerNote === "string") {
+        application.employerNote = employerNote;
+      }
+      application.statusUpdatedAt = new Date();
+      await application.save();
+
+      // Create notification for each applicant
+      const io = req.app.get("io");
+      await createNotificationForUser({
+        recipientId: application.applicant?._id,
+        actorId: employerId,
+        type: "application_status",
+        title: "Application status updated",
+        message: `Your application for ${application.vacancy?.title || "this job"} is now ${status}.`,
+        relatedEntityType: "application",
+        relatedEntityId: application._id,
+        actionUrl: "/dashboard",
+        metadata: {
+          status,
+          jobTitle: application.vacancy?.title || null,
+        },
+        io,
+      });
+
+      // Send automated status update message for status changes
+      if (["reviewed", "shortlisted", "rejected", "hired"].includes(status)) {
+        const conversation = await ensureConversationBetweenUsers(employerId, application.applicant);
+
+        const applicantName = application.applicant?.name || "there";
+        const jobTitle = application.vacancy?.title || "this role";
+        let autoContent = "";
+
+        switch (status) {
+          case "reviewed":
+            autoContent = `Hi ${applicantName}, we've reviewed your application for ${jobTitle}. We're impressed and would like to learn more about you!`;
+            break;
+          case "shortlisted":
+            autoContent = `Great news, ${applicantName}! Your application for ${jobTitle} has been shortlisted. We'd love to move forward with you to the next stage.`;
+            break;
+          case "hired":
+            autoContent = `Congratulations, ${applicantName}! We're pleased to offer you the position of ${jobTitle}. Please review the details and let us know if you have any questions.`;
+            break;
+          case "rejected":
+            autoContent = `Hi ${applicantName}, thank you for your interest in ${jobTitle}. Unfortunately, we've decided to move forward with other candidates. We appreciate your time and wish you the best in your job search.`;
+            break;
+          default:
+            autoContent = `Hi ${applicantName}, there's an update on your application for ${jobTitle}. Please check your profile for more details.`;
+        }
+
+        const autoMessage = await Message.create({
+          conversationId: conversation._id,
+          sender: employerId,
+          content: autoContent,
+          isRead: false,
+        });
+
+        conversation.lastMessage = autoMessage.content;
+        conversation.lastMessageAt = autoMessage.createdAt;
+        await conversation.save();
+
+        if (io) {
+          io.to(String(conversation._id)).emit("receive_message", {
+            _id: autoMessage._id,
+            conversationId: conversation._id,
+            sender: employerId,
+            content: autoMessage.content,
+            createdAt: autoMessage.createdAt,
+            isRead: false,
+          });
+        }
+      }
+
+      return application._id;
+    });
+
+    const updatedIds = await Promise.all(updatePromises);
+
+    // Refetch all updated applications with full details
+    const updatedApplications = await JobApplication.find({ _id: { $in: updatedIds } })
+      .populate("applicant", "name email phone address skills resume resumeFile validIdFile")
+      .populate("vacancy", "title location");
+
+    // Fetch and merge jobseeker profiles
+    const applicantIds = updatedApplications.map(app => app.applicant?._id).filter(Boolean);
+    const profiles = await JobseekerProfile.find({ userId: { $in: applicantIds } });
+    const profileMap = profiles.reduce((map, profile) => {
+      map[String(profile.userId)] = profile;
+      return map;
+    }, {});
+
+    const mergedApplications = updatedApplications.map(app => {
+      const appObj = app.toObject();
+      if (appObj.applicant) {
+        const profile = profileMap[String(appObj.applicant._id)];
+        if (profile) {
+          appObj.applicant.profile = profile;
+        }
+      }
+      return appObj;
+    });
+
+    return res.json({
+      updated: mergedApplications.length,
+      applications: mergedApplications,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to bulk update application statuses" });
+  }
+};
+
+// ---------------------------------------------------------------------
 // Employer profile statistics (for onboarding/progress)
 // ---------------------------------------------------------------------
 exports.getEmployerProfileStats = async (req, res) => {

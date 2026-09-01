@@ -176,6 +176,8 @@ export const employerAPI = {
     api.get(`/employer/jobs/${jobId}/applicants/ranked`, { ...getAuthHeader(), params }),
   updateApplicationStatus: (applicationId, data) => 
     api.put(`/employer/applications/${applicationId}/status`, data, getAuthHeader()),
+  bulkUpdateApplicationStatuses: (data) => 
+    api.put('/employer/applications/bulk-status', data, getAuthHeader()),
 };
 
 export const usersAPI = {

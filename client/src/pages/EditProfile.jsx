@@ -869,18 +869,22 @@ export default function EditProfile() {
                         onChange={(e) => handleNestedChange("businessAddressStructured", "street", e.target.value)}
                       />
                       <LocationSelect
-                        value={`${formData.businessAddressStructured.barangay || ""}, ${formData.businessAddressStructured.municipality || ""}, ${formData.businessAddressStructured.province || ""}, ${formData.businessAddressStructured.region || ""}`}
-                        onChange={(loc) => {
-                          const parts = loc.split(", ");
-                          const [barangay, municipality, province, region] = parts;
+                        value={formData.businessAddressStructured}
+                        onChange={(_loc, structured) => {
+                          const nextAddress = structured || {
+                            barangay: "",
+                            municipality: "",
+                            province: "",
+                            region: "",
+                          };
                           setFormData((prev) => ({
                             ...prev,
                             businessAddressStructured: {
                               ...prev.businessAddressStructured,
-                              barangay: barangay || "",
-                              municipality: municipality || "",
-                              province: province || "",
-                              region: region || "",
+                              barangay: nextAddress.barangay || "",
+                              municipality: nextAddress.city || nextAddress.municipality || "",
+                              province: nextAddress.province || "",
+                              region: nextAddress.region || "",
                             },
                           }));
                         }}
@@ -955,18 +959,22 @@ export default function EditProfile() {
                       onChange={(e) => handleNestedChange("presentAddress", "street", e.target.value)}
                     />
                     <LocationSelect
-                      value={`${formData.presentAddress.barangay || ""}, ${formData.presentAddress.municipality || ""}, ${formData.presentAddress.province || ""}, ${formData.presentAddress.region || ""}`}
-                      onChange={(loc) => {
-                        const parts = loc.split(", ");
-                        const [barangay, municipality, province, region] = parts;
+                      value={formData.presentAddress}
+                      onChange={(_loc, structured) => {
+                        const nextAddress = structured || {
+                          barangay: "",
+                          municipality: "",
+                          province: "",
+                          region: "",
+                        };
                         setFormData((prev) => ({
                           ...prev,
                           presentAddress: {
                             ...prev.presentAddress,
-                            barangay: barangay || "",
-                            municipality: municipality || "",
-                            province: province || "",
-                            region: region || "",
+                            barangay: nextAddress.barangay || "",
+                            municipality: nextAddress.city || nextAddress.municipality || "",
+                            province: nextAddress.province || "",
+                            region: nextAddress.region || "",
                           },
                         }));
                       }}
@@ -984,18 +992,22 @@ export default function EditProfile() {
                       onChange={(e) => handleNestedChange("permanentAddress", "street", e.target.value)}
                     />
                     <LocationSelect
-                      value={`${formData.permanentAddress.barangay || ""}, ${formData.permanentAddress.municipality || ""}, ${formData.permanentAddress.province || ""}, ${formData.permanentAddress.region || ""}`}
-                      onChange={(loc) => {
-                        const parts = loc.split(", ");
-                        const [barangay, municipality, province, region] = parts;
+                      value={formData.permanentAddress}
+                      onChange={(_loc, structured) => {
+                        const nextAddress = structured || {
+                          barangay: "",
+                          municipality: "",
+                          province: "",
+                          region: "",
+                        };
                         setFormData((prev) => ({
                           ...prev,
                           permanentAddress: {
                             ...prev.permanentAddress,
-                            barangay: barangay || "",
-                            municipality: municipality || "",
-                            province: province || "",
-                            region: region || "",
+                            barangay: nextAddress.barangay || "",
+                            municipality: nextAddress.city || nextAddress.municipality || "",
+                            province: nextAddress.province || "",
+                            region: nextAddress.region || "",
                           },
                         }));
                       }}

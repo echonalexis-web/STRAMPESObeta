@@ -457,14 +457,18 @@ export default function JobSeekerOnboarding() {
                 />
               </div>
               <LocationSelect
-                value={`${form.presentAddress.barangay || ""}, ${form.presentAddress.municipality || ""}, ${form.presentAddress.province || ""}, ${form.presentAddress.region || ""}`}
-                onChange={(loc) => {
-                  const parts = loc.split(", ");
-                  const [barangay, municipality, province, region] = parts;
-                  updateAddress("presentAddress", "barangay", barangay || "");
-                  updateAddress("presentAddress", "municipality", municipality || "");
-                  updateAddress("presentAddress", "province", province || "");
-                  updateAddress("presentAddress", "region", region || "");
+                value={form.presentAddress}
+                onChange={(_loc, structured) => {
+                  const nextAddress = structured || {
+                    barangay: "",
+                    municipality: "",
+                    province: "",
+                    region: "",
+                  };
+                  updateAddress("presentAddress", "barangay", nextAddress.barangay || "");
+                  updateAddress("presentAddress", "municipality", nextAddress.city || nextAddress.municipality || "");
+                  updateAddress("presentAddress", "province", nextAddress.province || "");
+                  updateAddress("presentAddress", "region", nextAddress.region || "");
                 }}
                 disabled={saving}
                 required={false}
@@ -500,14 +504,18 @@ export default function JobSeekerOnboarding() {
                 />
               </div>
               <LocationSelect
-                value={`${form.permanentAddress.barangay || ""}, ${form.permanentAddress.municipality || ""}, ${form.permanentAddress.province || ""}, ${form.permanentAddress.region || ""}`}
-                onChange={(loc) => {
-                  const parts = loc.split(", ");
-                  const [barangay, municipality, province, region] = parts;
-                  updateAddress("permanentAddress", "barangay", barangay || "");
-                  updateAddress("permanentAddress", "municipality", municipality || "");
-                  updateAddress("permanentAddress", "province", province || "");
-                  updateAddress("permanentAddress", "region", region || "");
+                value={form.permanentAddress}
+                onChange={(_loc, structured) => {
+                  const nextAddress = structured || {
+                    barangay: "",
+                    municipality: "",
+                    province: "",
+                    region: "",
+                  };
+                  updateAddress("permanentAddress", "barangay", nextAddress.barangay || "");
+                  updateAddress("permanentAddress", "municipality", nextAddress.city || nextAddress.municipality || "");
+                  updateAddress("permanentAddress", "province", nextAddress.province || "");
+                  updateAddress("permanentAddress", "region", nextAddress.region || "");
                 }}
                 disabled={saving}
                 required={false}

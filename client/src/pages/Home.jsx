@@ -1,5 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { FaMapMarkerAlt, FaBuilding, FaArrowRight, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { jobAPI } from "../services/api";
 import "../styles/home.css";
@@ -16,8 +17,7 @@ const HOME_FEATURED_JOBS = [
     location: "Boac, Marinduque",
     jobType: "Full-time",
     type: "Full-time",
-    description:
-      "Support field coordination, community outreach, and documentation for local livelihood programs.",
+    description: "Support field coordination, community outreach, and documentation for local livelihood programs.",
   },
   {
     _id: "admin-support-staff",
@@ -26,8 +26,7 @@ const HOME_FEATURED_JOBS = [
     location: "Gasan, Marinduque",
     jobType: "Contract",
     type: "Contract",
-    description:
-      "Handle office coordination, records management, and front-line support for daily operations.",
+    description: "Handle office coordination, records management, and front-line support for daily operations.",
   },
   {
     _id: "field-encoder",
@@ -36,8 +35,7 @@ const HOME_FEATURED_JOBS = [
     location: "Santa Cruz, Marinduque",
     jobType: "Project-Based",
     type: "Project-Based",
-    description:
-      "Encode beneficiary records, update reports, and assist in local employment program monitoring.",
+    description: "Encode beneficiary records, update reports, and assist in local employment program monitoring.",
   },
   {
     _id: "service-associate",
@@ -46,21 +44,15 @@ const HOME_FEATURED_JOBS = [
     location: "Torrijos, Marinduque",
     jobType: "Full-time",
     type: "Full-time",
-    description:
-      "Support customer inquiries, assist transactions, and maintain service quality in a retail setting.",
+    description: "Support customer inquiries, assist transactions, and maintain service quality in a retail setting.",
   },
 ];
 
 const formatAddress = (address) => {
-  if (!address) return "Not specified";
+  if (!address) return "Marinduque";
+  if (typeof address !== "string") return "Marinduque";
   const parts = address.split(", ");
-  if (parts.length >= 2) {
-    return (
-      <>
-        <span>{parts[0]}</span><br /><span className="text-muted">{parts.slice(1).join(", ")}</span>
-      </>
-    );
-  }
+  if (parts.length >= 2) return `${parts[0]}, ${parts.slice(1).join(", ")}`;
   return address;
 };
 
@@ -70,6 +62,9 @@ export default function Home() {
   const location = useLocation();
   const jobsRef = useRef(null);
   const heroRef = useRef(null);
+  const carouselRef = useRef(null);
+  const cardRefs = useRef([]);
+
   const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [featuredJobs, setFeaturedJobs] = useState(HOME_FEATURED_JOBS);
@@ -78,14 +73,13 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     const hash = location.hash.replace("#", "");
     const target = hash === "available-jobs" ? jobsRef.current : null;
     if (target) {
-      window.requestAnimationFrame(() => {
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
+      window.requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "start" }));
       return;
     }
     if (location.pathname === "/" && !location.hash) {
@@ -100,11 +94,8 @@ export default function Home() {
       try {
         const { data } = await jobAPI.getHomepageJobs();
         if (!active) return;
-        if (Array.isArray(data) && data.length > 0) {
-          setFeaturedJobs(data);
-        } else {
-          setFeaturedJobs(HOME_FEATURED_JOBS);
-        }
+        if (Array.isArray(data) && data.length > 0) setFeaturedJobs(data);
+        else setFeaturedJobs(HOME_FEATURED_JOBS);
       } catch (error) {
         console.error("Error loading jobs:", error);
         if (active) setFeaturedJobs(HOME_FEATURED_JOBS);
@@ -119,17 +110,15 @@ export default function Home() {
   useEffect(() => {
     const cards = Array.from(document.querySelectorAll("[data-fade-card]"));
     if (!cards.length) return undefined;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          const cardId = entry.target.getAttribute("data-card-id");
-          if (cardId) setVisibleCards((current) => ({ ...current, [cardId]: true }));
-          observer.unobserve(entry.target);
-        });
-      },
-      { threshold: 0.18, rootMargin: "0px 0px -40px 0px" }
-    );
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const cardId = entry.target.getAttribute("data-card-id");
+        if (cardId) setVisibleCards((current) => ({ ...current, [cardId]: true }));
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.18, rootMargin: "0px 0px -40px 0px" });
+    
     cards.forEach((card) => observer.observe(card));
     return () => observer.disconnect();
   }, [featuredJobs]);
@@ -145,10 +134,7 @@ export default function Home() {
       if (ticking) return;
       ticking = true;
       window.requestAnimationFrame(() => {
-        if (heroRef.current) {
-          const heroBottom = heroRef.current.getBoundingClientRect().bottom;
-          setShowScrollButton(heroBottom > 100);
-        }
+        if (heroRef.current) setShowScrollButton(heroRef.current.getBoundingClientRect().bottom > 100);
         ticking = false;
       });
     };
@@ -156,6 +142,54 @@ export default function Home() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const getClosestCardIndex = () => {
+    if (!carouselRef.current || !cardRefs.current.length) return 0;
+    const viewportRect = carouselRef.current.getBoundingClientRect();
+    const viewportCenter = viewportRect.left + viewportRect.width / 2;
+
+    let closestIndex = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    cardRefs.current.forEach((card, idx) => {
+      if (!card) return;
+      const rect = card.getBoundingClientRect();
+      const cardCenter = rect.left + rect.width / 2;
+      const distance = Math.abs(cardCenter - viewportCenter);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = idx;
+      }
+    });
+
+    return closestIndex;
+  };
+
+  const scrollCarousel = (direction) => {
+    const currentIndex = getClosestCardIndex();
+    const nextIndex = Math.max(0, Math.min(currentIndex + direction, filteredJobs.length - 1));
+    scrollToCard(nextIndex);
+  };
+
+  const scrollToCard = (index) => {
+    const clampedIndex = Math.max(0, Math.min(index, filteredJobs.length - 1));
+    const targetCard = cardRefs.current[clampedIndex];
+    if (!targetCard) return;
+    targetCard.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    setActiveIndex(clampedIndex);
+  };
+
+  const handleCarouselScroll = () => {
+    const index = getClosestCardIndex();
+    if (index !== activeIndex) setActiveIndex(index);
+  };
+
+  const handleWheel = (e) => {
+    if (e.deltaY !== 0 && carouselRef.current) {
+      e.preventDefault();
+      carouselRef.current.scrollLeft += e.deltaY;
+    }
+  };
 
   const scrollToAvailableJobs = () => {
     const availableJobsSection = document.getElementById("available-jobs");
@@ -178,6 +212,7 @@ export default function Home() {
         if (job.jobType && typeof job.jobType === 'string') jobType = job.jobType.toLowerCase().trim();
         else if (job.type && typeof job.type === 'string') jobType = job.type.toLowerCase().trim();
         else if (job.employmentType && typeof job.employmentType === 'string') jobType = job.employmentType.toLowerCase().trim();
+        
         let isMatch = false;
         if (title && title.includes(query)) isMatch = true;
         if (employer && employer.includes(query) && employer !== "employer") isMatch = true;
@@ -195,10 +230,18 @@ export default function Home() {
   const filteredJobs = getFilteredJobs();
   const hasNoResults = searchQuery.trim() !== "" && filteredJobs.length === 0 && !jobsLoading;
 
+  useEffect(() => {
+    cardRefs.current = cardRefs.current.slice(0, filteredJobs.length);
+    setActiveIndex(0);
+    window.requestAnimationFrame(() => {
+      if (!carouselRef.current || !cardRefs.current[0]) return;
+      cardRefs.current[0].scrollIntoView({ behavior: "auto", inline: "center", block: "nearest" });
+    });
+  }, [filteredJobs.length]);
+
   const openRegisterPrompt = () => setShowRegisterPrompt(true);
   const closeRegisterPrompt = () => setShowRegisterPrompt(false);
   const goToRegister = (route) => { closeRegisterPrompt(); navigate(route); };
-  const handleProgramAction = (program) => setSelectedProgram(program);
   const closeProgramModal = () => setSelectedProgram(null);
   const handleViewJob = (job) => { if (!job?._id) return; navigate(`/jobs/${job._id}`); };
   const clearSearch = () => { setSearchQuery(""); setIsSearching(false); };
@@ -214,8 +257,7 @@ export default function Home() {
         return { label: `Closing soon${daysRemaining > 0 ? ` · ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} left` : ""}`, variant: "closing" };
       }
       return { label: "Open", variant: "open" };
-    } catch (error) {
-      console.error("Error getting job status:", error);
+    } catch {
       return { label: "Open", variant: "open" };
     }
   };
@@ -226,7 +268,7 @@ export default function Home() {
       if (job?.employer?.companyName) return job.employer.companyName;
       if (job?.employer?.name) return job.employer.name;
       return "";
-    } catch (error) { return ""; }
+    } catch { return ""; }
   };
 
   const handleSearchChange = (e) => { setSearchQuery(e.target.value); setIsSearching(true); };
@@ -304,7 +346,8 @@ export default function Home() {
               </div>
             )}
 
-            <div className="jobs-grid-v2">
+            {/* CAROUSEL CONTAINER */}
+            <div className="jobs-carousel" ref={carouselRef} onWheel={handleWheel} onScroll={handleCarouselScroll}>
               {filteredJobs.length > 0 ? (
                 filteredJobs.map((job, index) => {
                   const title = job?.title || "Untitled Position";
@@ -312,33 +355,83 @@ export default function Home() {
                   const employerName = getEmployerName(job) || "Employer";
                   const status = getJobStatus(job);
                   const employerInitial = employerName.charAt(0).toUpperCase() || "E";
+                  const jobType = job?.jobType || job?.type || job?.employmentType || "";
+                  const description = job?.description || "";
                   return (
                     <article
                       key={jobId}
                       className={`job-card-v2 ${visibleCards[jobId] ? "is-visible" : ""} ${status.variant === "closing" ? "job-card-v2--closing" : ""}`}
                       data-fade-card="true"
                       data-card-id={jobId}
+                      ref={(element) => { cardRefs.current[index] = element; }}
                       style={{ "--card-delay": `${index * 90}ms` }}
                       role="button"
                       tabIndex={0}
                       onClick={() => handleViewJob(job)}
                       onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleViewJob(job); } }}
                     >
-                      <div className="job-card-v2-status">
-                        <span className={`job-card-v2-status-dot job-card-v2-status-dot--${status.variant}`}></span>
-                        {status.variant === "closing" ? "closing" : "open"}
+                      <div className="job-card-v2-top">
+                        <div className="job-card-v2-logo">
+                          <div className="job-card-v2-logo-circle">{employerInitial}</div>
+                        </div>
+                        <div className="job-card-v2-badges">
+                          {jobType && <span className="job-card-v2-type-badge">{jobType}</span>}
+                          <div className={`job-card-v2-status job-card-v2-status--${status.variant}`}>
+                            <span className={`job-card-v2-status-dot job-card-v2-status-dot--${status.variant}`}></span>
+                            {status.variant === "closing" ? "Closing" : "Open"}
+                          </div>
+                        </div>
                       </div>
-                      <div className="job-card-v2-logo"><div className="job-card-v2-logo-circle">{employerInitial}</div></div>
-                      <h3 className="job-card-v2-employer">{employerName}</h3>
-                      <p className="job-card-v2-title">{title}</p>
-                      <p className="job-card-v2-location">{formatAddress(job.location)}</p>
-                      <button className="job-card-v2-button" onClick={(event) => { event.stopPropagation(); handleViewJob(job); }}>view details</button>
+
+                      <div className="job-card-v2-body">
+                        <span className="job-card-v2-employer" title={employerName}>
+                          <FaBuilding className="job-card-v2-employer-icon" />
+                          <span>{employerName}</span>
+                        </span>
+                        <h3 className="job-card-v2-title" title={title}>{title}</h3>
+                        <div className="job-card-v2-location" title={typeof job.location === "string" ? job.location : ""}>
+                          <FaMapMarkerAlt className="job-card-v2-loc-icon" />
+                          <span>{formatAddress(job.location)}</span>
+                        </div>
+                        {description && (
+                          <p className="job-card-v2-description">{description}</p>
+                        )}
+                      </div>
+
+                      <div className="job-card-v2-footer">
+                        <button type="button" className="job-card-v2-button" onClick={(event) => { event.stopPropagation(); handleViewJob(job); }}>
+                          <span>View Details</span>
+                          <FaArrowRight className="job-card-v2-btn-arrow" />
+                        </button>
+                      </div>
                     </article>
                   );
                 })
               ) : (
                 <div className="no-results-container"><div className="no-results-icon">🔍</div><h3>No jobs available</h3><p>There are currently no job postings. Please check back later.</p></div>
               )}
+            </div>
+
+            {/* Carousel Indicators (Dots) */}
+            <div className="carousel-indicators">
+              {filteredJobs.map((job, index) => (
+                <button
+                  key={index}
+                  className={`carousel-dot ${activeIndex === index ? 'is-active' : ''}`}
+                  onClick={() => scrollToCard(index)}
+                  aria-label={`Go to slide ${index + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Carousel Navigation Controls (Below Carousel) */}
+            <div className="carousel-nav-controls">
+              <button className="carousel-btn" onClick={() => scrollCarousel(-1)} aria-label="Previous jobs">
+                <FaChevronLeft />
+              </button>
+              <button className="carousel-btn" onClick={() => scrollCarousel(1)} aria-label="Next jobs">
+                <FaChevronRight />
+              </button>
             </div>
 
             <div className="jobs-see-more-wrapper">

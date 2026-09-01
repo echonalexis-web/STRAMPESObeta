@@ -20,6 +20,7 @@ import {
   FaCoins,
   FaUsers,
   FaClock,
+  FaInfoCircle,
 } from "react-icons/fa";
 import LocationSelect from "../components/LocationSelect";
 import QualificationsEditor from "../components/QualificationsEditor";
@@ -57,6 +58,15 @@ const JOB_TYPE_ICONS = {
   Internship: "🎓",
   Temporary: "📅",
   Remote: "🌐",
+};
+
+const isValidSalaryFormat = (value) => {
+  if (value === null || value === undefined) return true;
+  const trimmed = String(value).trim();
+  if (!trimmed) return true;
+
+  const salaryPattern = /^(?:PHP\s*)?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)(?:\s*-\s*(?:PHP\s*)?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?))?$/i;
+  return salaryPattern.test(trimmed);
 };
 
 const getInitialFormData = () => ({
@@ -112,7 +122,14 @@ export default function PostJob() {
   const [validationErrors, setValidationErrors] = useState({});
 
   useEffect(() => {
-    if (user && user.role !== "employer") navigate("/dashboard");
+    if (!user) return;
+    if (user.role !== "employer") {
+      navigate("/dashboard");
+      return;
+    }
+    if (user.verificationStatus !== "verified") {
+      navigate("/employer-dashboard");
+    }
   }, [user, navigate]);
 
   const validateField = (name, value) => {
@@ -142,7 +159,7 @@ export default function PostJob() {
         else if (value > 100) errors.slots = "Max 100 slots";
         break;
       case "salary":
-        if (value && !/^[0-9,.\s\-]+$/.test(value)) errors.salary = "Invalid format";
+        if (value && !isValidSalaryFormat(value)) errors.salary = "Please use a valid salary format such as PHP 18,000 or 18,000 - 25,000.";
         break;
       case "applicationDeadline":
         if (value && new Date(value) < new Date(new Date().setHours(0, 0, 0, 0)))
@@ -168,6 +185,106 @@ export default function PostJob() {
     setValidationErrors((prev) => ({ ...prev, ...errs }));
   };
 
+  const registeredBusinessAddress = (() => {
+    if (!user) return "";
+
+    const makeAddressString = (structured) => {
+      if (!structured || typeof structured !== "object") return "";
+
+      const parts = [
+        structured.street,
+        structured.barangay,
+        structured.municipality || structured.city,
+        structured.province,
+        structured.region,
+      ]
+        .filter((part) => typeof part === "string" && part.trim())
+        .map((part) => part.trim());
+
+      return parts.join(", ");
+    };
+
+    const structuredObjectCandidates = [
+      user.businessAddressStructured,
+      user.businessAddressDetails,
+      user.profile?.businessAddressStructured,
+      user.profile?.businessAddress,
+      user.profile?.address,
+    ];
+
+    for (const structured of structuredObjectCandidates) {
+      const value = makeAddressString(structured);
+      if (value) return value;
+    }
+
+    const stringCandidates = [
+      user.businessAddress,
+      user.address,
+      user.profile?.businessAddress,
+      user.profile?.address,
+    ];
+
+    for (const candidate of stringCandidates) {
+      if (typeof candidate === "string" && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+
+    return "";
+  })();
+
+  const [useRegisteredBusinessAddress, setUseRegisteredBusinessAddress] = useState(false);
+  const [locationSelectResetKey, setLocationSelectResetKey] = useState(0);
+
+  // Update location when checkbox state or registered address changes
+  useEffect(() => {
+    if (useRegisteredBusinessAddress && registeredBusinessAddress) {
+      setFormData((prev) => ({ ...prev, location: registeredBusinessAddress }));
+      setValidationErrors((prev) => ({ ...prev, location: "" }));
+    } else if (useRegisteredBusinessAddress && !registeredBusinessAddress) {
+      // If checked but no address, clear location and show error
+      setFormData((prev) => ({ ...prev, location: "" }));
+      setValidationErrors((prev) => ({ ...prev, location: "No registered business address found. Please update your profile." }));
+    }
+  }, [useRegisteredBusinessAddress, registeredBusinessAddress, setFormData]);
+
+  const handleLocationChange = (nextLocation) => {
+    setUseRegisteredBusinessAddress(false);
+    setFormData((prev) => ({ ...prev, location: nextLocation }));
+    if (touched.location) {
+      const errs = validateField("location", nextLocation);
+      setValidationErrors((prev) => ({ ...prev, ...errs }));
+    }
+  };
+
+  const handleUseRegisteredBusinessAddressToggle = (nextValue) => {
+    setUseRegisteredBusinessAddress(nextValue);
+
+    if (!nextValue) {
+      setPersistedState((prev) => ({
+        ...prev,
+        formData: {
+          ...prev.formData,
+          location: "",
+        },
+      }));
+      setFormData((prev) => ({ ...prev, location: "" }));
+      setLocationSelectResetKey((prev) => prev + 1);
+      setTouched((prev) => ({ ...prev, location: true }));
+      setValidationErrors((prev) => ({ ...prev, location: "Location is required" }));
+      return;
+    }
+
+    if (registeredBusinessAddress) {
+      setFormData((prev) => ({ ...prev, location: registeredBusinessAddress }));
+      setValidationErrors((prev) => ({ ...prev, location: "" }));
+    } else {
+      setFormData((prev) => ({ ...prev, location: "" }));
+      setValidationErrors((prev) => ({ ...prev, location: "No registered business address found. Please update your profile." }));
+    }
+    setTouched((prev) => ({ ...prev, location: true }));
+  };
+
   const handleQualificationsChange = (newQuals) => {
     setFormData((prev) => ({ ...prev, qualifications: newQuals }));
     if (touched.qualifications) {
@@ -178,11 +295,11 @@ export default function PostJob() {
 
   const validateForm = () => {
     const errors = {};
-    ["title", "description", "location", "qualifications", "slots"].forEach((field) => {
+    ["title", "description", "location", "industry", "qualifications", "slots"].forEach((field) => {
       const fieldErrors = validateField(field, formData[field]);
       Object.assign(errors, fieldErrors);
     });
-    if (formData.salary && !/^[0-9,.\s\-]+$/.test(formData.salary)) errors.salary = "Invalid format";
+    if (formData.salary && !isValidSalaryFormat(formData.salary)) errors.salary = "Please use a valid salary format such as PHP 18,000 or 18,000 - 25,000.";
     if (formData.applicationDeadline && new Date(formData.applicationDeadline) < new Date(new Date().setHours(0, 0, 0, 0)))
       errors.applicationDeadline = "Must be today or later";
     setValidationErrors(errors);
@@ -206,11 +323,11 @@ export default function PostJob() {
         title: formData.title.trim(),
         description: formData.description.trim(),
         location: formData.location.trim(),
-        salary: formData.salary.trim(),
-        industry: formData.industry.trim(),
+        salary: (formData.salary || "").trim(),
+        industry: (formData.industry || "").trim(),
         jobType: formData.jobType,
         slots: Number(formData.slots) || 1,
-        qualifications: formData.qualifications,
+        qualifications: Array.isArray(formData.qualifications) ? formData.qualifications : [],
         applicationDeadline: formData.applicationDeadline || undefined,
       };
       await employerAPI.createJob(trimmedData);
@@ -412,137 +529,163 @@ export default function PostJob() {
                 </div>
               </div>
 
-              <div className="pj-grid-2">
-                <div className="pj-field">
-                  <label>
-                    <FaMapMarkerAlt /> Location <span className="pj-required">*</span>
-                  </label>
-                  <LocationSelect
-                    value={formData.location}
-                    onChange={(loc) => {
-                      setFormData((prev) => ({ ...prev, location: loc }));
-                      if (touched.location) {
-                        const errs = validateField("location", loc);
-                        setValidationErrors((prev) => ({ ...prev, ...errs }));
-                      }
-                    }}
-                    disabled={loading}
-                    required
-                  />
+              <div className="pj-logistics-grid">
+                <div className="pj-logistics-panel">
+                  <div className="pj-location-header-row">
+                    <label className="pj-location-label">
+                      <FaMapMarkerAlt /> Location <span className="pj-required">*</span>
+                    </label>
+                  </div>
+
+                  <div className={`pj-address-toggle-card ${useRegisteredBusinessAddress ? "active" : ""}`}>
+                    <label className="pj-address-toggle">
+                      <input
+                        type="checkbox"
+                        checked={useRegisteredBusinessAddress}
+                        onChange={(e) => handleUseRegisteredBusinessAddressToggle(e.target.checked)}
+                        disabled={loading}
+                      />
+                      <div className="pj-address-toggle-copy">
+                        <span className="pj-address-toggle-title">Use Registered Business Address</span>
+                        <span className="pj-address-toggle-subtitle">Automatically fill location details from your registered employer profile.</span>
+                      </div>
+                    </label>
+                    {useRegisteredBusinessAddress && !registeredBusinessAddress && (
+                      <div className="pj-address-missing-warning">
+                        <FaInfoCircle /> No registered business address found. Please update your profile.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pj-location-field-group">
+                    <div className="pj-location-select-wrap">
+                      <LocationSelect
+                        key={locationSelectResetKey}
+                        className="pj-location-select-group"
+                        value={formData.location}
+                        onChange={handleLocationChange}
+                        disabled={loading || useRegisteredBusinessAddress}
+                        required
+                      />
+                    </div>
+                  </div>
+
                   {validationErrors.location && touched.location && (
                     <span className="pj-field-error">{validationErrors.location}</span>
                   )}
                 </div>
 
-                <div className="pj-field">
-                  <label htmlFor="salary">
-                    <FaMoneyBillWave /> Salary <span className="pj-optional">(Optional)</span>
-                  </label>
-                  <input
-                    id="salary"
-                    type="text"
-                    name="salary"
-                    placeholder="PHP 18,000 - 25,000"
-                    value={formData.salary}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className={validationErrors.salary && touched.salary ? "pj-error-input" : ""}
-                    disabled={loading}
-                  />
-                  {validationErrors.salary && touched.salary && (
-                    <span className="pj-field-error">{validationErrors.salary}</span>
-                  )}
-                  <span className="pj-hint">Example: PHP 18,000 or 18,000 - 25,000</span>
-                </div>
-
-                <div className="pj-field">
-                  <label htmlFor="jobType">
-                    <FaBriefcase /> Job Type
-                  </label>
-                  <div className="pj-select-wrapper">
-                    <select
-                      id="jobType"
-                      name="jobType"
-                      value={formData.jobType}
-                      onChange={handleChange}
-                      disabled={loading}
-                    >
-                      {JOB_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {JOB_TYPE_ICONS[type]} {type}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="pj-field">
-                  <label htmlFor="industry">
-                    <FaBuilding /> Industry <span className="pj-required">*</span>
-                  </label>
-                  <div className="pj-select-wrapper">
-                    <select
-                      id="industry"
-                      name="industry"
-                      value={formData.industry}
+                <div className="pj-logistics-panel">
+                  <div className="pj-field">
+                    <label htmlFor="salary">
+                      <FaMoneyBillWave /> Salary <span className="pj-optional">(Optional)</span>
+                    </label>
+                    <input
+                      id="salary"
+                      type="text"
+                      name="salary"
+                      placeholder="PHP 18,000 - 25,000"
+                      value={formData.salary}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      className={validationErrors.industry && touched.industry ? "pj-error-input" : ""}
+                      className={validationErrors.salary && touched.salary ? "pj-error-input" : ""}
+                      disabled={loading}
+                    />
+                    {validationErrors.salary && touched.salary && (
+                      <span className="pj-field-error">{validationErrors.salary}</span>
+                    )}
+                    <span className="pj-hint">Use a fixed amount or a salary range such as PHP 18,000 - 25,000.</span>
+                  </div>
+
+                  <div className="pj-field">
+                    <label htmlFor="industry">
+                      <FaBuilding /> Industry <span className="pj-required">*</span>
+                    </label>
+                    <div className="pj-select-wrapper">
+                      <select
+                        id="industry"
+                        name="industry"
+                        value={formData.industry}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={validationErrors.industry && touched.industry ? "pj-error-input" : ""}
+                        required
+                        disabled={loading}
+                      >
+                        <option value="">-- Select Industry --</option>
+                        {VALID_INDUSTRIES.map((ind) => (
+                          <option key={ind} value={ind}>{ind}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {validationErrors.industry && touched.industry && (
+                      <span className="pj-field-error">{validationErrors.industry}</span>
+                    )}
+                  </div>
+
+                  <div className="pj-field">
+                    <label htmlFor="jobType">
+                      <FaBriefcase /> Job Type
+                    </label>
+                    <div className="pj-select-wrapper">
+                      <select
+                        id="jobType"
+                        name="jobType"
+                        value={formData.jobType}
+                        onChange={handleChange}
+                        disabled={loading}
+                      >
+                        {JOB_TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {JOB_TYPE_ICONS[type]} {type}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="pj-field">
+                    <label htmlFor="slots">
+                      <FaUserPlus /> Open Slots <span className="pj-required">*</span>
+                    </label>
+                    <input
+                      id="slots"
+                      type="number"
+                      min="1"
+                      max="100"
+                      name="slots"
+                      value={formData.slots}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={validationErrors.slots && touched.slots ? "pj-error-input" : ""}
                       required
                       disabled={loading}
-                    >
-                      <option value="">-- Select Industry --</option>
-                      {VALID_INDUSTRIES.map((ind) => (
-                        <option key={ind} value={ind}>{ind}</option>
-                      ))}
-                    </select>
+                    />
+                    {validationErrors.slots && touched.slots && (
+                      <span className="pj-field-error">{validationErrors.slots}</span>
+                    )}
                   </div>
-                  {validationErrors.industry && touched.industry && (
-                    <span className="pj-field-error">{validationErrors.industry}</span>
-                  )}
-                </div>
 
-                <div className="pj-field">
-                  <label htmlFor="slots">
-                    <FaUserPlus /> Slots <span className="pj-required">*</span>
-                  </label>
-                  <input
-                    id="slots"
-                    type="number"
-                    min="1"
-                    max="100"
-                    name="slots"
-                    value={formData.slots}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className={validationErrors.slots && touched.slots ? "pj-error-input" : ""}
-                    required
-                    disabled={loading}
-                  />
-                  {validationErrors.slots && touched.slots && (
-                    <span className="pj-field-error">{validationErrors.slots}</span>
-                  )}
-                </div>
-
-                <div className="pj-field">
-                  <label htmlFor="applicationDeadline">
-                    <FaCalendarAlt /> Deadline <span className="pj-optional">(Optional)</span>
-                  </label>
-                  <input
-                    id="applicationDeadline"
-                    type="date"
-                    name="applicationDeadline"
-                    value={formData.applicationDeadline}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    min={new Date().toISOString().split("T")[0]}
-                    className={validationErrors.applicationDeadline && touched.applicationDeadline ? "pj-error-input" : ""}
-                    disabled={loading}
-                  />
-                  {validationErrors.applicationDeadline && touched.applicationDeadline && (
-                    <span className="pj-field-error">{validationErrors.applicationDeadline}</span>
-                  )}
-                  <span className="pj-hint">Leave blank for no deadline</span>
+                  <div className="pj-field">
+                    <label htmlFor="applicationDeadline">
+                      <FaCalendarAlt /> Application Deadline <span className="pj-optional">(Optional)</span>
+                    </label>
+                    <input
+                      id="applicationDeadline"
+                      type="date"
+                      name="applicationDeadline"
+                      value={formData.applicationDeadline}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      min={new Date().toISOString().split("T")[0]}
+                      className={validationErrors.applicationDeadline && touched.applicationDeadline ? "pj-error-input" : ""}
+                      disabled={loading}
+                    />
+                    {validationErrors.applicationDeadline && touched.applicationDeadline && (
+                      <span className="pj-field-error">{validationErrors.applicationDeadline}</span>
+                    )}
+                    <span className="pj-hint">Leave blank for no deadline.</span>
+                  </div>
                 </div>
               </div>
             </section>
@@ -557,9 +700,6 @@ export default function PostJob() {
               </div>
 
               <div className="pj-field pj-field-full">
-                <label>
-                  Qualifications <span className="pj-required">*</span>
-                </label>
                 <QualificationsEditor
                   value={formData.qualifications}
                   onChange={handleQualificationsChange}

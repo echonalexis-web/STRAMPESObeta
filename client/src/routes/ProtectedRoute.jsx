@@ -54,6 +54,11 @@ export const ProtectedRoute = ({ children, requiredRole }) => {
     return <Navigate to="/onboarding" replace />;
   }
 
+  const isVerifiedEmployer = userRole === "employer" && user?.verificationStatus === "verified";
+  if (userRole === "employer" && !isVerifiedEmployer && location.pathname === "/post-job") {
+    return <Navigate to="/employer-dashboard" replace />;
+  }
+
   if (requiredRole && ![].concat(requiredRole).includes(userRole)) {
     return <Navigate to="/" />;
   }

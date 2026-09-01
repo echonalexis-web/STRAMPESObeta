@@ -1,0 +1,2323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>STRAMPESO - Admin User Management &amp; Audit Trail</title>
+  <link rel="stylesheet" href="admin-user-management.css" />
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+
+
+  <!-- ==========================================================================
+       MOBILE SLIDE-OUT DRAWER
+       ========================================================================== -->
+  <div class="mobile-nav-drawer" id="mobile-nav-drawer" onclick="closeMobileDrawer(event)">
+    <div class="mobile-nav-content" onclick="event.stopPropagation()">
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid var(--border-color);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="brand-logo-icon" style="width:36px; height:36px; font-size:16px;">P</div>
+            <div>
+              <strong style="color:var(--primary-dark); font-size:15px; display:block;">STRAM PESO</strong>
+              <small style="color:var(--muted); font-size:11px;">Admin Portal Navigation</small>
+            </div>
+          </div>
+          <button style="background:none; border:none; font-size:22px; color:var(--muted); cursor:pointer;" onclick="closeMobileDrawer()">✕</button>
+        </div>
+
+        <div class="mobile-nav-links">
+          <button class="mobile-nav-item active" id="mdrawer-employers" onclick="switchMainTab('tab-employers'); closeMobileDrawer();">
+            <span>🏢 Employers Management</span>
+            <span class="nav-badge" id="mbadge-emp">148</span>
+          </button>
+          <button class="mobile-nav-item" id="mdrawer-jobseekers" onclick="switchMainTab('tab-jobseekers'); closeMobileDrawer();">
+            <span>👤 Jobseekers Management</span>
+            <span class="nav-badge" id="mbadge-js">1,240</span>
+          </button>
+          <button class="mobile-nav-item" id="mdrawer-audit" onclick="switchMainTab('tab-audit'); closeMobileDrawer();">
+            <span>🛡️ Security &amp; Audit Trail</span>
+            <span class="nav-badge" style="background:#e0f2fe; color:#0369a1;">Live</span>
+          </button>
+          <button class="mobile-nav-item" id="mdrawer-verification" onclick="switchMainTab('tab-verification'); closeMobileDrawer();">
+            <span>📋 Verification Queue</span>
+            <span class="nav-badge" style="background:#fee2e2; color:#b91c1c;">4 Needs Review</span>
+          </button>
+          <button class="mobile-nav-item" id="mdrawer-overview" onclick="switchMainTab('tab-overview'); closeMobileDrawer();">
+            <span>📊 System Analytics &amp; Trends</span>
+          </button>
+        </div>
+      </div>
+
+      <div style="padding-top:16px; border-top:1px solid var(--border-color);">
+        <button class="btn-hero-action btn-accent" style="width:100%; justify-content:center; font-size:13px;" onclick="openExportModal('audit'); closeMobileDrawer();">
+          📥 Export System Data (CSV)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MOBILE STICKY BOTTOM APP NAVIGATION BAR
+       ========================================================================== -->
+  <nav class="mobile-bottom-nav">
+    <button class="bottom-nav-item active" id="bnav-employers" onclick="switchMainTab('tab-employers')">
+      <span class="icon">🏢</span>
+      <span>Employers</span>
+    </button>
+    <button class="bottom-nav-item" id="bnav-jobseekers" onclick="switchMainTab('tab-jobseekers')">
+      <span class="icon">👤</span>
+      <span>Jobseekers</span>
+    </button>
+    <button class="bottom-nav-item" id="bnav-audit" onclick="switchMainTab('tab-audit')">
+      <span class="icon">🛡️</span>
+      <span>Audit Trail</span>
+    </button>
+    <button class="bottom-nav-item" id="bnav-verification" onclick="switchMainTab('tab-verification')">
+      <span class="icon">📋</span>
+      <span>Queue</span>
+      <span class="bottom-nav-badge">4</span>
+    </button>
+    <button class="bottom-nav-item" id="bnav-overview" onclick="switchMainTab('tab-overview')">
+      <span class="icon">📊</span>
+      <span>Analytics</span>
+    </button>
+  </nav>
+
+  <!-- ==========================================================================
+       MAIN CONTAINER
+       ========================================================================== -->
+  <main class="admin-main-wrapper">
+
+    <!-- HERO BANNER -->
+    <section class="admin-hero-banner">
+      <div class="hero-banner-inner">
+        <div class="hero-title-section">
+          <h2>🛡️ User Management &amp; Audit Trail</h2>
+          <p>
+            Supervise Employer accreditations, Jobseeker profiles, compliance documents, and real-time security audit trails across the 6 municipalities of Marinduque.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- METRIC SUMMARY STATS CARDS -->
+    <section class="stats-summary-grid">
+      <!-- Employers -->
+      <article class="metric-card card-blue" onclick="switchMainTab('tab-employers')" style="cursor:pointer;">
+        <div class="metric-top">
+          <div class="metric-icon-box">🏢</div>
+          <span class="metric-trend trend-up">↑ 14%</span>
+        </div>
+        <div>
+          <div class="metric-number" id="metric-total-employers">148</div>
+          <div class="metric-label">Employers (124 Verified)</div>
+        </div>
+      </article>
+
+      <!-- Jobseekers -->
+      <article class="metric-card card-green" onclick="switchMainTab('tab-jobseekers')" style="cursor:pointer;">
+        <div class="metric-top">
+          <div class="metric-icon-box">👤</div>
+          <span class="metric-trend trend-up">↑ 32 New</span>
+        </div>
+        <div>
+          <div class="metric-number" id="metric-total-jobseekers">1,240</div>
+          <div class="metric-label">Registered Jobseekers</div>
+        </div>
+      </article>
+
+      <!-- Pending Verifications -->
+      <article class="metric-card card-amber" onclick="switchMainTab('tab-verification')" style="cursor:pointer;">
+        <div class="metric-top">
+          <div class="metric-icon-box">⏳</div>
+          <span class="metric-trend trend-alert">4 Review</span>
+        </div>
+        <div>
+          <div class="metric-number" id="metric-pending-verif">4</div>
+          <div class="metric-label">Pending Permits</div>
+        </div>
+      </article>
+
+      <!-- Active Vacancies -->
+      <article class="metric-card card-purple">
+        <div class="metric-top">
+          <div class="metric-icon-box">💼</div>
+          <span class="metric-trend trend-neutral">84% Open</span>
+        </div>
+        <div>
+          <div class="metric-number">92</div>
+          <div class="metric-label">Active Vacancies</div>
+        </div>
+      </article>
+
+      <!-- Total Applications -->
+      <article class="metric-card card-green">
+        <div class="metric-top">
+          <div class="metric-icon-box">📝</div>
+          <span class="metric-trend trend-up">↑ 18%</span>
+        </div>
+        <div>
+          <div class="metric-number">3,480</div>
+          <div class="metric-label">Applications</div>
+        </div>
+      </article>
+
+      <!-- Audit Logs Today -->
+      <article class="metric-card card-dark" onclick="switchMainTab('tab-audit')" style="cursor:pointer;">
+        <div class="metric-top">
+          <div class="metric-icon-box">🛡️</div>
+          <span class="metric-trend trend-up" style="background:#e0f2fe; color:#0369a1;">Live</span>
+        </div>
+        <div>
+          <div class="metric-number" id="metric-audit-count">384</div>
+          <div class="metric-label">Events Logged</div>
+        </div>
+      </article>
+    </section>
+
+    <!-- NAVIGATION TAB SELECTOR (DESKTOP) -->
+    <div class="admin-tab-nav-container">
+      <div class="admin-main-tabs" role="tablist">
+        <button class="tab-trigger-btn active" id="tab-btn-employers" onclick="switchMainTab('tab-employers')">
+          <span>🏢</span> Employers Management
+          <span class="tab-count-pill" id="tab-pill-employers">148</span>
+        </button>
+
+        <button class="tab-trigger-btn" id="tab-btn-jobseekers" onclick="switchMainTab('tab-jobseekers')">
+          <span>👤</span> Jobseekers Management
+          <span class="tab-count-pill" id="tab-pill-jobseekers">1,240</span>
+        </button>
+
+        <button class="tab-trigger-btn" id="tab-btn-audit" onclick="switchMainTab('tab-audit')">
+          <span>🛡️</span> Audit Trail &amp; System Logs
+          <span class="tab-count-pill" id="tab-pill-audit">384</span>
+        </button>
+
+        <button class="tab-trigger-btn has-warning" id="tab-btn-verification" onclick="switchMainTab('tab-verification')">
+          <span>📋</span> Verification Queue
+          <span class="tab-count-pill" style="background:#f59e0b; color:#fff;">4</span>
+        </button>
+
+        <button class="tab-trigger-btn" id="tab-btn-overview" onclick="switchMainTab('tab-overview')">
+          <span>📊</span> System Analytics
+        </button>
+      </div>
+
+      <div class="tab-tools-right">
+        <button class="btn-utility-action btn-refresh" onclick="refreshCurrentTab()" title="Reload dataset">
+          <span>🔄</span> Refresh Data
+        </button>
+        <button class="btn-utility-action" onclick="printReport()" title="Print formatted report">
+          <span>🖨️</span> Print
+        </button>
+      </div>
+    </div>
+
+    <!-- ==========================================================================
+         TAB 1: EMPLOYERS MANAGEMENT PAGE
+         ========================================================================== -->
+    <section class="admin-tab-panel active" id="tab-employers">
+      <div class="admin-content-card">
+        <div class="card-header-bar">
+          <div class="card-title-group">
+            <h3><span>🏢</span> Employers Management Directory</h3>
+            <p>Accredit companies, verify business permits, monitor active postings, and manage company accounts.</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div class="view-mode-toggle">
+              <button class="view-btn active" id="view-btn-emp-card" onclick="toggleViewMode('employers', 'card')">📱 Cards</button>
+              <button class="view-btn" id="view-btn-emp-table" onclick="toggleViewMode('employers', 'table')">📋 Table</button>
+            </div>
+            <button class="btn-utility-action" onclick="openExportModal('employers')">
+              <span>📥</span> CSV
+            </button>
+            <button class="btn-hero-action btn-accent" style="font-size: 12.5px; padding: 7px 14px;" onclick="openNewEmployerModal()">
+              <span>+</span> Register
+            </button>
+          </div>
+        </div>
+
+        <!-- FILTER & SEARCH TOOLBAR -->
+        <div class="table-filter-toolbar">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              class="search-input-field"
+              id="search-employers"
+              placeholder="Search company, contact person, email, or Boac/Gasan..."
+              oninput="filterEmployers()"
+            />
+          </div>
+
+          <button class="filter-toggle-btn-mobile" onclick="toggleFilterDrawer('filter-group-emp')">
+            <span>⚙️ Filters</span>
+          </button>
+
+          <div class="filter-selects-group" id="filter-group-emp">
+            <select class="custom-select" id="filter-emp-verification" onchange="filterEmployers()">
+              <option value="">All Verification Status</option>
+              <option value="verified">✓ Verified Only</option>
+              <option value="pending">⏳ Pending Review</option>
+              <option value="unverified">✕ Unverified</option>
+            </select>
+
+            <select class="custom-select" id="filter-emp-industry" onchange="filterEmployers()">
+              <option value="">All Industries</option>
+              <option value="Information Technology">Information Technology</option>
+              <option value="Hospitality & Tourism">Hospitality &amp; Tourism</option>
+              <option value="Healthcare & Medical">Healthcare &amp; Medical</option>
+              <option value="Construction & Engineering">Construction</option>
+              <option value="Retail & Wholesale">Retail &amp; Wholesale</option>
+              <option value="Agriculture & Fisheries">Agriculture &amp; Fisheries</option>
+              <option value="Government & Public">Government Services</option>
+            </select>
+
+            <select class="custom-select" id="filter-emp-municipality" onchange="filterEmployers()">
+              <option value="">All Municipalities</option>
+              <option value="Boac">Boac</option>
+              <option value="Gasan">Gasan</option>
+              <option value="Mogpog">Mogpog</option>
+              <option value="Santa Cruz">Santa Cruz</option>
+              <option value="Torrijos">Torrijos</option>
+              <option value="Buenavista">Buenavista</option>
+            </select>
+
+            <select class="custom-select" id="filter-emp-status" onchange="filterEmployers()">
+              <option value="">All Account States</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive / Suspended</option>
+            </select>
+
+            <button class="btn-filter-reset" onclick="resetEmployerFilters()">
+              Reset Filters
+            </button>
+          </div>
+        </div>
+
+        <!-- MOBILE TOUCH CARD LIST VIEW -->
+        <div class="mobile-card-list" id="mcards-employers">
+          <!-- Dynamically Populated by JavaScript -->
+        </div>
+
+        <!-- DESKTOP DATA TABLE VIEW -->
+        <div class="table-responsive-container" id="twrap-employers">
+          <table class="stram-data-table" id="table-employers">
+            <thead>
+              <tr>
+                <th style="width: 30px;"><input type="checkbox" onchange="toggleSelectAll(this, 'table-employers')" /></th>
+                <th>Company &amp; Representative</th>
+                <th>Industry &amp; Location</th>
+                <th>Verification</th>
+                <th>Permits &amp; Docs</th>
+                <th>Vacancies</th>
+                <th>Applicants</th>
+                <th>Status</th>
+                <th>Registered</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-employers">
+              <!-- Dynamically Populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- PAGINATION -->
+        <div class="table-pagination-footer">
+          <div id="pagination-info-employers">Showing 1 to 6 of 6 employers</div>
+          <div class="pagination-controls">
+            <button class="btn-pagination" disabled>← Prev</button>
+            <button class="btn-pagination" style="background:var(--primary-subtle); color:var(--primary-dark); font-weight:bold;">1</button>
+            <button class="btn-pagination" disabled>Next →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         TAB 2: JOBSEEKERS MANAGEMENT PAGE
+         ========================================================================== -->
+    <section class="admin-tab-panel" id="tab-jobseekers">
+      <div class="admin-content-card">
+        <div class="card-header-bar">
+          <div class="card-title-group">
+            <h3><span>👤</span> Jobseekers (Residents) Directory</h3>
+            <p>Monitor jobseeker qualifications, educational attainments, resume uploads, and application histories across Marinduque.</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div class="view-mode-toggle">
+              <button class="view-btn active" id="view-btn-js-card" onclick="toggleViewMode('jobseekers', 'card')">📱 Cards</button>
+              <button class="view-btn" id="view-btn-js-table" onclick="toggleViewMode('jobseekers', 'table')">📋 Table</button>
+            </div>
+            <button class="btn-utility-action" onclick="openExportModal('jobseekers')">
+              <span>📥</span> CSV
+            </button>
+            <button class="btn-hero-action btn-white" style="font-size: 12.5px; padding: 7px 14px;" onclick="showToast('Semantic matching algorithm executed', 'success')">
+              <span>🎯</span> Match
+            </button>
+          </div>
+        </div>
+
+        <!-- FILTER & SEARCH TOOLBAR -->
+        <div class="table-filter-toolbar">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              class="search-input-field"
+              id="search-jobseekers"
+              placeholder="Search resident name, desired position, skills (e.g. IT, Accounting)..."
+              oninput="filterJobseekers()"
+            />
+          </div>
+
+          <button class="filter-toggle-btn-mobile" onclick="toggleFilterDrawer('filter-group-js')">
+            <span>⚙️ Filters</span>
+          </button>
+
+          <div class="filter-selects-group" id="filter-group-js">
+            <select class="custom-select" id="filter-js-education" onchange="filterJobseekers()">
+              <option value="">All Education Levels</option>
+              <option value="College Graduate">College Graduate</option>
+              <option value="College Undergraduate">College Undergraduate</option>
+              <option value="Vocational / TESDA">Vocational / TESDA</option>
+              <option value="Senior High School Graduate">Senior High Graduate</option>
+              <option value="High School Graduate">High School Graduate</option>
+              <option value="Master's Degree">Master's Degree</option>
+            </select>
+
+            <select class="custom-select" id="filter-js-experience" onchange="filterJobseekers()">
+              <option value="">All Experience Levels</option>
+              <option value="Fresh Graduate">Fresh Graduate</option>
+              <option value="Less than 1 year">&lt; 1 Year</option>
+              <option value="1–3 years">1–3 Years</option>
+              <option value="3–5 years">3–5 Years</option>
+              <option value="5+ years">5+ Years</option>
+            </select>
+
+            <select class="custom-select" id="filter-js-availability" onchange="filterJobseekers()">
+              <option value="">All Availability</option>
+              <option value="Actively Looking">Actively Looking</option>
+              <option value="Open to Offers">Open to Offers</option>
+              <option value="Currently Employed">Currently Employed</option>
+            </select>
+
+            <select class="custom-select" id="filter-js-municipality" onchange="filterJobseekers()">
+              <option value="">All Municipalities</option>
+              <option value="Boac">Boac</option>
+              <option value="Gasan">Gasan</option>
+              <option value="Mogpog">Mogpog</option>
+              <option value="Santa Cruz">Santa Cruz</option>
+              <option value="Torrijos">Torrijos</option>
+              <option value="Buenavista">Buenavista</option>
+            </select>
+
+            <button class="btn-filter-reset" onclick="resetJobseekerFilters()">
+              Reset Filters
+            </button>
+          </div>
+        </div>
+
+        <!-- MOBILE TOUCH CARD LIST VIEW -->
+        <div class="mobile-card-list" id="mcards-jobseekers">
+          <!-- Dynamically Populated by JavaScript -->
+        </div>
+
+        <!-- DESKTOP DATA TABLE VIEW -->
+        <div class="table-responsive-container" id="twrap-jobseekers">
+          <table class="stram-data-table" id="table-jobseekers">
+            <thead>
+              <tr>
+                <th style="width: 30px;"><input type="checkbox" onchange="toggleSelectAll(this, 'table-jobseekers')" /></th>
+                <th>Resident Profile</th>
+                <th>Desired Role &amp; Location</th>
+                <th>Education</th>
+                <th>Skills &amp; Experience</th>
+                <th>Availability</th>
+                <th>Applications</th>
+                <th>Documents</th>
+                <th>Status</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-jobseekers">
+              <!-- Dynamically Populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- PAGINATION -->
+        <div class="table-pagination-footer">
+          <div id="pagination-info-jobseekers">Showing 1 to 6 of 6 jobseekers</div>
+          <div class="pagination-controls">
+            <button class="btn-pagination" disabled>← Prev</button>
+            <button class="btn-pagination" style="background:var(--primary-subtle); color:var(--primary-dark); font-weight:bold;">1</button>
+            <button class="btn-pagination" disabled>Next →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         TAB 3: AUDIT TRAIL & SYSTEM LOGS PAGE
+         ========================================================================== -->
+    <section class="admin-tab-panel" id="tab-audit">
+      <div class="admin-content-card">
+        <div class="card-header-bar">
+          <div class="card-title-group">
+            <h3><span>🛡️</span> Security &amp; Activity Audit Trail</h3>
+            <p>Immutable real-time audit logs of all user actions, authentication attempts, status changes, document reviews, and administrative actions.</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div class="view-mode-toggle">
+              <button class="view-btn active" id="view-btn-audit-card" onclick="toggleViewMode('audit', 'card')">📱 Cards</button>
+              <button class="view-btn" id="view-btn-audit-table" onclick="toggleViewMode('audit', 'table')">📋 Table</button>
+            </div>
+            <button class="btn-utility-action" onclick="openExportModal('audit')">
+              <span>📥</span> CSV
+            </button>
+            <button class="btn-hero-action btn-accent" style="font-size: 12.5px; padding: 7px 14px;" onclick="triggerSimulatedEvent()">
+              <span>⚡</span> Simulate
+            </button>
+          </div>
+        </div>
+
+        <!-- FILTER & SEARCH TOOLBAR -->
+        <div class="table-filter-toolbar">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              class="search-input-field"
+              id="search-audit"
+              placeholder="Search user, action, IP address, resource ID (e.g. JB-101)..."
+              oninput="filterAuditLogs()"
+            />
+          </div>
+
+          <button class="filter-toggle-btn-mobile" onclick="toggleFilterDrawer('filter-group-audit')">
+            <span>⚙️ Filters</span>
+          </button>
+
+          <div class="filter-selects-group" id="filter-group-audit">
+            <select class="custom-select" id="filter-audit-category" onchange="filterAuditLogs()">
+              <option value="">All Categories</option>
+              <option value="auth">Authentication</option>
+              <option value="job">Job Postings</option>
+              <option value="app">Applications</option>
+              <option value="verif">Verifications</option>
+              <option value="admin">Admin Actions</option>
+              <option value="security">Security &amp; Abuse</option>
+              <option value="profile">Profile Updates</option>
+            </select>
+
+            <select class="custom-select" id="filter-audit-role" onchange="filterAuditLogs()">
+              <option value="">All Roles</option>
+              <option value="admin">Administrator</option>
+              <option value="employer">Employer</option>
+              <option value="resident">Jobseeker / Resident</option>
+              <option value="system">System / Background</option>
+            </select>
+
+            <select class="custom-select" id="filter-audit-severity" onchange="filterAuditLogs()">
+              <option value="">All Severity</option>
+              <option value="success">Success</option>
+              <option value="warning">Warning</option>
+              <option value="danger">Critical / Danger</option>
+              <option value="info">Informational</option>
+            </select>
+
+            <button class="btn-filter-reset" onclick="resetAuditFilters()">
+              Reset Filters
+            </button>
+          </div>
+        </div>
+
+        <!-- MOBILE TOUCH CARD LIST VIEW -->
+        <div class="mobile-card-list" id="mcards-audit">
+          <!-- Dynamically Populated by JavaScript -->
+        </div>
+
+        <!-- DESKTOP DATA TABLE VIEW -->
+        <div class="table-responsive-container" id="twrap-audit">
+          <table class="stram-data-table" id="table-audit">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Actor / User</th>
+                <th>Role</th>
+                <th>Category</th>
+                <th>Action &amp; Description</th>
+                <th>Target Resource</th>
+                <th>IP &amp; Location</th>
+                <th>Device / Client</th>
+                <th>Status</th>
+                <th style="text-align: right;">Inspect</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-audit">
+              <!-- Dynamically Populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- PAGINATION -->
+        <div class="table-pagination-footer">
+          <div id="pagination-info-audit">Showing 1 to 8 of 8 events</div>
+          <div class="pagination-controls">
+            <button class="btn-pagination" disabled>← Prev</button>
+            <button class="btn-pagination" style="background:var(--primary-subtle); color:var(--primary-dark); font-weight:bold;">1</button>
+            <button class="btn-pagination" disabled>Next →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         TAB 4: VERIFICATION QUEUE & COMPLIANCE
+         ========================================================================== -->
+    <section class="admin-tab-panel" id="tab-verification">
+      <div class="admin-content-card">
+        <div class="card-header-bar">
+          <div class="card-title-group">
+            <h3><span>📋</span> Employer Verification Queue</h3>
+            <p>Review uploaded Mayor's Business Permits, DTI / SEC Certificates, and BIR registrations before issuing verified status.</p>
+          </div>
+          <div>
+            <span class="status-pill-badge badge-pending" style="font-size: 13px; padding: 6px 14px;">
+              ⏳ 4 Submissions Awaiting Review
+            </span>
+          </div>
+        </div>
+
+        <!-- VERIFICATION QUEUE GRID -->
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;" id="verification-queue-grid">
+          <!-- Populated dynamically by JavaScript -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         TAB 5: SYSTEM ANALYTICS & OVERVIEW
+         ========================================================================== -->
+    <section class="admin-tab-panel" id="tab-overview">
+      <div class="admin-content-card">
+        <div class="card-header-bar">
+          <div class="card-title-group">
+            <h3><span>📊</span> Provincial Analytics Overview</h3>
+            <p>Employment facilitation statistics, monthly registrations, hiring rates, and municipal distribution.</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 24px;" class="analytics-grid-mobile">
+          <!-- Monthly Trend Card -->
+          <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px;">
+            <h4 style="font-size: 14px; margin-bottom: 12px; color: var(--dark);">📈 2026 Registration vs Application Trend</h4>
+            <div style="height: 180px; display: flex; align-items: flex-end; gap: 10px; padding: 10px 0; border-bottom: 2px solid var(--border-color);">
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <div style="width:100%; height:45px; background:var(--primary); border-radius:4px 4px 0 0;"></div>
+                <span style="font-size:10px; color:var(--muted);">Jan</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <div style="width:100%; height:75px; background:var(--primary); border-radius:4px 4px 0 0;"></div>
+                <span style="font-size:10px; color:var(--muted);">Feb</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <div style="width:100%; height:110px; background:var(--primary); border-radius:4px 4px 0 0;"></div>
+                <span style="font-size:10px; color:var(--muted);">Mar</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <div style="width:100%; height:90px; background:var(--primary); border-radius:4px 4px 0 0;"></div>
+                <span style="font-size:10px; color:var(--muted);">Apr</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <div style="width:100%; height:140px; background:var(--primary); border-radius:4px 4px 0 0;"></div>
+                <span style="font-size:10px; color:var(--muted);">May</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <div style="width:100%; height:180px; background:var(--primary); border-radius:4px 4px 0 0;"></div>
+                <span style="font-size:10px; color:var(--muted);">Jun</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <div style="width:100%; height:160px; background:var(--primary); border-radius:4px 4px 0 0;"></div>
+                <span style="font-size:10px; color:var(--muted);">Jul</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <div style="width:100%; height:180px; background:linear-gradient(to top, var(--primary), var(--primary-light)); border-radius:4px 4px 0 0;"></div>
+                <span style="font-size:10px; color:var(--primary-dark); font-weight:bold;">Aug</span>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:11.5px; color:var(--slate);">
+              <span>🟢 Processed Applicants</span>
+              <span><strong>Peak:</strong> 200 (Aug 2026)</span>
+            </div>
+          </div>
+
+          <!-- Municipal Breakdown -->
+          <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px;">
+            <h4 style="font-size: 14px; margin-bottom: 12px; color: var(--dark);">📍 Marinduque Distribution</h4>
+            <div style="display: grid; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                <span>Boac (Capital)</span>
+                <strong>42% (520)</strong>
+              </div>
+              <div style="background: #e2e8f0; height: 5px; border-radius: 999px; overflow: hidden;">
+                <div style="width: 42%; height: 100%; background: var(--primary);"></div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                <span>Santa Cruz</span>
+                <strong>22% (272)</strong>
+              </div>
+              <div style="background: #e2e8f0; height: 5px; border-radius: 999px; overflow: hidden;">
+                <div style="width: 22%; height: 100%; background: var(--secondary);"></div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                <span>Gasan</span>
+                <strong>14% (173)</strong>
+              </div>
+              <div style="background: #e2e8f0; height: 5px; border-radius: 999px; overflow: hidden;">
+                <div style="width: 14%; height: 100%; background: var(--amber);"></div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                <span>Mogpog, Torrijos &amp; Buenavista</span>
+                <strong>22% (275)</strong>
+              </div>
+              <div style="background: #e2e8f0; height: 5px; border-radius: 999px; overflow: hidden;">
+                <div style="width: 22%; height: 100%; background: var(--purple);"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==========================================================================
+       MODALS & MOBILE BOTTOM SHEETS
+       ========================================================================== -->
+
+  <!-- MODAL 1: EMPLOYER PROFILE & DOCUMENTS REVIEW -->
+  <div class="admin-modal-overlay" id="modal-employer-details">
+    <div class="admin-modal-dialog modal-xl">
+      <div class="modal-header-section">
+        <h3 id="modal-emp-title">🏢 Company Profile &amp; Verification</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-employer-details')">✕</button>
+      </div>
+      <div class="modal-body-section" id="modal-emp-body">
+        <!-- Injected via JavaScript -->
+      </div>
+      <div class="modal-footer-section" id="modal-emp-footer">
+        <button class="btn-utility-action" style="width:100%;" onclick="closeModal('modal-employer-details')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: JOBSEEKER PROFILE & RESUME VIEWER -->
+  <div class="admin-modal-overlay" id="modal-jobseeker-details">
+    <div class="admin-modal-dialog modal-xl">
+      <div class="modal-header-section">
+        <h3 id="modal-js-title">👤 Jobseeker Resident Profile</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-jobseeker-details')">✕</button>
+      </div>
+      <div class="modal-body-section" id="modal-js-body">
+        <!-- Injected via JavaScript -->
+      </div>
+      <div class="modal-footer-section">
+        <button class="btn-utility-action" style="width:100%;" onclick="closeModal('modal-jobseeker-details')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: AUDIT LOG EVENT INSPECTOR -->
+  <div class="admin-modal-overlay" id="modal-audit-inspect">
+    <div class="admin-modal-dialog">
+      <div class="modal-header-section">
+        <h3>🛡️ Event Inspector</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-audit-inspect')">✕</button>
+      </div>
+      <div class="modal-body-section" id="modal-audit-body">
+        <!-- Injected via JavaScript -->
+      </div>
+      <div class="modal-footer-section" style="gap:8px;">
+        <button class="btn-utility-action" style="flex:1;" onclick="copyLogJson()">Copy JSON</button>
+        <button class="btn-hero-action btn-white" style="flex:1; font-size:13px; padding:6px 14px;" onclick="closeModal('modal-audit-inspect')">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: EXPORT DATA MODAL -->
+  <div class="admin-modal-overlay" id="modal-export-data">
+    <div class="admin-modal-dialog" style="max-width: 480px;">
+      <div class="modal-header-section">
+        <h3>📥 Export Dataset (CSV)</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-export-data')">✕</button>
+      </div>
+      <div class="modal-body-section">
+        <div class="form-field-group">
+          <label class="form-field-label">Select Dataset</label>
+          <select class="custom-select" style="width: 100%;" id="export-dataset-select">
+            <option value="employers">🏢 Employers Directory (CSV)</option>
+            <option value="jobseekers">👤 Jobseekers Roster (CSV)</option>
+            <option value="audit">🛡️ Security &amp; Activity Audit Trail (CSV)</option>
+          </select>
+        </div>
+
+        <div class="form-field-group">
+          <label class="form-field-label">Date Range</label>
+          <select class="custom-select" style="width: 100%;" id="export-range-select">
+            <option value="all">All Recorded Records</option>
+            <option value="month">Current Month (August 2026)</option>
+            <option value="year">Year to Date (2026)</option>
+          </select>
+        </div>
+
+        <div style="background:#e8f5e9; border:1px solid #c8e6c9; border-radius:var(--radius-sm); padding:12px; font-size:12px; color:#1a5c2a;">
+          ✓ Includes DOLE / PESO Marinduque governance headers and compliance timestamps.
+        </div>
+      </div>
+      <div class="modal-footer-section" style="gap:8px;">
+        <button class="btn-utility-action" style="flex:1;" onclick="closeModal('modal-export-data')">Cancel</button>
+        <button class="btn-hero-action btn-accent" style="flex:1; font-size:13px; padding:8px 14px;" onclick="executeCsvExport()">
+          Download CSV
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="admin-toast-container" id="toast-container"></div>
+
+
+
+  <!-- ==========================================================================
+       JAVASCRIPT ENGINE (Interactive Mobile + Desktop Engine)
+       ========================================================================== -->
+  <script>
+    /* ==========================================================================
+       MOCK DATASETS (Marinduque PESO Context)
+       ========================================================================== */
+    const employersData = [
+      {
+        id: "emp-001",
+        companyName: "Marinduque Water District",
+        industry: "Government & Public",
+        companySize: "51-200",
+        representative: "Engr. Roberto Magno",
+        email: "contact@marinduquewater.gov.ph",
+        phone: "+63 917 554 8821",
+        municipality: "Boac",
+        address: "Mogpog Road, Brgy. Murallon, Boac, Marinduque",
+        verificationStatus: "verified",
+        businessPermitUrl: "BP-2026-BOAC-0842.pdf",
+        dtiSecUrl: "SEC-GOV-2021-998.pdf",
+        taxId: "BIR-204-899-102",
+        activeJobsCount: 4,
+        totalApplicants: 68,
+        isActive: true,
+        joinedDate: "2026-01-15",
+        about: "Provincial water utility dedicated to reliable and safe potable water distribution across Boac and neighboring towns."
+      },
+      {
+        id: "emp-002",
+        companyName: "Bellas Beach Resort & Hotel",
+        industry: "Hospitality & Tourism",
+        companySize: "11-50",
+        representative: "Maria Carmela Reyes",
+        email: "hr@bellasmarinduque.com",
+        phone: "+63 928 443 1190",
+        municipality: "Gasan",
+        address: "Seaside Drive, Brgy. Pinggan, Gasan, Marinduque",
+        verificationStatus: "verified",
+        businessPermitUrl: "BP-2026-GASAN-0199.pdf",
+        dtiSecUrl: "DTI-REG-BN-882910.pdf",
+        taxId: "BIR-102-334-551",
+        activeJobsCount: 3,
+        totalApplicants: 42,
+        isActive: true,
+        joinedDate: "2026-02-10",
+        about: "Premier beachfront eco-resort providing hospitality services, dining, island tours, and event hosting in Gasan."
+      },
+      {
+        id: "emp-003",
+        companyName: "Heart of the Islands Tech Solutions",
+        industry: "Information Technology",
+        companySize: "1-10",
+        representative: "Angelo James Mercene",
+        email: "careers@heartislandstech.ph",
+        phone: "+63 945 889 0012",
+        municipality: "Boac",
+        address: "2nd Floor, Mercene Commercial Bldg, Boac Town Proper",
+        verificationStatus: "pending",
+        businessPermitUrl: "BP-2026-BOAC-PENDING.pdf",
+        dtiSecUrl: "DTI-BN-0919283.pdf",
+        taxId: "BIR-445-992-001",
+        activeJobsCount: 2,
+        totalApplicants: 19,
+        isActive: true,
+        joinedDate: "2026-08-24",
+        about: "Local software development agency specializing in web applications, mobile apps, and IT support services."
+      },
+      {
+        id: "emp-004",
+        companyName: "Santa Cruz Builders & Hardware Corp.",
+        industry: "Construction & Engineering",
+        companySize: "51-200",
+        representative: "Danilo Tan",
+        email: "danilo.tan@scbuilders.com.ph",
+        phone: "+63 919 443 9081",
+        municipality: "Santa Cruz",
+        address: "National Highway, Brgy. Lapu-Lapu, Santa Cruz, Marinduque",
+        verificationStatus: "verified",
+        businessPermitUrl: "BP-2026-SCRUZ-4410.pdf",
+        dtiSecUrl: "SEC-CS2020-00819.pdf",
+        taxId: "BIR-339-112-909",
+        activeJobsCount: 5,
+        totalApplicants: 56,
+        isActive: true,
+        joinedDate: "2026-03-01",
+        about: "General contracting, heavy equipment rentals, and construction materials supplier serving eastern Marinduque."
+      },
+      {
+        id: "emp-005",
+        companyName: "Mogpog Agri-Aqua Processing Center",
+        industry: "Agriculture & Fisheries",
+        companySize: "11-50",
+        representative: "Luzviminda Chavez",
+        email: "mogpog.agri@outlook.ph",
+        phone: "+63 921 776 5432",
+        municipality: "Mogpog",
+        address: "Brgy. Bintakay, Mogpog, Marinduque",
+        verificationStatus: "pending",
+        businessPermitUrl: "BP-2026-MOGPOG-0091.pdf",
+        dtiSecUrl: "DTI-BN-556102.pdf",
+        taxId: "BIR-889-221-334",
+        activeJobsCount: 1,
+        totalApplicants: 14,
+        isActive: true,
+        joinedDate: "2026-08-26",
+        about: "Post-harvest processing facility for copra, butterfly farming products, arrowroot cookies (Uraro), and seafood."
+      },
+      {
+        id: "emp-006",
+        companyName: "Torrijos Sunrise Pharmacy & Clinic",
+        industry: "Healthcare & Medical",
+        companySize: "1-10",
+        representative: "Dr. Catherine Almonte",
+        email: "dralmonte@torrijoshealth.com",
+        phone: "+63 939 123 4567",
+        municipality: "Torrijos",
+        address: "Poblacion Market Area, Torrijos, Marinduque",
+        verificationStatus: "unverified",
+        businessPermitUrl: null,
+        dtiSecUrl: null,
+        taxId: "Pending Submission",
+        activeJobsCount: 0,
+        totalApplicants: 0,
+        isActive: false,
+        joinedDate: "2026-08-28",
+        about: "Community pharmacy and outpatient clinic catering to general consultations and medical supplies."
+      }
+    ];
+
+    const jobseekersData = [
+      {
+        id: "js-001",
+        name: "Juan Dela Cruz",
+        email: "juan.delacruz@email.com",
+        phone: "+63 918 334 9912",
+        municipality: "Boac",
+        barangay: "Brgy. San Miguel",
+        desiredJobTitle: "Administrative Assistant",
+        educationalAttainment: "College Graduate",
+        degree: "BS Business Administration",
+        workExperience: "1–3 years",
+        skills: ["Office Administration", "MS Excel", "Customer Service", "Bookkeeping", "Records Management"],
+        availabilityStatus: "Actively Looking",
+        totalApplications: 6,
+        shortlistedCount: 3,
+        hiredCount: 0,
+        resumeUrl: "Juan_Dela_Cruz_Resume.pdf",
+        validIdUrl: "National_ID_JuanDC.jpg",
+        profileCompleteness: 100,
+        isActive: true,
+        joinedDate: "2026-02-14"
+      },
+      {
+        id: "js-002",
+        name: "Maria Theresa Santos",
+        email: "maria.santos@gmail.com",
+        phone: "+63 927 889 0041",
+        municipality: "Gasan",
+        barangay: "Brgy. Bahi",
+        desiredJobTitle: "Front Desk & Tourism Coordinator",
+        educationalAttainment: "College Graduate",
+        degree: "BS Hospitality Management",
+        workExperience: "Fresh Graduate",
+        skills: ["Front Office", "Customer Care", "English Communication", "Event Planning", "Hotel PMS"],
+        availabilityStatus: "Actively Looking",
+        totalApplications: 4,
+        shortlistedCount: 2,
+        hiredCount: 0,
+        resumeUrl: "Maria_Santos_CV.pdf",
+        validIdUrl: "UMID_MariaSantos.jpg",
+        profileCompleteness: 95,
+        isActive: true,
+        joinedDate: "2026-03-20"
+      },
+      {
+        id: "js-003",
+        name: "Kenneth Mark Lim",
+        email: "klim.dev@yahoo.com",
+        phone: "+63 995 112 3456",
+        municipality: "Boac",
+        barangay: "Brgy. Murallon",
+        desiredJobTitle: "Junior Full Stack Developer",
+        educationalAttainment: "College Graduate",
+        degree: "BS Information Technology (MSC)",
+        workExperience: "1–3 years",
+        skills: ["JavaScript", "React", "Node.js", "MongoDB", "REST APIs", "Git"],
+        availabilityStatus: "Open to Offers",
+        totalApplications: 5,
+        shortlistedCount: 4,
+        hiredCount: 1,
+        resumeUrl: "Kenneth_Lim_Resume.pdf",
+        validIdUrl: "Passport_KennethLim.jpg",
+        profileCompleteness: 100,
+        isActive: true,
+        joinedDate: "2026-01-10"
+      },
+      {
+        id: "js-004",
+        name: "Rodelio 'Rodel' Ramos",
+        email: "rodel.ramos88@gmail.com",
+        phone: "+63 916 554 9901",
+        municipality: "Santa Cruz",
+        barangay: "Brgy. Masiguin",
+        desiredJobTitle: "Heavy Equipment Operator / Welder",
+        educationalAttainment: "Vocational / TESDA",
+        degree: "SMAW NC II & Heavy Equipment NC II",
+        workExperience: "5+ years",
+        skills: ["Shielded Metal Arc Welding", "Backhoe Operation", "Site Safety", "Hydraulics Maintenance"],
+        availabilityStatus: "Currently Employed",
+        totalApplications: 3,
+        shortlistedCount: 2,
+        hiredCount: 1,
+        resumeUrl: "Rodel_Ramos_TESDA_CV.pdf",
+        validIdUrl: "Drivers_License_Rodel.jpg",
+        profileCompleteness: 90,
+        isActive: true,
+        joinedDate: "2026-02-05"
+      },
+      {
+        id: "js-005",
+        name: "Angelica Morales",
+        email: "angelica.morales@outlook.ph",
+        phone: "+63 949 881 2233",
+        municipality: "Mogpog",
+        barangay: "Brgy. Dulit",
+        desiredJobTitle: "Quality Control & Food Processing Tech",
+        educationalAttainment: "Senior High School Graduate",
+        degree: "TVL Track - Food Processing",
+        workExperience: "Less than 1 year",
+        skills: ["HACCP Principles", "Food Packaging", "Inventory Stocking", "Basic Accounting"],
+        availabilityStatus: "Actively Looking",
+        totalApplications: 2,
+        shortlistedCount: 1,
+        hiredCount: 0,
+        resumeUrl: "Angelica_Morales_Resume.pdf",
+        validIdUrl: "PhilHealth_ID_Angelica.jpg",
+        profileCompleteness: 85,
+        isActive: true,
+        joinedDate: "2026-08-01"
+      },
+      {
+        id: "js-006",
+        name: "Arnel Villaflores",
+        email: "arnel.villaflores@gmail.com",
+        phone: "+63 930 445 1198",
+        municipality: "Buenavista",
+        barangay: "Brgy. Malbog",
+        desiredJobTitle: "Store Supervisor / Sales Lead",
+        educationalAttainment: "College Undergraduate",
+        degree: "Undergraduate (3rd Year BSBA)",
+        workExperience: "3–5 years",
+        skills: ["Retail Management", "POS Operations", "Inventory Audit", "Staff Scheduling"],
+        availabilityStatus: "Open to Offers",
+        totalApplications: 4,
+        shortlistedCount: 1,
+        hiredCount: 0,
+        resumeUrl: "Arnel_Villaflores_CV.pdf",
+        validIdUrl: "Voters_ID_Arnel.jpg",
+        profileCompleteness: 90,
+        isActive: true,
+        joinedDate: "2026-04-12"
+      }
+    ];
+
+    let auditLogsData = [
+      {
+        id: "log-1008",
+        timestamp: new Date().toISOString(),
+        relative: "Just now",
+        actor: { name: "Admin Officer", email: "admin@peso.marinduque.gov.ph", role: "admin", avatar: "AD" },
+        category: "admin",
+        action: "Inspected Audit Trail",
+        description: "Admin opened and filtered the comprehensive user activity audit log.",
+        resource: "System Audit Module #AUD-2026",
+        ip: "120.28.188.10",
+        location: "Boac, Marinduque",
+        device: "Chrome 128 / Windows 11",
+        severity: "info",
+        payload: { filter: "all", userRole: "admin", sessionTime: "24m" }
+      },
+      {
+        id: "log-1007",
+        timestamp: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+        relative: "4 mins ago",
+        actor: { name: "Maria Theresa Santos", email: "maria.santos@gmail.com", role: "resident", avatar: "MS" },
+        category: "app",
+        action: "Job Application Submitted",
+        description: "Applied for 'Front Desk & Guest Coordinator' vacancy at Bellas Beach Resort.",
+        resource: "Job #JB-104 (Bellas Beach Resort)",
+        ip: "112.198.74.22",
+        location: "Gasan, Marinduque",
+        device: "Safari / iOS 17.5",
+        severity: "success",
+        payload: { jobId: "66ca108f9021", matchScore: 94, resumeUsed: "Maria_Santos_CV.pdf" }
+      },
+      {
+        id: "log-1006",
+        timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+        relative: "15 mins ago",
+        actor: { name: "Heart of the Islands Tech", email: "careers@heartislandstech.ph", role: "employer", avatar: "HI" },
+        category: "verif",
+        action: "Business Permit Uploaded",
+        description: "Uploaded renewed 2026 Mayor's Business Permit for accreditation verification.",
+        resource: "Document #BP-2026-BOAC-PENDING",
+        ip: "180.191.102.55",
+        location: "Boac, Marinduque",
+        device: "Edge 126 / Windows 11",
+        severity: "warning",
+        payload: { fileName: "BP-2026-BOAC-PENDING.pdf", fileSize: "1.8MB", status: "pending" }
+      },
+      {
+        id: "log-1005",
+        timestamp: new Date(Date.now() - 32 * 60 * 1000).toISOString(),
+        relative: "32 mins ago",
+        actor: { name: "Engr. Roberto Magno", email: "contact@marinduquewater.gov.ph", role: "employer", avatar: "MW" },
+        category: "job",
+        action: "Job Vacancy Published",
+        description: "Created new job listing: 'Procurement Specialist (Full-Time, Onsite)'.",
+        resource: "Job #JB-109 (Marinduque Water Dist)",
+        ip: "112.198.88.90",
+        location: "Boac, Marinduque",
+        device: "Chrome 127 / macOS 14",
+        severity: "success",
+        payload: { title: "Procurement Specialist", salary: "₱24,000 - ₱28,000", slots: 2 }
+      },
+      {
+        id: "log-1004",
+        timestamp: new Date(Date.now() - 58 * 60 * 1000).toISOString(),
+        relative: "58 mins ago",
+        actor: { name: "Admin Officer", email: "admin@peso.marinduque.gov.ph", role: "admin", avatar: "AD" },
+        category: "verif",
+        action: "Employer Verified",
+        description: "PESO Officer approved accreditation for 'Santa Cruz Builders & Hardware Corp.'",
+        resource: "User #emp-004 (Santa Cruz Builders)",
+        ip: "120.28.188.10",
+        location: "Boac, Marinduque",
+        device: "Chrome 128 / Windows 11",
+        severity: "success",
+        payload: { previousStatus: "pending", newStatus: "verified", reviewedBy: "Admin Boac" }
+      },
+      {
+        id: "log-1003",
+        timestamp: new Date(Date.now() - 110 * 60 * 1000).toISOString(),
+        relative: "1.8 hrs ago",
+        actor: { name: "Juan Dela Cruz", email: "juan.delacruz@email.com", role: "resident", avatar: "JD" },
+        category: "auth",
+        action: "User Login Success",
+        description: "Authenticated via Email/Password credentials and received 30-day JWT token.",
+        resource: "Session #SESS-990812",
+        ip: "112.198.74.88",
+        location: "Boac, Marinduque",
+        device: "Chrome Mobile / Android 14",
+        severity: "info",
+        payload: { authMethod: "JWT", tokenExpiry: "30 days", twoFactor: false }
+      },
+      {
+        id: "log-1002",
+        timestamp: new Date(Date.now() - 190 * 60 * 1000).toISOString(),
+        relative: "3.1 hrs ago",
+        actor: { name: "Torrijos Sunrise Pharmacy", email: "dralmonte@torrijoshealth.com", role: "employer", avatar: "TS" },
+        category: "security",
+        action: "Account Restricted (Missing Permit)",
+        description: "System auto-flagged employer account pending 2026 business permit submission.",
+        resource: "User #emp-006 (Torrijos Sunrise)",
+        ip: "49.144.201.8",
+        location: "Torrijos, Marinduque",
+        device: "System Automation Daemon",
+        severity: "danger",
+        payload: { reason: "Missing accreditation compliance", canPostJobs: false }
+      },
+      {
+        id: "log-1001",
+        timestamp: new Date(Date.now() - 320 * 60 * 1000).toISOString(),
+        relative: "5.3 hrs ago",
+        actor: { name: "Kenneth Mark Lim", email: "klim.dev@yahoo.com", role: "resident", avatar: "KL" },
+        category: "profile",
+        action: "Updated Skills & Resume",
+        description: "Updated technical skills matrix and uploaded updated PDF resume.",
+        resource: "JobseekerProfile #js-003",
+        ip: "112.198.74.88",
+        location: "Boac, Marinduque",
+        device: "Chrome 128 / Windows 11",
+        severity: "info",
+        payload: { newSkillsAdded: ["REST APIs", "Git"], completeness: "100%" }
+      }
+    ];
+
+    /* ==========================================================================
+       MOBILE NAVIGATION & DRAWER CONTROLS
+       ========================================================================== */
+    function toggleMobileDrawer() {
+      const drawer = document.getElementById('mobile-nav-drawer');
+      if (drawer) drawer.classList.toggle('active');
+    }
+
+    function closeMobileDrawer(e) {
+      const drawer = document.getElementById('mobile-nav-drawer');
+      if (drawer) drawer.classList.remove('active');
+    }
+
+    function toggleFilterDrawer(groupId) {
+      const group = document.getElementById(groupId);
+      if (group) group.classList.toggle('active');
+    }
+
+    function toggleViewMode(section, mode) {
+      const cardEl = document.getElementById(`mcards-${section}`);
+      const tableEl = document.getElementById(`twrap-${section}`);
+      const cardBtn = document.getElementById(`view-btn-${section === 'employers' ? 'emp' : section === 'jobseekers' ? 'js' : 'audit'}-card`);
+      const tableBtn = document.getElementById(`view-btn-${section === 'employers' ? 'emp' : section === 'jobseekers' ? 'js' : 'audit'}-table`);
+
+      if (mode === 'table') {
+        if (cardEl) { cardEl.classList.add('force-hide'); cardEl.style.display = 'none'; }
+        if (tableEl) { tableEl.classList.add('force-table'); tableEl.style.display = 'block'; }
+        if (cardBtn) cardBtn.classList.remove('active');
+        if (tableBtn) tableBtn.classList.add('active');
+      } else {
+        if (cardEl) { cardEl.classList.remove('force-hide'); cardEl.style.display = 'flex'; }
+        if (tableEl) { tableEl.classList.remove('force-table'); tableEl.style.display = 'none'; }
+        if (cardBtn) cardBtn.classList.add('active');
+        if (tableBtn) tableBtn.classList.remove('active');
+      }
+    }
+
+    /* ==========================================================================
+       TAB SWITCHING LOGIC (DESKTOP + MOBILE APP BAR SYNC)
+       ========================================================================== */
+    function switchMainTab(tabId) {
+      // Hide all panels
+      document.querySelectorAll('.admin-tab-panel').forEach(panel => panel.classList.remove('active'));
+      document.querySelectorAll('.tab-trigger-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.nav-link-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.bottom-nav-item').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.mobile-nav-item').forEach(btn => btn.classList.remove('active'));
+
+      // Show target panel
+      const targetPanel = document.getElementById(tabId);
+      if (targetPanel) targetPanel.classList.add('active');
+
+      const cleanName = tabId.replace('tab-', '');
+
+      // Highlight Desktop Tabs
+      const tabBtn = document.getElementById('tab-btn-' + cleanName);
+      if (tabBtn) tabBtn.classList.add('active');
+
+      // Highlight Mobile Bottom App Bar
+      const bnavBtn = document.getElementById('bnav-' + cleanName);
+      if (bnavBtn) bnavBtn.classList.add('active');
+
+      // Highlight Drawer Item
+      const drawerItem = document.getElementById('mdrawer-' + cleanName);
+      if (drawerItem) drawerItem.classList.add('active');
+
+      // Smooth scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* ==========================================================================
+       RENDER EMPLOYERS (TABLE & MOBILE TOUCH CARDS)
+       ========================================================================== */
+    function renderEmployersTable(data = employersData) {
+      const tbody = document.getElementById('tbody-employers');
+      const mcards = document.getElementById('mcards-employers');
+      if (!tbody || !mcards) return;
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="admin-empty-state"><p>No employers found matching criteria.</p></td></tr>`;
+        mcards.innerHTML = `<div class="admin-empty-state"><p>No employers found matching criteria.</p></div>`;
+        document.getElementById('pagination-info-employers').textContent = `Showing 0 of 0 employers`;
+        return;
+      }
+
+      // 1. Render Desktop Table Rows
+      tbody.innerHTML = data.map(emp => {
+        let verifBadge = '';
+        if (emp.verificationStatus === 'verified') verifBadge = `<span class="status-pill-badge badge-verified">✓ Verified</span>`;
+        else if (emp.verificationStatus === 'pending') verifBadge = `<span class="status-pill-badge badge-pending">⏳ Pending</span>`;
+        else verifBadge = `<span class="status-pill-badge badge-unverified">✕ Unverified</span>`;
+
+        const stateBadge = emp.isActive 
+          ? `<span class="status-pill-badge badge-active">Active</span>`
+          : `<span class="status-pill-badge badge-inactive">Suspended</span>`;
+
+        const initials = emp.companyName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+        return `
+          <tr>
+            <td><input type="checkbox" value="${emp.id}" /></td>
+            <td>
+              <div class="user-identity-cell">
+                <div class="user-cell-avatar avatar-employer">${initials}</div>
+                <div class="user-cell-text">
+                  <div class="user-primary-name">${emp.companyName}</div>
+                  <div class="user-subtext">Rep: ${emp.representative} • ${emp.email}</div>
+                  <div class="location-tag">📍 ${emp.municipality}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <strong>${emp.industry}</strong>
+              <div class="user-subtext">${emp.companySize} Employees</div>
+            </td>
+            <td>${verifBadge}</td>
+            <td>
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                ${emp.businessPermitUrl ? `<a href="javascript:void(0)" class="doc-pill-btn" onclick="previewDoc('${emp.companyName}', 'Permit', '${emp.businessPermitUrl}')">📄 Permit</a>` : `<span class="doc-pill-btn missing">No Permit</span>`}
+                ${emp.dtiSecUrl ? `<a href="javascript:void(0)" class="doc-pill-btn" onclick="previewDoc('${emp.companyName}', 'DTI/SEC', '${emp.dtiSecUrl}')">📑 SEC/DTI</a>` : `<span class="doc-pill-btn missing">No DTI/SEC</span>`}
+              </div>
+            </td>
+            <td><strong style="color:var(--primary);">${emp.activeJobsCount}</strong> Active</td>
+            <td><strong>${emp.totalApplicants}</strong></td>
+            <td>${stateBadge}</td>
+            <td><small style="color:var(--muted);">${emp.joinedDate}</small></td>
+            <td>
+              <div class="table-action-btns">
+                <button class="btn-icon-action" title="View Profile" onclick="viewEmployerDetails('${emp.id}')">👁️</button>
+                <button class="btn-icon-action btn-verify-direct" onclick="toggleEmployerVerification('${emp.id}')">
+                  ${emp.verificationStatus === 'verified' ? 'Revoke' : '✓ Verify'}
+                </button>
+                <button class="btn-icon-action btn-danger-action" onclick="toggleUserStatus('employer', '${emp.id}')">${emp.isActive ? '🚫' : '✅'}</button>
+                <button class="btn-icon-action btn-danger-action" onclick="deleteRecord('employer', '${emp.id}')">🗑️</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // 2. Render Mobile Touch Cards
+      mcards.innerHTML = data.map(emp => {
+        let verifBadge = emp.verificationStatus === 'verified'
+          ? `<span class="status-pill-badge badge-verified">✓ Verified</span>`
+          : emp.verificationStatus === 'pending'
+          ? `<span class="status-pill-badge badge-pending">⏳ Pending</span>`
+          : `<span class="status-pill-badge badge-unverified">✕ Unverified</span>`;
+
+        const initials = emp.companyName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+        return `
+          <div class="mobile-data-card">
+            <div class="card-top-row">
+              <div class="card-identity">
+                <div class="user-cell-avatar avatar-employer">${initials}</div>
+                <div>
+                  <div style="font-weight:800; font-size:14.5px; color:var(--dark);">${emp.companyName}</div>
+                  <div style="font-size:11.5px; color:var(--muted);">Rep: ${emp.representative}</div>
+                  <div class="location-tag">📍 ${emp.municipality}, Marinduque</div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                ${verifBadge}
+                <div style="margin-top:4px;">
+                  <span class="status-pill-badge ${emp.isActive ? 'badge-active' : 'badge-inactive'}" style="font-size:10.5px;">${emp.isActive ? 'Active' : 'Suspended'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-info-grid">
+              <div class="card-info-item">
+                <strong>Industry</strong>
+                <span>${emp.industry}</span>
+              </div>
+              <div class="card-info-item">
+                <strong>Company Size</strong>
+                <span>${emp.companySize} staff</span>
+              </div>
+              <div class="card-info-item">
+                <strong>Active Vacancies</strong>
+                <span style="color:var(--primary); font-weight:bold;">${emp.activeJobsCount} Jobs Posted</span>
+              </div>
+              <div class="card-info-item">
+                <strong>Total Applicants</strong>
+                <span style="font-weight:bold;">${emp.totalApplicants} Applied</span>
+              </div>
+            </div>
+
+            <div>
+              <strong style="font-size:11px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:4px;">Documents:</strong>
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                ${emp.businessPermitUrl ? `<button class="doc-pill-btn" onclick="previewDoc('${emp.companyName}', 'Permit', '${emp.businessPermitUrl}')">📄 Business Permit</button>` : `<span class="doc-pill-btn missing">✕ Missing Permit</span>`}
+                ${emp.dtiSecUrl ? `<button class="doc-pill-btn" onclick="previewDoc('${emp.companyName}', 'DTI/SEC', '${emp.dtiSecUrl}')">📑 DTI/SEC</button>` : `<span class="doc-pill-btn missing">✕ Missing DTI</span>`}
+              </div>
+            </div>
+
+            <div class="card-actions-row">
+              <button class="btn-touch-action primary" onclick="viewEmployerDetails('${emp.id}')">
+                👁️ View Profile
+              </button>
+              <button class="btn-touch-action success" onclick="toggleEmployerVerification('${emp.id}')">
+                ${emp.verificationStatus === 'verified' ? 'Revoke' : '✓ Verify'}
+              </button>
+              <button class="btn-touch-action danger" onclick="toggleUserStatus('employer', '${emp.id}')">
+                ${emp.isActive ? '🚫 Deactivate' : '✅ Reactivate'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('pagination-info-employers').textContent = `Showing 1 to ${data.length} of ${data.length} employers`;
+      document.getElementById('nav-badge-employers').textContent = employersData.length;
+      document.getElementById('mbadge-emp').textContent = employersData.length;
+      document.getElementById('tab-pill-employers').textContent = employersData.length;
+      document.getElementById('metric-total-employers').textContent = employersData.length;
+    }
+
+    /* ==========================================================================
+       RENDER JOBSEEKERS (TABLE & MOBILE TOUCH CARDS)
+       ========================================================================== */
+    function renderJobseekersTable(data = jobseekersData) {
+      const tbody = document.getElementById('tbody-jobseekers');
+      const mcards = document.getElementById('mcards-jobseekers');
+      if (!tbody || !mcards) return;
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="admin-empty-state"><p>No jobseekers found matching criteria.</p></td></tr>`;
+        mcards.innerHTML = `<div class="admin-empty-state"><p>No jobseekers found matching criteria.</p></div>`;
+        document.getElementById('pagination-info-jobseekers').textContent = `Showing 0 of 0 jobseekers`;
+        return;
+      }
+
+      // 1. Render Desktop Table Rows
+      tbody.innerHTML = data.map(js => {
+        let availBadge = js.availabilityStatus === 'Actively Looking' 
+          ? `<span class="status-pill-badge badge-active">🟢 Looking</span>`
+          : js.availabilityStatus === 'Open to Offers'
+          ? `<span class="status-pill-badge" style="background:#e0f2fe; color:#0369a1;">🔵 Open</span>`
+          : `<span class="status-pill-badge" style="background:#ede9fe; color:#6d28d9;">🟣 Employed</span>`;
+
+        const initials = js.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+        const skillTagsHtml = js.skills.slice(0, 3).map(sk => `<span class="skill-tag-sm">${sk}</span>`).join('') + 
+          (js.skills.length > 3 ? `<span class="skill-tag-sm highlight">+${js.skills.length - 3}</span>` : '');
+
+        return `
+          <tr>
+            <td><input type="checkbox" value="${js.id}" /></td>
+            <td>
+              <div class="user-identity-cell">
+                <div class="user-cell-avatar avatar-resident">${initials}</div>
+                <div class="user-cell-text">
+                  <div class="user-primary-name">${js.name}</div>
+                  <div class="user-subtext">${js.email} • ${js.phone}</div>
+                  <div class="location-tag">📍 ${js.barangay}, ${js.municipality}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <strong>${js.desiredJobTitle}</strong>
+              <div class="user-subtext">${js.workExperience}</div>
+            </td>
+            <td>
+              <div><strong>${js.educationalAttainment}</strong></div>
+              <div class="user-subtext">${js.degree || 'General'}</div>
+            </td>
+            <td><div class="skills-tags-cluster">${skillTagsHtml}</div></td>
+            <td>${availBadge}</td>
+            <td>
+              <strong>${js.totalApplications}</strong> Applied
+              <div class="user-subtext" style="color:var(--success-dark);">${js.shortlistedCount} Shortlisted</div>
+            </td>
+            <td>
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <a href="javascript:void(0)" class="doc-pill-btn" onclick="previewDoc('${js.name}', 'Resume', '${js.resumeUrl}')">📄 Resume</a>
+                <span class="user-subtext" style="font-size:11px;">Profile: ${js.profileCompleteness}%</span>
+              </div>
+            </td>
+            <td><span class="status-pill-badge ${js.isActive ? 'badge-active' : 'badge-inactive'}">${js.isActive ? 'Active' : 'Inactive'}</span></td>
+            <td>
+              <div class="table-action-btns">
+                <button class="btn-icon-action" title="View Profile" onclick="viewJobseekerDetails('${js.id}')">👁️</button>
+                <button class="btn-icon-action" title="Send Notice" onclick="showToast('Notification sent to ${js.name}', 'info')">✉️</button>
+                <button class="btn-icon-action btn-danger-action" onclick="toggleUserStatus('jobseeker', '${js.id}')">${js.isActive ? '🚫' : '✅'}</button>
+                <button class="btn-icon-action btn-danger-action" onclick="deleteRecord('jobseeker', '${js.id}')">🗑️</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // 2. Render Mobile Touch Cards
+      mcards.innerHTML = data.map(js => {
+        let availBadge = js.availabilityStatus === 'Actively Looking' 
+          ? `<span class="status-pill-badge badge-active" style="font-size:11px;">🟢 Actively Looking</span>`
+          : js.availabilityStatus === 'Open to Offers'
+          ? `<span class="status-pill-badge" style="background:#e0f2fe; color:#0369a1; font-size:11px;">🔵 Open to Offers</span>`
+          : `<span class="status-pill-badge" style="background:#ede9fe; color:#6d28d9; font-size:11px;">🟣 Employed</span>`;
+
+        const initials = js.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+        return `
+          <div class="mobile-data-card">
+            <div class="card-top-row">
+              <div class="card-identity">
+                <div class="user-cell-avatar avatar-resident">${initials}</div>
+                <div>
+                  <div style="font-weight:800; font-size:14.5px; color:var(--dark);">${js.name}</div>
+                  <div style="font-size:12px; color:var(--primary); font-weight:700;">${js.desiredJobTitle}</div>
+                  <div class="location-tag">📍 ${js.barangay}, ${js.municipality}</div>
+                </div>
+              </div>
+              <div>${availBadge}</div>
+            </div>
+
+            <div class="card-info-grid">
+              <div class="card-info-item">
+                <strong>Education</strong>
+                <span>${js.educationalAttainment}</span>
+              </div>
+              <div class="card-info-item">
+                <strong>Experience Tier</strong>
+                <span>${js.workExperience}</span>
+              </div>
+              <div class="card-info-item">
+                <strong>Applications</strong>
+                <span>${js.totalApplications} total (${js.shortlistedCount} shortlisted)</span>
+              </div>
+              <div class="card-info-item">
+                <strong>Profile Completeness</strong>
+                <span style="color:var(--success-dark); font-weight:bold;">${js.profileCompleteness}% Complete</span>
+              </div>
+            </div>
+
+            <div>
+              <strong style="font-size:11px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:4px;">Skills:</strong>
+              <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                ${js.skills.map(sk => `<span class="skill-tag-sm highlight">${sk}</span>`).join('')}
+              </div>
+            </div>
+
+            <div class="card-actions-row">
+              <button class="btn-touch-action primary" onclick="viewJobseekerDetails('${js.id}')">
+                👁️ View Profile &amp; CV
+              </button>
+              <button class="btn-touch-action" onclick="previewDoc('${js.name}', 'Resume', '${js.resumeUrl}')">
+                📄 Resume PDF
+              </button>
+              <button class="btn-touch-action danger" style="flex:0.5;" onclick="toggleUserStatus('jobseeker', '${js.id}')">
+                ${js.isActive ? '🚫' : '✅'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('pagination-info-jobseekers').textContent = `Showing 1 to ${data.length} of ${data.length} jobseekers`;
+      document.getElementById('nav-badge-jobseekers').textContent = jobseekersData.length;
+      document.getElementById('mbadge-js').textContent = jobseekersData.length;
+      document.getElementById('tab-pill-jobseekers').textContent = jobseekersData.length;
+      document.getElementById('metric-total-jobseekers').textContent = jobseekersData.length;
+    }
+
+    /* ==========================================================================
+       RENDER AUDIT TRAIL LOGS (TABLE & MOBILE TOUCH CARDS)
+       ========================================================================== */
+    function renderAuditLogsTable(data = auditLogsData) {
+      const tbody = document.getElementById('tbody-audit');
+      const mcards = document.getElementById('mcards-audit');
+      if (!tbody || !mcards) return;
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="admin-empty-state"><p>No audit events found.</p></td></tr>`;
+        mcards.innerHTML = `<div class="admin-empty-state"><p>No audit events found.</p></div>`;
+        document.getElementById('pagination-info-audit').textContent = `Showing 0 of 0 events`;
+        return;
+      }
+
+      // 1. Desktop Table
+      tbody.innerHTML = data.map(log => {
+        let catClass = 'cat-admin';
+        if (log.category === 'auth') catClass = 'cat-auth';
+        if (log.category === 'job') catClass = 'cat-job';
+        if (log.category === 'app') catClass = 'cat-app';
+        if (log.category === 'verif') catClass = 'cat-verif';
+        if (log.category === 'security') catClass = 'cat-security';
+        if (log.category === 'profile') catClass = 'cat-profile';
+
+        let roleClass = 'role-admin';
+        if (log.actor.role === 'employer') roleClass = 'role-employer';
+        if (log.actor.role === 'resident') roleClass = 'role-resident';
+        if (log.actor.role === 'system') roleClass = 'role-system';
+
+        let sevIcon = log.severity === 'danger' ? '🔴' : log.severity === 'warning' ? '🟡' : log.severity === 'info' ? '🔵' : '🟢';
+
+        const dateObj = new Date(log.timestamp);
+        const timeFormatted = dateObj.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const dateFormatted = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        return `
+          <tr>
+            <td class="log-timestamp-cell">
+              <div class="log-exact-time">${timeFormatted}</div>
+              <div class="log-relative-time">${dateFormatted} • ${log.relative}</div>
+            </td>
+            <td>
+              <div class="user-identity-cell">
+                <div class="user-cell-avatar avatar-${log.actor.role}" style="width:30px; height:30px; font-size:11px;">
+                  ${log.actor.avatar}
+                </div>
+                <div class="user-cell-text">
+                  <strong style="font-size:13px;">${log.actor.name}</strong>
+                  <div class="user-subtext">${log.actor.email}</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="badge-role ${roleClass}">${log.actor.role}</span></td>
+            <td><span class="audit-category-badge ${catClass}">${log.category}</span></td>
+            <td>
+              <strong>${log.action}</strong>
+              <div class="user-subtext">${log.description}</div>
+            </td>
+            <td><code style="font-size:11.5px; background:#f1f5f9; padding:2px 5px; border-radius:3px;">${log.resource}</code></td>
+            <td>
+              <span class="log-ip-badge">${log.ip}</span>
+              <div class="user-subtext" style="font-size:11px;">📍 ${log.location}</div>
+            </td>
+            <td><small style="color:var(--slate); font-size:11.5px;">${log.device}</small></td>
+            <td><span class="severity-indicator sev-${log.severity}">${sevIcon} ${log.severity}</span></td>
+            <td style="text-align: right;">
+              <button class="btn-icon-action" title="Inspect" onclick="inspectAuditLog('${log.id}')">🔍</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // 2. Mobile Cards
+      mcards.innerHTML = data.map(log => {
+        let catClass = 'cat-admin';
+        if (log.category === 'auth') catClass = 'cat-auth';
+        if (log.category === 'job') catClass = 'cat-job';
+        if (log.category === 'app') catClass = 'cat-app';
+        if (log.category === 'verif') catClass = 'cat-verif';
+        if (log.category === 'security') catClass = 'cat-security';
+        if (log.category === 'profile') catClass = 'cat-profile';
+
+        let sevIcon = log.severity === 'danger' ? '🔴' : log.severity === 'warning' ? '🟡' : log.severity === 'info' ? '🔵' : '🟢';
+
+        return `
+          <div class="mobile-data-card">
+            <div class="card-top-row">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div class="user-cell-avatar avatar-${log.actor.role}" style="width:32px; height:32px; font-size:12px;">${log.actor.avatar}</div>
+                <div>
+                  <strong style="font-size:13.5px; color:var(--dark);">${log.actor.name}</strong>
+                  <div style="font-size:11px; color:var(--muted);">${log.actor.role.toUpperCase()} • ${log.relative}</div>
+                </div>
+              </div>
+              <span class="audit-category-badge ${catClass}">${log.category}</span>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px; font-size:12.5px;">
+              <strong style="color:var(--dark); display:block; margin-bottom:2px;">${log.action}</strong>
+              <p style="margin:0; color:var(--slate);">${log.description}</p>
+              <div style="margin-top:6px; font-size:11.5px; color:var(--muted);">
+                Target: <code>${log.resource}</code> • IP: <code>${log.ip} (${log.location})</code>
+              </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-light); padding-top:8px;">
+              <span class="severity-indicator sev-${log.severity}" style="font-size:11.5px;">${sevIcon} ${log.severity.toUpperCase()}</span>
+              <button class="btn-utility-action" style="padding:4px 12px; font-size:12px;" onclick="inspectAuditLog('${log.id}')">
+                🔍 Inspect Payload
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('pagination-info-audit').textContent = `Showing 1 to ${data.length} of ${data.length} events`;
+      document.getElementById('nav-badge-audit').textContent = auditLogsData.length;
+      document.getElementById('tab-pill-audit').textContent = auditLogsData.length;
+      document.getElementById('metric-audit-count').textContent = auditLogsData.length;
+    }
+
+    /* ==========================================================================
+       RENDER VERIFICATION QUEUE
+       ========================================================================== */
+    function renderVerificationQueue() {
+      const container = document.getElementById('verification-queue-grid');
+      if (!container) return;
+
+      const pendingList = employersData.filter(e => e.verificationStatus === 'pending' || e.verificationStatus === 'unverified');
+
+      if (pendingList.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align:center; padding: 32px; background:#f8fafc; border-radius:12px;">
+            <div style="font-size:36px; margin-bottom:6px;">✅</div>
+            <h4>Verification Queue Clear!</h4>
+            <p style="color:var(--muted); font-size:13px;">All employer accreditation permits have been processed.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = pendingList.map(emp => `
+        <div style="background: #ffffff; border: 1.5px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; box-shadow: var(--shadow-sm);">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+            <div>
+              <span class="status-pill-badge badge-pending" style="margin-bottom:6px;">⏳ Pending Inspection</span>
+              <h4 style="font-size:16px; color:var(--dark); margin:0;">${emp.companyName}</h4>
+              <p style="font-size:12px; color:var(--muted); margin:0;">${emp.industry} • 📍 ${emp.municipality}</p>
+            </div>
+            <div class="user-cell-avatar avatar-employer" style="width:38px; height:38px; font-size:14px;">
+              ${emp.companyName.substring(0, 2).toUpperCase()}
+            </div>
+          </div>
+
+          <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px; margin-bottom:14px; font-size:12px;">
+            <div><strong>Representative:</strong> ${emp.representative}</div>
+            <div><strong>Email:</strong> ${emp.email} • ${emp.phone}</div>
+            <div><strong>Address:</strong> ${emp.address}</div>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <strong style="font-size:11.5px; text-transform:uppercase; color:var(--slate); display:block; margin-bottom:6px;">Compliance Files:</strong>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              ${emp.businessPermitUrl 
+                ? `<button class="doc-pill-btn" onclick="previewDoc('${emp.companyName}', 'Permit', '${emp.businessPermitUrl}')">📄 ${emp.businessPermitUrl}</button>`
+                : `<span class="doc-pill-btn missing">✕ Missing Permit</span>`}
+              ${emp.dtiSecUrl 
+                ? `<button class="doc-pill-btn" onclick="previewDoc('${emp.companyName}', 'DTI/SEC', '${emp.dtiSecUrl}')">📑 ${emp.dtiSecUrl}</button>`
+                : `<span class="doc-pill-btn missing">✕ Missing DTI</span>`}
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; justify-content:flex-end; border-top:1px solid var(--border-light); padding-top:12px;">
+            <button class="btn-utility-action" style="flex:1; color:var(--danger); border-color:#fca5a5;" onclick="rejectEmployerPermit('${emp.id}')">
+              ✕ Reject
+            </button>
+            <button class="btn-hero-action btn-accent" style="flex:1; justify-content:center; font-size:12.5px; padding:7px 14px;" onclick="approveEmployerPermit('${emp.id}')">
+              ✓ Verify
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('metric-pending-verif').textContent = pendingList.length;
+    }
+
+    /* ==========================================================================
+       INTERACTIVE SEARCH & FILTERING FUNCTIONS
+       ========================================================================== */
+    function filterEmployers() {
+      const search = (document.getElementById('search-employers')?.value || '').toLowerCase();
+      const verif = document.getElementById('filter-emp-verification')?.value || '';
+      const industry = document.getElementById('filter-emp-industry')?.value || '';
+      const municipality = document.getElementById('filter-emp-municipality')?.value || '';
+      const status = document.getElementById('filter-emp-status')?.value || '';
+
+      const filtered = employersData.filter(emp => {
+        const matchesSearch = !search || 
+          emp.companyName.toLowerCase().includes(search) ||
+          emp.representative.toLowerCase().includes(search) ||
+          emp.email.toLowerCase().includes(search) ||
+          emp.municipality.toLowerCase().includes(search);
+
+        const matchesVerif = !verif || emp.verificationStatus === verif;
+        const matchesIndustry = !industry || emp.industry === industry;
+        const matchesMuni = !municipality || emp.municipality === municipality;
+        const matchesStatus = !status || (status === 'active' ? emp.isActive : !emp.isActive);
+
+        return matchesSearch && matchesVerif && matchesIndustry && matchesMuni && matchesStatus;
+      });
+
+      renderEmployersTable(filtered);
+    }
+
+    function resetEmployerFilters() {
+      if (document.getElementById('search-employers')) document.getElementById('search-employers').value = '';
+      if (document.getElementById('filter-emp-verification')) document.getElementById('filter-emp-verification').value = '';
+      if (document.getElementById('filter-emp-industry')) document.getElementById('filter-emp-industry').value = '';
+      if (document.getElementById('filter-emp-municipality')) document.getElementById('filter-emp-municipality').value = '';
+      if (document.getElementById('filter-emp-status')) document.getElementById('filter-emp-status').value = '';
+      renderEmployersTable(employersData);
+      showToast('Employer filters reset', 'info');
+    }
+
+    function filterJobseekers() {
+      const search = (document.getElementById('search-jobseekers')?.value || '').toLowerCase();
+      const education = document.getElementById('filter-js-education')?.value || '';
+      const experience = document.getElementById('filter-js-experience')?.value || '';
+      const availability = document.getElementById('filter-js-availability')?.value || '';
+      const municipality = document.getElementById('filter-js-municipality')?.value || '';
+
+      const filtered = jobseekersData.filter(js => {
+        const matchesSearch = !search || 
+          js.name.toLowerCase().includes(search) ||
+          js.desiredJobTitle.toLowerCase().includes(search) ||
+          js.email.toLowerCase().includes(search) ||
+          js.skills.some(sk => sk.toLowerCase().includes(search));
+
+        const matchesEdu = !education || js.educationalAttainment === education;
+        const matchesExp = !experience || js.workExperience === experience;
+        const matchesAvail = !availability || js.availabilityStatus === availability;
+        const matchesMuni = !municipality || js.municipality === municipality;
+
+        return matchesSearch && matchesEdu && matchesExp && matchesAvail && matchesMuni;
+      });
+
+      renderJobseekersTable(filtered);
+    }
+
+    function resetJobseekerFilters() {
+      if (document.getElementById('search-jobseekers')) document.getElementById('search-jobseekers').value = '';
+      if (document.getElementById('filter-js-education')) document.getElementById('filter-js-education').value = '';
+      if (document.getElementById('filter-js-experience')) document.getElementById('filter-js-experience').value = '';
+      if (document.getElementById('filter-js-availability')) document.getElementById('filter-js-availability').value = '';
+      if (document.getElementById('filter-js-municipality')) document.getElementById('filter-js-municipality').value = '';
+      renderJobseekersTable(jobseekersData);
+      showToast('Jobseeker filters reset', 'info');
+    }
+
+    function filterAuditLogs() {
+      const search = (document.getElementById('search-audit')?.value || '').toLowerCase();
+      const category = document.getElementById('filter-audit-category')?.value || '';
+      const role = document.getElementById('filter-audit-role')?.value || '';
+      const severity = document.getElementById('filter-audit-severity')?.value || '';
+
+      const filtered = auditLogsData.filter(log => {
+        const matchesSearch = !search ||
+          log.actor.name.toLowerCase().includes(search) ||
+          log.actor.email.toLowerCase().includes(search) ||
+          log.action.toLowerCase().includes(search) ||
+          log.ip.toLowerCase().includes(search) ||
+          log.resource.toLowerCase().includes(search);
+
+        const matchesCategory = !category || log.category === category;
+        const matchesRole = !role || log.actor.role === role;
+        const matchesSeverity = !severity || log.severity === severity;
+
+        return matchesSearch && matchesCategory && matchesRole && matchesSeverity;
+      });
+
+      renderAuditLogsTable(filtered);
+    }
+
+    function resetAuditFilters() {
+      if (document.getElementById('search-audit')) document.getElementById('search-audit').value = '';
+      if (document.getElementById('filter-audit-category')) document.getElementById('filter-audit-category').value = '';
+      if (document.getElementById('filter-audit-role')) document.getElementById('filter-audit-role').value = '';
+      if (document.getElementById('filter-audit-severity')) document.getElementById('filter-audit-severity').value = '';
+      renderAuditLogsTable(auditLogsData);
+      showToast('Audit filters reset', 'info');
+    }
+
+    /* ==========================================================================
+       ACTION HANDLERS & MODAL CONTROLS
+       ========================================================================== */
+    function viewEmployerDetails(empId) {
+      const emp = employersData.find(e => e.id === empId);
+      if (!emp) return;
+
+      document.getElementById('modal-emp-title').innerHTML = `🏢 ${emp.companyName}`;
+      document.getElementById('modal-emp-body').innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div>
+            <h4 style="font-size:17px; color:var(--dark); margin-bottom:4px;">${emp.companyName}</h4>
+            <p style="color:var(--muted); font-size:13px; margin-bottom:10px;">Industry: <strong>${emp.industry}</strong> • Size: <strong>${emp.companySize}</strong></p>
+            <p style="line-height:1.5; color:var(--slate); font-size:13px; margin-bottom:14px;">${emp.about}</p>
+            
+            <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:12px; font-size:12.5px;">
+              <div style="margin-bottom:4px;"><strong>Representative:</strong> ${emp.representative}</div>
+              <div style="margin-bottom:4px;"><strong>Email:</strong> ${emp.email}</div>
+              <div style="margin-bottom:4px;"><strong>Phone:</strong> ${emp.phone}</div>
+              <div><strong>Address:</strong> ${emp.address}</div>
+            </div>
+          </div>
+
+          <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <h5 style="margin:0; font-size:13.5px;">Accreditation Status</h5>
+              ${emp.verificationStatus === 'verified' 
+                ? '<span class="status-pill-badge badge-verified">✓ Verified</span>'
+                : '<span class="status-pill-badge badge-pending">⏳ Pending</span>'}
+            </div>
+            <div style="font-size:12.5px; color:var(--slate); margin-bottom:4px;"><strong>Tax ID:</strong> ${emp.taxId}</div>
+            <div style="font-size:12.5px; color:var(--slate); margin-bottom:12px;"><strong>Jobs:</strong> ${emp.activeJobsCount} Active • <strong>Applicants:</strong> ${emp.totalApplicants}</div>
+
+            <button class="btn-hero-action btn-accent" style="width:100%; justify-content:center; font-size:13px;" onclick="toggleEmployerVerification('${emp.id}')">
+              ${emp.verificationStatus === 'verified' ? 'Revoke Verification' : '✓ Set to Verified'}
+            </button>
+          </div>
+
+          <div style="border-top:1px solid var(--border-color); padding-top:12px;">
+            <h5 style="margin-bottom:8px; font-size:13.5px;">Compliance Documents</h5>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+              <div class="document-preview-card">
+                <div class="doc-preview-icon">📄</div>
+                <strong style="font-size:12px; display:block;">Mayor's Permit 2026</strong>
+                <p style="font-size:11px; color:var(--muted); margin:2px 0 8px;">${emp.businessPermitUrl || 'None'}</p>
+                ${emp.businessPermitUrl ? `<button class="btn-utility-action" style="padding:4px 10px; font-size:11px;" onclick="previewDoc('${emp.companyName}', 'Permit', '${emp.businessPermitUrl}')">Preview</button>` : ''}
+              </div>
+
+              <div class="document-preview-card">
+                <div class="doc-preview-icon">📑</div>
+                <strong style="font-size:12px; display:block;">DTI / SEC</strong>
+                <p style="font-size:11px; color:var(--muted); margin:2px 0 8px;">${emp.dtiSecUrl || 'None'}</p>
+                ${emp.dtiSecUrl ? `<button class="btn-utility-action" style="padding:4px 10px; font-size:11px;" onclick="previewDoc('${emp.companyName}', 'DTI/SEC', '${emp.dtiSecUrl}')">Preview</button>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      openModal('modal-employer-details');
+    }
+
+    function viewJobseekerDetails(jsId) {
+      const js = jobseekersData.find(j => j.id === jsId);
+      if (!js) return;
+
+      document.getElementById('modal-js-title').innerHTML = `👤 ${js.name}`;
+      document.getElementById('modal-js-body').innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div>
+            <h4 style="font-size:17px; color:var(--dark); margin-bottom:2px;">${js.name}</h4>
+            <p style="color:var(--primary); font-weight:700; font-size:13.5px; margin-bottom:10px;">Desired: ${js.desiredJobTitle}</p>
+            
+            <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:12px; font-size:12.5px; margin-bottom:12px;">
+              <div style="margin-bottom:4px;"><strong>Email:</strong> ${js.email} • ${js.phone}</div>
+              <div style="margin-bottom:4px;"><strong>Location:</strong> ${js.barangay}, ${js.municipality}</div>
+              <div><strong>Education:</strong> ${js.educationalAttainment} (${js.degree})</div>
+            </div>
+
+            <h5 style="margin-bottom:6px; font-size:13px;">Skills Matrix</h5>
+            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px;">
+              ${js.skills.map(sk => `<span class="skill-tag-sm highlight" style="padding:3px 8px; font-size:11.5px;">${sk}</span>`).join('')}
+            </div>
+          </div>
+
+          <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:12px;">
+            <h5 style="margin-bottom:8px; font-size:13px;">Applications &amp; Attached Files</h5>
+            <div style="font-size:12.5px; color:var(--slate); margin-bottom:10px;">
+              <strong>${js.totalApplications}</strong> Applied • <strong>${js.shortlistedCount}</strong> Shortlisted • <strong>${js.hiredCount}</strong> Hired
+            </div>
+
+            <div style="display:flex; gap:8px;">
+              <button class="doc-pill-btn" style="flex:1; justify-content:center;" onclick="previewDoc('${js.name}', 'Resume', '${js.resumeUrl}')">
+                📄 View Resume
+              </button>
+              <button class="doc-pill-btn" style="flex:1; justify-content:center;" onclick="previewDoc('${js.name}', 'ID', '${js.validIdUrl}')">
+                🆔 Government ID
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      openModal('modal-jobseeker-details');
+    }
+
+    function toggleEmployerVerification(empId) {
+      const emp = employersData.find(e => e.id === empId);
+      if (!emp) return;
+
+      const nextStatus = emp.verificationStatus === 'verified' ? 'unverified' : 'verified';
+      emp.verificationStatus = nextStatus;
+
+      appendAuditLog({
+        actor: { name: "Admin Officer", email: "admin@peso.marinduque.gov.ph", role: "admin", avatar: "AD" },
+        category: "verif",
+        action: `Employer Verification Updated (${nextStatus.toUpperCase()})`,
+        description: `Set verification status of '${emp.companyName}' to ${nextStatus}.`,
+        resource: `User #${emp.id}`,
+        ip: "120.28.188.10",
+        location: "Boac, Marinduque",
+        device: "Chrome 128 / Mobile",
+        severity: nextStatus === 'verified' ? 'success' : 'warning',
+        payload: { targetId: emp.id, companyName: emp.companyName, status: nextStatus }
+      });
+
+      renderEmployersTable();
+      renderVerificationQueue();
+      showToast(`Updated verification for ${emp.companyName} to ${nextStatus}`, 'success');
+      closeModal('modal-employer-details');
+    }
+
+    function approveEmployerPermit(empId) {
+      toggleEmployerVerification(empId);
+    }
+
+    function rejectEmployerPermit(empId) {
+      const reason = prompt("Please enter remarks for rejection:", "Please submit clear scanned copy of 2026 Mayor's Permit.");
+      if (reason === null) return;
+
+      const emp = employersData.find(e => e.id === empId);
+      if (!emp) return;
+
+      emp.verificationStatus = 'unverified';
+
+      appendAuditLog({
+        actor: { name: "Admin Officer", email: "admin@peso.marinduque.gov.ph", role: "admin", avatar: "AD" },
+        category: "verif",
+        action: `Employer Permit Rejected`,
+        description: `Rejected permit for '${emp.companyName}': ${reason}`,
+        resource: `User #${emp.id}`,
+        ip: "120.28.188.10",
+        location: "Boac, Marinduque",
+        device: "Chrome 128 / Mobile",
+        severity: 'danger',
+        payload: { targetId: emp.id, companyName: emp.companyName, rejectionReason: reason }
+      });
+
+      renderEmployersTable();
+      renderVerificationQueue();
+      showToast(`Permit for ${emp.companyName} rejected with remarks.`, 'warning');
+    }
+
+    function toggleUserStatus(type, id) {
+      const targetList = type === 'employer' ? employersData : jobseekersData;
+      const user = targetList.find(u => u.id === id);
+      if (!user) return;
+
+      user.isActive = !user.isActive;
+      const stateStr = user.isActive ? 'Reactivated' : 'Deactivated';
+
+      appendAuditLog({
+        actor: { name: "Admin Officer", email: "admin@peso.marinduque.gov.ph", role: "admin", avatar: "AD" },
+        category: "admin",
+        action: `User ${stateStr}`,
+        description: `Admin ${stateStr.toLowerCase()} ${type} account '${user.name || user.companyName}'.`,
+        resource: `User #${user.id}`,
+        ip: "120.28.188.10",
+        location: "Boac, Marinduque",
+        device: "Chrome 128 / Mobile",
+        severity: user.isActive ? 'success' : 'warning',
+        payload: { targetId: user.id, type, isActive: user.isActive }
+      });
+
+      if (type === 'employer') renderEmployersTable();
+      else renderJobseekersTable();
+
+      showToast(`${user.name || user.companyName} has been ${stateStr.toLowerCase()}.`, 'info');
+    }
+
+    function deleteRecord(type, id) {
+      const targetList = type === 'employer' ? employersData : jobseekersData;
+      const index = targetList.findIndex(u => u.id === id);
+      if (index === -1) return;
+
+      const user = targetList[index];
+      if (!confirm(`Permanently delete '${user.name || user.companyName}' from STRAMPESO?`)) {
+        return;
+      }
+
+      targetList.splice(index, 1);
+
+      appendAuditLog({
+        actor: { name: "Admin Officer", email: "admin@peso.marinduque.gov.ph", role: "admin", avatar: "AD" },
+        category: "admin",
+        action: `User Account Deleted`,
+        description: `Permanently removed ${type} record '${user.name || user.companyName}'.`,
+        resource: `User #${user.id}`,
+        ip: "120.28.188.10",
+        location: "Boac, Marinduque",
+        device: "Chrome 128 / Mobile",
+        severity: 'danger',
+        payload: { targetId: user.id, type, deletedName: user.name || user.companyName }
+      });
+
+      if (type === 'employer') renderEmployersTable();
+      else renderJobseekersTable();
+
+      showToast(`Account deleted successfully.`, 'error');
+    }
+
+    let activeInspectedLog = null;
+    function inspectAuditLog(logId) {
+      const log = auditLogsData.find(l => l.id === logId);
+      if (!log) return;
+
+      activeInspectedLog = log;
+      document.getElementById('modal-audit-body').innerHTML = `
+        <div style="margin-bottom:12px;">
+          <h4 style="font-size:15px; color:var(--dark); margin-bottom:2px;">${log.action}</h4>
+          <p style="color:var(--muted); font-size:12.5px;">${log.description}</p>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px; font-size:12px; margin-bottom:12px;">
+          <div><strong>ID:</strong> <code>${log.id}</code> • <strong>Time:</strong> <code>${log.timestamp}</code></div>
+          <div><strong>Actor:</strong> ${log.actor.name} (${log.actor.role})</div>
+          <div><strong>IP:</strong> ${log.ip} (${log.location})</div>
+        </div>
+
+        <h5 style="margin-bottom:4px; font-size:12.5px;">JSON Payload:</h5>
+        <pre style="background:#1e293b; color:#f8fafc; padding:10px; border-radius:var(--radius-sm); font-size:11.5px; font-family:var(--font-mono); overflow-x:auto; max-height:160px;">${JSON.stringify(log, null, 2)}</pre>
+      `;
+
+      openModal('modal-audit-inspect');
+    }
+
+    function copyLogJson() {
+      if (!activeInspectedLog) return;
+      navigator.clipboard.writeText(JSON.stringify(activeInspectedLog, null, 2))
+        .then(() => showToast('Event JSON payload copied to clipboard!', 'success'))
+        .catch(() => showToast('Failed to copy', 'error'));
+    }
+
+    function previewDoc(ownerName, docType, filename) {
+      alert(`[DOCUMENT PREVIEWER]\n\nOwner: ${ownerName}\nDocument: ${docType}\nFile: ${filename}\nStatus: Verified on STRAMPESO Storage`);
+    }
+
+    function appendAuditLog(newLog) {
+      newLog.id = 'log-' + (1000 + auditLogsData.length + 1);
+      newLog.timestamp = newLog.timestamp || new Date().toISOString();
+      newLog.relative = 'Just now';
+      auditLogsData.unshift(newLog);
+      renderAuditLogsTable();
+    }
+
+    function triggerSimulatedEvent() {
+      const mockEvents = [
+        {
+          actor: { name: "Maria Theresa Santos", email: "maria.santos@gmail.com", role: "resident", avatar: "MS" },
+          category: "app",
+          action: "Shortlisted for Interview",
+          description: "Bellas Beach Resort moved Maria's application to Shortlisted status.",
+          resource: "Application #APP-8842",
+          ip: "112.198.74.22",
+          location: "Gasan, Marinduque",
+          device: "Safari / iOS 17.5",
+          severity: "success",
+          payload: { status: "shortlisted", interviewDate: "2026-09-02" }
+        },
+        {
+          actor: { name: "Juan Dela Cruz", email: "juan.delacruz@email.com", role: "resident", avatar: "JD" },
+          category: "auth",
+          action: "Password Reset Requested",
+          description: "User requested password reset link via registered email.",
+          resource: "Auth Service #PWD-RESET",
+          ip: "112.198.74.88",
+          location: "Boac, Marinduque",
+          device: "Safari / iOS 17.5",
+          severity: "info",
+          payload: { channel: "email", expiry: "15 mins" }
+        }
+      ];
+
+      const randomEvent = mockEvents[Math.floor(Math.random() * mockEvents.length)];
+      appendAuditLog(randomEvent);
+      showToast(`⚡ Live event simulated: ${randomEvent.action}`, 'success');
+    }
+
+    /* ==========================================================================
+       EXPORT MODAL & CSV GENERATOR
+       ========================================================================== */
+    function openExportModal(defaultType = 'audit') {
+      const sel = document.getElementById('export-dataset-select');
+      if (sel) sel.value = defaultType;
+      openModal('modal-export-data');
+    }
+
+    function executeCsvExport() {
+      const type = document.getElementById('export-dataset-select').value;
+      let csvContent = "";
+      let filename = `STRAMPESO_${type.toUpperCase()}_EXPORT_${new Date().toISOString().slice(0, 10)}.csv`;
+
+      if (type === 'employers') {
+        const headers = ["ID", "Company Name", "Industry", "Representative", "Email", "Phone", "Municipality", "Verification", "Active Jobs", "Applicants", "Status", "Joined Date"];
+        const rows = employersData.map(e => [
+          `"${e.id}"`, `"${e.companyName}"`, `"${e.industry}"`, `"${e.representative}"`, `"${e.email}"`, `"${e.phone}"`, `"${e.municipality}"`, `"${e.verificationStatus}"`, e.activeJobsCount, e.totalApplicants, `"${e.isActive ? 'Active' : 'Inactive'}"`, `"${e.joinedDate}"`
+        ]);
+        csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      } else if (type === 'jobseekers') {
+        const headers = ["ID", "Full Name", "Email", "Phone", "Municipality", "Barangay", "Desired Position", "Education", "Experience", "Availability", "Applications", "Status", "Joined Date"];
+        const rows = jobseekersData.map(j => [
+          `"${j.id}"`, `"${j.name}"`, `"${j.email}"`, `"${j.phone}"`, `"${j.municipality}"`, `"${j.barangay}"`, `"${j.desiredJobTitle}"`, `"${j.educationalAttainment}"`, `"${j.workExperience}"`, `"${j.availabilityStatus}"`, j.totalApplications, `"${j.isActive ? 'Active' : 'Inactive'}"`, `"${j.joinedDate}"`
+        ]);
+        csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      } else {
+        const headers = ["Log ID", "Timestamp", "Actor Name", "Actor Email", "Role", "Category", "Action", "Description", "Resource", "IP Address", "Location", "Device", "Severity"];
+        const rows = auditLogsData.map(l => [
+          `"${l.id}"`, `"${l.timestamp}"`, `"${l.actor.name}"`, `"${l.actor.email}"`, `"${l.actor.role}"`, `"${l.category}"`, `"${l.action}"`, `"${l.description}"`, `"${l.resource}"`, `"${l.ip}"`, `"${l.location}"`, `"${l.device}"`, `"${l.severity}"`
+        ]);
+        csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      }
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      closeModal('modal-export-data');
+      showToast(`Exported ${type.toUpperCase()} dataset successfully!`, 'success');
+    }
+
+    function openNewEmployerModal() {
+      const name = prompt("Enter Company Name:");
+      if (!name) return;
+      const rep = prompt("Enter Contact Representative Name:");
+      const email = prompt("Enter Official Email Address:");
+      const muni = prompt("Enter Municipality (Boac, Gasan, Mogpog, Santa Cruz, Torrijos, Buenavista):", "Boac");
+
+      const newEmp = {
+        id: "emp-" + (employersData.length + 1).toString().padStart(3, '0'),
+        companyName: name,
+        industry: "Information Technology",
+        companySize: "1-10",
+        representative: rep || "Representative",
+        email: email || "info@" + name.toLowerCase().replace(/\s+/g, '') + ".ph",
+        phone: "+63 912 345 6789",
+        municipality: muni || "Boac",
+        address: `${muni} Town Proper, Marinduque`,
+        verificationStatus: "pending",
+        businessPermitUrl: "BP-2026-" + muni.toUpperCase() + ".pdf",
+        dtiSecUrl: null,
+        taxId: "Pending",
+        activeJobsCount: 0,
+        totalApplicants: 0,
+        isActive: true,
+        joinedDate: new Date().toISOString().slice(0, 10),
+        about: "Newly registered company on STRAMPESO Marinduque."
+      };
+
+      employersData.unshift(newEmp);
+      appendAuditLog({
+        actor: { name: "Admin Officer", email: "admin@peso.marinduque.gov.ph", role: "admin", avatar: "AD" },
+        category: "admin",
+        action: "Registered New Employer",
+        description: `Admin created employer account for '${name}' in ${muni}.`,
+        resource: `User #${newEmp.id}`,
+        ip: "120.28.188.10",
+        location: "Boac, Marinduque",
+        device: "Chrome 128 / Mobile",
+        severity: "success",
+        payload: newEmp
+      });
+
+      renderEmployersTable();
+      renderVerificationQueue();
+      showToast(`Registered new employer: ${name}`, 'success');
+    }
+
+    function refreshCurrentTab() {
+      renderEmployersTable();
+      renderJobseekersTable();
+      renderAuditLogsTable();
+      renderVerificationQueue();
+      showToast('Dataset refreshed with real-time sync', 'info');
+    }
+
+    function printReport() {
+      window.print();
+    }
+
+    function toggleSelectAll(masterCheckbox, tableId) {
+      const table = document.getElementById(tableId);
+      if (!table) return;
+      const checkboxes = table.querySelectorAll('tbody input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+    }
+
+    /* ==========================================================================
+       MODAL UTILITIES
+       ========================================================================== */
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.add('active');
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.remove('active');
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.admin-modal-overlay.active').forEach(m => m.classList.remove('active'));
+      }
+    });
+
+    document.querySelectorAll('.admin-modal-overlay').forEach(overlay => {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.classList.remove('active');
+      });
+    });
+
+    /* ==========================================================================
+       TOAST SYSTEM
+       ========================================================================== */
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = `admin-toast-item toast-${type}`;
+      
+      let icon = '✓';
+      if (type === 'warning') icon = '⚠️';
+      if (type === 'error') icon = '✕';
+      if (type === 'info') icon = 'ℹ️';
+
+      toast.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:16px;">${icon}</span>
+          <span style="font-size:13.5px; font-weight:600;">${message}</span>
+        </div>
+        <button style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px;" onclick="this.parentElement.remove()">✕</button>
+      `;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    /* ==========================================================================
+       INITIALIZATION ON LOAD
+       ========================================================================== */
+    document.addEventListener('DOMContentLoaded', () => {
+      renderEmployersTable();
+      renderJobseekersTable();
+      renderAuditLogsTable();
+      renderVerificationQueue();
+    });
+  </script>
+</body>
+</html>

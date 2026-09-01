@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Portal — STRAM PESO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --green-deep:#1F7A34;
+    --green-mid:#2E9C3F;
+    --green-bright:#3CB54A;
+    --yellow:#FFC72C;
+    --yellow-soft:#FFE9A8;
+    --cream:#FAFBF6;
+    --ink:#1B2415;
+    --gray:#6B7280;
+    --line:#E7EBDF;
+    --white:#FFFFFF;
+    --danger:#DC2626;
+    --shadow: 0 10px 24px rgba(31,122,52,0.10), 0 2px 6px rgba(31,122,52,0.08);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--cream);
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+  }
+  .admin-wrap{
+    max-width:1100px;
+    margin:0 auto;
+    padding:28px 16px 60px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+  }
+  @media(max-width: 850px){
+    .admin-wrap{grid-template-columns:1fr;}
+  }
+
+  .header-full{
+    grid-column: 1 / -1;
+    margin-bottom:8px;
+  }
+  .board-title{
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    font-size:26px;
+    color:var(--green-deep);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0;
+  }
+  .board-title .dot{
+    width:10px;height:10px;border-radius:50%;
+    background:var(--yellow);
+    box-shadow:0 0 0 4px var(--yellow-soft);
+  }
+
+  /* ---- Form Card ---- */
+  .panel-card{
+    background:var(--white);
+    border-radius:18px;
+    border:1px solid var(--line);
+    box-shadow:var(--shadow);
+    padding:20px;
+    height:fit-content;
+  }
+  .panel-title{
+    font-family:'Baloo 2',sans-serif;
+    font-size:20px;
+    font-weight:700;
+    color:var(--green-deep);
+    margin:0 0 16px;
+  }
+  
+  .form-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  .full-width{grid-column:1 / -1;}
+
+  label{
+    display:block;
+    font-size:12px;
+    font-weight:700;
+    color:var(--green-deep);
+    margin-bottom:4px;
+    text-transform:uppercase;
+  }
+  input, select, textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    font-family:inherit;
+    font-size:13.5px;
+    background:var(--cream);
+  }
+  input:focus, select:focus, textarea:focus{
+    outline:none;
+    border-color:var(--green-bright);
+    background:var(--white);
+  }
+  textarea{resize:vertical; min-height:60px;}
+
+  .btn-group{
+    display:flex;
+    gap:10px;
+    margin-top:16px;
+  }
+  .btn{
+    flex:1;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    transition:0.2s ease;
+  }
+  .btn-primary{
+    background:linear-gradient(135deg,var(--green-bright),var(--green-deep));
+    color:var(--white);
+  }
+  .btn-secondary{
+    background:var(--line);
+    color:var(--ink);
+  }
+
+  /* ---- Manage List ---- */
+  .manage-list{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .item-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:12px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:var(--cream);
+  }
+  .item-info{
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .item-thumb{
+    width:48px;height:48px;
+    border-radius:8px;
+    object-fit:cover;
+    background:var(--line);
+  }
+  .item-title{font-weight:700; font-size:14px; color:var(--ink);}
+  .item-sub{font-size:12px; color:var(--gray);}
+  
+  .action-btns{
+    display:flex;
+    gap:6px;
+  }
+  .btn-sm{
+    padding:6px 12px;
+    border-radius:6px;
+    border:none;
+    font-weight:600;
+    font-size:12px;
+    cursor:pointer;
+  }
+  .btn-edit{background:var(--yellow-soft); color:var(--green-deep);}
+  .btn-delete{background:#FEE2E2; color:var(--danger);}
+</style>
+</head>
+<body>
+
+<div class="admin-wrap">
+  <div class="header-full">
+    <h1 class="board-title"><span class="dot"></span>Admin Portal — Announcement Board</h1>
+  </div>
+
+  <!-- INPUT/EDIT FORM -->
+  <div class="panel-card">
+    <h2 class="panel-title" id="formTitle">Create New Announcement</h2>
+    <form id="postForm">
+      <input type="hidden" id="postId">
+      
+      <div class="form-grid">
+        <div>
+          <label>Category</label>
+          <select id="category" required>
+            <option value="jobfair">Job Fair</option>
+            <option value="training">Skills Training</option>
+            <option value="seminar">Seminar</option>
+            <option value="deadline">Deadline</option>
+          </select>
+        </div>
+        
+        <div>
+          <label>Category Label</label>
+          <input type="text" id="catLabel" placeholder="e.g. Job Fair" required>
+        </div>
+
+        <div class="full-width">
+          <label>Company / Organization</label>
+          <input type="text" id="company" placeholder="e.g. LMD PESO Marinduque" required>
+        </div>
+
+        <div class="full-width">
+          <label>Announcement Title</label>
+          <input type="text" id="title" placeholder="e.g. Mega Job Fair 2026" required>
+        </div>
+
+        <div>
+          <label>Image (Upload file or URL)</label>
+          <input type="file" id="imgFile" accept="image/*">
+          <input type="text" id="imgUrl" placeholder="or enter Image URL" style="margin-top:4px;">
+        </div>
+
+        <div>
+          <label>Company Logo (Upload or URL)</label>
+          <input type="file" id="logoFile" accept="image/*">
+          <input type="text" id="logoUrl" placeholder="or enter Logo URL" style="margin-top:4px;">
+        </div>
+
+        <div>
+          <label>Date Month (3 Letters)</label>
+          <input type="text" id="month" maxlength="3" placeholder="SEP" required style="text-transform:uppercase;">
+        </div>
+
+        <div>
+          <label>Date Day (2 Digits)</label>
+          <input type="text" id="day" maxlength="2" placeholder="05" required>
+        </div>
+
+        <div class="full-width">
+          <label>Location</label>
+          <input type="text" id="location" placeholder="e.g. Boac Gymnasium" required>
+        </div>
+
+        <div>
+          <label>Time Schedule</label>
+          <input type="text" id="time" placeholder="8:00 AM – 4:00 PM" required>
+        </div>
+
+        <div>
+          <label>Slots / Capacity</label>
+          <input type="text" id="slots" placeholder="e.g. 40+ employers" required>
+        </div>
+
+        <div class="full-width">
+          <label>Short Description (Card View)</label>
+          <textarea id="descShort" required></textarea>
+        </div>
+
+        <div class="full-width">
+          <label>Full Description (Expanded View)</label>
+          <textarea id="descFull" required></textarea>
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button type="submit" class="btn btn-primary" id="saveBtn">Publish Post</button>
+        <button type="button" class="btn btn-secondary" onclick="resetForm()">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- POSTS MANAGEMENT -->
+  <div class="panel-card">
+    <h2 class="panel-title">Published Announcements</h2>
+    <div class="manage-list" id="adminList"></div>
+  </div>
+</div>
+
+<script>
+// Initial fallback data
+const DEFAULT_POSTS = [
+  {
+    id: 1,
+    category: "jobfair",
+    catLabel: "Job Fair",
+    company: "LMD PESO Marinduque",
+    logo: "https://api.dicebear.com/7.x/initials/svg?seed=PESO&backgroundColor=1F7A34&textColor=ffffff",
+    img: "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=900&q=80",
+    postedTime: "Posted 2h ago",
+    month: "SEP",
+    day: "05",
+    title: "Marinduque Mega Job Fair 2026",
+    location: "Boac Gymnasium",
+    time: "8:00 AM – 4:00 PM",
+    slots: "40+ employers",
+    descShort: "Over 40 companies hiring on-site — bring 5 copies of your resume.",
+    descFull: "Over 40 companies hiring on-site — bring 5 copies of your resume, valid ID, and be ready for walk-in interviews."
+  }
+];
+
+// Load posts from localStorage or initialize with defaults
+let posts = JSON.parse(localStorage.getItem('stram_posts')) || DEFAULT_POSTS;
+
+function savePosts() {
+  localStorage.setItem('stram_posts', JSON.stringify(posts));
+  renderAdminList();
+}
+
+function renderAdminList() {
+  const container = document.getElementById('adminList');
+  container.innerHTML = posts.map(post => `
+    <div class="item-row">
+      <div class="item-info">
+        <img src="${post.img}" class="item-thumb" alt="">
+        <div>
+          <div class="item-title">${post.title}</div>
+          <div class="item-sub">${post.company} • ${post.month} ${post.day}</div>
+        </div>
+      </div>
+      <div class="action-btns">
+        <button class="btn-sm btn-edit" onclick="editPost(${post.id})">Edit</button>
+        <button class="btn-sm btn-delete" onclick="deletePost(${post.id})">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Convert image files to base64 string
+function readFile(file) {
+  return new Promise((resolve) => {
+    if(!file) return resolve(null);
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Handle submit (Create or Update)
+document.getElementById('postForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const id = document.getElementById('postId').value;
+  const imgFile = document.getElementById('imgFile').files[0];
+  const logoFile = document.getElementById('logoFile').files[0];
+
+  const imgData = await readFile(imgFile) || document.getElementById('imgUrl').value || "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=900&q=80";
+  const logoData = await readFile(logoFile) || document.getElementById('logoUrl').value || "https://api.dicebear.com/7.x/initials/svg?seed=PESO&backgroundColor=1F7A34&textColor=ffffff";
+
+  const newPost = {
+    id: id ? parseInt(id) : Date.now(),
+    category: document.getElementById('category').value,
+    catLabel: document.getElementById('catLabel').value,
+    company: document.getElementById('company').value,
+    title: document.getElementById('title').value,
+    month: document.getElementById('month').value.toUpperCase(),
+    day: document.getElementById('day').value,
+    location: document.getElementById('location').value,
+    time: document.getElementById('time').value,
+    slots: document.getElementById('slots').value,
+    descShort: document.getElementById('descShort').value,
+    descFull: document.getElementById('descFull').value,
+    postedTime: id ? "Updated just now" : "Posted just now",
+    img: imgData,
+    logo: logoData
+  };
+
+  if(id) {
+    const idx = posts.findIndex(p => p.id == id);
+    posts[idx] = newPost;
+  } else {
+    posts.unshift(newPost);
+  }
+
+  savePosts();
+  resetForm();
+});
+
+function editPost(id) {
+  const post = posts.find(p => p.id === id);
+  if(!post) return;
+
+  document.getElementById('postId').value = post.id;
+  document.getElementById('category').value = post.category;
+  document.getElementById('catLabel').value = post.catLabel;
+  document.getElementById('company').value = post.company;
+  document.getElementById('title').value = post.title;
+  document.getElementById('month').value = post.month;
+  document.getElementById('day').value = post.day;
+  document.getElementById('location').value = post.location;
+  document.getElementById('time').value = post.time;
+  document.getElementById('slots').value = post.slots;
+  document.getElementById('descShort').value = post.descShort;
+  document.getElementById('descFull').value = post.descFull;
+  document.getElementById('imgUrl').value = post.img;
+  document.getElementById('logoUrl').value = post.logo;
+
+  document.getElementById('formTitle').innerText = "Edit Announcement";
+  document.getElementById('saveBtn').innerText = "Update Post";
+}
+
+function deletePost(id) {
+  if(confirm("Are you sure you want to delete this announcement?")) {
+    posts = posts.filter(p => p.id !== id);
+    savePosts();
+  }
+}
+
+function resetForm() {
+  document.getElementById('postForm').reset();
+  document.getElementById('postId').value = '';
+  document.getElementById('formTitle').innerText = "Create New Announcement";
+  document.getElementById('saveBtn').innerText = "Publish Post";
+}
+
+renderAdminList();
+</script>
+</body>
+</html>
