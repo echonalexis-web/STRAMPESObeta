@@ -1,0 +1,235 @@
+/* ============================================================
+   Admin — Reports & Statistics (records section)
+   `rpt-` namespace. KPI cards + charts reuse admin.css classes.
+   ============================================================ */
+
+.rpt-records {
+  max-width: 1400px;
+  margin: 0 auto 32px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  padding: 20px 22px 22px;
+  font-family: var(--sans, "Inter", system-ui, sans-serif);
+}
+
+.rpt-records__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.rpt-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: #f1f5f9;
+  border-radius: 12px;
+}
+
+.rpt-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.rpt-tab svg {
+  font-size: 0.85rem;
+}
+.rpt-tab:hover {
+  color: #0f172a;
+}
+.rpt-tab.is-active {
+  background: #ffffff;
+  color: #065f46;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.rpt-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 0.86rem;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.rpt-export:hover:not(:disabled) {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+.rpt-export:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.rpt-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.rpt-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  display: block;
+  border: 1px solid #d8e0ea;
+  border-radius: 10px;
+  padding: 10px 13px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: #0f172a;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.rpt-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+}
+select.rpt-input {
+  flex: 0 1 200px;
+  cursor: pointer;
+}
+
+.rpt-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+.rpt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  min-width: 640px;
+}
+.rpt-table thead th {
+  text-align: left;
+  padding: 12px 16px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+.rpt-table tbody td {
+  padding: 13px 16px;
+  border-bottom: 1px solid #eef2f6;
+  color: #334155;
+}
+.rpt-table tbody td:first-child {
+  font-weight: 600;
+  color: #0f172a;
+}
+.rpt-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.rpt-table tbody tr:hover {
+  background: #fafcff;
+}
+
+.rpt-empty {
+  padding: 40px 16px !important;
+  text-align: center;
+  color: #94a3b8;
+}
+
+/* 8 KPI cards read better as 4 × 2 than the shared 6-up grid */
+.rpt-kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 1100px) {
+  .rpt-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 780px) {
+  .rpt-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.rpt-skel {
+  display: block;
+  height: 12px;
+  width: 70%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #eef2f6 25%, #f8fafc 37%, #eef2f6 63%);
+  background-size: 400% 100%;
+  animation: rptSkel 1.3s ease-in-out infinite;
+}
+@keyframes rptSkel {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.rpt-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.rpt-pagination__count {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+}
+.rpt-pagination__nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+.rpt-pagination__nav button {
+  border: 1px solid #d8e0ea;
+  background: #fff;
+  color: #334155;
+  border-radius: 9px;
+  padding: 8px 14px;
+  font-size: 0.83rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rpt-pagination__nav button:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.rpt-pagination__nav button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .rpt-records__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .rpt-tabs {
+    justify-content: space-between;
+  }
+  .rpt-export {
+    justify-content: center;
+  }
+}

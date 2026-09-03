@@ -156,7 +156,7 @@ app.use("/api/v1/auth/register", authLimiter);
 // ============ FILE UPLOAD CONFIGURATION ============
 
 const fs = require("fs");
-const uploadDirs = ["uploads/profiles", "uploads/jobs", "uploads/resumes", "uploads/temp"];
+const uploadDirs = ["uploads/profiles", "uploads/jobs", "uploads/resumes", "uploads/news", "uploads/temp"];
 uploadDirs.forEach((dir) => {
   const fullPath = path.join(__dirname, dir);
   if (!fs.existsSync(fullPath)) {
@@ -211,9 +211,10 @@ app.post("/api/v1/users/upload-resume", uploadLimiter, (req, res, next) => {
 
 app.use("/uploads", (req, res, next) => {
   const authHeader = req.headers.authorization;
-  const isProfileImage = req.path.includes("/profiles/");
-  
-  if (!isProfileImage && !authHeader) {
+  // Profile pictures and news announcement images are public assets
+  const isPublicImage = req.path.includes("/profiles/") || req.path.includes("/news/");
+
+  if (!isPublicImage && !authHeader) {
     return res.status(403).json({ message: "Access denied" });
   }
   
@@ -273,6 +274,12 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
 
   const jobLikeRoutes = require("./routes/jobLikeRoutes");
   console.log("✅ Job Like routes loaded");
+
+  const newsRoutes = require("./routes/newsRoutes");
+  console.log("✅ News routes loaded");
+
+  const newsLikeRoutes = require("./routes/newsLikeRoutes");
+  console.log("✅ News Like routes loaded");
 
   const mountApiRoutes = (basePath) => {
     console.log(`📁 Mounting routes at ${basePath}...`);
@@ -352,7 +359,21 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     } catch (e) {
       console.error(`❌ Failed to mount ${basePath}/job-likes:`, e.message);
     }
-    
+
+    try {
+      app.use(`${basePath}/news`, newsRoutes);
+      console.log(`✅ ${basePath}/news mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/news:`, e.message);
+    }
+
+    try {
+      app.use(`${basePath}/news-likes`, newsLikeRoutes);
+      console.log(`✅ ${basePath}/news-likes mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/news-likes:`, e.message);
+    }
+
     console.log(`✅ All routes mounted at ${basePath}`);
   };
 

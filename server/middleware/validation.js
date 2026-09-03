@@ -504,6 +504,60 @@ const validateQualifications = (req, res, next) => {
   next();
 };
 
+const validateAnnouncementPayload = (req, res, next) => {
+  const { title, content, category, imageUrl, publishedAt, isActive } = req.body;
+  const errors = [];
+
+  if (title !== undefined) {
+    if (typeof title !== "string" || title.trim().length < 5 || title.trim().length > 180) {
+      errors.push("Title must be between 5 and 180 characters");
+    }
+  }
+
+  if (content !== undefined) {
+    if (typeof content !== "string" || content.trim().length < 20 || content.trim().length > 4000) {
+      errors.push("Content must be between 20 and 4000 characters");
+    }
+  }
+
+  if (category !== undefined) {
+    const validCategories = ["general", "hiring", "training", "event", "advisory"];
+    if (!validCategories.includes(category)) {
+      errors.push("Invalid category");
+    }
+  }
+
+  if (imageUrl !== undefined && imageUrl !== null && imageUrl !== "") {
+    if (typeof imageUrl !== "string" || imageUrl.length > 1000) {
+      errors.push("Image URL is invalid");
+    }
+  }
+
+  if (publishedAt !== undefined && publishedAt !== null && publishedAt !== "") {
+    const parsed = new Date(publishedAt);
+    if (Number.isNaN(parsed.getTime())) {
+      errors.push("Published date is invalid");
+    }
+  }
+
+  if (isActive !== undefined && typeof isActive !== "boolean") {
+    errors.push("isActive must be a boolean");
+  }
+
+  const isCreate = req.method === "POST";
+  if (isCreate) {
+    if (title === undefined) errors.push("Title is required");
+    if (content === undefined) errors.push("Content is required");
+    if (category === undefined) errors.push("Category is required");
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ errors });
+  }
+
+  return next();
+};
+
 module.exports = {
   sanitizeRequestBody,
   sanitizeQueryParams,
@@ -518,4 +572,5 @@ module.exports = {
   validateMessage,
   validateNotificationRead,
   validateQualifications,
+  validateAnnouncementPayload,
 };

@@ -12,7 +12,23 @@ const normalizeRole = (role) => (role === "employee" || role === "jobseeker" ? "
 const getLoggedInMenuItems = (userRole) => {
   if (userRole === "admin") {
     return [
-      { label: "Admin Dashboard", to: "/admin" },
+      {
+        label: "Admin Dashboard",
+        submenu: [
+          { label: "Dashboard", to: "/admin" },
+          { label: "Reports & Statistics", to: "/admin/reports" },
+        ],
+      },
+      {
+        label: "News Management",
+        submenu: [
+          { label: "News Feed", to: "/admin/news" },
+          { label: "Post Announcement", to: "/admin/news/create" },
+        ],
+      },
+      { label: "User Management", to: "/admin/users" },
+      { label: "Job Monitoring", to: "/admin/job-monitoring" },
+      { label: "Audit Trail", to: "/admin/audit-logs" },
       { label: "My Profile", to: "/profile" },
     ];
   }
@@ -21,6 +37,7 @@ const getLoggedInMenuItems = (userRole) => {
     return [
       { label: "Employer Dashboard", to: "/employer" },
       { label: "Post Vacancy", to: "/post-job" },
+      { label: "News Feed", to: "/news" },
       { label: "My Profile", to: "/profile" },
     ];
   }
@@ -34,6 +51,7 @@ const getLoggedInMenuItems = (userRole) => {
       ],
     },
     { label: "Browse Jobs", to: "/jobs" },
+    { label: "News Feed", to: "/news" },
     { label: "My Profile", to: "/profile" },
   ];
 };
@@ -69,6 +87,7 @@ export default function Navbar() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [isRegisterDropdownOpen, setIsRegisterDropdownOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState(null);
+  const [hoveredSubmenu, setHoveredSubmenu] = useState(null);
 
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
@@ -138,8 +157,13 @@ export default function Navbar() {
 
     if (activeSubmenuItem) {
       setOpenSubmenu(activeSubmenuItem.label);
+      return;
     }
-  }, [location.pathname]);
+
+    if (!hoveredSubmenu) {
+      setOpenSubmenu(null);
+    }
+  }, [location.pathname, hoveredSubmenu, loggedInMenuItems]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -163,14 +187,20 @@ export default function Navbar() {
   const closeRegisterDropdown = () => setIsRegisterDropdownOpen(false);
 
   const isActiveLink = (to) => {
+    const path = to.split("#")[0];
+
     if (to === "/profile") return location.pathname.startsWith("/profile");
+    if (to === "/news") return location.pathname === "/news" || location.pathname.startsWith("/news/");
     if (to === "/employer") return location.pathname === "/employer" || location.pathname === "/employer-dashboard";
     if (to === "/dashboard") return location.pathname === "/dashboard";
-    return location.pathname === to;
+    if (to === "/admin") return location.pathname === "/admin";
+    if (path === "/admin/news") return location.pathname === "/admin/news";
+    if (path === "/admin/news/create") return location.pathname === "/admin/news/create" || location.pathname.startsWith("/admin/news/create/");
+
+    return location.pathname === path;
   };
 
-  // ----- FIX: submenu open state only depends on toggle, NOT on active child -----
-  const isSubmenuOpen = (label) => openSubmenu === label;
+  const isSubmenuOpen = (label) => openSubmenu === label || hoveredSubmenu === label;
 
   useEffect(() => {
     const bodyClass = "app-with-sidebar";
@@ -214,30 +244,37 @@ export default function Navbar() {
         <div className="auth-sidebar-nav" aria-label="Authenticated navigation">
           {loggedInMenuItems.map((item) => (
             item.submenu ? (
-              <div key={item.label} className="nav-submenu-group">
+              <div
+                key={item.label}
+                className="nav-submenu-group"
+                onMouseEnter={() => setHoveredSubmenu(item.label)}
+                onMouseLeave={() => setHoveredSubmenu(null)}
+              >
                 <button
                   type="button"
                   className="nav-submenu-toggle"
                   onClick={() => setOpenSubmenu(openSubmenu === item.label ? null : item.label)}
+                  onFocus={() => setHoveredSubmenu(item.label)}
+                  onBlur={() => setHoveredSubmenu(null)}
                   aria-expanded={isSubmenuOpen(item.label)}
                 >
                   {item.label}
-                  <FaChevronDown className={`submenu-chevron ${isSubmenuOpen(item.label) ? "is-open" : ""}`} />
                 </button>
-                {isSubmenuOpen(item.label) && (
-                  <div className="nav-submenu">
-                    {item.submenu.map((subitem) => (
-                      <Link
-                        key={subitem.to}
-                        to={subitem.to}
-                        className={isActiveLink(subitem.to) ? "is-active" : ""}
-                        onClick={() => setOpenSubmenu(null)}
-                      >
-                        {subitem.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
+                <div className={`nav-submenu ${isSubmenuOpen(item.label) ? "is-open" : ""}`}>
+                  {item.submenu.map((subitem) => (
+                    <Link
+                      key={subitem.to}
+                      to={subitem.to}
+                      className={isActiveLink(subitem.to) ? "is-active" : ""}
+                      onClick={() => {
+                        setOpenSubmenu(null);
+                        setHoveredSubmenu(null);
+                      }}
+                    >
+                      {subitem.label}
+                    </Link>
+                  ))}
+                </div>
               </div>
             ) : (
               <Link key={item.to} to={item.to} className={isActiveLink(item.to) ? "is-active" : ""}>
@@ -307,7 +344,6 @@ export default function Navbar() {
                         aria-expanded={isSubmenuOpen(item.label)}
                       >
                         {item.label}
-                        <FaChevronDown className={`submenu-chevron ${isSubmenuOpen(item.label) ? "is-open" : ""}`} />
                       </button>
                       {isSubmenuOpen(item.label) && (
                         <div className="mobile-nav-submenu">
@@ -399,6 +435,8 @@ export default function Navbar() {
 
         <div className="nav-links nav-links--public">
           <Link to="/">Home</Link>
+          <Link to="/about">About</Link>
+          <Link to="/news">News</Link>
           <Link to="/#available-jobs">Available Jobs</Link>
           <Link to="/login">Login</Link>
 
@@ -446,6 +484,8 @@ export default function Navbar() {
 
             <div className="mobile-menu-links">
               <Link to="/" onClick={closeMobileMenu}>Home</Link>
+              <Link to="/about" onClick={closeMobileMenu}>About</Link>
+              <Link to="/news" onClick={closeMobileMenu}>News</Link>
               <Link to="/#available-jobs" onClick={closeMobileMenu}>Available Jobs</Link>
               <Link to="/login" onClick={closeMobileMenu}>Login</Link>
 

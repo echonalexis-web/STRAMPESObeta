@@ -502,7 +502,7 @@ export default function Home() {
           <div className="footer-v2-text">
             <p className="footer-v2-label">LIVELIHOOD MANPOWER DEVELOPMENT</p>
             <h2 className="footer-v2-title">PUBLIC EMPLOYMENT SERVICE OFFICE</h2>
-            <p className="footer-v2-subtitle">Ialawigan ng Marinduque</p>
+            <p className="footer-v2-subtitle">Lalawigan ng Marinduque</p>
           </div>
         </div>
         <div className="footer-v2-copyright"><p>© 2025 Provincial Government of Marinduque. All Rights Reserved.</p></div>

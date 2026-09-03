@@ -517,6 +517,7 @@ html {
   text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4);
   letter-spacing: 2px;
   animation: fadeInUp 0.8s ease-out 0.2s both;
+  color: #f8f9ff;
 }
 
 .hero-tagline {

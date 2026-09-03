@@ -10,9 +10,11 @@ import {
   FaBriefcase,
   FaEdit,
   FaUsers,
+  FaHeart,
+  FaRegNewspaper,
 } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
-import { adminAPI, authAPI, employerAPI, jobLikeAPI, messageAPI, followAPI } from "../services/api";
+import { adminAPI, authAPI, employerAPI, jobLikeAPI, messageAPI, followAPI, newsLikeAPI } from "../services/api";
 import "../styles/profile-redesign.css";
 
 const formatStructuredAddress = (addr) => {
@@ -95,11 +97,19 @@ export default function ProfilePage({ isAdminView = false }) {
   const [employerStats, setEmployerStats] = useState({ activeJobs: 0, totalApplicants: 0, closedJobs: 0 });
   const [likedJobs, setLikedJobs] = useState([]);
   const [likedJobsLoading, setLikedJobsLoading] = useState(false);
+  const [likedNews, setLikedNews] = useState([]);
+  const [likedNewsLoading, setLikedNewsLoading] = useState(false);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
 
-  const activeTab = location.pathname.includes("/profile/followers") ? "followers" : location.pathname.includes("/profile/favorites") ? "favorites" : "overview";
+  const activeTab = location.pathname.includes("/profile/followers")
+    ? "followers"
+    : location.pathname.includes("/profile/favorites")
+      ? "favorites"
+      : location.pathname.includes("/profile/likes")
+        ? "likes"
+        : "overview";
   const normalizedRole = profile?.role === "employee" || profile?.role === "jobseeker" ? "resident" : profile?.role;
   const isEmployer = normalizedRole === "employer";
   const isAdmin = normalizedRole === "admin";
@@ -186,6 +196,25 @@ export default function ProfilePage({ isAdminView = false }) {
 
     fetchFavorites();
   }, [activeTab, isAdmin, isEmployer, isReadOnly]);
+
+  useEffect(() => {
+    const fetchLikedNews = async () => {
+      if (activeTab !== "likes" || isAdmin || isReadOnly) return;
+
+      try {
+        setLikedNewsLoading(true);
+        const { data } = await newsLikeAPI.getLiked({ page: 1, limit: 60 });
+        const list = Array.isArray(data?.data) ? data.data.filter(Boolean) : [];
+        setLikedNews(list);
+      } catch (error) {
+        setLikedNews([]);
+      } finally {
+        setLikedNewsLoading(false);
+      }
+    };
+
+    fetchLikedNews();
+  }, [activeTab, isAdmin, isReadOnly]);
 
   // ===== IMPROVED fetchConnections with validation and fallback =====
   useEffect(() => {
@@ -326,12 +355,38 @@ export default function ProfilePage({ isAdminView = false }) {
             <nav className="rd-subnav" aria-label="Profile tabs">
               <Link to="/profile" className={activeTab === "overview" ? "active" : ""}>Overview</Link>
               {!isEmployer ? <Link to="/profile/favorites" className={activeTab === "favorites" ? "active" : ""}><FaBookmark /> Favorites</Link> : null}
+              <Link to="/profile/likes" className={activeTab === "likes" ? "active" : ""}><FaHeart /> My Likes</Link>
               <Link to="/profile/followers" className={activeTab === "followers" ? "active" : ""}><FaUsers /> Followers</Link>
             </nav>
           ) : null}
         </header>
 
-        {activeTab === "favorites" && !isEmployer && !isAdmin ? (
+        {activeTab === "likes" && !isAdmin ? (
+          <section className="rd-card rd-card-full">
+            <h2><FaHeart /> My Liked Announcements</h2>
+            {likedNewsLoading ? (
+              <p className="rd-empty">Loading your liked announcements...</p>
+            ) : likedNews.length === 0 ? (
+              <p className="rd-empty">No liked announcements yet. Tap the heart on any post in the News Feed to save it here.</p>
+            ) : (
+              <div className="rd-favorites-grid">
+                {likedNews.map((post) => (
+                  <article key={post._id} className="rd-favorite-item">
+                    <div className="rd-favorite-head">
+                      <h3>{post.title || "Untitled announcement"}</h3>
+                      <span className="rd-ribbon"><FaHeart /> Liked</span>
+                    </div>
+                    <p className="rd-favorite-tag"><FaRegNewspaper /> {post.category || "general"}</p>
+                    <p>{post.content ? `${post.content.slice(0, 140)}${post.content.length > 140 ? "…" : ""}` : "No details available."}</p>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <button type="button" onClick={() => navigate(`/news/${post._id}`)} style={{ flex: 1 }}>Read announcement</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        ) : activeTab === "favorites" && !isEmployer && !isAdmin ? (
           <section className="rd-card">
             <h2><FaBookmark /> Saved / Favorited Jobs</h2>
             {likedJobsLoading ? (

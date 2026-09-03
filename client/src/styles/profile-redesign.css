@@ -376,6 +376,12 @@
   align-items: center;
 }
 
+.rd-favorite-tag {
+  text-transform: capitalize;
+  font-weight: 600;
+  color: #365e23 !important;
+}
+
 .rd-favorite-item button {
   border: none;
   border-radius: 10px;

@@ -7,6 +7,7 @@ const JobApplication = require("../models/JobApplication");
 const fs = require("fs");
 const path = require("path");
 const VALID_INDUSTRIES = require("../data/industries");
+const { logAuditEvent } = require("../services/auditService");
 
 // Helper to update or create role profile
 const upsertProfile = async (userId, role, data) => {
@@ -38,6 +39,17 @@ exports.register = async (req, res) => {
       email,
       password: hashed,
       role: "resident",
+    });
+
+    await logAuditEvent({
+      req,
+      actorId: user._id,
+      actorRole: "resident",
+      action: "auth.user.registered",
+      targetUserId: user._id,
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "info",
     });
 
     await JobseekerProfile.create({ userId: user._id });
@@ -80,6 +92,17 @@ exports.registerEmployer = async (req, res) => {
       verificationStatus: "pending",
     });
 
+    await logAuditEvent({
+      req,
+      actorId: user._id,
+      actorRole: "employer",
+      action: "auth.employer.registered",
+      targetUserId: user._id,
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "info",
+    });
+
     await EmployerProfile.create({ userId: user._id });
 
     const token = jwt.sign(
@@ -87,6 +110,17 @@ exports.registerEmployer = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "30d" }
     );
+
+    await logAuditEvent({
+      req,
+      actorId: user._id,
+      actorRole: user.role,
+      action: "auth.user.login_success",
+      targetUserId: user._id,
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "info",
+    });
 
     res.status(201).json({
       message: "Employer registered. Please complete your profile.",

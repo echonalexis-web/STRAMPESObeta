@@ -6,6 +6,17 @@ const DEFAULT_API_URL = import.meta.env.DEV
 
 export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
 
+// Origin that serves uploaded assets (strip the trailing /api/vN)
+export const ASSET_BASE_URL = API_URL.replace(/\/api\/v\d+\/?$/, "");
+
+// Turn a stored image path into a loadable URL. Absolute URLs pass through;
+// server-relative "/uploads/..." paths get the API origin prefixed.
+export const resolveAssetUrl = (value) => {
+  if (!value) return "";
+  if (/^(https?:)?\/\//i.test(value) || value.startsWith("data:")) return value;
+  return `${ASSET_BASE_URL}${value.startsWith("/") ? "" : "/"}${value}`;
+};
+
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
@@ -133,11 +144,14 @@ export const adminAPI = {
     await delay(150);
     return api.get('/admin/analytics', getAuthHeader());
   },
+  getProvincialAnalytics: (params = {}) => api.get('/admin/analytics/provincial', { ...getAuthHeader(), params }),
   getUserById: (id) => api.get(`/admin/users/${id}`, getAuthHeader()),
   getHomepageJobManagement: async () => {
     await delay(150);
     return api.get('/admin/jobs/homepage-display', getAuthHeader());
   },
+  getAdminVacancies: (params = {}) => api.get('/admin/jobs', { ...getAuthHeader(), params }),
+  getAdminVacancyStats: (params = {}) => api.get('/admin/jobs/stats', { ...getAuthHeader(), params }),
   toggleHomepageFeature: (id, isFeatured) =>
     api.put(`/admin/jobs/${id}/homepage-feature`, { isFeatured }, getAuthHeader()),
   updateJobStatus: (id, status) => api.put(`/admin/jobs/${id}/status`, { status }, getAuthHeader()),
@@ -147,8 +161,34 @@ export const adminAPI = {
   reactivateUser: (id) => api.put(`/admin/users/${id}/reactivate`, {}, getAuthHeader()),
   updateEmployerVerification: (id, verificationStatus) =>
     api.put(`/admin/users/${id}/verification`, { verificationStatus }, getAuthHeader()),
+  getVerificationQueue: (params = {}) =>
+    api.get('/admin/users/verification-queue', { ...getAuthHeader(), params }),
+  getAuditLogs: (params = {}) =>
+    api.get('/admin/audit-logs', { ...getAuthHeader(), params }),
   deleteUser: (id) => api.delete(`/admin/users/${id}`, getAuthHeader()),
   generateInvite: () => api.post('/auth/invite', {}, getAuthHeader()),
+};
+
+export const newsAPI = {
+  list: (params = {}) => api.get('/news', { params }),
+  listAdmin: (params = {}) => api.get('/news', { ...getAuthHeader(), params: { ...params, includeInactive: true } }),
+  getById: (id) => api.get(`/news/${id}`),
+  create: (data) =>
+    data instanceof FormData
+      ? api.post('/news', data, getAuthFormHeader())
+      : api.post('/news', data, getAuthHeader()),
+  update: (id, data) =>
+    data instanceof FormData
+      ? api.put(`/news/${id}`, data, getAuthFormHeader())
+      : api.put(`/news/${id}`, data, getAuthHeader()),
+  remove: (id) => api.delete(`/news/${id}`, getAuthHeader()),
+};
+
+export const newsLikeAPI = {
+  like: (newsId) => api.post(`/news-likes/${newsId}/like`, {}, getAuthHeader()),
+  unlike: (newsId) => api.post(`/news-likes/${newsId}/unlike`, {}, getAuthHeader()),
+  getLiked: (params = {}) => api.get('/news-likes/liked', { ...getAuthHeader(), params }),
+  getStatus: (newsId) => api.get(`/news-likes/${newsId}/like-status`, getAuthHeader()),
 };
 
 export const messageAPI = {
