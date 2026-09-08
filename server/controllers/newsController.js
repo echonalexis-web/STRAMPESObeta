@@ -1,18 +1,80 @@
-const fs = require("fs");
-const path = require("path");
 const Announcement = require("../models/Announcement");
 const NewsLike = require("../models/NewsLike");
+const User = require("../models/User");
 const { logAuditEvent } = require("../services/auditService");
+const { notifyManyUsers } = require("../services/notificationService");
+const storageService = require("../services/storageService");
 
-// Public URL path for an uploaded announcement image
-const newsImageUrl = (file) => (file ? `/uploads/news/${file.filename}` : "");
+// Categories that only matter to jobseekers get scoped to residents; general
+// updates and events go out to everyone so the audience matches the content.
+const JOBSEEKER_ONLY_CATEGORIES = ["hiring", "training", "advisory", "spes"];
+
+const NEWS_CATEGORIES = ["general", "hiring", "training", "event", "advisory", "spes"];
+
+const parseJSONSafe = (value, fallback) => {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+// Normalise the SPES config coming from the create/edit form (sent as a JSON
+// string field `spesConfig` so it survives multipart submissions).
+const normalizeSpesConfig = (raw) => {
+  const cfg = parseJSONSafe(raw, {}) || {};
+  return {
+    applicationDeadline: cfg.applicationDeadline ? new Date(cfg.applicationDeadline) : null,
+    slots: cfg.slots !== undefined && cfg.slots !== null && cfg.slots !== "" ? Number(cfg.slots) : null,
+    requirements: Array.isArray(cfg.requirements)
+      ? cfg.requirements.map((r) => String(r).trim()).filter(Boolean).slice(0, 30)
+      : [],
+    resultsUrl: typeof cfg.resultsUrl === "string" ? cfg.resultsUrl.trim().slice(0, 500) : "",
+    resultsSummary: typeof cfg.resultsSummary === "string" ? cfg.resultsSummary.trim().slice(0, 4000) : "",
+    publishAcceptedList: Boolean(cfg.publishAcceptedList),
+    exposeScores: Boolean(cfg.exposeScores),
+  };
+};
+
+const notifyNewsPublished = async ({ announcement, authorId, io }) => {
+  const roleFilter = JOBSEEKER_ONLY_CATEGORIES.includes(announcement.category)
+    ? { role: "resident" }
+    : { role: { $in: ["resident", "employer"] } };
+
+  const recipients = await User.find({ ...roleFilter, _id: { $ne: authorId } }).select("_id");
+  if (recipients.length === 0) return;
+
+  await notifyManyUsers({
+    recipientIds: recipients.map((user) => user._id),
+    actorId: authorId,
+    type: "news",
+    title: "New announcement",
+    message: announcement.title,
+    relatedEntityType: "system",
+    relatedEntityId: announcement._id,
+    actionUrl: `/news/${announcement._id}`,
+    metadata: { category: announcement.category },
+    io,
+  });
+};
+
+// Value stored for an uploaded announcement image (public URL from the storage backend)
+const newsImageValue = (file) => (file && file.storedValue ? file.storedValue : "");
+
+// Multipart submissions send booleans as the strings "true"/"false"
+const toBoolean = (value, fallback) => {
+  if (typeof value === "boolean") return value;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return fallback;
+};
 
 // Best-effort removal of a previously uploaded announcement image
-const removeNewsImageFile = (imageUrl) => {
-  if (!imageUrl || !imageUrl.startsWith("/uploads/news/")) return;
-  const safeName = path.basename(imageUrl);
-  const fullPath = path.join(__dirname, "..", "uploads", "news", safeName);
-  fs.promises.unlink(fullPath).catch(() => {});
+const removeNewsImage = (imageUrl) => {
+  if (!imageUrl) return;
+  Promise.resolve(storageService.remove(imageUrl)).catch(() => {});
 };
 
 // Attach `likeCount` and `likedByMe` to a list of announcement documents.
@@ -61,7 +123,7 @@ exports.listNews = async (req, res) => {
     if (!(includeInactive && isAdmin)) {
       filter.isActive = true;
     }
-    if (["general", "hiring", "training", "event", "advisory"].includes(category)) {
+    if (NEWS_CATEGORIES.includes(category)) {
       filter.category = category;
     }
 
@@ -109,17 +171,21 @@ exports.getNewsById = async (req, res) => {
 
 exports.createNews = async (req, res) => {
   try {
-    const { title, content, category, imageUrl, publishedAt, isActive } = req.body;
-    const resolvedImageUrl = req.file ? newsImageUrl(req.file) : (imageUrl || "");
-    const created = await Announcement.create({
+    const { title, content, category, imageUrl, publishedAt, isActive, spesConfig } = req.body;
+    const resolvedImageUrl = req.file ? newsImageValue(req.file) : (imageUrl || "");
+    const doc = {
       title,
       content,
       category,
       imageUrl: resolvedImageUrl,
       publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
-      isActive: typeof isActive === "boolean" ? isActive : true,
+      isActive: toBoolean(isActive, true),
       author: req.user.id,
-    });
+    };
+    if (category === "spes") {
+      doc.spes = normalizeSpesConfig(spesConfig);
+    }
+    const created = await Announcement.create(doc);
 
     const populated = await Announcement.findById(created._id).populate("author", "name email");
     await logAuditEvent({
@@ -132,6 +198,11 @@ exports.createNews = async (req, res) => {
       severity: "info",
       metadata: { category: created.category },
     });
+
+    if (created.isActive) {
+      await notifyNewsPublished({ announcement: created, authorId: req.user.id, io: req.app.get("io") });
+    }
+
     return res.status(201).json({ message: "News post created", item: populated });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to create news post" });
@@ -150,22 +221,36 @@ exports.updateNews = async (req, res) => {
       content: req.body.content,
       category: req.body.category,
       imageUrl: req.body.imageUrl,
-      isActive: req.body.isActive,
+      isActive: toBoolean(req.body.isActive, undefined),
+      commentsEnabled: toBoolean(req.body.commentsEnabled, undefined),
     };
 
     if (req.file) {
-      payload.imageUrl = newsImageUrl(req.file);
+      payload.imageUrl = newsImageValue(req.file);
     }
 
     if (req.body.publishedAt) {
       payload.publishedAt = new Date(req.body.publishedAt);
     }
 
+    // SPES config: update the editable fields only, never the results-release
+    // state (resultsStatus / resultsPublishedAt / resultsAnnouncementId).
+    if (req.body.spesConfig !== undefined) {
+      const cfg = normalizeSpesConfig(req.body.spesConfig);
+      payload["spes.applicationDeadline"] = cfg.applicationDeadline;
+      payload["spes.slots"] = cfg.slots;
+      payload["spes.requirements"] = cfg.requirements;
+      payload["spes.resultsUrl"] = cfg.resultsUrl;
+      payload["spes.resultsSummary"] = cfg.resultsSummary;
+      payload["spes.publishAcceptedList"] = cfg.publishAcceptedList;
+      payload["spes.exposeScores"] = cfg.exposeScores;
+    }
+
     const cleaned = Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined));
 
     // Drop a replaced upload so it doesn't linger on disk
     if (cleaned.imageUrl !== undefined && cleaned.imageUrl !== existing.imageUrl) {
-      removeNewsImageFile(existing.imageUrl);
+      removeNewsImage(existing.imageUrl);
     }
 
     const updated = await Announcement.findByIdAndUpdate(req.params.id, cleaned, { new: true, runValidators: true }).populate("author", "name email");
@@ -185,6 +270,10 @@ exports.updateNews = async (req, res) => {
       metadata: { category: updated.category, isActive: updated.isActive },
     });
 
+    if (!existing.isActive && updated.isActive) {
+      await notifyNewsPublished({ announcement: updated, authorId: req.user.id, io: req.app.get("io") });
+    }
+
     return res.json({ message: "News post updated", item: updated });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to update news post" });
@@ -197,7 +286,7 @@ exports.deleteNews = async (req, res) => {
     if (!removed) {
       return res.status(404).json({ message: "News post not found" });
     }
-    removeNewsImageFile(removed.imageUrl);
+    removeNewsImage(removed.imageUrl);
     await logAuditEvent({
       req,
       actorId: req.user.id,

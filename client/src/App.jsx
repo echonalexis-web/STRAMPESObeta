@@ -1,9 +1,10 @@
 ﻿import { useContext } from "react";
-import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext";
 import { AuthContext } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
+import { FeedbackProvider } from "./components/feedback/FeedbackProvider";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 
 import Navbar from "./components/Navbar";
@@ -13,6 +14,11 @@ import NewsFeed from "./pages/NewsFeed";
 import NewsFeedDetail from "./pages/NewsFeedDetail";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
+import AccountSuspended from "./pages/AccountSuspended";
+import TermsGate from "./components/TermsGate";
 import Dashboard from "./pages/Dashboard";
 import JobBoard from "./pages/JobBoard";
 import JobDetail from "./pages/JobDetail";
@@ -24,6 +30,7 @@ import Reports from "./pages/admin/Reports";
 import NewsFeedManagement from "./pages/admin/NewsFeedManagement";
 import CreateAnnouncement from "./pages/admin/CreateAnnouncement";
 import UserManagement from "./pages/admin/UserManagement";
+import UserModeration from "./pages/admin/UserModeration";
 import UserProfileView from "./pages/admin/UserProfileView";
 import AuditTrail from "./pages/admin/AuditTrail";
 import JobMonitoring from "./pages/admin/JobMonitoring";
@@ -33,8 +40,22 @@ import PostJob from "./pages/PostJob";
 import Messages from "./pages/Messages";
 import Notifications from "./pages/Notifications";
 import YourApplications from "./pages/YourApplications";
+import MySpesApplications from "./pages/MySpesApplications";
+import SpesApplications from "./pages/admin/SpesApplications";
 
 import "./styles/style.css";
+
+// Routes that render standalone, without the marketing/app navbar. The
+// account-suspended wall lands here precisely because the user can't sign in
+// normally, so Login/Register chrome would be contradictory — and the fixed
+// navbar overlaps the centered card.
+const BARE_ROUTES = new Set(["/account-suspended"]);
+
+function SiteChrome() {
+  const { pathname } = useLocation();
+  if (BARE_ROUTES.has(pathname)) return null;
+  return <Navbar />;
+}
 
 function HomeRoute() {
   const { user } = useContext(AuthContext);
@@ -54,7 +75,8 @@ function AppRoutes() {
   return (
     <SocketProvider userId={userId}>
       <BrowserRouter>
-        <Navbar />
+        <SiteChrome />
+        <TermsGate />
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/about" element={<About />} />
@@ -62,6 +84,10 @@ function AppRoutes() {
           <Route path="/news/:id" element={<NewsFeedDetail />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/account-suspended" element={<AccountSuspended />} />
           <Route path="/register-employer" element={<EmployeeRegister />} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
@@ -73,20 +99,26 @@ function AppRoutes() {
           <Route path="/profile/edit" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute requiredRole="resident"><Dashboard /></ProtectedRoute>} />
           <Route path="/applications" element={<ProtectedRoute requiredRole="resident"><YourApplications /></ProtectedRoute>} />
+          <Route path="/spes/applications" element={<ProtectedRoute><MySpesApplications /></ProtectedRoute>} />
           <Route path="/jobs" element={<ProtectedRoute requiredRole="resident"><JobBoard /></ProtectedRoute>} />
           <Route path="/jobs/:id" element={<JobDetail />} />
+          <Route path="/jobs/:id/apply" element={<JobDetail />} />
           <Route path="/post-job" element={<ProtectedRoute requiredRole="employer"><PostJob /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/reports" element={<ProtectedRoute requiredRole="admin"><Reports /></ProtectedRoute>} />
           <Route path="/admin/news" element={<ProtectedRoute requiredRole="admin"><NewsFeedManagement /></ProtectedRoute>} />
           <Route path="/admin/news/create" element={<ProtectedRoute requiredRole="admin"><CreateAnnouncement /></ProtectedRoute>} />
+          <Route path="/admin/news/edit/:id" element={<ProtectedRoute requiredRole="admin"><CreateAnnouncement /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute requiredRole="admin"><UserManagement /></ProtectedRoute>} />
+          <Route path="/admin/users/moderation" element={<ProtectedRoute requiredRole="admin"><UserModeration /></ProtectedRoute>} />
           <Route path="/admin/job-monitoring" element={<ProtectedRoute requiredRole="admin"><JobMonitoring /></ProtectedRoute>} />
+          <Route path="/admin/spes" element={<ProtectedRoute requiredRole="admin"><SpesApplications /></ProtectedRoute>} />
           <Route path="/admin/audit-logs" element={<ProtectedRoute requiredRole="admin"><AuditTrail /></ProtectedRoute>} />
           <Route path="/admin/users/:userId" element={<ProtectedRoute requiredRole="admin"><UserProfileView /></ProtectedRoute>} />
           <Route path="/admin/users/:userId/*" element={<ProtectedRoute requiredRole="admin"><UserProfileView /></ProtectedRoute>} />
           <Route path="/employer" element={<ProtectedRoute requiredRole="employer"><EmployerDashboard /></ProtectedRoute>} />
           <Route path="/employer-dashboard" element={<ProtectedRoute requiredRole="employer"><EmployerDashboard /></ProtectedRoute>} />
+          <Route path="/employer/applicants/:userId" element={<ProtectedRoute requiredRole="employer"><ProfilePage isEmployerView /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
@@ -97,7 +129,9 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <FeedbackProvider>
+        <AppRoutes />
+      </FeedbackProvider>
     </AuthProvider>
   );
 }

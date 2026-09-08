@@ -9,8 +9,15 @@ const {
   bulkUpdateApplicationStatuses,
   getEmployerStats,
   getEmployerProfileStats,
+  getConnectedJobseekerProfile,
 } = require("../controllers/employerController");
 const { getRankedApplicants } = require("../controllers/employerRecommendationController");
+const {
+  listTemplates,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+} = require("../controllers/qualificationTemplateController");
 const { verifyToken: protect, isEmployer, isVerifiedEmployer } = require("../middleware/auth");
 const {
   sanitizeRequestBody,
@@ -92,9 +99,30 @@ router.get("/jobs/:jobId/applicants/ranked",
   getRankedApplicants
 );
 
+// --- Reusable qualification / skillset templates ---
+router.get("/qualification-templates", listTemplates);
+router.post("/qualification-templates",
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  createTemplate
+);
+router.put("/qualification-templates/:id",
+  validateMongoId("id"),
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  updateTemplate
+);
+router.delete("/qualification-templates/:id",
+  validateMongoId("id"),
+  deleteTemplate
+);
+
 // Stats
 router.get("/stats", sanitizeQueryParams, getEmployerStats);
 router.get("/profile-stats", sanitizeQueryParams, getEmployerProfileStats);
+
+// View a jobseeker's profile (only applicants or followers)
+router.get("/jobseekers/:userId", validateMongoId("userId"), getConnectedJobseekerProfile);
 
 // Error handling middleware
 router.use((err, req, res, next) => {

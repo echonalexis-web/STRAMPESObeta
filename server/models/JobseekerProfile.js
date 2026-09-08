@@ -10,13 +10,19 @@ const jobseekerProfileSchema = new mongoose.Schema(
     // Personal Identity
     civilStatus: {
       type: String,
-      enum: ["Single", "Married", "Widowed", "Separated", "Divorced"],
+      enum: ["Single", "Married", "Widowed", "Separated", "Divorced", "Live-in"],
       default: null,
     },
     placeOfBirth: { type: String, default: null },
     citizenship: { type: String, default: null },
     height: { type: Number, default: null },
     weight: { type: Number, default: null },
+    religion: { type: String, default: null },
+    // Government IDs (optional)
+    tin: { type: String, default: null },
+    sssGsisNo: { type: String, default: null },
+    pagibigNo: { type: String, default: null },
+    philhealthNo: { type: String, default: null },
     // Contact
     landline: { type: String, default: null },
     mobileSecondary: { type: String, default: null },
@@ -46,6 +52,8 @@ const jobseekerProfileSchema = new mongoose.Schema(
     isOfw: { type: Boolean, default: false },
     isRepatriated: { type: Boolean, default: false },
     repatriationIntent: { type: String, default: null },
+    passportNo: { type: String, default: null },
+    passportExpiryDate: { type: Date, default: null },
     // Current Status
     employmentStatus: {
       type: String,
@@ -99,6 +107,118 @@ const jobseekerProfileSchema = new mongoose.Schema(
     industrySelectionStep: {
       type: Boolean,
       default: false,
+    },
+
+    // ===== Job Preference (NSRP Form 1, Section II) =====
+    preferredOccupations: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (v) => v.length <= 4,
+        message: "You can list a maximum of 4 preferred occupations.",
+      },
+    },
+    preferredWorkLocationLocal: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (v) => v.length <= 3,
+        message: "You can list a maximum of 3 local work locations.",
+      },
+    },
+    preferredWorkLocationOverseas: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (v) => v.length <= 3,
+        message: "You can list a maximum of 3 overseas work locations.",
+      },
+    },
+    expectedSalaryMin: { type: Number, default: null },
+    expectedSalaryMax: { type: Number, default: null },
+
+    // ===== Educational Background details (NSRP Form 1, Section IV) =====
+    schoolAttended: { type: String, default: null },
+    schoolAttendedOther: { type: String, default: null },
+    course: { type: String, default: null },
+    yearGraduated: { type: String, default: null },
+
+    // ===== Language / Dialect Proficiency (NSRP Form 1, Section III) =====
+    languageProficiency: {
+      English: {
+        read: { type: Boolean, default: false },
+        write: { type: Boolean, default: false },
+        speak: { type: Boolean, default: false },
+        understand: { type: Boolean, default: false },
+      },
+      Filipino: {
+        read: { type: Boolean, default: false },
+        write: { type: Boolean, default: false },
+        speak: { type: Boolean, default: false },
+        understand: { type: Boolean, default: false },
+      },
+      Others: {
+        read: { type: Boolean, default: false },
+        write: { type: Boolean, default: false },
+        speak: { type: Boolean, default: false },
+        understand: { type: Boolean, default: false },
+      },
+    },
+    languageOthersLabel: { type: String, default: null },
+
+    // ===== Work History detail (NSRP Form 1, Section VII) — supplements `workExperience` bucket on User =====
+    workHistory: {
+      type: [
+        {
+          companyName: { type: String, default: "" },
+          address: { type: String, default: "" },
+          position: { type: String, default: "" },
+          dateFrom: { type: String, default: "" },
+          dateTo: { type: String, default: "" },
+          status: { type: String, default: "" },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
+
+    // ===== Technical/Vocational Training (NSRP Form 1, Section V) =====
+    vocationalTrainings: {
+      type: [
+        {
+          course: { type: String, default: "" },
+          institution: { type: String, default: "" },
+          institutionOther: { type: String, default: "" },
+          durationFrom: { type: String, default: "" },
+          durationTo: { type: String, default: "" },
+          certificate: { type: String, default: "" },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
+
+    // ===== Eligibility / Professional License (NSRP Form 1, Section VI) =====
+    eligibilities: {
+      type: [
+        {
+          name: { type: String, default: "" },
+          rating: { type: String, default: "" },
+          examDate: { type: String, default: "" },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
+    professionalLicenses: {
+      type: [
+        {
+          name: { type: String, default: "" },
+          validUntil: { type: String, default: "" },
+          _id: false,
+        },
+      ],
+      default: [],
     },
   },
   { timestamps: true }

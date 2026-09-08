@@ -1,5 +1,7 @@
 const JobLike = require("../models/JobLike");
 const JobVacancy = require("../models/JobVacancy");
+const User = require("../models/User");
+const { notifyLike } = require("../services/notificationService");
 
 // Like a job
 exports.likeJob = async (req, res) => {
@@ -24,6 +26,18 @@ exports.likeJob = async (req, res) => {
 
     // Get updated like count
     const likeCount = await JobLike.countDocuments({ jobId });
+
+    const liker = await User.findById(userId).select("name");
+    await notifyLike({
+      recipientId: job.employer,
+      actorId: userId,
+      actorName: liker?.name || "Someone",
+      relatedEntityType: "job",
+      relatedEntityId: jobId,
+      itemLabel: `your job posting "${job.title}"`,
+      actionUrl: "/employer",
+      io: req.app.get("io"),
+    });
 
     res.status(201).json({
       success: true,

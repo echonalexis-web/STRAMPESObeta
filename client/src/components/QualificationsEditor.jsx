@@ -1,199 +1,294 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FaCheck,
   FaClipboardList,
   FaListUl,
+  FaMagic,
   FaPencilAlt,
   FaPlus,
+  FaRegSave,
   FaTimes,
   FaTrash,
 } from "react-icons/fa";
 import "../styles/qualifications-editor.css";
-import { QUALIFICATION_TEMPLATES } from "../data/qualificationsTemplates";
 import { COMMON_SKILLS } from "../data/skills";
+import {
+  REQUIREMENT_TYPES,
+  STATIC_TEMPLATES,
+  TYPE_ICONS,
+  TYPE_LABELS,
+  foldType,
+  groupQualificationsByType,
+  isSkillType,
+  normalizeQualifications,
+  suggestTemplateForTitle,
+} from "../utils/qualifications";
 
-const TYPE_LABELS = {
-  education: "Education",
-  experience: "Experience",
-  skill: "Skill",
-  certification: "Certification",
-  license: "License",
-  other: "Other",
+const SKILL_DATALIST_ID = "qualifications-skill-suggestions";
+
+// Type options offered on each draft row (skill first, then the non-skill types).
+const ROW_TYPE_OPTIONS = [{ value: "skill", label: "Skill" }, ...REQUIREMENT_TYPES];
+
+const dedupeKey = (item) => `${foldType(item.type)}::${String(item.value).trim().toLowerCase()}`;
+
+// Merge `incoming` into `base`, skipping exact (type + value) duplicates.
+const mergeItems = (base, incoming) => {
+  const seen = new Set(base.map(dedupeKey));
+  const merged = [...base];
+  incoming.forEach((item) => {
+    const key = dedupeKey(item);
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(item);
+    }
+  });
+  return merged.map((item, index) => ({ ...item, order: index }));
 };
 
-const TYPE_ICONS = {
-  education: "🎓",
-  experience: "💼",
-  skill: "🧩",
-  certification: "✅",
-  license: "📄",
-  other: "📌",
-};
-
-const TYPE_OPTIONS = [
-  { value: "education", label: "Education" },
-  { value: "experience", label: "Experience" },
-  { value: "skill", label: "Skill" },
-  { value: "certification", label: "Certification" },
-  { value: "license", label: "License" },
-  { value: "other", label: "Other" },
-];
-
-const normalizeQualification = (qualification, index = 0) => {
-  const type = qualification?.type || "skill";
-  const value = String(qualification?.value ?? qualification?.text ?? "").trim();
-
-  return {
-    type,
-    value,
-    optional: Boolean(qualification?.optional ?? qualification?.isPreferred),
-    order: index,
-  };
-};
-
-const normalizeQualifications = (qualifications = []) => {
-  if (!Array.isArray(qualifications)) return [];
-  return qualifications.map((item, index) => normalizeQualification(item, index));
-};
-
-const createEmptyEntry = (type = "education") => ({
-  type,
-  value: "",
-  optional: false,
-});
+const createEmptyEntry = () => ({ type: "education", value: "", optional: false });
 
 export default function QualificationsEditor({
-  value = [],
+  value,
+  qualifications, // legacy prop name — tolerated so old callers still seed correctly
   onChange,
   disabled = false,
   label = "Qualifications",
   required = false,
   showTemplates = true,
+  templates = null,
+  jobTitleHint = "",
+  onSaveTemplate = null,
 }) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [templateKey, setTemplateKey] = useState("");
-  const [templateMode, setTemplateMode] = useState("append");
-  const [draft, setDraft] = useState(() => normalizeQualifications(value));
-  const [customEntry, setCustomEntry] = useState(createEmptyEntry("education"));
+  const incomingValue = Array.isArray(value)
+    ? value
+    : Array.isArray(qualifications)
+    ? qualifications
+    : [];
+  const safeValue = useMemo(() => normalizeQualifications(incomingValue), [incomingValue]);
 
-  const safeValue = normalizeQualifications(value);
+  const resolvedTemplates = useMemo(() => {
+    if (Array.isArray(templates) && templates.length) return templates;
+    return STATIC_TEMPLATES;
+  }, [templates]);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [draft, setDraft] = useState(safeValue);
+  const [templateId, setTemplateId] = useState("");
+  const [templateMode, setTemplateMode] = useState("append");
+  const [skillInput, setSkillInput] = useState("");
+  const [customEntry, setCustomEntry] = useState(createEmptyEntry());
+
+  const [cardTemplateId, setCardTemplateId] = useState("");
+  const [showTemplateSave, setShowTemplateSave] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const suggestion = useMemo(() => {
+    if (safeValue.length > 0) return null;
+    return suggestTemplateForTitle(resolvedTemplates, jobTitleHint);
+  }, [safeValue.length, resolvedTemplates, jobTitleHint]);
+
+  const summaryGroups = useMemo(() => groupQualificationsByType(safeValue), [safeValue]);
+
+  // Keep the draft in sync whenever the editor is (re)opened.
+  useEffect(() => {
+    if (isModalOpen) setDraft(safeValue);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen]);
 
   const openEditor = () => {
-    setDraft(normalizeQualifications(value));
+    setDraft(safeValue);
+    setSkillInput("");
+    setCustomEntry(createEmptyEntry());
+    setTemplateId("");
+    setShowTemplateSave(false);
+    setTemplateName("");
+    setSaveError("");
     setIsModalOpen(true);
   };
 
   const closeEditor = () => {
     setIsModalOpen(false);
-    setCustomEntry(createEmptyEntry("education"));
-    setTemplateKey("");
   };
 
+  // ---- On-page template loader (works without opening the modal) ----------
+  const loadTemplateIntoValue = (id, { replace = false } = {}) => {
+    const template = resolvedTemplates.find((tpl) => String(tpl.id) === String(id));
+    if (!template) return;
+    const items = normalizeQualifications(template.items);
+    const next = replace ? items.map((item, i) => ({ ...item, order: i })) : mergeItems(safeValue, items);
+    onChange(next);
+  };
+
+  const handleCardTemplateChange = (event) => {
+    const id = event.target.value;
+    setCardTemplateId("");
+    if (!id) return;
+    loadTemplateIntoValue(id, { replace: safeValue.length === 0 });
+  };
+
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    loadTemplateIntoValue(suggestion.id, { replace: true });
+  };
+
+  // ---- Draft mutations --------------------------------------------------
   const updateDraftItem = (index, patch) => {
-    setDraft((prev) =>
-      prev.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item))
-    );
+    setDraft((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   };
 
   const removeDraftItem = (index) => {
     setDraft((prev) =>
-      prev.filter((_, itemIndex) => itemIndex !== index).map((item, itemIndex) => ({
-        ...item,
-        order: itemIndex,
-      }))
+      prev.filter((_, i) => i !== index).map((item, i) => ({ ...item, order: i }))
     );
   };
 
   const moveDraftItem = (index, direction) => {
     setDraft((prev) => {
-      const targetIndex = index + direction;
-      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
-
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
       const next = [...prev];
-      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
-      return next.map((item, itemIndex) => ({ ...item, order: itemIndex }));
+      [next[index], next[target]] = [next[target], next[index]];
+      return next.map((item, i) => ({ ...item, order: i }));
     });
+  };
+
+  // Skills: accept one or many (comma / newline separated) at once.
+  const addSkills = () => {
+    const parts = skillInput
+      .split(/[,\n]/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (!parts.length) return;
+    setDraft((prev) =>
+      mergeItems(
+        prev,
+        parts.map((value) => ({ type: "skill", value, optional: false }))
+      )
+    );
+    setSkillInput("");
   };
 
   const addCustomItem = () => {
-    const cleanValue = customEntry.value.trim();
-    if (!cleanValue) return;
-
-    setDraft((prev) => [
-      ...prev,
-      {
-        type: customEntry.type,
-        value: cleanValue,
-        optional: Boolean(customEntry.optional),
-        order: prev.length,
-      },
-    ]);
-
+    const clean = customEntry.value.trim();
+    if (!clean) return;
+    setDraft((prev) =>
+      mergeItems(prev, [{ type: customEntry.type, value: clean, optional: Boolean(customEntry.optional) }])
+    );
     setCustomEntry((prev) => ({ ...prev, value: "", optional: false }));
   };
 
-  const applyTemplate = () => {
-    const template = QUALIFICATION_TEMPLATES[templateKey];
+  const applyModalTemplate = () => {
+    const template = resolvedTemplates.find((tpl) => String(tpl.id) === String(templateId));
     if (!template) return;
-
-    const templateItems = template.map((item, index) => normalizeQualification(item, index));
-
-    setDraft((prev) => {
-      const base = templateMode === "replace" ? [] : prev;
-      return [...base, ...templateItems].map((item, itemIndex) => ({
-        ...item,
-        order: itemIndex,
-      }));
-    });
-
-    setTemplateKey("");
+    const items = normalizeQualifications(template.items);
+    setDraft((prev) =>
+      templateMode === "replace"
+        ? items.map((item, i) => ({ ...item, order: i }))
+        : mergeItems(prev, items)
+    );
+    setTemplateId("");
   };
 
   const handleApply = () => {
-    const nextValue = draft
-      .filter((item) => item && String(item.value || "").trim())
+    const next = draft
       .map((item, index) => ({
-        ...item,
-        type: item.type || "other",
-        value: String(item.value).trim(),
+        type: foldType(item.type),
+        value: String(item.value || "").trim(),
         optional: Boolean(item.optional),
         order: index,
-      }));
-
-    onChange(nextValue);
+      }))
+      .filter((item) => item.value)
+      .map((item, index) => ({ ...item, order: index }));
+    onChange(next);
     closeEditor();
   };
 
-  const summaryGroups = useMemo(() => {
-    const groups = {
-      education: [],
-      experience: [],
-      skill: [],
-      certification: [],
-      license: [],
-      other: [],
-    };
+  const handleSaveTemplate = async () => {
+    if (!onSaveTemplate) return;
+    const name = templateName.trim();
+    if (!name) {
+      setSaveError("Give the template a name");
+      return;
+    }
+    const items = draft
+      .map((item) => ({
+        type: foldType(item.type),
+        value: String(item.value || "").trim(),
+        optional: Boolean(item.optional),
+      }))
+      .filter((item) => item.value);
+    if (!items.length) {
+      setSaveError("Add at least one requirement first");
+      return;
+    }
+    setSavingTemplate(true);
+    setSaveError("");
+    try {
+      await onSaveTemplate({ name, items });
+      setShowTemplateSave(false);
+      setTemplateName("");
+    } catch (err) {
+      setSaveError(err?.response?.data?.message || "Could not save template");
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
 
-    safeValue.forEach((item) => {
-      const type = item.type || "other";
-      if (!groups[type]) groups[type] = [];
-      groups[type].push(item);
-    });
-
-    return Object.entries(groups)
-      .filter(([, items]) => items.length)
-      .map(([type, items]) => ({ type, items }));
-  }, [safeValue]);
-
-  const skillChips = safeValue.filter((item) => item.type === "skill" || item.type === "other");
+  const draftSkills = draft.filter((item) => isSkillType(item.type));
+  const templateOptions = resolvedTemplates.map((tpl) => (
+    <option key={tpl.id} value={tpl.id}>
+      {tpl.name}
+      {tpl.source === "custom" ? " (yours)" : ""}
+    </option>
+  ));
 
   return (
     <div className="qualifications-editor">
+      {/* One shared datalist for every skill input on the page. */}
+      <datalist id={SKILL_DATALIST_ID}>
+        {COMMON_SKILLS.map((skill) => (
+          <option key={skill} value={skill} />
+        ))}
+      </datalist>
+
       {label && (
         <div className="qualifications-editor-label">
           {label}
           {required && <span className="required-star"> *</span>}
         </div>
+      )}
+
+      {/* On-page "Start from a template" dropdown — always visible, no modal. */}
+      {showTemplates && resolvedTemplates.length > 0 && (
+        <div className="qualifications-quick-template">
+          <label htmlFor="qualifications-quick-template-select">
+            <FaListUl /> Start from a template
+          </label>
+          <select
+            id="qualifications-quick-template-select"
+            value={cardTemplateId}
+            onChange={handleCardTemplateChange}
+            disabled={disabled}
+          >
+            <option value="">
+              {safeValue.length === 0 ? "-- Choose a template to prefill --" : "-- Add a template's items --"}
+            </option>
+            {templateOptions}
+          </select>
+        </div>
+      )}
+
+      {suggestion && (
+        <button
+          type="button"
+          className="qualifications-suggestion"
+          onClick={applySuggestion}
+          disabled={disabled}
+        >
+          <FaMagic /> Use the <strong>{suggestion.name}</strong> template for &ldquo;{jobTitleHint}&rdquo;?
+        </button>
       )}
 
       <div className="qualifications-card-shell">
@@ -221,7 +316,7 @@ export default function QualificationsEditor({
               <div className="qualifications-summary-title">
                 <FaListUl /> Requirements Overview
               </div>
-              <button type="button" className="qualifications-edit-btn" onClick={openEditor}>
+              <button type="button" className="qualifications-edit-btn" onClick={openEditor} disabled={disabled}>
                 <FaPencilAlt /> Edit
               </button>
             </div>
@@ -233,31 +328,19 @@ export default function QualificationsEditor({
                     {TYPE_ICONS[type] || "📌"} {TYPE_LABELS[type] || type}
                   </div>
                   <div className="qualifications-summary-values">
-                    {items.slice(0, 3).map((item, index) => (
+                    {items.slice(0, 6).map((item, index) => (
                       <span key={`${type}-${index}`} className="qualifications-summary-chip">
                         {item.value}
+                        {item.optional ? " · preferred" : ""}
                       </span>
                     ))}
-                    {items.length > 3 && (
-                      <span className="qualifications-summary-chip more">+{items.length - 3} more</span>
+                    {items.length > 6 && (
+                      <span className="qualifications-summary-chip more">+{items.length - 6} more</span>
                     )}
                   </div>
                 </div>
               ))}
             </div>
-
-            {skillChips.length > 0 && (
-              <div className="qualifications-skill-cloud">
-                {skillChips.slice(0, 10).map((item, index) => (
-                  <span key={`${item.type}-${index}`} className="qualifications-skill-pill">
-                    {item.value}
-                  </span>
-                ))}
-                {skillChips.length > 10 && (
-                  <span className="qualifications-skill-pill more">+{skillChips.length - 10}</span>
-                )}
-              </div>
-            )}
 
             <div className="qualifications-summary-total">
               {safeValue.length} requirement{safeValue.length === 1 ? "" : "s"} set
@@ -275,31 +358,34 @@ export default function QualificationsEditor({
                   <FaClipboardList />
                 </div>
                 <div>
-                  <h3 className="qualifications-modal-title">Manage Job Qualifications & Requirements</h3>
-                  <p className="qualifications-modal-subtitle">Define what candidates need to qualify for this role</p>
+                  <h3 className="qualifications-modal-title">Manage Job Qualifications &amp; Requirements</h3>
+                  <p className="qualifications-modal-subtitle">
+                    Define what candidates need to qualify for this role
+                  </p>
                 </div>
               </div>
-              <button type="button" className="qualifications-close-btn" onClick={closeEditor} aria-label="Close requirements editor">
+              <button
+                type="button"
+                className="qualifications-close-btn"
+                onClick={closeEditor}
+                aria-label="Close requirements editor"
+              >
                 <FaTimes />
               </button>
             </div>
 
-            {showTemplates && Object.keys(QUALIFICATION_TEMPLATES).length > 0 && (
+            {showTemplates && resolvedTemplates.length > 0 && (
               <div className="qualifications-template-section">
                 <label className="qualifications-template-label">Load Template</label>
                 <div className="qualifications-template-row">
                   <select
-                    value={templateKey}
-                    onChange={(event) => setTemplateKey(event.target.value)}
+                    value={templateId}
+                    onChange={(event) => setTemplateId(event.target.value)}
                     disabled={disabled}
                     className="qualifications-template-select"
                   >
                     <option value="">-- Select a template --</option>
-                    {Object.keys(QUALIFICATION_TEMPLATES).map((key) => (
-                      <option key={key} value={key}>
-                        {key.replace(/_/g, " ")}
-                      </option>
-                    ))}
+                    {templateOptions}
                   </select>
                   <button
                     type="button"
@@ -311,8 +397,8 @@ export default function QualificationsEditor({
                   <button
                     type="button"
                     className="qualifications-template-load-btn"
-                    onClick={applyTemplate}
-                    disabled={!templateKey || disabled}
+                    onClick={applyModalTemplate}
+                    disabled={!templateId || disabled}
                   >
                     Load
                   </button>
@@ -321,21 +407,82 @@ export default function QualificationsEditor({
             )}
 
             <div className="qualifications-modal-body">
+              {/* ---- Merged skills bucket ---- */}
               <div className="qualifications-core-header">
                 <span className="qualifications-core-bar" />
-                <span>Core Requirements</span>
+                <span>Skills &amp; Competencies</span>
+              </div>
+
+              <div className="qualifications-skill-adder">
+                <input
+                  type="text"
+                  value={skillInput}
+                  list={SKILL_DATALIST_ID}
+                  placeholder="Type a skill and press Enter (or paste a comma-separated list)"
+                  onChange={(event) => setSkillInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addSkills();
+                    }
+                  }}
+                  disabled={disabled}
+                />
+                <button
+                  type="button"
+                  className="qualifications-inline-add-btn"
+                  onClick={addSkills}
+                  disabled={!skillInput.trim() || disabled}
+                >
+                  <FaPlus /> Add
+                </button>
+              </div>
+
+              {draftSkills.length > 0 && (
+                <div className="qualifications-skill-chips">
+                  {draft.map((item, index) =>
+                    isSkillType(item.type) ? (
+                      <span
+                        key={`skill-${index}`}
+                        className={`qualifications-skill-chip ${item.optional ? "preferred" : ""}`}
+                      >
+                        <button
+                          type="button"
+                          className="qualifications-skill-chip-preferred"
+                          title={item.optional ? "Marked preferred — click to make required" : "Mark as preferred"}
+                          onClick={() => updateDraftItem(index, { optional: !item.optional })}
+                        >
+                          {item.optional ? "★" : "☆"}
+                        </button>
+                        {item.value}
+                        <button
+                          type="button"
+                          className="qualifications-skill-chip-remove"
+                          onClick={() => removeDraftItem(index)}
+                          aria-label={`Remove ${item.value}`}
+                        >
+                          <FaTimes />
+                        </button>
+                      </span>
+                    ) : null
+                  )}
+                </div>
+              )}
+
+              {/* ---- Non-skill requirements ---- */}
+              <div className="qualifications-core-header" style={{ marginTop: "1.25rem" }}>
+                <span className="qualifications-core-bar" />
+                <span>Other Requirements</span>
               </div>
 
               <div className="qualifications-modal-custom-item">
                 <div className="qualifications-modal-custom-selects">
                   <select
                     value={customEntry.type}
-                    onChange={(event) =>
-                      setCustomEntry((prev) => ({ ...prev, type: event.target.value }))
-                    }
+                    onChange={(event) => setCustomEntry((prev) => ({ ...prev, type: event.target.value }))}
                     disabled={disabled}
                   >
-                    {TYPE_OPTIONS.map((option) => (
+                    {REQUIREMENT_TYPES.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -345,32 +492,22 @@ export default function QualificationsEditor({
                   <input
                     type="text"
                     value={customEntry.value}
-                    placeholder={
-                      customEntry.type === "skill"
-                        ? "Select or type a skill"
-                        : "Add another requirement or skill"
-                    }
-                    list={customEntry.type === "skill" ? "qualifications-skill-suggestions" : undefined}
-                    onChange={(event) =>
-                      setCustomEntry((prev) => ({ ...prev, value: event.target.value }))
-                    }
+                    placeholder="e.g. Bachelor's degree in Accounting"
+                    onChange={(event) => setCustomEntry((prev) => ({ ...prev, value: event.target.value }))}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addCustomItem();
+                      }
+                    }}
                     disabled={disabled}
                   />
-                  {customEntry.type === "skill" && (
-                    <datalist id="qualifications-skill-suggestions">
-                      {COMMON_SKILLS.map((skill) => (
-                        <option key={skill} value={skill} />
-                      ))}
-                    </datalist>
-                  )}
 
                   <label className="qualifications-checkbox-wrap">
                     <input
                       type="checkbox"
                       checked={customEntry.optional}
-                      onChange={(event) =>
-                        setCustomEntry((prev) => ({ ...prev, optional: event.target.checked }))
-                      }
+                      onChange={(event) => setCustomEntry((prev) => ({ ...prev, optional: event.target.checked }))}
                       disabled={disabled}
                     />
                     Preferred
@@ -387,72 +524,117 @@ export default function QualificationsEditor({
                 </button>
               </div>
 
-              {draft.length > 0 && (
+              {draft.some((item) => !isSkillType(item.type)) && (
                 <div className="qualifications-draft-list">
-                  {draft.map((item, index) => (
-                    <div className="qualifications-draft-row" key={`${item.type}-${index}`}>
-                      <div className="qualifications-draft-left">
-                        <span className="qualifications-draft-type">
-                          {TYPE_ICONS[item.type] || "📌"} {TYPE_LABELS[item.type] || item.type}
-                        </span>
-                        <input
-                          type="text"
-                          value={item.value}
-                          list={item.type === "skill" ? "qualifications-skill-suggestions" : undefined}
-                          onChange={(event) =>
-                            updateDraftItem(index, { value: event.target.value })
-                          }
-                        />
-                        {item.type === "skill" && (
-                          <datalist id="qualifications-skill-suggestions">
-                            {COMMON_SKILLS.map((skill) => (
-                              <option key={skill} value={skill} />
+                  {draft.map((item, index) =>
+                    isSkillType(item.type) ? null : (
+                      <div className="qualifications-draft-row" key={`${item.type}-${index}`}>
+                        <div className="qualifications-draft-left">
+                          <select
+                            className="qualifications-draft-type-select"
+                            value={foldType(item.type)}
+                            onChange={(event) => updateDraftItem(index, { type: event.target.value })}
+                          >
+                            {ROW_TYPE_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
                             ))}
-                          </datalist>
-                        )}
-                      </div>
-
-                      <div className="qualifications-draft-actions">
-                        <label className="qualifications-checkbox-wrap small">
+                          </select>
                           <input
-                            type="checkbox"
-                            checked={Boolean(item.optional)}
-                            onChange={(event) =>
-                              updateDraftItem(index, { optional: event.target.checked })
-                            }
+                            type="text"
+                            value={item.value}
+                            onChange={(event) => updateDraftItem(index, { value: event.target.value })}
                           />
-                          Preferred
-                        </label>
+                        </div>
 
-                        <button
-                          type="button"
-                          className="qualifications-move-btn"
-                          onClick={() => moveDraftItem(index, -1)}
-                          disabled={index === 0}
-                        >
-                          ↑
-                        </button>
+                        <div className="qualifications-draft-actions">
+                          <label className="qualifications-checkbox-wrap small">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(item.optional)}
+                              onChange={(event) => updateDraftItem(index, { optional: event.target.checked })}
+                            />
+                            Preferred
+                          </label>
 
-                        <button
-                          type="button"
-                          className="qualifications-move-btn"
-                          onClick={() => moveDraftItem(index, 1)}
-                          disabled={index === draft.length - 1}
-                        >
-                          ↓
-                        </button>
-
-                        <button
-                          type="button"
-                          className="qualifications-remove-btn"
-                          onClick={() => removeDraftItem(index)}
-                          aria-label="Remove requirement"
-                        >
-                          <FaTrash />
-                        </button>
+                          <button
+                            type="button"
+                            className="qualifications-move-btn"
+                            onClick={() => moveDraftItem(index, -1)}
+                            disabled={index === 0}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            className="qualifications-move-btn"
+                            onClick={() => moveDraftItem(index, 1)}
+                            disabled={index === draft.length - 1}
+                          >
+                            ↓
+                          </button>
+                          <button
+                            type="button"
+                            className="qualifications-remove-btn"
+                            onClick={() => removeDraftItem(index)}
+                            aria-label="Remove requirement"
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
                       </div>
+                    )
+                  )}
+                </div>
+              )}
+
+              {onSaveTemplate && (
+                <div className="qualifications-save-template">
+                  {showTemplateSave ? (
+                    <div className="qualifications-save-template-form">
+                      <input
+                        type="text"
+                        value={templateName}
+                        placeholder="Template name (e.g. Kitchen Staff)"
+                        onChange={(event) => setTemplateName(event.target.value)}
+                        disabled={savingTemplate}
+                      />
+                      <button
+                        type="button"
+                        className="qualifications-template-load-btn"
+                        onClick={handleSaveTemplate}
+                        disabled={savingTemplate || !templateName.trim()}
+                      >
+                        {savingTemplate ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        className="qualifications-cancel-btn"
+                        onClick={() => {
+                          setShowTemplateSave(false);
+                          setSaveError("");
+                        }}
+                        disabled={savingTemplate}
+                      >
+                        Cancel
+                      </button>
                     </div>
-                  ))}
+                  ) : (
+                    <button
+                      type="button"
+                      className="qualifications-save-template-btn"
+                      onClick={() => {
+                        setShowTemplateSave(true);
+                        setTemplateName("");
+                        setSaveError("");
+                      }}
+                      disabled={draft.length === 0}
+                    >
+                      <FaRegSave /> Save these as a reusable template
+                    </button>
+                  )}
+                  {saveError && <div className="qualifications-save-template-error">{saveError}</div>}
                 </div>
               )}
             </div>
@@ -467,7 +649,7 @@ export default function QualificationsEditor({
                   Cancel
                 </button>
                 <button type="button" className="qualifications-apply-btn" onClick={handleApply}>
-                  <FaCheck /> Apply & Save
+                  <FaCheck /> Apply &amp; Save
                 </button>
               </div>
             </div>

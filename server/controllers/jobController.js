@@ -6,8 +6,7 @@ const { ensureConversationBetweenUsers } = require("./messageController");
 const { getHomepageJobsPayload, getApplicationCountMap } = require("../utils/jobDisplay");
 const EmployerProfile = require("../models/EmployerProfile");
 const { createNotificationForUser } = require("../services/notificationService");
-const fs = require("fs");
-const path = require("path");
+const storageService = require("../services/storageService");
 
 // Simple logger
 const logger = {
@@ -90,7 +89,7 @@ exports.buildArchivedJobSnapshot = (job, metrics = {}) => {
   };
 };
 
-const archiveJobRecord = async (job, archiveReason = "manual_close") => {
+const archiveJobRecord = async (job, archiveReason = "manual_close", io = null) => {
   if (!job || job.archived) return job;
 
   const applications = await JobApplication.find({ vacancy: job._id });
@@ -136,6 +135,29 @@ const archiveJobRecord = async (job, archiveReason = "manual_close") => {
   };
 
   await job.save();
+
+  // Let applicants still in the running know the posting closed — they
+  // otherwise only ever hear from the employer via an explicit status
+  // change, and would never learn their pending application just went moot.
+  const stillPendingApplicants = applications.filter((app) =>
+    ["pending", "reviewed", "shortlisted"].includes(normalizeApplicationStatusValue(app.status))
+  );
+  await Promise.all(
+    stillPendingApplicants.map((app) =>
+      createNotificationForUser({
+        recipientId: app.applicant,
+        type: "system",
+        title: "Job posting closed",
+        message: `"${job.title}" has closed and is no longer accepting applications.`,
+        relatedEntityType: "job",
+        relatedEntityId: job._id,
+        actionUrl: "/applications",
+        metadata: { jobTitle: job.title, reason: archiveReason },
+        io,
+      })
+    )
+  );
+
   return job;
 };
 
@@ -204,11 +226,14 @@ exports.createJob = async (req, res) => {
 exports.getJobs = async (req, res) => {
   try {
     let jobs = await JobVacancy.find({ isActive: true })
-      .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone")
+      .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone isActive profileImage")
       .sort({ createdAt: -1 });
 
     // Filter out closed, expired, and archived jobs
     jobs = jobs.filter(job => isJobVisibleToJobseekers(job));
+
+    // Hide jobs whose employer account is suspended/deactivated.
+    jobs = jobs.filter(job => job.employer && job.employer.isActive !== false);
 
     // If user is logged in as a jobseeker, filter out jobs where they've been hired
     if (req.user && req.user.role === "resident") {
@@ -256,11 +281,14 @@ exports.getJobs = async (req, res) => {
 exports.getHomepageJobs = async (req, res) => {
   try {
     let jobs = await JobVacancy.find({ isActive: true, status: { $ne: "closed" } })
-      .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone")
+      .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone isActive profileImage")
       .sort({ createdAt: -1 });
 
     // Filter out closed, expired, and archived jobs
     jobs = jobs.filter(job => isJobVisibleToJobseekers(job));
+
+    // Hide jobs whose employer account is suspended/deactivated.
+    jobs = jobs.filter(job => job.employer && job.employer.isActive !== false);
 
     // If user is logged in as a jobseeker, filter out jobs where they've been hired
     if (req.user && req.user.role === "resident") {
@@ -305,8 +333,15 @@ exports.getHomepageJobs = async (req, res) => {
 exports.getJobById = async (req, res) => {
   try {
     const job = await JobVacancy.findById(req.params.id)
-      .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone");
+      .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone isActive profileImage");
     if (!job) return res.status(404).json({ message: "Job not found" });
+
+    // Treat a suspended employer's posting as unavailable to the public.
+    const viewerIsPrivileged =
+      req.user && (req.user.role === "admin" || String(req.user.id) === String(job.employer?._id));
+    if (job.employer && job.employer.isActive === false && !viewerIsPrivileged) {
+      return res.status(404).json({ message: "This job is no longer available" });
+    }
 
     // Attach employer profile
     const jobObj = job.toObject();
@@ -424,18 +459,12 @@ exports.deleteJob = async (req, res) => {
 exports.applyToJob = async (req, res) => {
   const resumeUpload = Array.isArray(req.files?.resume) ? req.files.resume[0] : req.file;
   const coverLetterUpload = Array.isArray(req.files?.coverLetterFile) ? req.files.coverLetterFile[0] : null;
-  const uploadedFiles = [resumeUpload, coverLetterUpload].filter(Boolean);
+  // Orphan cleanup on error is handled by the cleanupUploadedFiles middleware.
   const session = await JobApplication.startSession();
 
   try {
     const job = await JobVacancy.findById(req.params.id);
     if (!job) {
-      uploadedFiles.forEach((file) => {
-        if (fs.existsSync(file.path)) {
-          fs.unlinkSync(file.path);
-          logger.info(`Cleaned up orphan file: ${file.path}`);
-        }
-      });
       return res.status(404).json({ message: "Job not found" });
     }
 
@@ -447,22 +476,12 @@ exports.applyToJob = async (req, res) => {
     }).session(session);
 
     if (existingApplication) {
-      uploadedFiles.forEach((file) => {
-        if (fs.existsSync(file.path)) {
-          fs.unlinkSync(file.path);
-        }
-      });
       await session.abortTransaction();
       session.endSession();
       return res.status(400).json({ message: "You have already applied to this job" });
     }
 
     if (!resumeUpload) {
-      uploadedFiles.forEach((file) => {
-        if (fs.existsSync(file.path)) {
-          fs.unlinkSync(file.path);
-        }
-      });
       await session.abortTransaction();
       session.endSession();
       return res.status(400).json({ message: "Please upload your resume before applying." });
@@ -471,9 +490,9 @@ exports.applyToJob = async (req, res) => {
     const application = await JobApplication.create([{
       applicant: req.user.id,
       vacancy: job._id,
-      resume: resumeUpload ? resumeUpload.path : undefined,
+      resume: resumeUpload ? resumeUpload.storedValue : undefined,
       coverLetter: req.body.coverLetter || "",
-      coverLetterFile: coverLetterUpload ? coverLetterUpload.path : "",
+      coverLetterFile: coverLetterUpload ? coverLetterUpload.storedValue : "",
     }], { session });
 
     await session.commitTransaction();
@@ -499,17 +518,7 @@ exports.applyToJob = async (req, res) => {
     logger.info(`Application submitted: ${application[0]._id} for job ${job._id} by user ${req.user.id}`);
     res.json({ message: "Application submitted successfully", application: application[0] });
   } catch (error) {
-    uploadedFiles.forEach((file) => {
-      if (fs.existsSync(file.path)) {
-        try {
-          fs.unlinkSync(file.path);
-          logger.info(`Cleaned up orphan file on error: ${file.path}`);
-        } catch (unlinkError) {
-          logger.error("Failed to delete uploaded file:", unlinkError);
-        }
-      }
-    });
-
+    // Uploaded files are cleaned up by the cleanupUploadedFiles middleware on error responses.
     await session.abortTransaction();
     session.endSession();
 
@@ -540,9 +549,14 @@ exports.getApplicationsForJob = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    const applications = await JobApplication.find({ vacancy: job._id })
-      .populate("applicant", "name email about")
+    let applications = await JobApplication.find({ vacancy: job._id })
+      .populate("applicant", "name email about isActive")
       .sort({ appliedAt: -1 });
+
+    // Hide applications from jobseekers whose account is suspended/deleted.
+    applications = applications.filter(
+      (application) => application.applicant && application.applicant.isActive !== false
+    );
 
     if (String(job.employer) === String(req.user.id)) {
       for (const application of applications) {
@@ -585,7 +599,7 @@ exports.getMyApplications = async (req, res) => {
         select: "title location employer qualifications",
         populate: {
           path: "employer",
-          select: "name email companyName",
+          select: "name email companyName isActive profileImage",
         },
       })
       .sort({ appliedAt: -1 });
@@ -607,6 +621,12 @@ exports.getMyApplications = async (req, res) => {
         const employerValue = vacancy.employer;
         const alreadyPopulated = employerValue && typeof employerValue === "object" && employerValue.name;
 
+        // Surface a marker the client uses to show "Employer unavailable"
+        // instead of a working job link when the employer is suspended.
+        if (employerValue && typeof employerValue === "object" && employerValue.isActive === false) {
+          vacancy.employerUnavailable = true;
+        }
+
         if (alreadyPopulated) {
           return data;
         }
@@ -623,8 +643,11 @@ exports.getMyApplications = async (req, res) => {
           return data;
         }
 
-        const employerProfile = await User.findById(employerId).select("name email companyName").lean();
+        const employerProfile = await User.findById(employerId).select("name email companyName isActive").lean();
         vacancy.employer = employerProfile || { name: "Unknown", companyName: "No company name" };
+        if (employerProfile && employerProfile.isActive === false) {
+          vacancy.employerUnavailable = true;
+        }
 
         return data;
       })
@@ -655,26 +678,20 @@ exports.updateMyApplication = async (req, res) => {
     const coverLetterUpload = Array.isArray(req.files?.coverLetterFile) ? req.files.coverLetterFile[0] : null;
 
     if (resumeUpload) {
-      if (application.resume && fs.existsSync(application.resume)) {
-        try {
-          fs.unlinkSync(application.resume);
-        } catch (unlinkError) {
-          logger.error("Failed to delete old resume:", unlinkError);
-        }
+      const previous = application.resume;
+      application.resume = resumeUpload.storedValue;
+      if (previous && previous !== application.resume) {
+        Promise.resolve(storageService.remove(previous)).catch(() => {});
       }
-      application.resume = resumeUpload.path;
     }
 
     if (coverLetterUpload) {
-      if (application.coverLetterFile && fs.existsSync(application.coverLetterFile)) {
-        try {
-          fs.unlinkSync(application.coverLetterFile);
-        } catch (unlinkError) {
-          logger.error("Failed to delete old cover letter file:", unlinkError);
-        }
-      }
-      application.coverLetterFile = coverLetterUpload.path;
+      const previous = application.coverLetterFile;
+      application.coverLetterFile = coverLetterUpload.storedValue;
       application.coverLetter = "";
+      if (previous && previous !== application.coverLetterFile) {
+        Promise.resolve(storageService.remove(previous)).catch(() => {});
+      }
     }
 
     await application.save();
@@ -740,12 +757,11 @@ exports.deleteMyApplication = async (req, res) => {
       return res.status(403).json({ message: "You can only delete your own applications" });
     }
 
-    if (application.resume && fs.existsSync(application.resume)) {
-      try {
-        fs.unlinkSync(application.resume);
-      } catch (unlinkError) {
-        logger.error("Failed to delete resume on application deletion:", unlinkError);
-      }
+    if (application.resume) {
+      Promise.resolve(storageService.remove(application.resume)).catch(() => {});
+    }
+    if (application.coverLetterFile) {
+      Promise.resolve(storageService.remove(application.coverLetterFile)).catch(() => {});
     }
 
     await JobApplication.findByIdAndDelete(application._id);
@@ -775,9 +791,26 @@ exports.closeJob = async (req, res) => {
       return res.json({ message: "Job already archived", job: job.toObject() });
     }
 
+    const io = req.app.get("io");
+    const isAdminActingOnAnothersJob = req.user.role === "admin" && job.employer.toString() !== req.user.id;
+
     job.status = "closed";
     job.closedAt = new Date();
-    const archivedJob = await archiveJobRecord(job, "manual_close");
+    const archivedJob = await archiveJobRecord(job, "manual_close", io);
+
+    if (isAdminActingOnAnothersJob) {
+      await createNotificationForUser({
+        recipientId: job.employer,
+        actorId: req.user.id,
+        type: "admin_action",
+        title: "Your job posting was closed",
+        message: `An administrator closed your job posting "${job.title}".`,
+        relatedEntityType: "job",
+        relatedEntityId: job._id,
+        actionUrl: "/employer",
+        io,
+      });
+    }
 
     logger.info(`Job closed and archived: ${req.params.id} by user ${req.user.id}`);
     res.json({ message: "Job closed and archived successfully", job: archivedJob.toObject() });
@@ -804,12 +837,30 @@ exports.archiveJob = async (req, res) => {
       return res.json({ message: "Job already archived", job: job.toObject() });
     }
 
-    if (job.status !== "closed") {
+    const io = req.app.get("io");
+    const isAdminActingOnAnothersJob = req.user.role === "admin" && job.employer.toString() !== req.user.id;
+    const wasOpenBeforeArchive = job.status !== "closed";
+
+    if (wasOpenBeforeArchive) {
       job.status = "closed";
       job.closedAt = job.closedAt || new Date();
     }
 
-    const archivedJob = await archiveJobRecord(job, req.body?.reason || "manual_close");
+    const archivedJob = await archiveJobRecord(job, req.body?.reason || "manual_close", io);
+
+    if (isAdminActingOnAnothersJob && wasOpenBeforeArchive) {
+      await createNotificationForUser({
+        recipientId: job.employer,
+        actorId: req.user.id,
+        type: "admin_action",
+        title: "Your job posting was closed",
+        message: `An administrator archived your job posting "${job.title}".`,
+        relatedEntityType: "job",
+        relatedEntityId: job._id,
+        actionUrl: "/employer",
+        io,
+      });
+    }
 
     logger.info(`Job archived: ${req.params.id} by user ${req.user.id}`);
     res.json({ message: "Job archived successfully", job: archivedJob.toObject() });
@@ -842,6 +893,20 @@ exports.reopenJob = async (req, res) => {
     job.archived = false;
     await job.save();
 
+    if (req.user.role === "admin" && job.employer.toString() !== req.user.id) {
+      await createNotificationForUser({
+        recipientId: job.employer,
+        actorId: req.user.id,
+        type: "admin_action",
+        title: "Your job posting was reopened",
+        message: `An administrator reopened your job posting "${job.title}".`,
+        relatedEntityType: "job",
+        relatedEntityId: job._id,
+        actionUrl: "/employer",
+        io: req.app.get("io"),
+      });
+    }
+
     logger.info(`Job reopened: ${req.params.id} by user ${req.user.id}`);
     res.json({ message: "Job reopened successfully", job: job.toObject() });
   } catch (error) {
@@ -859,12 +924,13 @@ exports.reopenJob = async (req, res) => {
 exports.getEmployerJobs = async (req, res) => {
   try {
     const jobs = await JobVacancy.find({ employer: req.user.id }).sort({ createdAt: -1 });
+    const io = req.app.get("io");
 
     for (const job of jobs) {
       if (job.archived && job.status === "closed") continue;
 
       if (job.status === "closed") {
-        await archiveJobRecord(job, job.archiveReason || "manual_close");
+        await archiveJobRecord(job, job.archiveReason || "manual_close", io);
         continue;
       }
 
@@ -874,12 +940,12 @@ exports.getEmployerJobs = async (req, res) => {
       });
 
       if (job.status === "active" && isJobPastDeadline(job)) {
-        await archiveJobRecord(job, "deadline_passed");
+        await archiveJobRecord(job, "deadline_passed", io);
         continue;
       }
 
       if (hiredCount >= Number(job.slots || 1) && job.status !== "closed") {
-        await archiveJobRecord(job, "quota_reached");
+        await archiveJobRecord(job, "quota_reached", io);
       }
     }
 

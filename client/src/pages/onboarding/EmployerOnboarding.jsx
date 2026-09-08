@@ -4,6 +4,7 @@ import { AuthContext } from "../../context/AuthContext";
 import { usersAPI } from "../../services/api";
 import "../../styles/onboarding.css";
 import LocationSelect from "../../components/LocationSelect";
+import AvatarPicker from "../../components/AvatarPicker";
 import { usePersistentState } from "../../hooks/usePersistentState";
 
 const industries = [
@@ -12,6 +13,8 @@ const industries = [
   "Real Estate", "Food & Beverage", "Financial Services", "Other",
 ];
 const companySizes = ["1-10", "11-50", "51-200", "201-500", "500+"];
+
+const STEP_LABELS = ["Company Information", "Contact Details", "Review & Submit", "Profile Photo"];
 
 const getInitialForm = (user) => ({
   companyName: user?.companyName || "",
@@ -36,7 +39,7 @@ const getInitialForm = (user) => ({
 });
 
 export default function EmployerOnboarding() {
-  const { user, login } = useContext(AuthContext);
+  const { user, login, setUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const defaultState = {
@@ -73,9 +76,12 @@ export default function EmployerOnboarding() {
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [errors, setErrors] = useState({});
+  // Set once onboarding is submitted so the optional photo step (4) can render
+  // without the "already completed" guard below bouncing the user to the dashboard.
+  const [finished, setFinished] = useState(false);
 
   useEffect(() => {
-    if (user?.hasCompletedOnboarding === true || user?.onboardingComplete === true) {
+    if (!finished && (user?.hasCompletedOnboarding === true || user?.onboardingComplete === true)) {
       navigate("/employer-dashboard");
     }
     if (user && user.role !== "employer") {
@@ -84,9 +90,9 @@ export default function EmployerOnboarding() {
     if (user && !localStorage.getItem('employerOnboarding')) {
       setForm(getInitialForm(user));
     }
-  }, [user, navigate]);
+  }, [user, navigate, finished]);
 
-  const progress = useMemo(() => (step === 1 ? 33 : step === 2 ? 66 : 100), [step]);
+  const progress = useMemo(() => (Math.min(step, 4) / 4) * 100, [step]);
 
   const updateField = (name, value) => {
     setForm(prev => ({ ...prev, [name]: value }));
@@ -162,22 +168,51 @@ export default function EmployerOnboarding() {
       const { data } = await usersAPI.completeOnboarding(payload);
       const token = localStorage.getItem("token");
       if (token && data.user) login(token, data.user);
-      clearPersistedState();
-      navigate("/employer-dashboard");
+      // Advance to the optional profile-photo step instead of leaving now.
+      setFinished(true);
+      setStep(4);
+      setSaving(false);
     } catch (err) {
       setSubmitError(err.response?.data?.message || "Failed to complete onboarding. Please try again.");
       setSaving(false);
     }
   };
 
-  return (
-    <section className="onboarding-card">
-      <div className="onboarding-progress-meta">STEP {step} OF 3</div>
-      <div className="onboarding-progress-track">
-        <div className="onboarding-progress-fill" style={{ width: `${progress}%` }}></div>
-      </div>
+  const finishOnboarding = () => {
+    clearPersistedState();
+    navigate("/employer-dashboard");
+  };
 
-      {submitError && <div className="onboarding-error" role="alert">{submitError}</div>}
+  return (
+    <div className="onboarding-shell">
+      <aside className="onboarding-rail">
+        <div className="onboarding-rail-brand">STRAM PESO</div>
+        <p className="onboarding-rail-subtitle">Setting up your employer profile</p>
+        <ol className="onboarding-steps">
+          {STEP_LABELS.map((label, i) => {
+            const idx = i + 1;
+            const state = step > idx ? "done" : step === idx ? "current" : "upcoming";
+            return (
+              <li key={label} className={`onboarding-step-item ${state}`}>
+                <span className="onboarding-step-index">{state === "done" ? "✓" : idx}</span>
+                <span className="onboarding-step-label">{label}</span>
+              </li>
+            );
+          })}
+        </ol>
+        <div className="onboarding-rail-autosave">Draft saved automatically</div>
+      </aside>
+
+      <div className="onboarding-panel">
+        <section className="onboarding-card">
+          <div className="onboarding-progress-mobile">
+            <div className="onboarding-progress-meta">Step {step} of {STEP_LABELS.length} · {STEP_LABELS[step - 1]}</div>
+            <div className="onboarding-progress-track">
+              <div className="onboarding-progress-fill" style={{ width: `${progress}%` }}></div>
+            </div>
+          </div>
+
+          {submitError && <div className="onboarding-error" role="alert">{submitError}</div>}
 
       {step === 1 && (
         <div className="onboarding-step">
@@ -216,9 +251,22 @@ export default function EmployerOnboarding() {
               {errors.businessAddress && <span className="onboarding-field-error">{errors.businessAddress}</span>}
             </div>
 
-            <label>Trade Name (if any) <input type="text" value={form.tradeName} onChange={e => updateField("tradeName", e.target.value)} disabled={saving} /></label>
-            <label>Acronym <input type="text" value={form.acronym} onChange={e => updateField("acronym", e.target.value)} disabled={saving} /></label>
-            <label>TIN (Tax Identification Number) <input type="text" value={form.tin} onChange={e => updateField("tin", e.target.value)} disabled={saving} /></label>
+            <div className="onboarding-field-grid">
+              <label>Trade Name (if any) <input type="text" value={form.tradeName} onChange={e => updateField("tradeName", e.target.value)} disabled={saving} /></label>
+              <label>Acronym <input type="text" value={form.acronym} onChange={e => updateField("acronym", e.target.value)} disabled={saving} /></label>
+            </div>
+            <div className="onboarding-field-grid">
+              <label>TIN (Tax Identification Number) <input type="text" value={form.tin} onChange={e => updateField("tin", e.target.value)} disabled={saving} /></label>
+              <label>Total Workforce Size
+                <select value={form.totalWorkforceSize} onChange={e => updateField("totalWorkforceSize", e.target.value)} disabled={saving}>
+                  <option value="">Select</option>
+                  <option value="micro">Micro (1-9)</option>
+                  <option value="small">Small (10-99)</option>
+                  <option value="medium">Medium (100-199)</option>
+                  <option value="large">Large (200+)</option>
+                </select>
+              </label>
+            </div>
             <div>
               <span className="onboarding-label">Office Type</span>
               <div className="pill-row">
@@ -226,34 +274,27 @@ export default function EmployerOnboarding() {
                 <button type="button" className={`pill-btn ${form.officeType === "branch" ? "active" : ""}`} onClick={() => updateField("officeType", "branch")} disabled={saving}>Branch</button>
               </div>
             </div>
-            <label>Employer Classification Type
-              <select value={form.employerClassificationType} onChange={e => updateField("employerClassificationType", e.target.value)} disabled={saving}>
-                <option value="">Select</option>
-                <option value="public">Public</option>
-                <option value="private">Private</option>
-              </select>
-            </label>
-            {form.employerClassificationType && (
-              <label>Subtype
-                <select value={form.employerClassificationSubtype} onChange={e => updateField("employerClassificationSubtype", e.target.value)} disabled={saving}>
+            <div className="onboarding-field-grid">
+              <label>Employer Classification Type
+                <select value={form.employerClassificationType} onChange={e => updateField("employerClassificationType", e.target.value)} disabled={saving}>
                   <option value="">Select</option>
-                  {form.employerClassificationType === "public" ? (
-                    ["NGA", "LGU", "GOCC", "SUC/LUC"].map(s => <option key={s} value={s}>{s}</option>)
-                  ) : (
-                    ["Direct Hire", "Local Recruitment Agency", "Overseas Recruitment Agency", "D.O. 174 Contractor"].map(s => <option key={s} value={s}>{s}</option>)
-                  )}
+                  <option value="public">Public</option>
+                  <option value="private">Private</option>
                 </select>
               </label>
-            )}
-            <label>Total Workforce Size
-              <select value={form.totalWorkforceSize} onChange={e => updateField("totalWorkforceSize", e.target.value)} disabled={saving}>
-                <option value="">Select</option>
-                <option value="micro">Micro (1-9)</option>
-                <option value="small">Small (10-99)</option>
-                <option value="medium">Medium (100-199)</option>
-                <option value="large">Large (200+)</option>
-              </select>
-            </label>
+              {form.employerClassificationType && (
+                <label>Subtype
+                  <select value={form.employerClassificationSubtype} onChange={e => updateField("employerClassificationSubtype", e.target.value)} disabled={saving}>
+                    <option value="">Select</option>
+                    {form.employerClassificationType === "public" ? (
+                      ["NGA", "LGU", "GOCC", "SUC/LUC"].map(s => <option key={s} value={s}>{s}</option>)
+                    ) : (
+                      ["Direct Hire", "Local Recruitment Agency", "Overseas Recruitment Agency", "D.O. 174 Contractor"].map(s => <option key={s} value={s}>{s}</option>)
+                    )}
+                  </select>
+                </label>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -277,10 +318,14 @@ export default function EmployerOnboarding() {
               <span className="onboarding-char-counter">{form.companyDescription.length} / 500 characters</span>
             </label>
 
-            <label>Owner / President Name <input type="text" value={form.ownerName} onChange={e => updateField("ownerName", e.target.value)} disabled={saving} /></label>
-            <label>Authorized Contact Person <input type="text" value={form.contactPersonName} onChange={e => updateField("contactPersonName", e.target.value)} disabled={saving} /></label>
-            <label>Contact Person Position <input type="text" value={form.contactPersonPosition} onChange={e => updateField("contactPersonPosition", e.target.value)} disabled={saving} /></label>
-            <label>Fax <input type="text" value={form.fax} onChange={e => updateField("fax", e.target.value)} disabled={saving} /></label>
+            <div className="onboarding-field-grid">
+              <label>Owner / President Name <input type="text" value={form.ownerName} onChange={e => updateField("ownerName", e.target.value)} disabled={saving} /></label>
+              <label>Authorized Contact Person <input type="text" value={form.contactPersonName} onChange={e => updateField("contactPersonName", e.target.value)} disabled={saving} /></label>
+            </div>
+            <div className="onboarding-field-grid">
+              <label>Contact Person Position <input type="text" value={form.contactPersonPosition} onChange={e => updateField("contactPersonPosition", e.target.value)} disabled={saving} /></label>
+              <label>Fax <input type="text" value={form.fax} onChange={e => updateField("fax", e.target.value)} disabled={saving} /></label>
+            </div>
           </div>
         </div>
       )}
@@ -317,12 +362,35 @@ export default function EmployerOnboarding() {
         </div>
       )}
 
+      {step === 4 && (
+        <div className="onboarding-step">
+          <h2>Add a company logo or photo</h2>
+          <p className="onboarding-subtitle">
+            Optional — this appears on your job posts and employer profile. You can add or change it later from your profile.
+          </p>
+          <AvatarPicker
+            name={form.companyName || user?.name}
+            initialUrl={user?.profileImage}
+            onUploaded={(url) => setUser((prev) => ({ ...prev, profileImage: url }))}
+          />
+          <button
+            type="button"
+            className="onboarding-primary onboarding-primary-full"
+            onClick={finishOnboarding}
+          >
+            Go to Dashboard →
+          </button>
+        </div>
+      )}
+
       {step <= 2 && (
         <div className="onboarding-nav">
           <button type="button" className="onboarding-secondary" onClick={handleBack} disabled={step === 1 || saving}>Back</button>
           <button type="button" className="onboarding-primary" onClick={handleNext} disabled={saving}>Next</button>
         </div>
       )}
-    </section>
+        </section>
+      </div>
+    </div>
   );
 }

@@ -8,6 +8,8 @@ const EmployerProfile = require("../models/EmployerProfile");
 const AuditLog = require("../models/AuditLog");
 const { getApplicationCountMap, normalizeFeaturedOrdering } = require("../utils/jobDisplay");
 const { logAuditEvent } = require("../services/auditService");
+const { createNotificationForUser } = require("../services/notificationService");
+const { postSystemMessage } = require("./messageController");
 
 const monthBuckets = () => Array.from({ length: 12 }, () => 0);
 
@@ -519,7 +521,9 @@ exports.getAllUsers = async (req, res) => {
     const [total, users] = await Promise.all([
       User.countDocuments(filter),
       User.find(filter)
-        .select("name email role createdAt hasCompletedOnboarding verificationStatus isActive")
+        .select(
+          "name email role createdAt hasCompletedOnboarding verificationStatus isActive companyName businessPermitUrl registrationDocUrl verificationNote verificationSubmittedAt"
+        )
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -558,7 +562,9 @@ exports.getVerificationQueue = async (req, res) => {
     const [total, users] = await Promise.all([
       User.countDocuments(filter),
       User.find(filter)
-        .select("name email companyName verificationStatus businessPermitUrl registrationDocUrl createdAt")
+        .select(
+          "name email companyName verificationStatus businessPermitUrl registrationDocUrl verificationNote verificationSubmittedAt createdAt"
+        )
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -868,6 +874,20 @@ exports.toggleHomepageFeature = async (req, res) => {
       },
     });
 
+    if (desiredFeatured) {
+      await createNotificationForUser({
+        recipientId: job.employer,
+        actorId: req.user.id,
+        type: "admin_action",
+        title: "Your job posting was featured",
+        message: `"${job.title}" is now featured on the homepage.`,
+        relatedEntityType: "job",
+        relatedEntityId: job._id,
+        actionUrl: "/employer",
+        io: req.app.get("io"),
+      });
+    }
+
     return res.json({
       message: desiredFeatured ? "Job featured on homepage" : "Job removed from homepage featured list",
       job: updatedJob,
@@ -912,6 +932,19 @@ exports.updateUserRole = async (req, res) => {
       },
     });
 
+    await createNotificationForUser({
+      recipientId: user._id,
+      actorId: req.user.id,
+      type: "admin_action",
+      title: "Your account role was updated",
+      message: `An administrator changed your account role to ${role}.`,
+      relatedEntityType: "user",
+      relatedEntityId: user._id,
+      actionUrl: "/profile",
+      metadata: { newRole: role },
+      io: req.app.get("io"),
+    });
+
     return res.json({
       message: "User role updated",
       user,
@@ -934,7 +967,14 @@ exports.deactivateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    const permanent = req.body.permanent === true || req.body.permanent === "true";
+    const reason = String(req.body.reason || "").trim() || null;
+
     user.isActive = false;
+    user.accountStatus = permanent ? "banned" : "suspended";
+    user.suspensionReason = reason;
+    user.suspendedAt = new Date();
+    user.suspendedBy = req.user.id;
     await user.save();
 
     await logAuditEvent({
@@ -946,9 +986,23 @@ exports.deactivateUser = async (req, res) => {
       targetType: "user",
       targetId: String(user._id),
       severity: "critical",
+      metadata: { accountStatus: user.accountStatus, reason },
     });
 
-    return res.json({ message: "User deactivated", user });
+    await createNotificationForUser({
+      recipientId: user._id,
+      actorId: req.user.id,
+      type: "admin_action",
+      title: permanent ? "Your account was banned" : "Your account was suspended",
+      message: reason
+        ? `An administrator ${permanent ? "banned" : "suspended"} your account. Reason: ${reason}. You can appeal to LMD Admin from the login screen.`
+        : `An administrator ${permanent ? "banned" : "suspended"} your account. You can appeal to LMD Admin from the login screen.`,
+      relatedEntityType: "user",
+      relatedEntityId: user._id,
+      io: req.app.get("io"),
+    });
+
+    return res.json({ message: `User ${permanent ? "banned" : "suspended"}`, user });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to deactivate user" });
   }
@@ -963,6 +1017,10 @@ exports.reactivateUser = async (req, res) => {
     }
 
     user.isActive = true;
+    user.accountStatus = "active";
+    user.suspensionReason = null;
+    user.suspendedAt = null;
+    user.suspendedBy = null;
     await user.save();
 
     await logAuditEvent({
@@ -976,6 +1034,17 @@ exports.reactivateUser = async (req, res) => {
       severity: "warning",
     });
 
+    await createNotificationForUser({
+      recipientId: user._id,
+      actorId: req.user.id,
+      type: "admin_action",
+      title: "Your account was reactivated",
+      message: "An administrator reactivated your account. You can log in again.",
+      relatedEntityType: "user",
+      relatedEntityId: user._id,
+      io: req.app.get("io"),
+    });
+
     return res.json({ message: "User reactivated", user });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to reactivate user" });
@@ -985,18 +1054,35 @@ exports.reactivateUser = async (req, res) => {
 exports.updateEmployerVerification = async (req, res) => {
   try {
     const { id } = req.params;
-    const { verificationStatus } = req.body;
+    const { verificationStatus: rawStatus, decision, note } = req.body;
 
-    if (!["unverified", "pending", "verified"].includes(verificationStatus)) {
+    // Accept either an explicit status (legacy callers) or an approve/reject verb.
+    let verificationStatus = rawStatus;
+    if (decision === "approved") verificationStatus = "verified";
+    else if (decision === "rejected") verificationStatus = "rejected";
+
+    if (!["unverified", "pending", "verified", "rejected"].includes(verificationStatus)) {
       return res.status(400).json({ message: "Invalid verification status" });
     }
 
-    // Use findByIdAndUpdate with $set to only update verificationStatus,
-    // bypassing validation on other fields (e.g., companySize)
+    const trimmedNote = typeof note === "string" ? note.trim().slice(0, 500) : "";
+    if (verificationStatus === "rejected" && !trimmedNote) {
+      return res.status(400).json({ message: "A reason is required when rejecting a submission." });
+    }
+
+    const update = {
+      verificationStatus,
+      verificationReviewedAt: new Date(),
+      verificationReviewedBy: req.user.id,
+    };
+    if (verificationStatus === "rejected") update.verificationNote = trimmedNote;
+    if (verificationStatus === "verified") update.verificationNote = null;
+
+    // $set only these fields so validation on unrelated fields (companySize) is skipped.
     const user = await User.findByIdAndUpdate(
       id,
-      { $set: { verificationStatus } },
-      { new: true, runValidators: true }   // still validates the enum on verificationStatus
+      { $set: update },
+      { new: true, runValidators: true }
     );
 
     if (!user) {
@@ -1016,10 +1102,45 @@ exports.updateEmployerVerification = async (req, res) => {
       targetType: "user",
       targetId: String(user._id),
       severity: verificationStatus === "verified" ? "info" : "warning",
-      metadata: {
-        verificationStatus,
-      },
+      metadata: { verificationStatus, note: trimmedNote || undefined },
     });
+
+    const io = req.app.get("io");
+    const verificationMessages = {
+      verified: "Your employer account has been verified. You can now post jobs.",
+      rejected: `Your verification was not approved. Reason: ${trimmedNote} — update your documents in Profile → Documents and submit again.`,
+      pending: "Your employer verification is under review.",
+      unverified: "Your employer verification status was reset. Please re-submit your documents.",
+    };
+    const resultMessage =
+      verificationMessages[verificationStatus] || "Your employer verification status was updated.";
+
+    await createNotificationForUser({
+      recipientId: user._id,
+      actorId: req.user.id,
+      type: "admin_action",
+      title: "Employer verification updated",
+      message: resultMessage,
+      relatedEntityType: "user",
+      relatedEntityId: user._id,
+      actionUrl: "/employer",
+      metadata: { verificationStatus },
+      io,
+    });
+
+    // Deliver the decision into a message thread the employer can reply to.
+    if (["verified", "rejected"].includes(verificationStatus)) {
+      try {
+        await postSystemMessage({
+          fromUserId: req.user.id,
+          toUserId: user._id,
+          content: resultMessage,
+          io,
+        });
+      } catch (msgErr) {
+        console.warn("Failed to post verification message:", msgErr.message);
+      }
+    }
 
     return res.json({ message: "Employer verification updated", user });
   } catch (error) {
@@ -1167,6 +1288,16 @@ exports.deleteJob = async (req, res) => {
       },
     });
 
+    await createNotificationForUser({
+      recipientId: job.employer,
+      actorId: req.user.id,
+      type: "admin_action",
+      title: "Your job posting was removed",
+      message: `An administrator removed your job posting "${job.title}".`,
+      relatedEntityType: "job",
+      io: req.app.get("io"),
+    });
+
     return res.json({ message: "Job deleted successfully" });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to delete job" });
@@ -1209,6 +1340,18 @@ exports.updateJobStatus = async (req, res) => {
       metadata: {
         status,
       },
+    });
+
+    await createNotificationForUser({
+      recipientId: job.employer,
+      actorId: req.user.id,
+      type: "admin_action",
+      title: status === "closed" ? "Your job posting was closed" : "Your job posting was reopened",
+      message: `An administrator ${status === "closed" ? "closed" : "reopened"} your job posting "${job.title}".`,
+      relatedEntityType: "job",
+      relatedEntityId: job._id,
+      actionUrl: "/employer",
+      io: req.app.get("io"),
     });
 
     return res.json({

@@ -2,6 +2,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 import "../styles/auth.css";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import pesoLogo from "../assets/images/peso-logo.png";
@@ -75,7 +76,10 @@ const validatePassword = (password) => {
 
 export default function Register() {
   const [formData, setFormData] = useState({
-    name: "",
+    surname: "",
+    firstName: "",
+    middleName: "",
+    suffix: "",
     email: "",
     password: "",
   });
@@ -145,15 +149,19 @@ export default function Register() {
     setPasswordErrors([]);
 
     // ─── Empty-field validation ───
-    const newTouched = { name: true, email: true, password: true };
+    const newTouched = { surname: true, firstName: true, email: true, password: true };
     setTouched(newTouched);
 
-    if (!formData.name.trim() && !formData.email.trim() && !formData.password) {
+    if (!formData.surname.trim() && !formData.firstName.trim() && !formData.email.trim() && !formData.password) {
       setError("Please fill in all required fields.");
       return;
     }
-    if (!formData.name.trim()) {
-      setError("Please enter your full name.");
+    if (!formData.surname.trim()) {
+      setError("Please enter your surname.");
+      return;
+    }
+    if (!formData.firstName.trim()) {
+      setError("Please enter your first name.");
       return;
     }
     if (!formData.email.trim()) {
@@ -179,7 +187,7 @@ export default function Register() {
     }
 
     // Name validation
-    if (formData.name.trim().length < 2) {
+    if (formData.surname.trim().length < 2 || formData.firstName.trim().length < 2) {
       setError("Please enter your full name.");
       return;
     }
@@ -188,9 +196,18 @@ export default function Register() {
 
     try {
       const normalizedEmail = formData.email.trim().toLowerCase();
+      const surname = formData.surname.trim();
+      const firstName = formData.firstName.trim();
+      const middleName = formData.middleName.trim();
+      const suffix = formData.suffix.trim();
+      const composedName = [firstName, middleName, surname, suffix].filter(Boolean).join(" ");
 
       const registerResponse = await authAPI.register({
-        name: formData.name.trim(),
+        name: composedName,
+        surname,
+        firstName,
+        middleName,
+        suffix,
         email: normalizedEmail,
         password: formData.password,
         role: "employee",
@@ -246,6 +263,52 @@ export default function Register() {
     }
   };
 
+  const handleGoogleCredential = async (credential) => {
+    setError("");
+    setLoading(true);
+    try {
+      const { data } = await authAPI.google(credential);
+      const token = data.token;
+      const userData = data.user || {};
+      if (!token) throw new Error("Invalid response from server");
+
+      const mergedUser = { ...userData, role: normalizeRole(userData.role) };
+      login(token, mergedUser);
+
+      const onboardingDone =
+        typeof mergedUser.hasCompletedOnboarding === "boolean"
+          ? mergedUser.hasCompletedOnboarding
+          : mergedUser.onboardingComplete;
+
+      // New Google users land here with no completed onboarding → pick a role.
+      if (data.isNewUser || onboardingDone === false) {
+        navigate("/onboarding");
+      } else {
+        navigate(getDefaultRouteByRole(mergedUser.role));
+      }
+    } catch (err) {
+      console.error("Google sign-in error:", err);
+      const d = err?.response?.data;
+      if (err?.response?.status === 403 && d?.code === "ACCOUNT_SUSPENDED") {
+        if (d.appealToken) localStorage.setItem("appealToken", d.appealToken);
+        localStorage.setItem(
+          "suspensionInfo",
+          JSON.stringify({
+            accountStatus: d.accountStatus || "suspended",
+            suspensionReason: d.suspensionReason || null,
+            suspendedAt: d.suspendedAt || null,
+          })
+        );
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        navigate("/account-suspended");
+        return;
+      }
+      setError(formatApiError(err, "Google sign-in failed"));
+      setLoading(false);
+    }
+  };
+
   const showPasswordRequirements = touched.password && passwordErrors.length > 0 && isPasswordFocused;
   const showPasswordSuccess = touched.password && passwordErrors.length === 0 && formData.password.length > 0;
 
@@ -282,22 +345,70 @@ export default function Register() {
           )}
 
           <form className="auth-form" onSubmit={handleSubmit} noValidate>
-            <div className="form-group">
-              <label htmlFor="name">Full Name</label>
-              <input
-                id="name"
-                type="text"
-                name="name"
-                placeholder="Enter your full name"
-                value={formData.name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                onFocus={handleFocus}
-                required
-                disabled={loading}
-                autoComplete="name"
-                className={touched.name && !formData.name.trim() ? "is-error" : ""}
-              />
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="surname">Surname</label>
+                <input
+                  id="surname"
+                  type="text"
+                  name="surname"
+                  placeholder="Dela Cruz"
+                  value={formData.surname}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  onFocus={handleFocus}
+                  required
+                  disabled={loading}
+                  autoComplete="family-name"
+                  className={touched.surname && !formData.surname.trim() ? "is-error" : ""}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="firstName">First Name</label>
+                <input
+                  id="firstName"
+                  type="text"
+                  name="firstName"
+                  placeholder="Juan"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  onFocus={handleFocus}
+                  required
+                  disabled={loading}
+                  autoComplete="given-name"
+                  className={touched.firstName && !formData.firstName.trim() ? "is-error" : ""}
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="middleName">Middle Name <span className="optional-label">(optional)</span></label>
+                <input
+                  id="middleName"
+                  type="text"
+                  name="middleName"
+                  placeholder="Santos"
+                  value={formData.middleName}
+                  onChange={handleChange}
+                  disabled={loading}
+                  autoComplete="additional-name"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="suffix">Suffix <span className="optional-label">(optional)</span></label>
+                <input
+                  id="suffix"
+                  type="text"
+                  name="suffix"
+                  placeholder="Jr., III, etc."
+                  value={formData.suffix}
+                  onChange={handleChange}
+                  disabled={loading}
+                  autoComplete="honorific-suffix"
+                />
+              </div>
             </div>
 
             <div className="form-group">
@@ -365,6 +476,8 @@ export default function Register() {
               {loading ? "Creating Account..." : "Create Account"}
             </button>
           </form>
+
+          <GoogleSignInButton onCredential={handleGoogleCredential} text="signup_with" />
 
           <p className="auth-link">
             Already have an account? <Link to="/login" onClick={(e) => {

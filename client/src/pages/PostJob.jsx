@@ -24,6 +24,7 @@ import {
 } from "react-icons/fa";
 import LocationSelect from "../components/LocationSelect";
 import QualificationsEditor from "../components/QualificationsEditor";
+import VacancyCard from "../components/VacancyCard";
 import { usePersistentState } from "../hooks/usePersistentState";
 
 const VALID_INDUSTRIES = [
@@ -121,6 +122,34 @@ export default function PostJob() {
   const [touched, setTouched] = useState({});
   const [validationErrors, setValidationErrors] = useState({});
 
+  // Reusable qualification / skillset templates
+  const [qualTemplates, setQualTemplates] = useState([]);
+  // Requirements of the job that was just posted (for the "save as template" CTA)
+  const [postedQualifications, setPostedQualifications] = useState(null);
+  const [postedJobTitle, setPostedJobTitle] = useState("");
+  const [postTemplateName, setPostTemplateName] = useState("");
+  const [savingPostTemplate, setSavingPostTemplate] = useState(false);
+  const [postTemplateMsg, setPostTemplateMsg] = useState("");
+
+  const loadQualTemplates = async () => {
+    try {
+      const res = await employerAPI.getQualificationTemplates();
+      setQualTemplates(Array.isArray(res.data?.templates) ? res.data.templates : []);
+    } catch {
+      setQualTemplates([]); // editor falls back to its built-in static templates
+    }
+  };
+
+  const handleSaveQualTemplate = async ({ name, items }) => {
+    const res = await employerAPI.createQualificationTemplate({
+      name,
+      jobTitle: formData.title || "",
+      items,
+    });
+    await loadQualTemplates();
+    return res;
+  };
+
   useEffect(() => {
     if (!user) return;
     if (user.role !== "employer") {
@@ -129,7 +158,10 @@ export default function PostJob() {
     }
     if (user.verificationStatus !== "verified") {
       navigate("/employer-dashboard");
+      return;
     }
+    loadQualTemplates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, navigate]);
 
   const validateField = (name, value) => {
@@ -331,20 +363,61 @@ export default function PostJob() {
         applicationDeadline: formData.applicationDeadline || undefined,
       };
       await employerAPI.createJob(trimmedData);
+      setPostedQualifications(trimmedData.qualifications || []);
+      setPostedJobTitle(trimmedData.title);
+      setPostTemplateName(trimmedData.title);
+      setPostTemplateMsg("");
       setSuccess(true);
       clearPersistedState(); // clear saved draft
-      setTimeout(() => {
-        setFormData(getInitialFormData());
-        setTouched({});
-        setValidationErrors({});
-        setSuccess(false);
-        navigate("/employer");
-      }, 2000);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(err.response?.data?.message || "Failed to create job vacancy");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSavePostedAsTemplate = async () => {
+    const name = postTemplateName.trim();
+    if (!name) {
+      setPostTemplateMsg("Give the template a name");
+      return;
+    }
+    if (!postedQualifications || postedQualifications.length === 0) {
+      setPostTemplateMsg("This job has no requirements to save");
+      return;
+    }
+    setSavingPostTemplate(true);
+    setPostTemplateMsg("");
+    try {
+      await employerAPI.createQualificationTemplate({
+        name,
+        jobTitle: postedJobTitle || "",
+        items: postedQualifications.map((q) => ({
+          type: q.type,
+          value: q.value,
+          optional: Boolean(q.optional),
+        })),
+      });
+      await loadQualTemplates();
+      setPostedQualifications(null); // hide the CTA once saved
+      setPostTemplateMsg("saved");
+    } catch (err) {
+      setPostTemplateMsg(err?.response?.data?.message || "Could not save template");
+    } finally {
+      setSavingPostTemplate(false);
+    }
+  };
+
+  const startAnotherJob = () => {
+    setFormData(getInitialFormData());
+    setTouched({});
+    setValidationErrors({});
+    setSuccess(false);
+    setPostedQualifications(null);
+    setPostTemplateMsg("");
+    setActiveSection("details");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const getCharCount = (text) => text?.length || 0;
@@ -406,33 +479,23 @@ export default function PostJob() {
 
           <div className="pj-sidebar-card pj-preview-card">
             <h3><FaBuilding /> Live Preview</h3>
-            <div className="pj-preview-content">
-              <div className="pj-preview-title">{formData.title || "Job Title"}</div>
-              <div className="pj-preview-meta">
-                {formData.location ? (
-                  <span><FaMapMarkerAlt /> {formData.location}</span>
-                ) : (
-                  <span className="placeholder">Location</span>
-                )}
-                <span className="pj-preview-dot">•</span>
-                <span>{formData.jobType}</span>
-              </div>
-              {formData.salary && (
-                <div className="pj-preview-salary">
-                  <FaMoneyBillWave /> {formData.salary}
-                </div>
-              )}
-              <div className="pj-preview-slots">
-                <FaUsers /> {formData.slots} slot{formData.slots !== 1 ? "s" : ""} available
-              </div>
-              {formData.applicationDeadline && (
-                <div className="pj-preview-deadline">
-                  <FaClock /> Until {new Date(formData.applicationDeadline).toLocaleDateString()}
-                </div>
-              )}
-              <div className="pj-preview-qual-count">
-                {formData.qualifications.length} requirement{formData.qualifications.length !== 1 ? "s" : ""} set
-              </div>
+            <p className="pj-preview-hint">How this listing will appear to jobseekers.</p>
+            <div className="pj-preview-stage">
+              <VacancyCard
+                preview
+                job={{
+                  title: formData.title,
+                  description: formData.description,
+                  location: formData.location,
+                  salary: formData.salary,
+                  jobType: formData.jobType,
+                  slots: Number(formData.slots) || 1,
+                  qualifications: formData.qualifications,
+                  applicationCount: 0,
+                  createdAt: new Date().toISOString(),
+                  employer: { companyName: user?.companyName || user?.name || "Your company" },
+                }}
+              />
             </div>
           </div>
         </aside>
@@ -444,13 +507,67 @@ export default function PostJob() {
               <span>{error}</span>
             </div>
           )}
-          {success && (
-            <div className="pj-alert pj-alert-success">
-              <FaCheckCircle />
-              <span>Job posted successfully! Redirecting...</span>
-            </div>
-          )}
+          {success ? (
+            <div className="pj-success-panel">
+              <div className="pj-alert pj-alert-success">
+                <FaCheckCircle />
+                <span>&ldquo;{postedJobTitle}&rdquo; was posted successfully.</span>
+              </div>
 
+              {postedQualifications && postedQualifications.length > 0 && (
+                <div className="pj-template-cta">
+                  <h3>
+                    <FaClipboardList /> Save these requirements as a reusable template?
+                  </h3>
+                  <p>
+                    Load them into your next posting with one click. You have{" "}
+                    {postedQualifications.length} requirement
+                    {postedQualifications.length === 1 ? "" : "s"} on this job.
+                  </p>
+                  <div className="pj-template-cta-row">
+                    <input
+                      type="text"
+                      value={postTemplateName}
+                      onChange={(e) => setPostTemplateName(e.target.value)}
+                      placeholder="Template name"
+                      disabled={savingPostTemplate}
+                    />
+                    <button
+                      type="button"
+                      className="pj-btn pj-btn-primary"
+                      onClick={handleSavePostedAsTemplate}
+                      disabled={savingPostTemplate || !postTemplateName.trim()}
+                    >
+                      {savingPostTemplate ? "Saving..." : "Save template"}
+                    </button>
+                  </div>
+                  {postTemplateMsg && postTemplateMsg !== "saved" && (
+                    <div className="pj-template-cta-error">{postTemplateMsg}</div>
+                  )}
+                </div>
+              )}
+
+              {postTemplateMsg === "saved" && (
+                <div className="pj-alert pj-alert-success">
+                  <FaCheckCircle />
+                  <span>Template saved. It&rsquo;s now in your template list.</span>
+                </div>
+              )}
+
+              <div className="pj-actions">
+                <button
+                  type="button"
+                  className="pj-btn pj-btn-secondary"
+                  onClick={() => navigate("/employer")}
+                >
+                  Go to Dashboard
+                </button>
+                <button type="button" className="pj-btn pj-btn-primary" onClick={startAnotherJob}>
+                  <FaSave /> Post Another Job
+                </button>
+              </div>
+            </div>
+          ) : (
           <form className="pj-form" onSubmit={handleSubmit} noValidate>
             <section id="section-details" className="pj-section">
               <div className="pj-section-header">
@@ -705,6 +822,9 @@ export default function PostJob() {
                   onChange={handleQualificationsChange}
                   disabled={loading}
                   required
+                  templates={qualTemplates}
+                  jobTitleHint={formData.title}
+                  onSaveTemplate={handleSaveQualTemplate}
                 />
                 {validationErrors.qualifications && touched.qualifications && (
                   <span className="pj-field-error">{validationErrors.qualifications}</span>
@@ -734,6 +854,7 @@ export default function PostJob() {
               </button>
             </div>
           </form>
+          )}
         </main>
       </div>
     </div>

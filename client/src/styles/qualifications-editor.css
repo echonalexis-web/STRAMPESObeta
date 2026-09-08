@@ -625,3 +625,350 @@
     flex-wrap: wrap;
   }
 }
+
+/* ============ Skill Types Patch additions ============ */
+
+/* On-page "Start from a template" dropdown */
+.qualifications-quick-template {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.qualifications-quick-template label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2d6a4f;
+  white-space: nowrap;
+}
+
+.qualifications-quick-template select {
+  flex: 1;
+  min-width: 220px;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 0.875rem;
+}
+
+/* Job-title-based suggestion pill */
+.qualifications-suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px dashed #86c9a8;
+  border-radius: 999px;
+  background: #eefaf3;
+  color: #1f5138;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+
+.qualifications-suggestion:hover {
+  background: #dff3e8;
+}
+
+/* Merged skills adder */
+.qualifications-skill-adder {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.qualifications-skill-adder input {
+  flex: 1;
+  min-height: 2.5rem;
+  height: 2.5rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f2937;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+}
+
+.qualifications-skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.4rem;
+}
+
+.qualifications-skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.5rem 0.3rem 0.4rem;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.qualifications-skill-chip.preferred {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.qualifications-skill-chip-preferred,
+.qualifications-skill-chip-remove {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.qualifications-skill-chip-remove {
+  opacity: 0.6;
+}
+
+.qualifications-skill-chip-remove:hover {
+  opacity: 1;
+}
+
+/* Editable type <select> on each draft row */
+.qualifications-draft-type-select {
+  min-width: 128px;
+  height: 2.5rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #3b4351;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* Save-as-template control */
+.qualifications-save-template {
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed #dbe4ea;
+}
+
+.qualifications-save-template-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.95rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 600;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.qualifications-save-template-btn:hover:not(:disabled) {
+  background: #eef2f5;
+}
+
+.qualifications-save-template-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.qualifications-save-template-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.qualifications-save-template-form input {
+  flex: 1;
+  min-width: 200px;
+  height: 2.5rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  font-size: 0.875rem;
+}
+
+.qualifications-save-template-error {
+  margin-top: 0.4rem;
+  color: #b91c1c;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .qualifications-skill-adder {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .qualifications-draft-type-select {
+    width: 100%;
+  }
+}
+
+/* ============================================ */
+/* COMPACT BADGES                               */
+/* Flat list rendered by <QualificationsDisplay */
+/* compact /> on job cards, dashboards, etc.    */
+/* Previously unstyled — bare spans ran         */
+/* together with no separators.                 */
+/* ============================================ */
+
+.qualifications-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.qualification-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef2f4;
+  color: #3f4a56;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qualification-badge.more {
+  background: transparent;
+  color: #6b7280;
+  border: 1px dashed #cbd5e1;
+}
+
+/* ============================================ */
+/* FULL DISPLAY — grouped requirements          */
+/* <QualificationsDisplay /> (non-compact):     */
+/* each type is a block separated by a hair     */
+/* rule; non-skill items read as lines, the     */
+/* skills bucket renders as green chips.        */
+/* ============================================ */
+
+.qualifications-display {
+  display: flex;
+  flex-direction: column;
+}
+
+.qualifications-group {
+  padding: 1.15rem 0;
+  border-top: 1px solid #e8ece7;
+}
+
+.qualifications-group:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.qualifications-group:last-child {
+  padding-bottom: 0;
+}
+
+.qualifications-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+.qualifications-group-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #eef5ef;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.qualifications-group-label {
+  font-family: var(--heading, 'Poppins', sans-serif);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5b6b60;
+}
+
+.qualifications-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 2.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.qualifications-line {
+  font-size: 0.96rem;
+  line-height: 1.5;
+  color: #2f3a33;
+}
+
+.qualifications-line-opt {
+  color: #8a978d;
+  font-size: 0.85em;
+}
+
+.qualifications-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-left: 2.6rem;
+}
+
+.qualification-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #e7f2ea;
+  color: #1f6b39;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.qualification-chip.is-optional {
+  background: #f1f4f2;
+  color: #5b6b60;
+}
+
+.qualification-chip em {
+  font-style: normal;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+@media (max-width: 560px) {
+  .qualifications-lines,
+  .qualifications-chips {
+    padding-left: 0;
+  }
+}

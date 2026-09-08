@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaHeart, FaRegHeart } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaSearch } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { newsAPI, newsLikeAPI, resolveAssetUrl } from "../services/api";
 import "../styles/news-feed.css";
@@ -12,7 +12,18 @@ const CATEGORIES = [
   { label: "Training", value: "training" },
   { label: "Events", value: "event" },
   { label: "Advisory", value: "advisory" },
+  { label: "SPES", value: "spes" },
 ];
+
+// Human label per stored category value (feed cards + badges).
+const CATEGORY_LABEL = {
+  general: "General",
+  hiring: "Hiring",
+  training: "Training",
+  event: "Events",
+  advisory: "Advisory",
+  spes: "SPES Program",
+};
 
 const formatDate = (value) => {
   if (!value) return "Unknown date";
@@ -20,6 +31,15 @@ const formatDate = (value) => {
   if (Number.isNaN(date.getTime())) return "Unknown date";
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
+
+// Plain-text excerpt from the announcement body.
+const excerpt = (text, max = 180) => {
+  const flat = String(text || "").replace(/\s+/g, " ").trim();
+  if (!flat) return "No details available.";
+  return flat.length > max ? `${flat.slice(0, max).trimEnd()}…` : flat;
+};
+
+const categoryKey = (value) => (CATEGORY_LABEL[value] ? value : "general");
 
 export default function NewsFeed() {
   const navigate = useNavigate();
@@ -58,6 +78,8 @@ export default function NewsFeed() {
   }, [category, search]);
 
   const title = useMemo(() => (category ? `${category[0].toUpperCase()}${category.slice(1)} Updates` : "Community Announcements"), [category]);
+
+  const openPost = (id) => navigate(`/news/${id}`);
 
   const handleToggleLike = async (item) => {
     const id = String(item?._id || "");
@@ -111,6 +133,31 @@ export default function NewsFeed() {
     }
   };
 
+  const renderLikeButton = (item) => {
+    const id = String(item?._id || "");
+    const liked = Boolean(item?.likedByMe);
+    return (
+      <button
+        type="button"
+        className={`news-like-btn${liked ? " is-liked" : ""}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          handleToggleLike(item);
+        }}
+        disabled={!isLoggedIn || Boolean(pendingLikes[id])}
+        aria-pressed={liked}
+        aria-label={liked ? "Unlike this announcement" : "Like this announcement"}
+        title={isLoggedIn ? undefined : "Log in to like announcements"}
+      >
+        {liked ? <FaHeart /> : <FaRegHeart />}
+        <span>{Number(item?.likeCount || 0)}</span>
+      </button>
+    );
+  };
+
+  const featured = !loading && !error ? items[0] : null;
+  const rest = featured ? items.slice(1) : [];
+
   return (
     <main className="news-feed-page" aria-label="STRAM PESO News Feed">
       <section className="news-feed-header-wrap">
@@ -121,13 +168,16 @@ export default function NewsFeed() {
       </section>
 
       <section className="news-feed-controls-wrap">
-        <div className="news-feed-controls">
-          <div className="news-pills" role="tablist" aria-label="News categories">
+        <div className="news-feed-toolbar">
+          <div className="news-filter-chips" role="tablist" aria-label="News categories">
             {CATEGORIES.map((option) => (
               <button
                 key={option.label}
                 type="button"
-                className={category === option.value ? "active" : ""}
+                role="tab"
+                aria-selected={category === option.value}
+                data-category={option.value}
+                className={`news-chip${category === option.value ? " is-active" : ""}`}
                 onClick={() => setCategory(option.value)}
               >
                 {option.label}
@@ -135,13 +185,16 @@ export default function NewsFeed() {
             ))}
           </div>
 
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value.trimStart())}
-            placeholder="Search announcements..."
-            aria-label="Search announcements"
-          />
+          <div className="news-search">
+            <FaSearch aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value.trimStart())}
+              placeholder="Search announcements..."
+              aria-label="Search announcements"
+            />
+          </div>
         </div>
       </section>
 
@@ -150,62 +203,72 @@ export default function NewsFeed() {
         {!loading && error ? <p className="news-state news-state-error">{error}</p> : null}
         {!loading && !error && items.length === 0 ? <p className="news-state">No announcements found.</p> : null}
 
-        <div className="news-feed-grid">
-          {!loading && !error
-            ? items.map((item) => {
-                const id = String(item?._id || "");
-                const label = String(item?.category || "general");
-                const liked = Boolean(item?.likedByMe);
-                const likeCount = Number(item?.likeCount || 0);
-                return (
-                  <article key={id} className="news-card">
-                    {item?.imageUrl ? (
-                      <div
-                        className="news-card-media"
-                        onClick={() => navigate(`/news/${id}`)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") navigate(`/news/${id}`);
-                        }}
-                      >
-                        <img src={resolveAssetUrl(item.imageUrl)} alt={item?.title || "Announcement"} loading="lazy" />
-                      </div>
-                    ) : null}
-                    <div className="news-card-body">
-                      <span className="news-card-tag">{label}</span>
-                      <h2>
-                        <button type="button" className="news-card-title-link" onClick={() => navigate(`/news/${id}`)}>
-                          {item?.title || "Untitled update"}
-                        </button>
-                      </h2>
-                      <p>{item?.content || "No details available."}</p>
-                      <div className="news-card-meta">
-                        <span>{formatDate(item?.publishedAt)}</span>
-                        <span>{item?.author?.name || "PESO Admin"}</span>
-                      </div>
-                      <div className="news-card-actions">
-                        <button
-                          type="button"
-                          className={`news-like-btn${liked ? " is-liked" : ""}`}
-                          onClick={() => handleToggleLike(item)}
-                          disabled={!isLoggedIn || Boolean(pendingLikes[id])}
-                          aria-pressed={liked}
-                          aria-label={liked ? "Unlike this announcement" : "Like this announcement"}
-                          title={isLoggedIn ? undefined : "Log in to like announcements"}
-                        >
-                          {liked ? <FaHeart /> : <FaRegHeart />}
-                          <span>{likeCount}</span>
-                        </button>
-                        <button type="button" className="news-readmore-btn" onClick={() => navigate(`/news/${id}`)}>
-                          Read more
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })
-            : null}
+        {featured ? (
+          <article
+            className="news-featured"
+            data-category={categoryKey(featured.category)}
+            onClick={() => openPost(featured._id)}
+            role="link"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") openPost(featured._id);
+            }}
+          >
+            <div className={`news-featured__media${featured.imageUrl ? "" : " news-featured__media--placeholder"}`}>
+              {featured.imageUrl ? (
+                <img src={resolveAssetUrl(featured.imageUrl)} alt={featured.title || "Announcement"} loading="lazy" />
+              ) : (
+                <span className="news-featured__glyph">{CATEGORY_LABEL[categoryKey(featured.category)]}</span>
+              )}
+            </div>
+            <div className="news-featured__body">
+              <span className="news-badge">{CATEGORY_LABEL[categoryKey(featured.category)]}</span>
+              <h2>{featured.title || "Untitled update"}</h2>
+              <p className="news-featured__excerpt">{excerpt(featured.content, 260)}</p>
+              <div className="news-featured__foot">
+                {renderLikeButton(featured)}
+                <span>{formatDate(featured.publishedAt || featured.createdAt)}</span>
+                <span>{featured.author?.name || "PESO Admin"}</span>
+              </div>
+            </div>
+          </article>
+        ) : null}
+
+        <div className="news-grid">
+          {rest.map((item) => {
+            const id = String(item?._id || "");
+            const key = categoryKey(item?.category);
+            return (
+              <article
+                key={id}
+                className="news-card"
+                data-category={key}
+                onClick={() => openPost(id)}
+                role="link"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") openPost(id);
+                }}
+              >
+                <div className={`news-card__media${item?.imageUrl ? "" : " news-card__media--placeholder"}`}>
+                  {item?.imageUrl ? (
+                    <img src={resolveAssetUrl(item.imageUrl)} alt={item?.title || "Announcement"} loading="lazy" />
+                  ) : (
+                    <span>{CATEGORY_LABEL[key]}</span>
+                  )}
+                </div>
+                <div className="news-card__body">
+                  <span className="news-badge">{CATEGORY_LABEL[key]}</span>
+                  <h2 className="news-card__title">{item?.title || "Untitled update"}</h2>
+                  <p className="news-card__excerpt">{excerpt(item?.content, 140)}</p>
+                  <div className="news-card__foot">
+                    {renderLikeButton(item)}
+                    <span>{formatDate(item?.publishedAt || item?.createdAt)}</span>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
     </main>

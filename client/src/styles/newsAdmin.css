@@ -336,6 +336,26 @@
   border-color: #fecaca;
 }
 
+.na-upload__adjust {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--na-line);
+  background: #fff;
+  color: #15803d;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.na-upload__adjust:hover {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
 .na-form__footer {
   grid-column: 1 / -1;
   display: flex;
@@ -598,6 +618,21 @@
   gap: 8px;
   justify-content: flex-end;
 }
+.na-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--na-ink);
+  cursor: pointer;
+}
+.na-checkbox-label input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--na-green-2);
+  cursor: pointer;
+}
+
 .na-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -610,6 +645,13 @@
   color: #475569;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.na-icon-btn svg {
+  display: block;
+  width: 0.9rem;
+  height: 0.9rem;
+  color: inherit;
+  flex-shrink: 0;
 }
 .na-icon-btn:hover {
   background: var(--na-surface-2);

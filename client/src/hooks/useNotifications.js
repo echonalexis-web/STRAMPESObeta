@@ -74,8 +74,9 @@ export const useNotifications = ({ initialLimit = 20, autoLoad = true } = {}) =>
     try {
       await notificationAPI.deleteNotification(notificationId);
       setNotifications((prev) => prev.filter((item) => String(item._id) !== String(notificationId)));
+      return true;
     } catch (error) {
-      return;
+      return false;
     }
   }, []);
 

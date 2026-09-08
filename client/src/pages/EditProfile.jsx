@@ -1,12 +1,60 @@
-import { useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useContext, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { authAPI } from "../services/api";
+import { authAPI, resolveAssetUrl, verificationAPI } from "../services/api";
 import "../styles/profile.css";
-import { FaUser, FaEnvelope, FaPhone, FaBriefcase, FaBuilding, FaMapMarkerAlt, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaUpload, FaTrash, FaExclamationTriangle, FaTimes, FaPlus, FaSave } from "react-icons/fa";
+import { FaUser, FaEnvelope, FaPhone, FaBriefcase, FaBuilding, FaMapMarkerAlt, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaIdCard, FaTimes, FaPlus, FaSave, FaArrowLeft } from "react-icons/fa";
 import LocationSelect from "../components/LocationSelect";
+import LocationAutosuggest from "../components/LocationAutosuggest";
+import Autosuggest from "../components/Autosuggest";
+import FileDropzone from "../components/FileDropzone";
+import EmailChangeCard from "../components/EmailChangeCard";
 import { COMMON_SKILLS as skillsList } from "../data/skills";
 import { usePersistentState } from "../hooks/usePersistentState";
+import { parseHeightToCm, parseWeightToKg, wasConverted } from "../utils/unitConversion";
+import { ALL_LOCATIONS } from "../utils/philippineLocations";
+import marinduqueSchools from "../data/marinduque_schools.json";
+import collegeCourses from "../data/philippine_college_courses.json";
+import countriesData from "../data/countries.json";
+
+const COUNTRY_OPTIONS = countriesData.countries || [];
+
+const RELIGIONS = [
+  "Roman Catholic", "Islam", "Iglesia ni Cristo", "Evangelical", "Aglipayan (Philippine Independent Church)",
+  "Seventh-day Adventist", "United Church of Christ in the Philippines (UCCP)", "Bible Baptist Church",
+  "Jehovah's Witnesses", "Members Church of God International (Ang Dating Daan)", "United Pentecostal Church",
+  "Church of Jesus Christ of Latter-day Saints", "Baptist", "United Methodist Church", "Born Again Christian",
+  "Buddhist", "Philippine Benevolent Missionaries Association (PBMA)", "Others",
+];
+
+const SCHOOL_LEVEL_MAP = {
+  "Elementary Graduate": "elementary_schools",
+  "High School Graduate": "secondary_schools",
+  "Senior High School Graduate": "secondary_schools",
+  "Vocational / TESDA": "technical_vocational_schools",
+  "College Undergraduate": "universities_colleges",
+  "College Graduate": "universities_colleges",
+  "Master's Degree": "universities_colleges",
+  "Doctorate": "universities_colleges",
+};
+
+const getSchoolOptions = (attainment) => {
+  const key = SCHOOL_LEVEL_MAP[attainment];
+  if (!key || !marinduqueSchools[key]) return [];
+  return marinduqueSchools[key].map((s) => s.name);
+};
+
+const COURSE_ATTAINMENTS = ["Vocational / TESDA", "College Undergraduate", "College Graduate", "Master's Degree", "Doctorate"];
+const COURSE_CATEGORIES = collegeCourses.categories || {};
+const TECH_VOC_INSTITUTIONS = (marinduqueSchools.technical_vocational_schools || []).map((s) => s.name);
+const LANGUAGE_SKILLS = [
+  { key: "read", label: "Read" },
+  { key: "write", label: "Write" },
+  { key: "speak", label: "Speak" },
+  { key: "understand", label: "Understand" },
+];
+const OTHER_OPTION = "__other__";
+const emptyLanguageRow = () => ({ read: false, write: false, speak: false, understand: false });
 
 const INDUSTRY_OPTIONS = [
   "Information Technology (IT)", "Healthcare", "Finance & Banking", "Education",
@@ -20,6 +68,10 @@ const INDUSTRY_OPTIONS = [
 // Initial empty state for formData
 const initialFormData = {
   name: "",
+  surname: "",
+  firstName: "",
+  middleName: "",
+  suffix: "",
   email: "",
   about: "",
   phone: "",
@@ -31,6 +83,10 @@ const initialFormData = {
   citizenship: "",
   height: "",
   weight: "",
+  religion: "",
+  sssGsisNo: "",
+  pagibigNo: "",
+  philhealthNo: "",
   landline: "",
   mobileSecondary: "",
   presentAddress: { street: "", barangay: "", municipality: "", province: "", region: "" },
@@ -41,13 +97,34 @@ const initialFormData = {
   isOfw: false,
   isRepatriated: false,
   repatriationIntent: "",
+  passportNo: "",
+  passportExpiryDate: "",
   employmentStatus: "",
   employmentType: "",
   unemploymentReason: "",
   laidoffCountry: "",
   desiredJobTitle: "",
+  preferredOccupations: [],
+  preferredWorkLocationLocal: [],
+  preferredWorkLocationOverseas: [],
+  expectedSalaryMin: "",
+  expectedSalaryMax: "",
   workExperience: "",
   educationalAttainment: "",
+  schoolAttended: "",
+  schoolAttendedOther: "",
+  course: "",
+  yearGraduated: "",
+  languageProficiency: {
+    English: emptyLanguageRow(),
+    Filipino: emptyLanguageRow(),
+    Others: emptyLanguageRow(),
+  },
+  languageOthersLabel: "",
+  workHistory: [],
+  vocationalTrainings: [],
+  eligibilities: [],
+  professionalLicenses: [],
   availabilityStatus: "",
   companyName: "",
   industry: "",
@@ -69,6 +146,89 @@ const initialFormData = {
   businessAddressStructured: { street: "", barangay: "", municipality: "", province: "", region: "" },
 };
 
+// Maps a merged (user + role profile) API object onto the flat formData shape.
+// Shared by the initial fetch-on-mount load and the post-submit refresh.
+const mapMergedToFormData = (merged) => ({
+  ...initialFormData,
+  name: merged.name || "",
+  surname: merged.surname || "",
+  firstName: merged.firstName || "",
+  middleName: merged.middleName || "",
+  suffix: merged.suffix || "",
+  email: merged.email || "",
+  about: merged.about || "",
+  phone: merged.phone || "",
+  address: merged.address || "",
+  businessAddress: merged.businessAddress || merged.address || "",
+  dateOfBirth: merged.dateOfBirth ? String(merged.dateOfBirth).slice(0, 10) : "",
+  gender: merged.gender || "",
+  desiredJobTitle: merged.desiredJobTitle || "",
+  preferredOccupations: Array.isArray(merged.preferredOccupations) ? merged.preferredOccupations : [],
+  preferredWorkLocationLocal: Array.isArray(merged.preferredWorkLocationLocal) ? merged.preferredWorkLocationLocal : [],
+  preferredWorkLocationOverseas: Array.isArray(merged.preferredWorkLocationOverseas) ? merged.preferredWorkLocationOverseas : [],
+  expectedSalaryMin: merged.expectedSalaryMin ?? "",
+  expectedSalaryMax: merged.expectedSalaryMax ?? "",
+  workExperience: merged.workExperience || "",
+  educationalAttainment: merged.educationalAttainment || "",
+  schoolAttended: merged.schoolAttended || "",
+  schoolAttendedOther: merged.schoolAttendedOther || "",
+  course: merged.course || "",
+  yearGraduated: merged.yearGraduated || "",
+  languageProficiency: {
+    English: { ...emptyLanguageRow(), ...(merged.languageProficiency?.English || {}) },
+    Filipino: { ...emptyLanguageRow(), ...(merged.languageProficiency?.Filipino || {}) },
+    Others: { ...emptyLanguageRow(), ...(merged.languageProficiency?.Others || {}) },
+  },
+  languageOthersLabel: merged.languageOthersLabel || "",
+  workHistory: Array.isArray(merged.workHistory) ? merged.workHistory : [],
+  vocationalTrainings: Array.isArray(merged.vocationalTrainings) ? merged.vocationalTrainings : [],
+  eligibilities: Array.isArray(merged.eligibilities) ? merged.eligibilities : [],
+  professionalLicenses: Array.isArray(merged.professionalLicenses) ? merged.professionalLicenses : [],
+  availabilityStatus: merged.availabilityStatus || "",
+  companyName: merged.companyName || "",
+  industry: merged.industry || "",
+  companySize: merged.companySize || "",
+  website: merged.website || "",
+  companyDescription: merged.companyDescription || "",
+  civilStatus: merged.civilStatus || "",
+  placeOfBirth: merged.placeOfBirth || "",
+  citizenship: merged.citizenship || "",
+  height: merged.height || "",
+  weight: merged.weight || "",
+  religion: merged.religion || "",
+  sssGsisNo: merged.sssGsisNo || "",
+  pagibigNo: merged.pagibigNo || "",
+  philhealthNo: merged.philhealthNo || "",
+  landline: merged.landline || "",
+  mobileSecondary: merged.mobileSecondary || "",
+  presentAddress: merged.presentAddress || { street: "", barangay: "", municipality: "", province: "", region: "" },
+  permanentAddress: merged.permanentAddress || { street: "", barangay: "", municipality: "", province: "", region: "" },
+  disability: merged.disability || [],
+  is4psBeneficiary: merged.is4psBeneficiary || false,
+  _4psHouseholdId: merged._4psHouseholdId || "",
+  isOfw: merged.isOfw || false,
+  isRepatriated: merged.isRepatriated || false,
+  repatriationIntent: merged.repatriationIntent || "",
+  passportNo: merged.passportNo || "",
+  passportExpiryDate: merged.passportExpiryDate ? String(merged.passportExpiryDate).slice(0, 10) : "",
+  employmentStatus: merged.employmentStatus || "",
+  employmentType: merged.employmentType || "",
+  unemploymentReason: merged.unemploymentReason || "",
+  laidoffCountry: merged.laidoffCountry || "",
+  tradeName: merged.tradeName || "",
+  acronym: merged.acronym || "",
+  tin: merged.tin || "",
+  officeType: merged.officeType || "",
+  employerClassificationType: merged.employerClassification?.type || "",
+  employerClassificationSubtype: merged.employerClassification?.subtype || "",
+  totalWorkforceSize: merged.totalWorkforceSize || "",
+  ownerName: merged.ownerName || "",
+  contactPersonName: merged.contactPersonName || "",
+  contactPersonPosition: merged.contactPersonPosition || "",
+  fax: merged.fax || "",
+  businessAddressStructured: merged.businessAddressStructured || { street: "", barangay: "", municipality: "", province: "", region: "" },
+});
+
 const getInitialPersisted = () => ({
   formData: { ...initialFormData },
   skills: [],
@@ -78,8 +238,7 @@ const getInitialPersisted = () => ({
 });
 
 export default function EditProfile() {
-  const { user, login, logout } = useContext(AuthContext);
-  const navigate = useNavigate();
+  const { user, login } = useContext(AuthContext);
   const isEmployer = user?.role === "employer";
   const isAdmin = user?.role === "admin";
 
@@ -92,6 +251,18 @@ export default function EditProfile() {
       permanentAddress: { ...initialFormData.permanentAddress, ...(data?.permanentAddress || {}) },
       businessAddressStructured: { ...initialFormData.businessAddressStructured, ...(data?.businessAddressStructured || {}) },
       disability: Array.isArray(data?.disability) ? data.disability : [],
+      preferredOccupations: Array.isArray(data?.preferredOccupations) ? data.preferredOccupations : [],
+      preferredWorkLocationLocal: Array.isArray(data?.preferredWorkLocationLocal) ? data.preferredWorkLocationLocal : [],
+      preferredWorkLocationOverseas: Array.isArray(data?.preferredWorkLocationOverseas) ? data.preferredWorkLocationOverseas : [],
+      workHistory: Array.isArray(data?.workHistory) ? data.workHistory : [],
+      vocationalTrainings: Array.isArray(data?.vocationalTrainings) ? data.vocationalTrainings : [],
+      eligibilities: Array.isArray(data?.eligibilities) ? data.eligibilities : [],
+      professionalLicenses: Array.isArray(data?.professionalLicenses) ? data.professionalLicenses : [],
+      languageProficiency: {
+        English: { ...initialFormData.languageProficiency.English, ...(data?.languageProficiency?.English || {}) },
+        Filipino: { ...initialFormData.languageProficiency.Filipino, ...(data?.languageProficiency?.Filipino || {}) },
+        Others: { ...initialFormData.languageProficiency.Others, ...(data?.languageProficiency?.Others || {}) },
+      },
     };
   };
 
@@ -103,8 +274,18 @@ export default function EditProfile() {
     : defaultState;
 
   const { formData, skills, preferredIndustries, industryPreferenceLevel, activeTab } = safeState;
+
+  const heightCm = useMemo(() => parseHeightToCm(formData.height), [formData.height]);
+  const heightConverted = heightCm !== null && wasConverted(formData.height, heightCm) ? heightCm : null;
+  const weightKg = useMemo(() => parseWeightToKg(formData.weight), [formData.weight]);
+  const weightConverted = weightKg !== null && wasConverted(formData.weight, weightKg) ? weightKg : null;
+  const schoolOptions = useMemo(() => getSchoolOptions(formData.educationalAttainment), [formData.educationalAttainment]);
+  const showCourseField = COURSE_ATTAINMENTS.includes(formData.educationalAttainment);
   const setFormData = (updater) => setPersistedState(prev => {
-    const newForm = typeof updater === 'function' ? updater(prev.formData) : updater;
+    // Normalize first: a draft saved before a field existed (e.g. languageProficiency)
+    // won't have it, and updaters assume it's there.
+    const normalizedPrevForm = normalizeFormData(prev.formData);
+    const newForm = typeof updater === 'function' ? updater(normalizedPrevForm) : updater;
     return { ...prev, formData: newForm };
   });
   const setSkills = (updater) => setPersistedState(prev => {
@@ -135,15 +316,48 @@ export default function EditProfile() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [verifySubmitting, setVerifySubmitting] = useState(false);
+  const [verifyMsg, setVerifyMsg] = useState("");
+  // Set to the new address after an email change succeeds, so we can remind the
+  // user to update the email their browser / password manager autofills — a
+  // stale saved email is the usual cause of "can't log in" after this edit.
+  const [emailChangeNotice, setEmailChangeNotice] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteConfirmName, setDeleteConfirmName] = useState("");
-  const [deleteError, setDeleteError] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
   const [skillFilterInput, setSkillFilterInput] = useState("");
   const [showSkillsDropdown, setShowSkillsDropdown] = useState(false);
+  const [occupationInput, setOccupationInput] = useState("");
+  const [localLocationInput, setLocalLocationInput] = useState("");
+  const [overseasLocationInput, setOverseasLocationInput] = useState("");
+
+  const addToCappedList = (field, value, cap) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    setFormData((prev) => {
+      const list = prev[field] || [];
+      if (list.length >= cap) return prev;
+      if (list.some((v) => v.toLowerCase() === trimmed.toLowerCase())) return prev;
+      return { ...prev, [field]: [...list, trimmed] };
+    });
+  };
+  const removeFromCappedList = (field, value) => setFormData((prev) => ({ ...prev, [field]: (prev[field] || []).filter((v) => v !== value) }));
+
+  const addListItem = (field, template) => setFormData((prev) => ({ ...prev, [field]: [...(prev[field] || []), template] }));
+  const updateListItem = (field, index, key, value) => setFormData((prev) => {
+    const list = [...(prev[field] || [])];
+    list[index] = { ...list[index], [key]: value };
+    return { ...prev, [field]: list };
+  });
+  const removeListItem = (field, index) => setFormData((prev) => ({ ...prev, [field]: (prev[field] || []).filter((_, i) => i !== index) }));
+
+  const toggleLanguageSkill = (language, skillKey) => setFormData((prev) => ({
+    ...prev,
+    languageProficiency: {
+      ...prev.languageProficiency,
+      [language]: { ...prev.languageProficiency[language], [skillKey]: !prev.languageProficiency[language][skillKey] },
+    },
+  }));
 
   // Merge profile data from API
   const mergeProfileData = (data) => {
@@ -166,57 +380,7 @@ export default function EditProfile() {
 
         // Always populate form from API on component mount
         // This ensures fresh data from server is displayed, not stale persisted state
-        setFormData({
-          ...initialFormData,
-          name: merged.name || "",
-          email: merged.email || "",
-          about: merged.about || "",
-          phone: merged.phone || "",
-          address: merged.address || "",
-          businessAddress: merged.businessAddress || merged.address || "",
-          dateOfBirth: merged.dateOfBirth ? String(merged.dateOfBirth).slice(0, 10) : "",
-          gender: merged.gender || "",
-          desiredJobTitle: merged.desiredJobTitle || "",
-          workExperience: merged.workExperience || "",
-          educationalAttainment: merged.educationalAttainment || "",
-          availabilityStatus: merged.availabilityStatus || "",
-          companyName: merged.companyName || "",
-          industry: merged.industry || "",
-          companySize: merged.companySize || "",
-          website: merged.website || "",
-          companyDescription: merged.companyDescription || "",
-          civilStatus: merged.civilStatus || "",
-          placeOfBirth: merged.placeOfBirth || "",
-          citizenship: merged.citizenship || "",
-          height: merged.height || "",
-          weight: merged.weight || "",
-          landline: merged.landline || "",
-          mobileSecondary: merged.mobileSecondary || "",
-          presentAddress: merged.presentAddress || { street: "", barangay: "", municipality: "", province: "", region: "" },
-          permanentAddress: merged.permanentAddress || { street: "", barangay: "", municipality: "", province: "", region: "" },
-          disability: merged.disability || [],
-          is4psBeneficiary: merged.is4psBeneficiary || false,
-          _4psHouseholdId: merged._4psHouseholdId || "",
-          isOfw: merged.isOfw || false,
-          isRepatriated: merged.isRepatriated || false,
-          repatriationIntent: merged.repatriationIntent || "",
-          employmentStatus: merged.employmentStatus || "",
-          employmentType: merged.employmentType || "",
-          unemploymentReason: merged.unemploymentReason || "",
-          laidoffCountry: merged.laidoffCountry || "",
-          tradeName: merged.tradeName || "",
-          acronym: merged.acronym || "",
-          tin: merged.tin || "",
-          officeType: merged.officeType || "",
-          employerClassificationType: merged.employerClassification?.type || "",
-          employerClassificationSubtype: merged.employerClassification?.subtype || "",
-          totalWorkforceSize: merged.totalWorkforceSize || "",
-          ownerName: merged.ownerName || "",
-          contactPersonName: merged.contactPersonName || "",
-          contactPersonPosition: merged.contactPersonPosition || "",
-          fax: merged.fax || "",
-          businessAddressStructured: merged.businessAddressStructured || { street: "", barangay: "", municipality: "", province: "", region: "" },
-        });
+        setFormData(mapMergedToFormData(merged));
         setSkills(Array.isArray(merged.skills) ? merged.skills : []);
         setPreferredIndustries(Array.isArray(merged.preferredIndustries) ? merged.preferredIndustries : []);
         setIndustryPreferenceLevel(merged.industryPreferenceLevel || "flexible");
@@ -233,6 +397,10 @@ export default function EditProfile() {
           setFormData({
             ...initialFormData,
             name: user.name || "",
+            surname: user.surname || "",
+            firstName: user.firstName || "",
+            middleName: user.middleName || "",
+            suffix: user.suffix || "",
             email: user.email || "",
             phone: user.phone || "",
             address: user.address || "",
@@ -292,10 +460,14 @@ export default function EditProfile() {
     setLoading(true);
     setError("");
     setMessage("");
+    setEmailChangeNotice("");
+
+    const previousEmail = (user?.email || "").trim().toLowerCase();
 
     try {
       const data = new FormData();
-      data.append("name", formData.name);
+      const composedName = [formData.firstName, formData.middleName, formData.surname, formData.suffix].filter(Boolean).join(" ");
+      data.append("name", (!isEmployer && !isAdmin && composedName) ? composedName : formData.name);
       data.append("email", formData.email);
       data.append("phone", formData.phone);
 
@@ -339,13 +511,32 @@ export default function EditProfile() {
         if (businessPermitFile) data.append("businessPermit", businessPermitFile);
         if (registrationDocFile) data.append("registrationDoc", registrationDocFile);
       } else {
+        data.append("surname", formData.surname);
+        data.append("firstName", formData.firstName);
+        data.append("middleName", formData.middleName);
+        data.append("suffix", formData.suffix);
         data.append("dateOfBirth", formData.dateOfBirth);
         data.append("gender", formData.gender);
         data.append("about", formData.about);
         data.append("address", formData.address);
-        data.append("desiredJobTitle", formData.desiredJobTitle);
+        data.append("preferredOccupations", JSON.stringify(formData.preferredOccupations));
+        data.append("desiredJobTitle", formData.preferredOccupations[0] || formData.desiredJobTitle);
+        data.append("preferredWorkLocationLocal", JSON.stringify(formData.preferredWorkLocationLocal));
+        data.append("preferredWorkLocationOverseas", JSON.stringify(formData.preferredWorkLocationOverseas));
+        data.append("expectedSalaryMin", formData.expectedSalaryMin);
+        data.append("expectedSalaryMax", formData.expectedSalaryMax);
         data.append("workExperience", formData.workExperience);
         data.append("educationalAttainment", formData.educationalAttainment);
+        data.append("schoolAttended", formData.schoolAttended);
+        data.append("schoolAttendedOther", formData.schoolAttendedOther);
+        data.append("course", formData.course);
+        data.append("yearGraduated", formData.yearGraduated);
+        data.append("languageProficiency", JSON.stringify(formData.languageProficiency));
+        data.append("languageOthersLabel", formData.languageOthersLabel);
+        data.append("workHistory", JSON.stringify(formData.workHistory));
+        data.append("vocationalTrainings", JSON.stringify(formData.vocationalTrainings));
+        data.append("eligibilities", JSON.stringify(formData.eligibilities));
+        data.append("professionalLicenses", JSON.stringify(formData.professionalLicenses));
         data.append("availabilityStatus", formData.availabilityStatus);
         data.append("skills", JSON.stringify(skills));
         data.append("preferredIndustries", JSON.stringify(preferredIndustries));
@@ -353,8 +544,13 @@ export default function EditProfile() {
         data.append("civilStatus", formData.civilStatus);
         data.append("placeOfBirth", formData.placeOfBirth);
         data.append("citizenship", formData.citizenship);
-        data.append("height", formData.height);
-        data.append("weight", formData.weight);
+        data.append("height", heightCm ?? "");
+        data.append("weight", weightKg ?? "");
+        data.append("religion", formData.religion);
+        data.append("tin", formData.tin);
+        data.append("sssGsisNo", formData.sssGsisNo);
+        data.append("pagibigNo", formData.pagibigNo);
+        data.append("philhealthNo", formData.philhealthNo);
         data.append("landline", formData.landline);
         data.append("mobileSecondary", formData.mobileSecondary);
         data.append("presentAddress", JSON.stringify(formData.presentAddress));
@@ -365,6 +561,8 @@ export default function EditProfile() {
         data.append("isOfw", formData.isOfw ? "true" : "false");
         data.append("isRepatriated", formData.isRepatriated ? "true" : "false");
         data.append("repatriationIntent", formData.repatriationIntent);
+        data.append("passportNo", formData.passportNo);
+        data.append("passportExpiryDate", formData.passportExpiryDate);
         data.append("employmentStatus", formData.employmentStatus);
         data.append("employmentType", formData.employmentType);
         data.append("unemploymentReason", formData.unemploymentReason);
@@ -375,6 +573,12 @@ export default function EditProfile() {
 
       const { data: response } = await authAPI.updateProfile(data);
       setMessage(response.message);
+
+      const newEmail = (response.user?.email || formData.email || "").trim();
+      if (previousEmail && newEmail && newEmail.toLowerCase() !== previousEmail) {
+        setEmailChangeNotice(newEmail);
+      }
+
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -382,57 +586,7 @@ export default function EditProfile() {
       
       // Update form with fresh server response to keep fields populated
       const merged = mergeProfileData(response);
-      setFormData({
-        ...initialFormData,
-        name: merged.name || "",
-        email: merged.email || "",
-        about: merged.about || "",
-        phone: merged.phone || "",
-        address: merged.address || "",
-        businessAddress: merged.businessAddress || merged.address || "",
-        dateOfBirth: merged.dateOfBirth ? String(merged.dateOfBirth).slice(0, 10) : "",
-        gender: merged.gender || "",
-        desiredJobTitle: merged.desiredJobTitle || "",
-        workExperience: merged.workExperience || "",
-        educationalAttainment: merged.educationalAttainment || "",
-        availabilityStatus: merged.availabilityStatus || "",
-        companyName: merged.companyName || "",
-        industry: merged.industry || "",
-        companySize: merged.companySize || "",
-        website: merged.website || "",
-        companyDescription: merged.companyDescription || "",
-        civilStatus: merged.civilStatus || "",
-        placeOfBirth: merged.placeOfBirth || "",
-        citizenship: merged.citizenship || "",
-        height: merged.height || "",
-        weight: merged.weight || "",
-        landline: merged.landline || "",
-        mobileSecondary: merged.mobileSecondary || "",
-        presentAddress: merged.presentAddress || { street: "", barangay: "", municipality: "", province: "", region: "" },
-        permanentAddress: merged.permanentAddress || { street: "", barangay: "", municipality: "", province: "", region: "" },
-        disability: merged.disability || [],
-        is4psBeneficiary: merged.is4psBeneficiary || false,
-        _4psHouseholdId: merged._4psHouseholdId || "",
-        isOfw: merged.isOfw || false,
-        isRepatriated: merged.isRepatriated || false,
-        repatriationIntent: merged.repatriationIntent || "",
-        employmentStatus: merged.employmentStatus || "",
-        employmentType: merged.employmentType || "",
-        unemploymentReason: merged.unemploymentReason || "",
-        laidoffCountry: merged.laidoffCountry || "",
-        tradeName: merged.tradeName || "",
-        acronym: merged.acronym || "",
-        tin: merged.tin || "",
-        officeType: merged.officeType || "",
-        employerClassificationType: merged.employerClassification?.type || "",
-        employerClassificationSubtype: merged.employerClassification?.subtype || "",
-        totalWorkforceSize: merged.totalWorkforceSize || "",
-        ownerName: merged.ownerName || "",
-        contactPersonName: merged.contactPersonName || "",
-        contactPersonPosition: merged.contactPersonPosition || "",
-        fax: merged.fax || "",
-        businessAddressStructured: merged.businessAddressStructured || { street: "", barangay: "", municipality: "", province: "", region: "" },
-      });
+      setFormData(mapMergedToFormData(merged));
       setSkills(Array.isArray(merged.skills) ? merged.skills : []);
       setPreferredIndustries(Array.isArray(merged.preferredIndustries) ? merged.preferredIndustries : []);
       setIndustryPreferenceLevel(merged.industryPreferenceLevel || "flexible");
@@ -443,100 +597,145 @@ export default function EditProfile() {
     }
   };
 
-  const expectedFullName = formData.name || user?.name || "";
-  const isDeleteNameMatch = deleteConfirmName === expectedFullName;
 
-  const handleDeleteAccount = async () => {
-    setDeleteError("");
-    setIsDeleting(true);
+  const handleSubmitVerification = async () => {
+    setVerifySubmitting(true);
+    setVerifyMsg("");
     try {
-      await authAPI.deleteAccount();
-      logout();
-      window.alert("Your account has been deleted.");
-      navigate("/");
+      const { data } = await verificationAPI.submit();
+      setVerifyMsg(data?.message || "Submitted for review.");
+      // Re-hydrate so the new "pending" status shows immediately.
+      await login(localStorage.getItem("token"), { ...user, verificationStatus: "pending" });
     } catch (err) {
-      setDeleteError(err.response?.data?.message || "Failed to delete account");
+      setVerifyMsg(err.response?.data?.message || "Failed to submit for review.");
     } finally {
-      setIsDeleting(false);
+      setVerifySubmitting(false);
     }
   };
 
-  const openDeleteModal = () => {
-    setDeleteConfirmName("");
-    setDeleteError("");
-    setShowDeleteModal(true);
+  const tabs = [
+    { id: "profile", label: "Personal Info", icon: <FaUser /> },
+    ...(!isAdmin && !isEmployer ? [
+      { id: "career", label: "Career", icon: <FaBriefcase /> },
+      { id: "training", label: "Training & Eligibility", icon: <FaUserGraduate /> },
+    ] : []),
+    ...(!isAdmin ? [{ id: "nsrp", label: "NSRP Details", icon: isEmployer ? <FaBuilding /> : <FaIdCard /> }] : []),
+    ...(!isAdmin ? [{ id: "documents", label: "Documents", icon: <FaFileAlt /> }] : []),
+  ];
+
+  const isTabComplete = (tabId) => {
+    switch (tabId) {
+      case "profile":
+        if (isAdmin) return Boolean(formData.name && formData.email);
+        if (isEmployer) return Boolean(formData.name && formData.email && formData.companyName && formData.businessAddress);
+        return Boolean(formData.surname && formData.firstName && formData.email && formData.dateOfBirth && formData.address);
+      case "career":
+        return formData.preferredOccupations.length > 0 && Boolean(formData.workExperience) && Boolean(formData.educationalAttainment);
+      case "training":
+        return formData.vocationalTrainings.length > 0 || formData.eligibilities.length > 0 || formData.professionalLicenses.length > 0;
+      case "nsrp":
+        if (isEmployer) return Boolean(formData.tradeName && formData.tin && formData.officeType);
+        return Boolean(formData.civilStatus && formData.citizenship && formData.presentAddress.municipality);
+      case "documents":
+        if (isEmployer) return Boolean(businessPermitFile || existingBusinessPermit) && Boolean(registrationDocFile || existingRegistrationDoc);
+        return Boolean(resumeFile || existingResume) && Boolean(supportingDocumentFile || existingValidId);
+      default:
+        return false;
+    }
   };
 
-  const closeDeleteModal = () => {
-    if (isDeleting) return;
-    setShowDeleteModal(false);
-    setDeleteError("");
-  };
-
-  // (Rest of the JSX remains the same, but we'll include it for completeness)
-  // Due to length, I'll abbreviate but include the full component in the final answer.
-  // For brevity in this response, I'll provide the full EditProfile code with the changes.
-  // The JSX is unchanged except for using the persistent state variables.
-  // ...
+  const railName = formData.name || [formData.firstName, formData.surname].filter(Boolean).join(" ") || "Your Profile";
+  const railRole = isAdmin ? "Administrator" : isEmployer ? "Employer" : "Job Seeker";
 
   return (
-    <div className="profile-page">
-      <div className="profile-overlay"></div>
+    <div className="editprofile-shell">
+      <aside className="editprofile-rail">
+        <Link to="/profile" className="editprofile-rail-back"><FaArrowLeft /> Back to Profile</Link>
+        <div className="editprofile-rail-identity">
+          <div className="editprofile-rail-avatar">
+            {user?.profileImage
+              ? <img src={resolveAssetUrl(user.profileImage)} alt="" />
+              : (railName.trim().charAt(0).toUpperCase() || "U")}
+          </div>
+          <div>
+            <div className="editprofile-rail-name">{railName}</div>
+            <p className="editprofile-rail-role">{railRole}</p>
+          </div>
+        </div>
+        <ul className="editprofile-tabs">
+          {tabs.map((tab) => (
+            <li key={tab.id}>
+              <button type="button" className={`editprofile-tab ${activeTab === tab.id ? "active" : ""}`} onClick={() => setActiveTab(tab.id)}>
+                {tab.icon}
+                <span className="editprofile-tab-label">{tab.label}</span>
+                <span className={`editprofile-tab-dot ${isTabComplete(tab.id) ? "editprofile-tab-dot--done" : ""}`} />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="editprofile-rail-footer">Fields are saved when you click Save Profile.</p>
+      </aside>
 
-      <form className="profile-form-card" onSubmit={handleSubmit}>
-        <div className="profile-header">
-          <div className="profile-avatar-wrapper">
-            <div className="profile-avatar-circle">
-              {formData.name ? formData.name.trim().charAt(0).toUpperCase() : "U"}
+      <div className="editprofile-panel">
+        <EmailChangeCard currentEmail={user?.email || formData.email} />
+
+        <form className="editprofile-panel-inner" id="edit-profile-form" onSubmit={handleSubmit}>
+          <div className="editprofile-panel-header">
+            <h1 className="editprofile-panel-title">Edit Profile</h1>
+            <p className="editprofile-panel-subtitle">Update your personal information and preferences</p>
+          </div>
+
+          {message && <div className="alert alert-success">{message}</div>}
+          {error && <div className="alert alert-error">{error}</div>}
+          {emailChangeNotice && (
+            <div className="alert alert-warning">
+              Your sign-in email is now <strong>{emailChangeNotice}</strong>. If your browser or
+              password manager saved your old email, update it there too — otherwise the old
+              address may be auto-filled and your next login will fail.
             </div>
-          </div>
-          <div className="profile-header-info">
-            <h2 className="profile-title">Edit Profile</h2>
-            <p className="profile-subtitle">Update your personal information and preferences</p>
-          </div>
-        </div>
-
-        {message && <div className="alert alert-success">{message}</div>}
-        {error && <div className="alert alert-error">{error}</div>}
-
-        <div className="profile-tabs">
-          <button type="button" className={`profile-tab ${activeTab === "profile" ? "active" : ""}`} onClick={() => setActiveTab("profile")}>
-            <FaUser /> Personal Info
-          </button>
-          {!isAdmin && !isEmployer && (
-            <>
-              <button type="button" className={`profile-tab ${activeTab === "career" ? "active" : ""}`} onClick={() => setActiveTab("career")}>
-                <FaBriefcase /> Career
-              </button>
-              <button type="button" className={`profile-tab ${activeTab === "nsrp" ? "active" : ""}`} onClick={() => setActiveTab("nsrp")}>
-                NSRP Details
-              </button>
-            </>
           )}
-          {isEmployer && (
-            <button type="button" className={`profile-tab ${activeTab === "nsrp" ? "active" : ""}`} onClick={() => setActiveTab("nsrp")}>
-              <FaBuilding /> NSRP Details
-            </button>
-          )}
-          {!isAdmin && (
-            <button type="button" className={`profile-tab ${activeTab === "documents" ? "active" : ""}`} onClick={() => setActiveTab("documents")}>
-              <FaFileAlt /> Documents
-            </button>
-          )}
-        </div>
 
-        <div className="profile-fields">
+          <div className="editprofile-card">
+          <div className="profile-fields">
           {/* --- PERSONAL INFO TAB --- */}
           {activeTab === "profile" && (
             <>
               <div className="profile-field-group">
-                <div className="profile-field">
-                  <label htmlFor="name"><FaUser /> Full Name</label>
-                  <input id="name" type="text" name="name" value={formData.name} onChange={handleChange} required />
-                </div>
+                {isEmployer || isAdmin ? (
+                  <div className="profile-field">
+                    <label htmlFor="name"><FaUser /> Full Name</label>
+                    <input id="name" type="text" name="name" value={formData.name} onChange={handleChange} required />
+                  </div>
+                ) : (
+                  <>
+                    <div className="profile-field-grid">
+                      <div className="profile-field">
+                        <label htmlFor="surname"><FaUser /> Surname</label>
+                        <input id="surname" type="text" name="surname" value={formData.surname} onChange={handleChange} required />
+                      </div>
+                      <div className="profile-field">
+                        <label htmlFor="firstName">First Name</label>
+                        <input id="firstName" type="text" name="firstName" value={formData.firstName} onChange={handleChange} required />
+                      </div>
+                    </div>
+                    <div className="profile-field-grid">
+                      <div className="profile-field">
+                        <label htmlFor="middleName">Middle Name</label>
+                        <input id="middleName" type="text" name="middleName" value={formData.middleName} onChange={handleChange} />
+                      </div>
+                      <div className="profile-field">
+                        <label htmlFor="suffix">Suffix</label>
+                        <input id="suffix" type="text" name="suffix" placeholder="Jr., III, etc." value={formData.suffix} onChange={handleChange} />
+                      </div>
+                    </div>
+                  </>
+                )}
                 <div className="profile-field">
                   <label htmlFor="email"><FaEnvelope /> Email</label>
-                  <input id="email" type="email" name="email" value={formData.email} onChange={handleChange} required />
+                  <input id="email" type="email" name="email" value={formData.email} readOnly />
+                  <p className="help-text" style={{ marginTop: "6px" }}>
+                    Use the <strong>Email address</strong> panel above to change your sign-in email.
+                  </p>
                 </div>
                 <div className="profile-field">
                   <label htmlFor="phone"><FaPhone /> Phone</label>
@@ -691,9 +890,103 @@ export default function EditProfile() {
           {/* --- CAREER TAB (jobseeker only) --- */}
           {activeTab === "career" && !isAdmin && !isEmployer && (
             <div className="profile-field-group">
+              <h3 className="profile-section-title"><FaBriefcase /> Preferred Occupations</h3>
               <div className="profile-field">
-                <label htmlFor="desiredJobTitle"><FaBriefcase /> Desired Job Title</label>
-                <input id="desiredJobTitle" type="text" name="desiredJobTitle" value={formData.desiredJobTitle} onChange={handleChange} />
+                <div className="chip-counter-row">
+                  <div className="chip-progress-bar"><div className="chip-progress-fill" style={{ width: `${(formData.preferredOccupations.length / 4) * 100}%` }} /></div>
+                  <span className="chip-counter-label">{formData.preferredOccupations.length}/4</span>
+                </div>
+                <div className="skills-input-row">
+                  <input
+                    type="text"
+                    value={occupationInput}
+                    placeholder={formData.preferredOccupations.length >= 4 ? "Maximum of 4 reached" : "e.g. Administrative Assistant"}
+                    onChange={(e) => setOccupationInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToCappedList("preferredOccupations", occupationInput, 4); setOccupationInput(""); } }}
+                    disabled={formData.preferredOccupations.length >= 4}
+                  />
+                  <button type="button" className="skill-add-btn" onClick={() => { addToCappedList("preferredOccupations", occupationInput, 4); setOccupationInput(""); }} disabled={formData.preferredOccupations.length >= 4}><FaPlus /></button>
+                </div>
+                <div className="skills-tags-wrap">
+                  {formData.preferredOccupations.map((occ, i) => (
+                    <span key={occ} className="skill-tag">{i + 1}. {occ}
+                      <button type="button" onClick={() => removeFromCappedList("preferredOccupations", occ)} aria-label={`Remove ${occ}`} className="skill-tag-remove"><FaTimes /></button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <h3 className="profile-section-title">Preferred Work Location</h3>
+              <div className="location-cards">
+                <div className="location-card">
+                  <div className="location-card-title">
+                    <span>Local (cities / municipalities)</span>
+                    <span className="chip-counter-label">{formData.preferredWorkLocationLocal.length}/3</span>
+                  </div>
+                  <div className="chip-progress-bar" style={{ marginBottom: "10px" }}><div className="chip-progress-fill" style={{ width: `${(formData.preferredWorkLocationLocal.length / 3) * 100}%` }} /></div>
+                  <div className="skills-input-row">
+                    <input
+                      type="text"
+                      list="local-location-options"
+                      value={localLocationInput}
+                      placeholder={formData.preferredWorkLocationLocal.length >= 3 ? "Maximum of 3 reached" : "e.g. Boac, Marinduque"}
+                      onChange={(e) => setLocalLocationInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToCappedList("preferredWorkLocationLocal", localLocationInput, 3); setLocalLocationInput(""); } }}
+                      disabled={formData.preferredWorkLocationLocal.length >= 3}
+                    />
+                    <button type="button" className="skill-add-btn" onClick={() => { addToCappedList("preferredWorkLocationLocal", localLocationInput, 3); setLocalLocationInput(""); }} disabled={formData.preferredWorkLocationLocal.length >= 3}><FaPlus /></button>
+                  </div>
+                  <datalist id="local-location-options">
+                    {ALL_LOCATIONS.map((loc) => <option key={loc} value={loc} />)}
+                  </datalist>
+                  <div className="skills-tags-wrap">
+                    {formData.preferredWorkLocationLocal.map((loc) => (
+                      <span key={loc} className="skill-tag">{loc}
+                        <button type="button" onClick={() => removeFromCappedList("preferredWorkLocationLocal", loc)} aria-label={`Remove ${loc}`} className="skill-tag-remove"><FaTimes /></button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="location-card">
+                  <div className="location-card-title">
+                    <span>Overseas (countries)</span>
+                    <span className="chip-counter-label">{formData.preferredWorkLocationOverseas.length}/3</span>
+                  </div>
+                  <div className="chip-progress-bar" style={{ marginBottom: "10px" }}><div className="chip-progress-fill" style={{ width: `${(formData.preferredWorkLocationOverseas.length / 3) * 100}%` }} /></div>
+                  <div className="skills-input-row">
+                    <input
+                      type="text"
+                      list="overseas-location-options"
+                      value={overseasLocationInput}
+                      placeholder={formData.preferredWorkLocationOverseas.length >= 3 ? "Maximum of 3 reached" : "e.g. Japan"}
+                      onChange={(e) => setOverseasLocationInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToCappedList("preferredWorkLocationOverseas", overseasLocationInput, 3); setOverseasLocationInput(""); } }}
+                      disabled={formData.preferredWorkLocationOverseas.length >= 3}
+                    />
+                    <button type="button" className="skill-add-btn" onClick={() => { addToCappedList("preferredWorkLocationOverseas", overseasLocationInput, 3); setOverseasLocationInput(""); }} disabled={formData.preferredWorkLocationOverseas.length >= 3}><FaPlus /></button>
+                  </div>
+                  <datalist id="overseas-location-options">
+                    {COUNTRY_OPTIONS.map((c) => <option key={c} value={c} />)}
+                  </datalist>
+                  <div className="skills-tags-wrap">
+                    {formData.preferredWorkLocationOverseas.map((loc) => (
+                      <span key={loc} className="skill-tag">{loc}
+                        <button type="button" onClick={() => removeFromCappedList("preferredWorkLocationOverseas", loc)} aria-label={`Remove ${loc}`} className="skill-tag-remove"><FaTimes /></button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="profile-field-grid">
+                <div className="profile-field">
+                  <label htmlFor="expectedSalaryMin">Expected Salary Min (₱)</label>
+                  <input id="expectedSalaryMin" type="number" min="0" name="expectedSalaryMin" value={formData.expectedSalaryMin} onChange={handleChange} />
+                </div>
+                <div className="profile-field">
+                  <label htmlFor="expectedSalaryMax">Expected Salary Max (₱)</label>
+                  <input id="expectedSalaryMax" type="number" min="0" name="expectedSalaryMax" value={formData.expectedSalaryMax} onChange={handleChange} />
+                </div>
               </div>
 
               <div className="profile-field">
@@ -790,6 +1083,126 @@ export default function EditProfile() {
                   </select>
                 </div>
               </div>
+
+              {schoolOptions.length > 0 && (
+                <div className="profile-field">
+                  <label htmlFor="schoolAttended">School Attended</label>
+                  <select id="schoolAttended" name="schoolAttended" value={formData.schoolAttended} onChange={handleChange}>
+                    <option value="">Select</option>
+                    {schoolOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+                    <option value={OTHER_OPTION}>Others / Not Listed</option>
+                  </select>
+                </div>
+              )}
+              {formData.schoolAttended === OTHER_OPTION && (
+                <div className="profile-field">
+                  <label htmlFor="schoolAttendedOther">School Name</label>
+                  <input id="schoolAttendedOther" type="text" name="schoolAttendedOther" value={formData.schoolAttendedOther} onChange={handleChange} />
+                </div>
+              )}
+              {showCourseField && (
+                <div className="profile-field">
+                  <label htmlFor="course">Course</label>
+                  <select id="course" name="course" value={formData.course} onChange={handleChange}>
+                    <option value="">Select</option>
+                    {Object.entries(COURSE_CATEGORIES).map(([category, courses]) => (
+                      <optgroup key={category} label={category}>
+                        {courses.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="profile-field">
+                <label htmlFor="yearGraduated">Year Graduated</label>
+                <input id="yearGraduated" type="text" inputMode="numeric" maxLength={4} placeholder="e.g. 2022" name="yearGraduated" value={formData.yearGraduated} onChange={handleChange} />
+              </div>
+
+              <h3 className="profile-section-title">Language / Dialect Proficiency</h3>
+              <div className="lang-table-wrap">
+                <table className="lang-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Language</th>
+                      {LANGUAGE_SKILLS.map((s) => <th key={s.key} scope="col">{s.label}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {["English", "Filipino", "Others"].map((lang) => (
+                      <tr key={lang}>
+                        <th scope="row">
+                          {lang === "Others" ? (
+                            <input
+                              type="text"
+                              placeholder="Others, specify"
+                              value={formData.languageOthersLabel}
+                              onChange={(e) => setFormData((prev) => ({ ...prev, languageOthersLabel: e.target.value }))}
+                            />
+                          ) : lang}
+                        </th>
+                        {LANGUAGE_SKILLS.map((s) => (
+                          <td key={s.key}>
+                            <input
+                              type="checkbox"
+                              aria-label={`${lang} — ${s.label}`}
+                              checked={formData.languageProficiency[lang][s.key]}
+                              onChange={() => toggleLanguageSkill(lang, s.key)}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <h3 className="profile-section-title">Work History</h3>
+              {formData.workHistory.map((entry, i) => (
+                <div key={i} className="repeat-entry-card">
+                  <div className="repeat-entry-card-header">
+                    <span>Employer {i + 1}</span>
+                    <button type="button" className="repeat-entry-remove" onClick={() => removeListItem("workHistory", i)}>Remove</button>
+                  </div>
+                  <div className="profile-field-grid">
+                    <div className="profile-field">
+                      <label>Company Name</label>
+                      <input type="text" value={entry.companyName || ""} onChange={(e) => updateListItem("workHistory", i, "companyName", e.target.value)} />
+                    </div>
+                    <div className="profile-field">
+                      <label>Address (City/Municipality)</label>
+                      <input type="text" value={entry.address || ""} onChange={(e) => updateListItem("workHistory", i, "address", e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="profile-field-grid">
+                    <div className="profile-field">
+                      <label>Position</label>
+                      <input type="text" value={entry.position || ""} onChange={(e) => updateListItem("workHistory", i, "position", e.target.value)} />
+                    </div>
+                    <div className="profile-field">
+                      <label>Status</label>
+                      <select value={entry.status || ""} onChange={(e) => updateListItem("workHistory", i, "status", e.target.value)}>
+                        <option value="">Select</option>
+                        <option value="Permanent">Permanent</option>
+                        <option value="Contractual">Contractual</option>
+                        <option value="Part-time">Part-time</option>
+                        <option value="Probationary">Probationary</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="profile-field-grid">
+                    <div className="profile-field">
+                      <label>From</label>
+                      <input type="month" value={entry.dateFrom || ""} onChange={(e) => updateListItem("workHistory", i, "dateFrom", e.target.value)} />
+                    </div>
+                    <div className="profile-field">
+                      <label>To</label>
+                      <input type="month" value={entry.dateTo || ""} onChange={(e) => updateListItem("workHistory", i, "dateTo", e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button type="button" className="add-row-btn" onClick={() => addListItem("workHistory", { companyName: "", address: "", position: "", dateFrom: "", dateTo: "", status: "" })}>+ Add employer</button>
+
               <div className="profile-field">
                 <label htmlFor="availabilityStatus">Availability Status</label>
                 <select id="availabilityStatus" name="availabilityStatus" value={formData.availabilityStatus} onChange={handleChange}>
@@ -799,6 +1212,100 @@ export default function EditProfile() {
                   <option value="Currently Employed">Currently Employed</option>
                 </select>
               </div>
+            </div>
+          )}
+
+          {/* --- TRAINING & ELIGIBILITY TAB --- */}
+          {activeTab === "training" && !isAdmin && !isEmployer && (
+            <div className="profile-field-group">
+              <h3 className="profile-section-title">Technical/Vocational Training</h3>
+              {formData.vocationalTrainings.map((entry, i) => (
+                <div key={i} className="repeat-entry-card">
+                  <div className="repeat-entry-card-header">
+                    <span>Training {i + 1}</span>
+                    <button type="button" className="repeat-entry-remove" onClick={() => removeListItem("vocationalTrainings", i)}>Remove</button>
+                  </div>
+                  <div className="profile-field">
+                    <label>Training/Vocational Course</label>
+                    <input type="text" value={entry.course || ""} onChange={(e) => updateListItem("vocationalTrainings", i, "course", e.target.value)} />
+                  </div>
+                  <div className="profile-field">
+                    <label>Training Institution</label>
+                    <select value={entry.institution || ""} onChange={(e) => updateListItem("vocationalTrainings", i, "institution", e.target.value)}>
+                      <option value="">Select</option>
+                      {TECH_VOC_INSTITUTIONS.map((name) => <option key={name} value={name}>{name}</option>)}
+                      <option value={OTHER_OPTION}>Others / Not Listed</option>
+                    </select>
+                  </div>
+                  {entry.institution === OTHER_OPTION && (
+                    <div className="profile-field">
+                      <label>Institution Name</label>
+                      <input type="text" value={entry.institutionOther || ""} onChange={(e) => updateListItem("vocationalTrainings", i, "institutionOther", e.target.value)} />
+                    </div>
+                  )}
+                  <div className="profile-field-grid">
+                    <div className="profile-field">
+                      <label>Duration From</label>
+                      <input type="month" value={entry.durationFrom || ""} onChange={(e) => updateListItem("vocationalTrainings", i, "durationFrom", e.target.value)} />
+                    </div>
+                    <div className="profile-field">
+                      <label>Duration To</label>
+                      <input type="month" value={entry.durationTo || ""} onChange={(e) => updateListItem("vocationalTrainings", i, "durationTo", e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="profile-field">
+                    <label>Certificate Received</label>
+                    <input type="text" placeholder="e.g. NC II" value={entry.certificate || ""} onChange={(e) => updateListItem("vocationalTrainings", i, "certificate", e.target.value)} />
+                  </div>
+                </div>
+              ))}
+              <button type="button" className="add-row-btn" onClick={() => addListItem("vocationalTrainings", { course: "", institution: "", institutionOther: "", durationFrom: "", durationTo: "", certificate: "" })}>+ Add training</button>
+
+              <h3 className="profile-section-title">Eligibility (Civil Service)</h3>
+              {formData.eligibilities.map((entry, i) => (
+                <div key={i} className="repeat-entry-card">
+                  <div className="repeat-entry-card-header">
+                    <span>Eligibility {i + 1}</span>
+                    <button type="button" className="repeat-entry-remove" onClick={() => removeListItem("eligibilities", i)}>Remove</button>
+                  </div>
+                  <div className="profile-field">
+                    <label>Eligibility</label>
+                    <input type="text" value={entry.name || ""} onChange={(e) => updateListItem("eligibilities", i, "name", e.target.value)} />
+                  </div>
+                  <div className="profile-field-grid">
+                    <div className="profile-field">
+                      <label>Rating</label>
+                      <input type="text" value={entry.rating || ""} onChange={(e) => updateListItem("eligibilities", i, "rating", e.target.value)} />
+                    </div>
+                    <div className="profile-field">
+                      <label>Date of Examination</label>
+                      <input type="date" value={entry.examDate || ""} onChange={(e) => updateListItem("eligibilities", i, "examDate", e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button type="button" className="add-row-btn" onClick={() => addListItem("eligibilities", { name: "", rating: "", examDate: "" })}>+ Add eligibility</button>
+
+              <h3 className="profile-section-title">Professional License (PRC)</h3>
+              {formData.professionalLicenses.map((entry, i) => (
+                <div key={i} className="repeat-entry-card">
+                  <div className="repeat-entry-card-header">
+                    <span>License {i + 1}</span>
+                    <button type="button" className="repeat-entry-remove" onClick={() => removeListItem("professionalLicenses", i)}>Remove</button>
+                  </div>
+                  <div className="profile-field-grid">
+                    <div className="profile-field">
+                      <label>License</label>
+                      <input type="text" value={entry.name || ""} onChange={(e) => updateListItem("professionalLicenses", i, "name", e.target.value)} />
+                    </div>
+                    <div className="profile-field">
+                      <label>Valid Until</label>
+                      <input type="date" value={entry.validUntil || ""} onChange={(e) => updateListItem("professionalLicenses", i, "validUntil", e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button type="button" className="add-row-btn" onClick={() => addListItem("professionalLicenses", { name: "", validUntil: "" })}>+ Add license</button>
             </div>
           )}
 
@@ -918,6 +1425,7 @@ export default function EditProfile() {
                       <option value="">Select</option>
                       <option value="Single">Single</option>
                       <option value="Married">Married</option>
+                      <option value="Live-in">Live-in</option>
                       <option value="Widowed">Widowed</option>
                       <option value="Separated">Separated</option>
                       <option value="Divorced">Divorced</option>
@@ -925,20 +1433,58 @@ export default function EditProfile() {
                   </div>
                   <div className="profile-field">
                     <label htmlFor="placeOfBirth">Place of Birth</label>
-                    <input id="placeOfBirth" type="text" name="placeOfBirth" value={formData.placeOfBirth} onChange={handleChange} />
+                    <LocationAutosuggest
+                      id="placeOfBirth"
+                      value={formData.placeOfBirth}
+                      onChange={(v) => setFormData(prev => ({ ...prev, placeOfBirth: v }))}
+                      placeholder="Start typing a city or municipality..."
+                    />
                   </div>
                   <div className="profile-field">
                     <label htmlFor="citizenship">Citizenship</label>
                     <input id="citizenship" type="text" name="citizenship" value={formData.citizenship} onChange={handleChange} />
                   </div>
+                  <div className="profile-field">
+                    <label htmlFor="religion">Religion</label>
+                    <Autosuggest
+                      id="religion"
+                      value={formData.religion}
+                      onChange={(v) => setFormData((prev) => ({ ...prev, religion: v }))}
+                      options={RELIGIONS}
+                      placeholder="Start typing..."
+                    />
+                  </div>
+                  <h3 className="profile-section-title">Government IDs</h3>
                   <div className="profile-field-grid">
                     <div className="profile-field">
-                      <label htmlFor="height">Height (cm)</label>
-                      <input id="height" type="number" name="height" value={formData.height} onChange={handleChange} className="number-input" />
+                      <label htmlFor="tin">TIN</label>
+                      <input id="tin" type="text" name="tin" value={formData.tin} onChange={handleChange} />
                     </div>
                     <div className="profile-field">
-                      <label htmlFor="weight">Weight (kg)</label>
-                      <input id="weight" type="number" name="weight" value={formData.weight} onChange={handleChange} className="number-input" />
+                      <label htmlFor="sssGsisNo">GSIS/SSS ID No.</label>
+                      <input id="sssGsisNo" type="text" name="sssGsisNo" value={formData.sssGsisNo} onChange={handleChange} />
+                    </div>
+                  </div>
+                  <div className="profile-field-grid">
+                    <div className="profile-field">
+                      <label htmlFor="pagibigNo">PAG-IBIG No.</label>
+                      <input id="pagibigNo" type="text" name="pagibigNo" value={formData.pagibigNo} onChange={handleChange} />
+                    </div>
+                    <div className="profile-field">
+                      <label htmlFor="philhealthNo">PhilHealth No.</label>
+                      <input id="philhealthNo" type="text" name="philhealthNo" value={formData.philhealthNo} onChange={handleChange} />
+                    </div>
+                  </div>
+                  <div className="profile-field-grid">
+                    <div className="profile-field">
+                      <label htmlFor="height">Height</label>
+                      <input id="height" type="text" inputMode="decimal" name="height" placeholder={`e.g. 170 or 5'8"`} value={formData.height} onChange={handleChange} className="number-input" />
+                      {heightConverted !== null && <span className="unit-hint">≈ {heightConverted} cm</span>}
+                    </div>
+                    <div className="profile-field">
+                      <label htmlFor="weight">Weight</label>
+                      <input id="weight" type="text" inputMode="decimal" name="weight" placeholder="e.g. 65 or 143 lbs" value={formData.weight} onChange={handleChange} className="number-input" />
+                      {weightConverted !== null && <span className="unit-hint">≈ {weightConverted} kg</span>}
                     </div>
                   </div>
                   <div className="profile-field">
@@ -1076,6 +1622,16 @@ export default function EditProfile() {
                           <input id="repatriationIntent" type="text" name="repatriationIntent" value={formData.repatriationIntent} onChange={handleChange} placeholder="e.g., Return to PH to work" />
                         </div>
                       )}
+                      <div className="profile-field-grid">
+                        <div className="profile-field">
+                          <label htmlFor="passportNo">Passport No.</label>
+                          <input id="passportNo" type="text" name="passportNo" value={formData.passportNo} onChange={handleChange} />
+                        </div>
+                        <div className="profile-field">
+                          <label htmlFor="passportExpiryDate">Passport Expiry Date</label>
+                          <input id="passportExpiryDate" type="date" name="passportExpiryDate" value={formData.passportExpiryDate} onChange={handleChange} />
+                        </div>
+                      </div>
                     </>
                   )}
 
@@ -1128,72 +1684,93 @@ export default function EditProfile() {
               <h3 className="profile-section-title"><FaFileAlt /> Documents</h3>
               {isEmployer ? (
                 <>
-                  <div className="profile-field">
-                    <label htmlFor="businessPermitUpload">Business Permit</label>
-                    <input id="businessPermitUpload" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={(e) => setBusinessPermitFile(e.target.files[0])} className="profile-file-input" />
-                    <label htmlFor="businessPermitUpload" className="profile-upload-zone"><FaUpload /> <span>Upload Business Permit</span></label>
-                    <p className="profile-file-name">{businessPermitFile ? businessPermitFile.name : existingBusinessPermit ? existingBusinessPermit.split("/").pop() : "No business permit uploaded"}</p>
-                  </div>
-                  <div className="profile-field">
-                    <label htmlFor="registrationDocUpload">DTI / SEC Registration</label>
-                    <input id="registrationDocUpload" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={(e) => setRegistrationDocFile(e.target.files[0])} className="profile-file-input" />
-                    <label htmlFor="registrationDocUpload" className="profile-upload-zone"><FaUpload /> <span>Upload Registration Document</span></label>
-                    <p className="profile-file-name">{registrationDocFile ? registrationDocFile.name : existingRegistrationDoc ? existingRegistrationDoc.split("/").pop() : "No registration document uploaded"}</p>
+                  <FileDropzone
+                    id="businessPermitUpload"
+                    label="Business Permit"
+                    hint="Accepted formats: PDF, DOC, JPG, PNG. Max 10 MB."
+                    file={businessPermitFile}
+                    existingUrl={existingBusinessPermit}
+                    onFileSelect={setBusinessPermitFile}
+                    onRemove={() => setBusinessPermitFile(null)}
+                  />
+                  <FileDropzone
+                    id="registrationDocUpload"
+                    label="DTI / SEC Registration"
+                    hint="Accepted formats: PDF, DOC, JPG, PNG. Max 10 MB."
+                    file={registrationDocFile}
+                    existingUrl={existingRegistrationDoc}
+                    onFileSelect={setRegistrationDocFile}
+                    onRemove={() => setRegistrationDocFile(null)}
+                  />
+
+                  <div className="employer-verify-block">
+                    <h4>Verification</h4>
+                    <p className="profile-hint">
+                      Current status: <strong>{user?.verificationStatus || "unverified"}</strong>
+                    </p>
+                    {user?.verificationStatus === "rejected" && user?.verificationNote ? (
+                      <p className="profile-error-text">Admin note: {user.verificationNote}</p>
+                    ) : null}
+                    {user?.verificationStatus === "pending" ? (
+                      <p className="profile-hint">
+                        Your documents are under review by LMD Admin. You&apos;ll be notified and messaged with the result.
+                      </p>
+                    ) : user?.verificationStatus === "verified" ? (
+                      <p className="profile-hint">Your account is verified — you can post job vacancies.</p>
+                    ) : (
+                      <>
+                        <p className="profile-hint">
+                          Save your profile after adding both documents, then submit them for admin review.
+                        </p>
+                        <button
+                          type="button"
+                          className="profile-save-btn"
+                          disabled={verifySubmitting || !existingBusinessPermit || !existingRegistrationDoc}
+                          onClick={handleSubmitVerification}
+                        >
+                          {verifySubmitting ? "Submitting…" : "Submit documents for review"}
+                        </button>
+                      </>
+                    )}
+                    {verifyMsg ? <p className="profile-hint">{verifyMsg}</p> : null}
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="profile-field">
-                    <label htmlFor="profileUpload">Resume</label>
-                    <input id="profileUpload" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={(e) => setResumeFile(e.target.files[0])} className="profile-file-input" />
-                    <label htmlFor="profileUpload" className="profile-upload-zone"><FaUpload /> <span>Upload Resume</span></label>
-                    <p className="profile-file-name">{resumeFile ? resumeFile.name : existingResume ? existingResume.split("/").pop() : "No file selected"}</p>
-                  </div>
-                  <div className="profile-field">
-                    <label htmlFor="supportingUpload">Valid ID / Supporting Documents</label>
-                    <input id="supportingUpload" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={(e) => setSupportingDocumentFile(e.target.files[0])} className="profile-file-input" />
-                    <label htmlFor="supportingUpload" className="profile-upload-zone"><FaUpload /> <span>Upload Valid ID</span></label>
-                    <p className="profile-file-name">{supportingDocumentFile ? supportingDocumentFile.name : existingValidId ? existingValidId.split("/").pop() : "No file selected"}</p>
-                  </div>
+                  <FileDropzone
+                    id="profileUpload"
+                    label="Resume"
+                    hint="Accepted formats: PDF, DOC, JPG, PNG. Max 10 MB."
+                    file={resumeFile}
+                    existingUrl={existingResume}
+                    onFileSelect={setResumeFile}
+                    onRemove={() => setResumeFile(null)}
+                  />
+                  <FileDropzone
+                    id="supportingUpload"
+                    label="Valid ID / Supporting Documents"
+                    hint="Accepted formats: PDF, DOC, JPG, PNG. Max 10 MB."
+                    file={supportingDocumentFile}
+                    existingUrl={existingValidId}
+                    onFileSelect={setSupportingDocumentFile}
+                    onRemove={() => setSupportingDocumentFile(null)}
+                  />
                 </>
               )}
             </div>
           )}
-        </div>
-
-        <button type="submit" disabled={loading} className="profile-save-btn">
-          <FaSave /> {loading ? "Saving..." : "Save Profile"}
-        </button>
-
-        <section className="danger-zone-section">
-          <div className="danger-zone-divider"></div>
-          <div className="danger-zone-header">
-            <FaExclamationTriangle className="danger-zone-icon" />
-            <p className="danger-zone-label">Danger Zone</p>
           </div>
-          <p className="danger-zone-description">Permanently delete your account and all associated data. This action cannot be undone.</p>
-          <button type="button" className="danger-zone-delete-btn" onClick={openDeleteModal}><FaTrash /> Delete My Account</button>
-        </section>
-      </form>
+          </div>
+        </form>
 
-      {showDeleteModal && (
-        <div className="delete-account-modal-overlay" onClick={closeDeleteModal}>
-          <div className="delete-account-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="delete-warning-icon"><FaExclamationTriangle /></div>
-            <h3>Delete your account?</h3>
-            <p>This will permanently delete your profile, skills, documents, and all job applications. This cannot be undone.</p>
-            <label htmlFor="delete-name-confirm" className="delete-confirm-label">Type your full name to confirm:</label>
-            <input id="delete-name-confirm" type="text" className="delete-confirm-input" value={deleteConfirmName} onChange={(e) => setDeleteConfirmName(e.target.value)} placeholder={expectedFullName || "Enter your full name"} disabled={isDeleting} />
-            {deleteError && <p className="delete-modal-error">{deleteError}</p>}
-            <div className="delete-account-modal-actions">
-              <button type="button" className="delete-cancel-btn" onClick={closeDeleteModal} disabled={isDeleting}>Cancel</button>
-              <button type="button" className="delete-confirm-btn" onClick={handleDeleteAccount} disabled={!isDeleteNameMatch || isDeleting}>
-                {isDeleting ? "Deleting..." : "Delete Account"}
-              </button>
-            </div>
+        <div className="editprofile-footer">
+          <div className="editprofile-footer-inner">
+            <button type="submit" form="edit-profile-form" disabled={loading} className="profile-save-btn">
+              <FaSave /> {loading ? "Saving..." : "Save Profile"}
+            </button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

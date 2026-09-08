@@ -13,14 +13,33 @@ exports.verifyToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select("isActive role verificationStatus");
+
+    // An "appeal-only" token may not be used for normal API access.
+    if (decoded.scope === "appeal") {
+      return res.status(403).json({
+        code: "APPEAL_TOKEN_SCOPE",
+        message: "This session can only be used to submit a suspension appeal",
+      });
+    }
+
+    const user = await User.findById(decoded.id).select(
+      "isActive role verificationStatus accountStatus suspensionReason suspendedAt"
+    );
 
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
 
     if (user.isActive === false) {
-      return res.status(403).json({ message: "Your account is deactivated" });
+      // Structured payload so the client can route to the suspended wall
+      // instead of showing a bare error toast.
+      return res.status(403).json({
+        code: "ACCOUNT_SUSPENDED",
+        message: "Your account has been suspended",
+        accountStatus: user.accountStatus === "banned" ? "banned" : "suspended",
+        suspensionReason: user.suspensionReason || null,
+        suspendedAt: user.suspendedAt || null,
+      });
     }
 
     req.user = {
@@ -28,6 +47,35 @@ exports.verifyToken = async (req, res, next) => {
       role: user.role,
       verificationStatus: user.verificationStatus,
     };
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: "Invalid token" });
+  }
+};
+
+// ============================================
+// APPEAL-ONLY AUTH
+// Accepts the short-lived token issued at login when the account is
+// suspended. Grants access to the appeal endpoints only.
+// ============================================
+exports.verifyAppealToken = async (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ message: "No token provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.scope !== "appeal") {
+      return res.status(403).json({ message: "Invalid appeal session" });
+    }
+
+    const user = await User.findById(decoded.id).select("accountStatus isActive");
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    req.user = { id: String(user._id), _id: user._id, scope: "appeal" };
     next();
   } catch (error) {
     return res.status(403).json({ message: "Invalid token" });

@@ -15,6 +15,7 @@ import {
   FaUsers,
 } from "react-icons/fa";
 import { adminAPI } from "../../services/api";
+import { useToast } from "../../components/feedback/context";
 import "../../styles/jobMonitoring.css";
 import { normalizeJobMonitoringRecord } from "../../data/jobMonitoringData";
 
@@ -46,6 +47,7 @@ const STATUS_META = {
 
 export default function JobMonitoring() {
   const PAGE_SIZE = 10;
+  const toast = useToast();
 
   const [jobs, setJobs] = useState([]);
   const [statsData, setStatsData] = useState(null);
@@ -212,8 +214,10 @@ export default function JobMonitoring() {
       await adminAPI.updateJobStatus(jobId, nextStatus);
       setJobs((prev) => prev.map((job) => (job.id === jobId ? { ...job, status: nextStatus } : job)));
       setStatsRefreshKey((key) => key + 1);
+      toast.success(`Vacancy status updated to “${nextStatus}”.`);
     } catch (error) {
       console.error("Failed to update job status", error);
+      toast.error(error.response?.data?.message || "Failed to update the vacancy status.");
     } finally {
       setSelectedJob(null);
     }

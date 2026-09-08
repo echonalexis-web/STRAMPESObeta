@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useContext } from "react";
+import { useEffect, useMemo, useState, useContext, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { employerAPI, messageAPI } from "../services/api";
 import "../styles/employer-dashboard.css";
@@ -8,6 +8,7 @@ import LocationSelect from "../components/LocationSelect";
 import QualificationsEditor from "../components/QualificationsEditor";
 import "../styles/qualifications-editor.css";
 import RankedApplicantsTable from "../components/RankedApplicantsTable";
+import SecureFileLink from "../components/SecureFileLink";
 import { useRankedApplicants } from "../hooks/useRankedApplicants";
 import { useSwipeable } from "react-swipeable";
 import {
@@ -31,6 +32,11 @@ import {
   FaArchive,
   FaTimesCircle,
   FaArchive as FaArchiveIcon,
+  FaSearch,
+  FaChevronLeft,
+  FaChevronRight,
+  FaTrashAlt,
+  FaRedo,
 } from "react-icons/fa";
 
 const SALARY_GRADES = [
@@ -125,6 +131,49 @@ const formatJobLocation = (value) => {
 const getApplicantContact = (application) => {
   const applicant = application?.applicant || {};
   return applicant.phone || applicant.contactNumber || applicant.mobile || applicant.email || "N/A";
+};
+
+// Compact relative age used across the job / applicant tables.
+const relativeAge = (value) => {
+  if (!value) return "";
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return "";
+  const days = Math.floor((Date.now() - then) / 86400000);
+  if (days <= 0) return "today";
+  if (days === 1) return "1d ago";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+};
+
+// Roll a job's applicant list up into a funnel. `new` = still-pending (unreviewed).
+const jobFunnel = (apps = []) => {
+  const f = { total: apps.length, new: 0, shortlisted: 0, hired: 0, rejected: 0 };
+  apps.forEach((a) => {
+    const s = normalizeApplicationStatus(a.status);
+    if (s === "pending") f.new += 1;
+    else if (s === "shortlisted") f.shortlisted += 1;
+    else if (s === "hired") f.hired += 1;
+    else if (s === "rejected") f.rejected += 1;
+  });
+  return f;
+};
+
+const archiveReasonLabel = (reason) => {
+  if (!reason) return "";
+  return String(reason)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+// Days a deadline is away, or null when there is no upcoming deadline.
+const daysUntilDeadline = (value) => {
+  if (!value) return null;
+  const end = new Date(value).getTime();
+  if (Number.isNaN(end)) return null;
+  const diff = Math.ceil((end - Date.now()) / 86400000);
+  return diff;
 };
 
 const normalizeRecentApplicantStatus = (value) => {
@@ -254,6 +303,36 @@ function SwipeableJobCard({
   );
 }
 
+// ===== ARCHIVED JOB POST-MORTEM (shared by table detail row + mobile card) =====
+function ArchivedPostMortem({ job }) {
+  const m = job.archivedMetrics || {};
+  const rates = [
+    { label: "Qualified rate", value: m.qualifiedRate ?? 0 },
+    { label: "Shortlist rate", value: m.shortlistedRate ?? 0 },
+    { label: "Hire rate", value: m.hireRate ?? 0 },
+  ];
+  return (
+    <div className="emp-postmortem">
+      <div className="emp-postmortem-facts">
+        <div><span>Total applicants</span><strong>{m.totalApplicants ?? 0}</strong></div>
+        <div><span>Qualified / Shortlisted</span><strong>{(m.qualifiedCount ?? 0)} / {(m.shortlistedCount ?? 0)}</strong></div>
+        <div><span>Time to close</span><strong>{m.daysActive ?? 0} days</strong></div>
+        <div><span>Hired</span><strong>{(m.hiredCandidateIds || []).length ? m.hiredCandidateIds.join(", ") : "None"}</strong></div>
+        <div><span>Reason</span><strong>{archiveReasonLabel(job.archiveReason) || "N/A"}</strong></div>
+      </div>
+      <div className="emp-postmortem-bars">
+        {rates.map((r) => (
+          <div key={r.label} className="emp-bar-row">
+            <label>{r.label}</label>
+            <div className="emp-bar"><span style={{ width: `${Math.min(100, Math.max(0, r.value))}%` }} /></div>
+            <small>{r.value}%</small>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ===== MAIN COMPONENT =====
 export default function EmployerDashboard() {
   const navigate = useNavigate();
@@ -270,6 +349,10 @@ export default function EmployerDashboard() {
   });
   const [jobs, setJobs] = useState([]);
   const [jobsPage, setJobsPage] = useState(1);
+  const [jobSearch, setJobSearch] = useState("");
+  const [jobSort, setJobSort] = useState("newest");
+  const [openJobMenuId, setOpenJobMenuId] = useState(null);
+  const [jobMenuPos, setJobMenuPos] = useState({ top: 0, left: 0 });
   const [jobApplicants, setJobApplicants] = useState({});
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [recentApplicants, setRecentApplicants] = useState([]);
@@ -306,14 +389,43 @@ export default function EmployerDashboard() {
   // Swipe state: which job card is open
   const [openSwipeId, setOpenSwipeId] = useState(null);
   const [expandedArchivedJobs, setExpandedArchivedJobs] = useState({});
+  const [archivedSearch, setArchivedSearch] = useState("");
+  const [archivedPage, setArchivedPage] = useState(1);
+  const ARCHIVED_PAGE_SIZE = 10;
+  const [applicantsPage, setApplicantsPage] = useState(1);
+  const APPLICANTS_PAGE_SIZE = 10;
 
   const isVerifiedEmployer = user?.role === "employer" && user?.verificationStatus === "verified";
 
+  const [qualTemplates, setQualTemplates] = useState([]);
+
+  const loadQualTemplates = async () => {
+    try {
+      const res = await employerAPI.getQualificationTemplates();
+      setQualTemplates(Array.isArray(res.data?.templates) ? res.data.templates : []);
+    } catch {
+      setQualTemplates([]); // editor falls back to its built-in static templates
+    }
+  };
+
+  const handleSaveQualTemplate = async ({ name, items }) => {
+    const res = await employerAPI.createQualificationTemplate({
+      name,
+      jobTitle: jobForm.title || "",
+      items,
+    });
+    await loadQualTemplates();
+    setSuccessToast("Template saved");
+    return res;
+  };
+
   useEffect(() => {
     loadDashboardData();
+    if (isVerifiedEmployer) loadQualTemplates();
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -338,17 +450,88 @@ export default function EmployerDashboard() {
     () => jobs.filter((job) => job.archived || job.status === "closed"),
     [jobs]
   );
+  const filteredArchivedJobs = useMemo(() => {
+    const query = archivedSearch.trim().toLowerCase();
+    if (!query) return archivedJobs;
+    return archivedJobs.filter((job) =>
+      String(job.title || "").toLowerCase().includes(query) ||
+      String(job.location || "").toLowerCase().includes(query)
+    );
+  }, [archivedJobs, archivedSearch]);
+  const archivedTotalPages = Math.max(1, Math.ceil(filteredArchivedJobs.length / ARCHIVED_PAGE_SIZE));
+  const paginatedArchivedJobs = useMemo(() => {
+    const start = (archivedPage - 1) * ARCHIVED_PAGE_SIZE;
+    return filteredArchivedJobs.slice(start, start + ARCHIVED_PAGE_SIZE);
+  }, [filteredArchivedJobs, archivedPage]);
+
+  useEffect(() => {
+    setArchivedPage(1);
+  }, [archivedSearch]);
+
+  useEffect(() => {
+    if (archivedPage > archivedTotalPages) setArchivedPage(archivedTotalPages);
+  }, [archivedTotalPages, archivedPage]);
   const liveJobs = useMemo(
     () => jobs.filter((job) => !job.archived && job.status !== "closed"),
     [jobs]
   );
+
+  // Per-job funnel keyed by id, derived from the applicant map loaded on mount.
+  const funnelByJob = useMemo(() => {
+    const map = {};
+    Object.entries(jobApplicants).forEach(([jobId, apps]) => {
+      map[jobId] = jobFunnel(apps);
+    });
+    return map;
+  }, [jobApplicants]);
+  const funnelFor = (jobId) => funnelByJob[jobId] || { total: 0, new: 0, shortlisted: 0, hired: 0, rejected: 0 };
+
+  // Live jobs ordered for the applicants-tab picker: most unreviewed first.
+  const railJobs = useMemo(
+    () => [...liveJobs].sort((a, b) => funnelFor(b._id).new - funnelFor(a._id).new),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [liveJobs, funnelByJob]
+  );
+  const RAIL_CHIP_LIMIT = 4;
+  const stepSelectedJob = (delta) => {
+    if (!railJobs.length) return;
+    const idx = railJobs.findIndex((j) => j._id === selectedJobId);
+    const nextIdx = idx === -1 ? 0 : (idx + delta + railJobs.length) % railJobs.length;
+    setSelectedJobId(railJobs[nextIdx]._id);
+  };
+
+  const visibleJobs = useMemo(() => {
+    const query = jobSearch.trim().toLowerCase();
+    let list = liveJobs;
+    if (query) {
+      list = list.filter(
+        (job) =>
+          String(job.title || "").toLowerCase().includes(query) ||
+          String(job.location || "").toLowerCase().includes(query)
+      );
+    }
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      if (jobSort === "applicants") return funnelFor(b._id).total - funnelFor(a._id).total;
+      if (jobSort === "new") return funnelFor(b._id).new - funnelFor(a._id).new;
+      if (jobSort === "oldest") return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0); // newest
+    });
+    return sorted;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveJobs, jobSearch, jobSort, funnelByJob]);
+
   const jobsPageSize = 8;
-  const jobsTotalPages = Math.max(1, Math.ceil(liveJobs.length / jobsPageSize));
+  const jobsTotalPages = Math.max(1, Math.ceil(visibleJobs.length / jobsPageSize));
   const paginatedJobs = useMemo(() => {
     const safePage = Math.min(jobsPage, jobsTotalPages);
     const startIndex = (safePage - 1) * jobsPageSize;
-    return liveJobs.slice(startIndex, startIndex + jobsPageSize);
-  }, [liveJobs, jobsPage, jobsTotalPages]);
+    return visibleJobs.slice(startIndex, startIndex + jobsPageSize);
+  }, [visibleJobs, jobsPage, jobsTotalPages]);
+
+  useEffect(() => {
+    setJobsPage(1);
+  }, [jobSearch, jobSort]);
 
   useEffect(() => {
     setJobsPage((page) => Math.min(page, Math.max(1, Math.ceil(liveJobs.length / jobsPageSize))));
@@ -537,6 +720,7 @@ export default function EmployerDashboard() {
       setStats(statsResponse.data || {
         totalJobs: 0, activeJobs: 0, totalApplicants: 0, pendingReview: 0, shortlisted: 0, hired: 0,
       });
+      setSuccessToast("Job deleted");
       setJobToDelete(null);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to delete job");
@@ -783,20 +967,73 @@ export default function EmployerDashboard() {
     return sorted;
   }, [rankedApplicants, statusFilter, sortBy]);
 
+  // Counts per status for the funnel/filter segments (from the full list, so
+  // the numbers don't move when a filter is applied).
+  const funnelCounts = useMemo(() => {
+    const c = { all: rankedApplicants.length, pending: 0, shortlisted: 0, hired: 0, rejected: 0 };
+    rankedApplicants.forEach((a) => {
+      const s = normalizeApplicationStatus(a.status);
+      if (c[s] !== undefined) c[s] += 1;
+    });
+    return c;
+  }, [rankedApplicants]);
+
+  const applicantsTotalPages = Math.max(1, Math.ceil(filteredAndSortedApplicants.length / APPLICANTS_PAGE_SIZE));
+  const paginatedApplicants = useMemo(() => {
+    const start = (applicantsPage - 1) * APPLICANTS_PAGE_SIZE;
+    return filteredAndSortedApplicants.slice(start, start + APPLICANTS_PAGE_SIZE);
+  }, [filteredAndSortedApplicants, applicantsPage]);
+
+  useEffect(() => {
+    setApplicantsPage(1);
+  }, [selectedJobId, statusFilter, sortBy]);
+
+  useEffect(() => {
+    if (applicantsPage > applicantsTotalPages) setApplicantsPage(applicantsTotalPages);
+  }, [applicantsTotalPages, applicantsPage]);
+
   const modalSections = [
     { id: "details", label: "Job Details", icon: <FaClipboardList /> },
     { id: "logistics", label: "Logistics", icon: <FaCoins /> },
     { id: "requirements", label: "Requirements", icon: <FaListUl /> },
   ];
 
-  const statsCards = [
-    { icon: "📁", label: "Total Jobs", value: stats.totalJobs, tone: "green" },
-    { icon: "✅", label: "Active Jobs", value: stats.activeJobs, tone: "green" },
-    { icon: "👥", label: "Total Applicants", value: stats.totalApplicants, tone: "green" },
-    { icon: "⏳", label: "Pending Review", value: stats.pendingReview, tone: "amber" },
-    { icon: "📌", label: "Shortlisted", value: stats.shortlisted, tone: "blue" },
-    { icon: "🎉", label: "Hired", value: stats.hired, tone: "green" },
+  // Two-tier overview: the numbers that drive action are hero tiles; the rest
+  // are a quiet context strip.
+  const heroStats = [
+    {
+      key: "pending",
+      icon: "⏳",
+      label: "Pending review",
+      value: stats.pendingReview || 0,
+      tone: "amber",
+      action:
+        (stats.pendingReview || 0) > 0
+          ? { label: `Review ${stats.pendingReview} applicant${stats.pendingReview === 1 ? "" : "s"} →`, tab: "applicants" }
+          : null,
+    },
+    {
+      key: "active",
+      icon: "✅",
+      label: "Active jobs",
+      value: stats.activeJobs || 0,
+      tone: "green",
+      action: { label: "Manage postings →", tab: "jobs" },
+    },
   ];
+  const contextStats = [
+    { label: "Total jobs", value: stats.totalJobs || 0 },
+    { label: "Total applicants", value: stats.totalApplicants || 0 },
+    { label: "Shortlisted", value: stats.shortlisted || 0 },
+    { label: "Hired", value: stats.hired || 0 },
+  ];
+
+  const tabMeta = {
+    overview: { label: "Overview", badge: null },
+    jobs: { label: "Job Postings", badge: liveJobs.length || null },
+    applicants: { label: "Applicants", badge: stats.totalApplicants || null },
+    archived: { label: "Archived", badge: archivedJobs.length || null },
+  };
 
   const openSwipe = (id) => setOpenSwipeId(id);
   const closeSwipe = () => setOpenSwipeId(null);
@@ -815,8 +1052,11 @@ export default function EmployerDashboard() {
           <div className="verification-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Verification Required</h3>
             <p>
-              Your employer account is not yet verified. Please go to your profile, upload your
-              business permit / registration documents, and wait for admin approval.
+              {user?.verificationStatus === "pending"
+                ? "Your documents are under review by LMD Admin. You'll be notified and messaged with the result."
+                : user?.verificationStatus === "rejected"
+                ? `Your last submission was not approved${user?.verificationNote ? `: ${user.verificationNote}` : "."}. Update your documents in your profile and submit them again.`
+                : "Your employer account is not yet verified. Please go to your profile, upload your business permit / registration documents, and submit them for admin review."}
             </p>
             <div className="verification-modal-actions">
               <button className="green-btn" onClick={() => { setShowVerificationModal(false); navigate("/profile"); }}>
@@ -856,18 +1096,21 @@ export default function EmployerDashboard() {
       )}
 
       {/* Header */}
-      <div className="dashboard-header">
-        <div className="profile-section">
-          <div className="profile-avatar">EM</div>
-          <div className="profile-info">
-            <h1>Employer Dashboard</h1>
-            <p>Manage postings, applicants, and hiring updates in one place.</p>
+      <div className="dashboard-header emp-header">
+        <div className="emp-header-id">
+          <div className="emp-header-avatar">{getInitials(user?.companyName || user?.name || "EM")}</div>
+          <div className="emp-header-text">
+            <h1>{user?.companyName || user?.name || "Employer Dashboard"}</h1>
+            <span className="emp-header-role">Employer workspace</span>
           </div>
         </div>
+        <button type="button" className="emp-header-cta" onClick={openCreateJobModal}>
+          + Post Vacancy
+        </button>
       </div>
 
       <section className="employer-shell">
-        <div className="employer-tabs" role="tablist" aria-label="Employer dashboard tabs">
+        <div className="employer-tabs emp-segmented" role="tablist" aria-label="Employer dashboard tabs">
           {tabList.map((tab) => (
             <button
               key={tab}
@@ -877,7 +1120,8 @@ export default function EmployerDashboard() {
               onClick={() => setActiveTab(tab)}
               aria-selected={activeTab === tab}
             >
-              {tab === "overview" ? "Overview" : tab === "jobs" ? "My Job Postings" : tab === "archived" ? "Archived Jobs" : "Applicants"}
+              {tabMeta[tab].label}
+              {tabMeta[tab].badge ? <span className="emp-tab-badge">{tabMeta[tab].badge}</span> : null}
             </button>
           ))}
         </div>
@@ -891,19 +1135,44 @@ export default function EmployerDashboard() {
             {/* -------- OVERVIEW TAB -------- */}
             {activeTab === "overview" && (
               <div className="employer-tab-panel">
-                <div className="stats-grid">
-                  {statsCards.map((card) => (
-                    <article key={card.label} className={`stat-card tone-${card.tone}`}>
-                      <span className="stat-icon" aria-hidden="true">{card.icon}</span>
-                      <strong>{card.value}</strong>
-                      <p>{card.label}</p>
+                <div className="emp-hero-row">
+                  {heroStats.map((card) => (
+                    <article key={card.key} className={`emp-hero-tile tone-${card.tone}`}>
+                      <span className="emp-hero-icon" aria-hidden="true">{card.icon}</span>
+                      <span className="emp-hero-value">{card.value}</span>
+                      <span className="emp-hero-label">{card.label}</span>
+                      {card.action ? (
+                        <button
+                          type="button"
+                          className="emp-hero-action"
+                          onClick={() => setActiveTab(card.action.tab)}
+                        >
+                          {card.action.label}
+                        </button>
+                      ) : (
+                        <span className="emp-hero-action muted">All caught up</span>
+                      )}
                     </article>
+                  ))}
+                </div>
+
+                <div className="emp-context-strip">
+                  {contextStats.map((s) => (
+                    <div key={s.label} className="emp-context-item">
+                      <span className="emp-context-value">{s.value}</span>
+                      <span className="emp-context-label">{s.label}</span>
+                    </div>
                   ))}
                 </div>
 
                 <div className="table-card">
                   <div className="table-card-header">
                     <h2>Recent Applicants</h2>
+                    {recentApplicants.length > 0 && (
+                      <button type="button" className="emp-link-btn" onClick={() => setActiveTab("applicants")}>
+                        View all
+                      </button>
+                    )}
                   </div>
                   {!recentApplicants.length ? (
                     <div className="recent-applicants-empty">No recent applicants yet.</div>
@@ -991,21 +1260,51 @@ export default function EmployerDashboard() {
               </div>
             )}
 
-            {/* -------- JOBS TAB – SWIPEABLE CARDS -------- */}
+            {/* -------- JOBS TAB -------- */}
             {activeTab === "jobs" && (
               <div className="employer-tab-panel">
-                <div className="panel-header-row">
+                <div className="panel-header-row emp-panel-head">
                   <h2>My Job Postings</h2>
-                  <button type="button" className="green-btn" onClick={openCreateJobModal}>
-                    + Post New Job
-                  </button>
+                  <div className="emp-panel-tools">
+                    <div className="emp-search">
+                      <FaSearch />
+                      <input
+                        type="text"
+                        placeholder="Search postings..."
+                        value={jobSearch}
+                        onChange={(e) => setJobSearch(e.target.value)}
+                      />
+                      {jobSearch && (
+                        <button type="button" onClick={() => setJobSearch("")} aria-label="Clear search">×</button>
+                      )}
+                    </div>
+                    <select
+                      className="emp-select"
+                      value={jobSort}
+                      onChange={(e) => setJobSort(e.target.value)}
+                      aria-label="Sort job postings"
+                    >
+                      <option value="newest">Newest first</option>
+                      <option value="oldest">Oldest first</option>
+                      <option value="applicants">Most applicants</option>
+                      <option value="new">Most new applicants</option>
+                    </select>
+                    <button type="button" className="green-btn" onClick={openCreateJobModal}>
+                      + Post New Job
+                    </button>
+                  </div>
                 </div>
 
-                <div className="swipeable-job-list">
-                  {!paginatedJobs.length ? (
-                    <p className="empty-muted">You have no job postings yet.</p>
-                  ) : (
-                    paginatedJobs.map((job) => (
+                {!paginatedJobs.length ? (
+                  <div className="empty-state">
+                    <div className="empty-state-icon">📋</div>
+                    <p className="empty-state-text">
+                      {jobSearch ? "No postings match your search." : "You have no active job postings yet."}
+                    </p>
+                  </div>
+                ) : isMobile ? (
+                  <div className="swipeable-job-list">
+                    {paginatedJobs.map((job) => (
                       <SwipeableJobCard
                         key={job._id}
                         job={job}
@@ -1021,15 +1320,141 @@ export default function EmployerDashboard() {
                         handleCloseOrReopen={handleCloseOrReopen}
                         handleArchiveJob={handleArchiveJob}
                       />
-                    ))
-                  )}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="emp-table-wrap">
+                    <table className="emp-table jobs-table">
+                      <colgroup>
+                        <col />
+                        <col style={{ width: "104px" }} />
+                        <col style={{ width: "104px" }} />
+                        <col style={{ width: "150px" }} />
+                        <col style={{ width: "132px" }} />
+                        <col style={{ width: "56px" }} />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th>Job</th>
+                          <th className="num">Applicants</th>
+                          <th className="num">New</th>
+                          <th>Posted</th>
+                          <th>Status</th>
+                          <th aria-label="Actions" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedJobs.map((job) => {
+                          const f = funnelFor(job._id);
+                          const dLeft = daysUntilDeadline(job.applicationDeadline);
+                          const filled = job.slots ? f.hired >= job.slots : false;
+                          const isClosed = String(job.status || "active").toLowerCase() === "closed";
+                          const statusLabel = isClosed ? "closed" : filled ? "filled" : (job.status || "active");
+                          const statusPillClass = isClosed ? "red" : filled ? "blue" : statusClass(job.status || "active");
+                          return (
+                            <tr
+                              key={job._id}
+                              className={`emp-row ${f.total === 0 ? "is-quiet" : ""}`}
+                              onClick={() => {
+                                if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
+                                setSelectedJobId(job._id);
+                                setActiveTab("applicants");
+                              }}
+                            >
+                              <td>
+                                <div className="emp-job-cell">
+                                  <strong>{job.title}</strong>
+                                  <span className="emp-job-loc">
+                                    <FaMapMarkerAlt /> {formatJobLocation(job.location)}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="num">{f.total}</td>
+                              <td className="num">
+                                {f.new > 0 ? <span className="emp-new-pill">{f.new} new</span> : <span className="emp-dash">—</span>}
+                              </td>
+                              <td>
+                                <div className="emp-stack">
+                                  <span>{formatDate(job.createdAt)}</span>
+                                  <span className="emp-muted">{relativeAge(job.createdAt)}</span>
+                                </div>
+                              </td>
+                              <td>
+                                <div className="emp-status-cell">
+                                  <span className={`status-pill ${statusPillClass}`}>{statusLabel}</span>
+                                  {!isClosed && !filled && dLeft !== null && dLeft >= 0 && dLeft <= 3 && (
+                                    <span className="emp-chip chip-amber">
+                                      {dLeft === 0 ? "Closes today" : `Closes in ${dLeft}d`}
+                                    </span>
+                                  )}
+                                </div>
+                                {job.slots ? (
+                                  <div className="emp-slot-line">
+                                    {f.hired} of {job.slots} slot{job.slots === 1 ? "" : "s"} filled
+                                  </div>
+                                ) : null}
+                              </td>
+                              <td className="emp-actions-cell" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  className="emp-menu-trigger"
+                                  aria-label={`Actions for ${job.title}`}
+                                  aria-haspopup="true"
+                                  aria-expanded={openJobMenuId === job._id}
+                                  onClick={(e) => {
+                                    if (openJobMenuId === job._id) { setOpenJobMenuId(null); return; }
+                                    const r = e.currentTarget.getBoundingClientRect();
+                                    setJobMenuPos({ top: r.bottom + 6, left: Math.max(8, r.right - 212) });
+                                    setOpenJobMenuId(job._id);
+                                  }}
+                                >
+                                  ⋯
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
-                {liveJobs.length > 0 && (
+                {openJobMenuId && (() => {
+                  const menuJob = paginatedJobs.find((j) => j._id === openJobMenuId);
+                  if (!menuJob) return null;
+                  return (
+                    <>
+                      <div className="emp-menu-backdrop" onClick={() => setOpenJobMenuId(null)} />
+                      <div className="emp-menu emp-menu-floating" role="menu" style={{ top: jobMenuPos.top, left: jobMenuPos.left }}>
+                        <button type="button" role="menuitem" onClick={() => { setOpenJobMenuId(null); openEditJobModal(menuJob); }}>
+                          <FaEdit /> Edit posting
+                        </button>
+                        <button type="button" role="menuitem" onClick={() => { setOpenJobMenuId(null); setSelectedJobId(menuJob._id); setActiveTab("applicants"); }}>
+                          <FaUsers /> View applicants
+                        </button>
+                        <div className="emp-menu-sep" role="separator" />
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className={menuJob.status === "closed" ? "reopen" : "warn"}
+                          onClick={() => { setOpenJobMenuId(null); handleCloseOrReopen(menuJob); }}
+                        >
+                          {menuJob.status === "closed" ? <><FaRedo /> Reopen posting</> : <><FaBan /> Close posting</>}
+                        </button>
+                        <div className="emp-menu-sep" role="separator" />
+                        <button type="button" role="menuitem" className="danger" onClick={() => { setOpenJobMenuId(null); setJobToDelete(menuJob); }}>
+                          <FaTrashAlt /> Delete
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
+
+                {visibleJobs.length > jobsPageSize && (
                   <div className="pagination-controls employer-pagination-controls" role="navigation" aria-label="Job postings pagination">
                     <div className="pagination-info pagination-summary">
-                      Showing {Math.min((jobsPage - 1) * jobsPageSize + 1, liveJobs.length)}-
-                      {Math.min(jobsPage * jobsPageSize, liveJobs.length)} of {liveJobs.length} job postings
+                      Showing {Math.min((jobsPage - 1) * jobsPageSize + 1, visibleJobs.length)}-
+                      {Math.min(jobsPage * jobsPageSize, visibleJobs.length)} of {visibleJobs.length} job postings
                     </div>
                     <div className="pagination-actions">
                       <button
@@ -1060,270 +1485,340 @@ export default function EmployerDashboard() {
             {/* -------- ARCHIVED JOBS TAB -------- */}
             {activeTab === "archived" && (
               <div className="employer-tab-panel archived-jobs-layout">
-                <div className="archived-summary-strip">
-                  <div className="archived-summary-item">
-                    <span className="archived-summary-label">Archived jobs</span>
-                    <strong>{archivedJobs.length}</strong>
+                <div className="emp-archived-summary">
+                  <div className="emp-sum-tile">
+                    <span className="emp-sum-value">{archivedJobs.length}</span>
+                    <span className="emp-sum-label">Archived jobs</span>
                   </div>
-                  <div className="archived-summary-item">
-                    <span className="archived-summary-label">Total applicants</span>
-                    <strong>{archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.totalApplicants || job.applicationCount || 0), 0)}</strong>
+                  <div className="emp-sum-tile">
+                    <span className="emp-sum-value">
+                      {archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.totalApplicants || job.applicationCount || 0), 0)}
+                    </span>
+                    <span className="emp-sum-label">Total applicants</span>
                   </div>
-                  <div className="archived-summary-item">
-                    <span className="archived-summary-label">Avg. days active</span>
-                    <strong>{archivedJobs.length ? (archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.daysActive || 0), 0) / archivedJobs.length).toFixed(1) : "0.0"}</strong>
+                  <div className="emp-sum-tile">
+                    <span className="emp-sum-value">
+                      {archivedJobs.length ? (archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.daysActive || 0), 0) / archivedJobs.length).toFixed(1) : "0.0"}
+                    </span>
+                    <span className="emp-sum-label">Avg. days active</span>
                   </div>
-                  <div className="archived-summary-item archived-hired-banner">
-                    <span className="archived-summary-label">Hired candidates</span>
-                    <strong>{archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.hiredCount || 0), 0)}</strong>
+                  <div className="emp-sum-tile is-primary">
+                    <span className="emp-sum-value">
+                      {archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.hiredCount || 0), 0)}
+                    </span>
+                    <span className="emp-sum-label">Hired candidates</span>
                   </div>
                 </div>
 
-                <div className="archived-filters-bar">
-                  <select className="filter-select" defaultValue="all">
-                    <option value="all">Year: All</option>
-                    <option value="2025">2025</option>
-                    <option value="2026">2026</option>
-                  </select>
-                  <select className="filter-select" defaultValue="all">
-                    <option value="all">Quarter: All</option>
-                    <option value="Q1">Q1</option>
-                    <option value="Q2">Q2</option>
-                    <option value="Q3">Q3</option>
-                    <option value="Q4">Q4</option>
-                  </select>
-                  <select className="filter-select" defaultValue="all">
-                    <option value="all">Department: All</option>
-                    <option value="Engineering">Engineering</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Operations">Operations</option>
-                  </select>
-                  <select className="filter-select" defaultValue="all">
-                    <option value="all">Archived reason: All</option>
-                    <option value="quota_reached">Quota Reached</option>
-                    <option value="manual_close">Manually Closed</option>
-                    <option value="deadline_passed">Deadline Passed</option>
-                  </select>
+                <div className="archived-search-bar">
+                  <FaSearch className="archived-search-icon" />
+                  <input
+                    type="text"
+                    className="archived-search-input"
+                    placeholder="Search archived jobs by title or location..."
+                    value={archivedSearch}
+                    onChange={(event) => setArchivedSearch(event.target.value)}
+                  />
+                  {archivedSearch ? (
+                    <button
+                      type="button"
+                      className="archived-search-clear"
+                      onClick={() => setArchivedSearch("")}
+                      aria-label="Clear search"
+                    >
+                      ×
+                    </button>
+                  ) : null}
                 </div>
 
-                <div className="archived-list-controls">
-                  <label className="select-all-toggle"><input type="checkbox" /> Select All</label>
-                </div>
+                {filteredArchivedJobs.length ? (
+                  <div className="archived-results-row">
+                    Showing {(archivedPage - 1) * ARCHIVED_PAGE_SIZE + 1}–{Math.min(archivedPage * ARCHIVED_PAGE_SIZE, filteredArchivedJobs.length)} of {filteredArchivedJobs.length} archived job{filteredArchivedJobs.length !== 1 ? "s" : ""}
+                  </div>
+                ) : null}
 
-                <div className="archived-card-grid">
-                  {archivedJobs.length ? (
-                    archivedJobs.map((job) => {
+                {!paginatedArchivedJobs.length ? (
+                  <div className="empty-state archived-empty-state">
+                    <div className="empty-state-icon">🗂️</div>
+                    <p className="empty-state-text">
+                      {archivedJobs.length ? "No archived jobs match your search." : "No archived jobs yet."}
+                    </p>
+                  </div>
+                ) : isMobile ? (
+                  <div className="emp-archived-cards">
+                    {paginatedArchivedJobs.map((job) => {
                       const isExpanded = !!expandedArchivedJobs[job._id];
-
+                      const m = job.archivedMetrics || {};
                       return (
-                        <article key={job._id} className={`archived-job-card ${isExpanded ? "expanded" : "compact"}`}>
-                          <div
-                            className="archived-card-header"
+                        <article key={job._id} className="emp-archived-card">
+                          <button
+                            type="button"
+                            className="emp-archived-card-head"
+                            aria-expanded={isExpanded}
                             onClick={() => toggleArchivedJobDetails(job._id)}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                toggleArchivedJobDetails(job._id);
-                              }
-                            }}
                           >
-                            <div className="archived-card-title-block">
-                              <label className="archived-card-checkbox"><input type="checkbox" /></label>
-                              <div>
-                                <h3>{job.title}</h3>
-                                <p>{job.location}</p>
-                              </div>
-                            </div>
-                            <div className="archived-card-summary-meta">
-                              <span className="status-pill archived-status-pill">Archived</span>
-                              <span className="archived-mini-stat">{job.archivedMetrics?.totalApplicants || job.applicationCount || 0} applicants</span>
-                            </div>
+                            <span className="emp-archived-card-title">
+                              <strong>{job.title}</strong>
+                              <span className="emp-job-loc"><FaMapMarkerAlt /> {formatJobLocation(job.location)}</span>
+                            </span>
+                            <span className={`emp-caret ${isExpanded ? "open" : ""}`}>›</span>
+                          </button>
+                          <div className="emp-archived-card-stats">
+                            <span>{m.totalApplicants ?? job.applicationCount ?? 0} applicants</span>
+                            <span>{m.hiredCount ?? 0} hired</span>
+                            <span>{m.daysActive ?? 0}d</span>
+                            {job.archiveReason && <span className="emp-chip">{archiveReasonLabel(job.archiveReason)}</span>}
                           </div>
-
-                          <div className={`archived-card-details ${isExpanded ? "visible" : "hidden"}`}>
-                            <div className="archived-kpi-row">
-                              <div className="archived-kpi-tile"><span>Total</span><strong>{job.archivedMetrics?.totalApplicants || job.applicationCount || 0}</strong></div>
-                              <div className="archived-kpi-tile"><span>Qualified %</span><strong>{job.archivedMetrics?.qualifiedRate ?? 0}%</strong></div>
-                              <div className="archived-kpi-tile"><span>Shortlisted %</span><strong>{job.archivedMetrics?.shortlistedRate ?? 0}%</strong></div>
-                              <div className="archived-kpi-tile"><span>Days Active</span><strong>{job.archivedMetrics?.daysActive ?? 0}</strong></div>
-                            </div>
-
-                            <div className="archived-metadata-row">
-                              <div className="archived-meta-block">
-                                <span>Hired employee IDs</span>
-                                <strong>{(job.archivedMetrics?.hiredCandidateIds || []).length ? job.archivedMetrics.hiredCandidateIds.join(", ") : "None"}</strong>
-                              </div>
-                              <div className="archived-meta-block">
-                                <span>Reason</span>
-                                <strong>{job.archiveReason ? job.archiveReason.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "N/A"}</strong>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className={`archived-post-mortem ${isExpanded ? "is-open" : ""}`}>
-                            <button
-                              type="button"
-                              className="archived-expander-btn"
-                              aria-expanded={isExpanded}
-                              onClick={() => toggleArchivedJobDetails(job._id)}
-                            >
-                              <span>View post-mortem</span>
-                              <span className={`archived-expander-caret ${isExpanded ? "expanded" : ""}`}>›</span>
-                            </button>
-                            <div className={`archived-post-mortem-panel ${isExpanded ? "visible" : "hidden"}`}>
-                              <div className="archived-post-mortem-header">
-                                <h4>Post-mortem report</h4>
-                              </div>
-                              <div className="archived-post-mortem-grid">
-                                <div className="archived-post-mortem-row">
-                                  <span>Total Applicants</span>
-                                  <strong>{job.archivedMetrics?.totalApplicants ?? 0}</strong>
-                                </div>
-                                <div className="archived-post-mortem-row">
-                                  <span>Qualified / Shortlisted</span>
-                                  <strong>{job.archivedMetrics?.qualifiedCount ?? 0} / {job.archivedMetrics?.shortlistedCount ?? 0}</strong>
-                                </div>
-                                <div className="archived-post-mortem-row">
-                                  <span>Time-to-Close</span>
-                                  <strong>{job.archivedMetrics?.daysActive ?? 0} days</strong>
-                                </div>
-                                <div className="archived-post-mortem-row">
-                                  <span>Hired Candidate(s)</span>
-                                  <strong>{(job.archivedMetrics?.hiredCandidateIds || []).length ? job.archivedMetrics.hiredCandidateIds.join(", ") : "None"}</strong>
-                                </div>
-                                <div className="archived-post-mortem-row">
-                                  <span>Archive Reason</span>
-                                  <strong>{job.archiveReason ? job.archiveReason.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "N/A"}</strong>
-                                </div>
-                              </div>
-                              <div className="archived-progress-list">
-                                <div className="archived-progress-item">
-                                  <label>Qualified rate</label>
-                                  <div className="progress-bar"><span style={{ width: `${job.archivedMetrics?.qualifiedRate ?? 0}%` }} /></div>
-                                  <small>{job.archivedMetrics?.qualifiedRate ?? 0}%</small>
-                                </div>
-                                <div className="archived-progress-item">
-                                  <label>Shortlist rate</label>
-                                  <div className="progress-bar"><span style={{ width: `${job.archivedMetrics?.shortlistedRate ?? 0}%` }} /></div>
-                                  <small>{job.archivedMetrics?.shortlistedRate ?? 0}%</small>
-                                </div>
-                                <div className="archived-progress-item">
-                                  <label>Hire rate</label>
-                                  <div className="progress-bar"><span style={{ width: `${job.archivedMetrics?.hireRate ?? 0}%` }} /></div>
-                                  <small>{job.archivedMetrics?.hireRate ?? 0}%</small>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="archived-card-actions">
-                            <button type="button" className="outline-btn archived-export-btn">CSV export</button>
-                            <button type="button" className="outline-btn archived-export-btn">PDF export</button>
-                            <button type="button" className="red-btn archived-purge-btn">Purge</button>
-                          </div>
+                          {isExpanded && <ArchivedPostMortem job={job} />}
                         </article>
                       );
-                    })
-                  ) : (
-                    <div className="empty-state archived-empty-state">
-                      <div className="empty-state-icon">🗂️</div>
-                      <p className="empty-state-text">No archived jobs yet.</p>
+                    })}
+                  </div>
+                ) : (
+                  <div className="emp-table-wrap">
+                    <table className="emp-table archived-table">
+                      <colgroup>
+                        <col />
+                        <col style={{ width: "104px" }} />
+                        <col style={{ width: "96px" }} />
+                        <col style={{ width: "80px" }} />
+                        <col style={{ width: "80px" }} />
+                        <col style={{ width: "170px" }} />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th>Job</th>
+                          <th className="num">Applicants</th>
+                          <th className="num">Qualified</th>
+                          <th className="num">Hired</th>
+                          <th className="num">Days</th>
+                          <th>Closed</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedArchivedJobs.map((job) => {
+                          const isExpanded = !!expandedArchivedJobs[job._id];
+                          const m = job.archivedMetrics || {};
+                          return (
+                            <Fragment key={job._id}>
+                              <tr
+                                className={`emp-row emp-row-toggle ${isExpanded ? "is-open" : ""}`}
+                                onClick={() => toggleArchivedJobDetails(job._id)}
+                              >
+                                <td>
+                                  <div className="emp-job-cell">
+                                    <strong>
+                                      <span className={`emp-caret ${isExpanded ? "open" : ""}`}>›</span> {job.title}
+                                    </strong>
+                                    <span className="emp-job-loc">
+                                      <FaMapMarkerAlt /> {formatJobLocation(job.location)}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="num">{m.totalApplicants ?? job.applicationCount ?? 0}</td>
+                                <td className="num">{m.qualifiedCount ?? 0}</td>
+                                <td className="num">{m.hiredCount ?? 0}</td>
+                                <td className="num">{m.daysActive ?? 0}</td>
+                                <td>
+                                  <div className="emp-stack">
+                                    <span>{formatDate(job.closedAt || job.archivedAt || m.archivedAt)}</span>
+                                    {job.archiveReason && (
+                                      <span className="emp-chip">{archiveReasonLabel(job.archiveReason)}</span>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr className="emp-detail-row">
+                                  <td colSpan={6}>
+                                    <ArchivedPostMortem job={job} />
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {filteredArchivedJobs.length > 0 ? (
+                  <nav className="dash-pagination" aria-label="Archived jobs pagination">
+                    <button
+                      type="button"
+                      className="dash-page-btn"
+                      onClick={() => setArchivedPage((p) => Math.max(1, p - 1))}
+                      disabled={archivedPage === 1}
+                      aria-label="Previous page"
+                    >
+                      <FaChevronLeft />
+                    </button>
+
+                    <div className="dash-page-numbers">
+                      {Array.from({ length: archivedTotalPages }, (_, i) => i + 1)
+                        .filter((page) => page === 1 || page === archivedTotalPages || Math.abs(page - archivedPage) <= 1)
+                        .reduce((acc, page, idx, arr) => {
+                          if (idx > 0 && page - arr[idx - 1] > 1) acc.push("ellipsis-" + page);
+                          acc.push(page);
+                          return acc;
+                        }, [])
+                        .map((page) =>
+                          typeof page === "string" ? (
+                            <span key={page} className="dash-page-ellipsis">…</span>
+                          ) : (
+                            <button
+                              type="button"
+                              key={page}
+                              className={`dash-page-btn ${page === archivedPage ? "active" : ""}`}
+                              onClick={() => setArchivedPage(page)}
+                              aria-current={page === archivedPage ? "page" : undefined}
+                            >
+                              {page}
+                            </button>
+                          )
+                        )}
                     </div>
-                  )}
-                </div>
+
+                    <button
+                      type="button"
+                      className="dash-page-btn"
+                      onClick={() => setArchivedPage((p) => Math.min(archivedTotalPages, p + 1))}
+                      disabled={archivedPage === archivedTotalPages}
+                      aria-label="Next page"
+                    >
+                      <FaChevronRight />
+                    </button>
+                  </nav>
+                ) : null}
               </div>
             )}
 
             {/* -------- APPLICANTS TAB -------- */}
             {activeTab === "applicants" && (
               <div className="employer-tab-panel applicants-layout">
-                <aside className="job-list-panel">
-                  <h3>Your Jobs</h3>
-                  {!liveJobs.length ? (
-                    <p className="empty-muted">No active jobs yet.</p>
+                <aside className={`job-list-panel emp-job-rail ${railJobs.length > RAIL_CHIP_LIMIT ? "is-picker" : ""}`}>
+                  {!railJobs.length ? (
+                    <>
+                      <h3>Your Jobs</h3>
+                      <p className="empty-muted">No active jobs yet.</p>
+                    </>
+                  ) : railJobs.length > RAIL_CHIP_LIMIT ? (
+                    <div className="emp-job-picker">
+                      <label className="emp-job-picker-field">
+                        <span className="emp-job-picker-caption">Job</span>
+                        <select
+                          value={selectedJobId || ""}
+                          onChange={(e) => setSelectedJobId(e.target.value)}
+                          className="emp-select"
+                          aria-label="Select a job to view applicants"
+                        >
+                          {railJobs.map((job) => {
+                            const f = funnelFor(job._id);
+                            return (
+                              <option key={job._id} value={job._id}>
+                                {job.title} — {f.total} applicant{f.total === 1 ? "" : "s"}
+                                {f.new > 0 ? ` · ${f.new} new` : ""}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+                      <div className="emp-job-picker-nav">
+                        <button type="button" onClick={() => stepSelectedJob(-1)} aria-label="Previous job">‹</button>
+                        <button type="button" onClick={() => stepSelectedJob(1)} aria-label="Next job">›</button>
+                      </div>
+                      {selectedJob && (() => {
+                        const f = funnelFor(selectedJob._id);
+                        return (
+                          <span className="emp-job-picker-funnel">
+                            {f.new > 0 && <span className="emp-rail-dot">{f.new} new</span>}
+                            <span>{f.total} total</span>
+                            <span>·</span>
+                            <span>{f.shortlisted} shortlisted</span>
+                            <span>·</span>
+                            <span>{f.hired} hired</span>
+                          </span>
+                        );
+                      })()}
+                    </div>
                   ) : (
-                    liveJobs.map((job) => (
-                      <button
-                        type="button"
-                        key={job._id}
-                        className={`job-list-item ${selectedJobId === job._id ? "active" : ""}`}
-                        onClick={() => setSelectedJobId(job._id)}
-                      >
-                        <strong>{job.title}</strong>
-                        <small className="job-location-text">
-                          <FaMapMarkerAlt />
-                          <span>{formatJobLocation(job.location)}</span>
-                        </small>
-                      </button>
-                    ))
+                    <>
+                      <h3>Your Jobs</h3>
+                      {railJobs.map((job) => {
+                        const f = funnelFor(job._id);
+                        return (
+                          <button
+                            type="button"
+                            key={job._id}
+                            className={`job-list-item emp-rail-item ${selectedJobId === job._id ? "active" : ""}`}
+                            onClick={() => setSelectedJobId(job._id)}
+                          >
+                            <span className="emp-rail-top">
+                              <strong>{job.title}</strong>
+                              {f.new > 0 && <span className="emp-rail-dot" title={`${f.new} new`}>{f.new}</span>}
+                            </span>
+                            <small className="job-location-text">
+                              <FaMapMarkerAlt />
+                              <span>{formatJobLocation(job.location)}</span>
+                            </small>
+                            <span className="emp-rail-funnel">
+                              {f.total} applicant{f.total === 1 ? "" : "s"}
+                              {f.shortlisted > 0 && <> · {f.shortlisted} shortlisted</>}
+                              {f.hired > 0 && <> · {f.hired} hired</>}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </>
                   )}
                 </aside>
 
                 <section className="applicants-panel">
-                  <div className="panel-header-row">
-                    <h2>
-                      {selectedJob ? `${selectedJob.title} Applicants` : "Applicants"}
-                    </h2>
+                  <div className="emp-appbar">
+                    <div className="emp-appbar-title">
+                      <h2>{selectedJob ? selectedJob.title : "Applicants"}</h2>
+                      {selectedJob && (
+                        <span className="emp-appbar-sub">
+                          {filteredAndSortedApplicants.length} of {rankedApplicants.length} shown
+                        </span>
+                      )}
+                    </div>
+
                     {selectedJob && (
-                      <span className="applicant-count-badge">
-                        {filteredAndSortedApplicants.length} of {rankedApplicants.length} applicants
-                      </span>
-                    )}
-                  </div>
-
-                  {selectedJob && (
-                    <div className="hiring-progress-bar">
-                      <div className="progress-stages">
-                        <div className="progress-stage">
-                          <div className="stage-dot stage-pending"></div>
-                          <span className="stage-label">Pending</span>
-                          <span className="stage-count">{rankedApplicants.filter(app => normalizeApplicationStatus(app.status) === 'pending').length}</span>
-                        </div>
-                        <div className="progress-connector"></div>
-                        <div className="progress-stage">
-                          <div className="stage-dot stage-shortlisted"></div>
-                          <span className="stage-label">Shortlisted</span>
-                          <span className="stage-count">{rankedApplicants.filter(app => normalizeApplicationStatus(app.status) === 'shortlisted').length}</span>
-                        </div>
-                        <div className="progress-connector"></div>
-                        <div className="progress-stage">
-                          <div className="stage-dot stage-hired"></div>
-                          <span className="stage-label">Hired</span>
-                          <span className="stage-count">{rankedApplicants.filter(app => normalizeApplicationStatus(app.status) === 'hired').length}</span>
-                        </div>
+                      <div className="emp-funnel" role="tablist" aria-label="Filter by status">
+                        {[
+                          { key: "all", label: "All" },
+                          { key: "pending", label: "Pending" },
+                          { key: "shortlisted", label: "Shortlisted" },
+                          { key: "hired", label: "Hired" },
+                          { key: "rejected", label: "Rejected" },
+                        ].map((seg) => (
+                          <button
+                            key={seg.key}
+                            type="button"
+                            role="tab"
+                            aria-selected={statusFilter === seg.key}
+                            className={`emp-funnel-seg seg-${seg.key} ${statusFilter === seg.key ? "active" : ""}`}
+                            onClick={() => setStatusFilter(seg.key)}
+                          >
+                            <span className="emp-funnel-count">{funnelCounts[seg.key] ?? 0}</span>
+                            <span className="emp-funnel-label">{seg.label}</span>
+                          </button>
+                        ))}
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  <div className="filter-sort-bar">
-                    <div className="filter-group">
-                      <label>Status:</label>
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="filter-select"
-                      >
-                        <option value="all">All Status</option>
-                        <option value="pending">Pending</option>
-                        <option value="shortlisted">Shortlisted</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="hired">Hired</option>
-                      </select>
-                    </div>
-                    <div className="sort-group">
-                      <label>Sort by:</label>
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="sort-select"
-                      >
-                        <option value="match">Match %</option>
-                        <option value="date">Applied Date</option>
-                        <option value="name">Name</option>
-                      </select>
-                    </div>
+                    {selectedJob && (
+                      <label className="emp-sort">
+                        <span>Sort</span>
+                        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="emp-select">
+                          <option value="match">Best match</option>
+                          <option value="date">Newest</option>
+                          <option value="name">Name A–Z</option>
+                        </select>
+                      </label>
+                    )}
                   </div>
 
                   {selectedJobId && selectedApplicants.length > 0 && (
@@ -1367,9 +1862,10 @@ export default function EmployerDashboard() {
                     </div>
                   ) : (
                     <RankedApplicantsTable
-                      applicants={filteredAndSortedApplicants}
+                      applicants={paginatedApplicants}
                       onViewApplicant={openApplicantDrawer}
                       onMessageApplicant={handleMessageApplicant}
+                      onViewProfile={(applicantId) => navigate(`/employer/applicants/${applicantId}`)}
                       loading={loadingRanked}
                       selectedApplicants={selectedApplicants}
                       onSelectApplicant={handleSelectApplicant}
@@ -1391,6 +1887,55 @@ export default function EmployerDashboard() {
                       emptyStateIcon={statusFilter === "all" ? "👥" : "🔍"}
                     />
                   )}
+
+                  {selectedJobId && filteredAndSortedApplicants.length > 0 ? (
+                    <nav className="dash-pagination" aria-label="Applicants pagination">
+                      <button
+                        type="button"
+                        className="dash-page-btn"
+                        onClick={() => setApplicantsPage((p) => Math.max(1, p - 1))}
+                        disabled={applicantsPage === 1}
+                        aria-label="Previous page"
+                      >
+                        <FaChevronLeft />
+                      </button>
+
+                      <div className="dash-page-numbers">
+                        {Array.from({ length: applicantsTotalPages }, (_, i) => i + 1)
+                          .filter((page) => page === 1 || page === applicantsTotalPages || Math.abs(page - applicantsPage) <= 1)
+                          .reduce((acc, page, idx, arr) => {
+                            if (idx > 0 && page - arr[idx - 1] > 1) acc.push("ellipsis-" + page);
+                            acc.push(page);
+                            return acc;
+                          }, [])
+                          .map((page) =>
+                            typeof page === "string" ? (
+                              <span key={page} className="dash-page-ellipsis">…</span>
+                            ) : (
+                              <button
+                                type="button"
+                                key={page}
+                                className={`dash-page-btn ${page === applicantsPage ? "active" : ""}`}
+                                onClick={() => setApplicantsPage(page)}
+                                aria-current={page === applicantsPage ? "page" : undefined}
+                              >
+                                {page}
+                              </button>
+                            )
+                          )}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="dash-page-btn"
+                        onClick={() => setApplicantsPage((p) => Math.min(applicantsTotalPages, p + 1))}
+                        disabled={applicantsPage === applicantsTotalPages}
+                        aria-label="Next page"
+                      >
+                        <FaChevronRight />
+                      </button>
+                    </nav>
+                  ) : null}
                 </section>
               </div>
             )}
@@ -1492,15 +2037,10 @@ export default function EmployerDashboard() {
                 </div>
 
                 {selectedApplication.resume && (
-                  <a
-                    className="applicant-resume-link"
-                    href={`${API_URL.replace(/\/api\/v1$/, '')}/${String(selectedApplication.resume).replace(/^\/+/, "")}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
+                  <SecureFileLink className="applicant-resume-link" value={selectedApplication.resume}>
                     <span>↓</span>
                     <span>Download Resume</span>
-                  </a>
+                  </SecureFileLink>
                 )}
               </div>
 
@@ -1798,9 +2338,12 @@ export default function EmployerDashboard() {
                         Qualifications <span className="pj-required">*</span>
                       </label>
                       <QualificationsEditor
-                        qualifications={jobForm.qualifications}
+                        value={jobForm.qualifications}
                         onChange={(quals) => setJobForm({ ...jobForm, qualifications: quals })}
                         disabled={isSavingJob}
+                        templates={qualTemplates}
+                        jobTitleHint={jobForm.title}
+                        onSaveTemplate={handleSaveQualTemplate}
                       />
                     </div>
                   </section>

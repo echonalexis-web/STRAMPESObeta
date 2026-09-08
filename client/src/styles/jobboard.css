@@ -214,6 +214,20 @@
   border-color: #f5a623;
 }
 
+.followed-card {
+  border: 1px solid #b9dbbf;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
+  box-shadow: 0 4px 12px rgba(31, 122, 63, 0.12);
+}
+
+.followed-card::before {
+  background: linear-gradient(90deg, #1f7a3f, #2e7d32);
+}
+
+.followed-card:hover {
+  border-color: #1f7a3f;
+}
+
 .job-card-header {
   display: flex;
   justify-content: space-between;
@@ -306,6 +320,23 @@
 }
 
 .preferred-industry-badge svg {
+  font-size: 9px;
+}
+
+.following-employer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #e9f8ee;
+  color: #1f7a3f;
+  border: 1px solid #b9dbbf;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.following-employer-badge svg {
   font-size: 9px;
 }
 
@@ -886,12 +917,12 @@
 }
 
 .employer-modal-close {
-  position: sticky;
+  position: absolute;
   top: 16px;
   right: 16px;
-  float: right;
+  float: none;
   background: #ffffff;
-  border: 1px solid #e8ecf0;
+  border: 1px solid #dfe5ea;
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -899,16 +930,26 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   z-index: 10;
-  margin: 16px 16px 0 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin: 0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  color: #64748b;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.employer-modal-close svg {
+  display: block;
+  width: 1.1em;
+  height: 1.1em;
 }
 
 .employer-modal-close:hover {
   background: #fef2f2;
   border-color: #dc2626;
   color: #dc2626;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.08);
   transform: rotate(90deg);
 }
 
@@ -2288,5 +2329,330 @@ button:disabled,
 
   .modal-actions button {
     width: 100%;
+  }
+}
+
+/* ============================================================ */
+/* JOB BOARD REDESIGN                                            */
+/* Slim hero · standalone filter card · result bar ·            */
+/* vacancy cards.                                               */
+/* Scoped to new class names so the shared .job-card /          */
+/* .jobboard-hero rules used by YourApplications stay intact.   */
+/* ============================================================ */
+
+/* ─── Slim hero ─────────────────────────────────────────────── */
+.jobboard-hero--slim {
+  padding: 26px 32px;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 16px rgba(26, 92, 42, 0.18);
+}
+
+.jobboard-hero--slim::before,
+.jobboard-hero--slim::after {
+  display: none;
+}
+
+.jobboard-hero--slim .jobboard-hero-content {
+  text-align: left;
+}
+
+.jobboard-hero--slim .jobboard-hero-content h1 {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.jobboard-hero--slim .jobboard-hero-content p {
+  font-size: 14px;
+  margin-bottom: 0;
+}
+
+/* ─── Filter card wrapper ───────────────────────────────────── */
+.jobboard-toolbar {
+  margin-bottom: 16px;
+}
+
+/* ─── Result bar (plain text, no card) ──────────────────────── */
+.jobboard-resultbar {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  margin: 2px 2px 16px;
+}
+
+/* ─── Grid ──────────────────────────────────────────────────── */
+.jobboard-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 340px));
+  gap: 18px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 700px) {
+  .jobboard-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .jobboard-hero--slim {
+    padding: 20px;
+  }
+}
+
+/* The vacancy card itself lives in vacancy-card.css and is shared with
+   the jobseeker dashboard. JobBoard.jsx imports it directly. */
+
+/* ============================================================ */
+/* YOUR APPLICATIONS — status tabs + slim rows                   */
+/* ============================================================ */
+
+.app-status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 2px 20px;
+}
+
+.app-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid #d5dbe0;
+  background: #ffffff;
+  color: #4b5a4f;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.app-tab:hover {
+  border-color: #2e7d32;
+  color: #2e7d32;
+}
+
+.app-tab.is-active {
+  background: #2e7d32;
+  border-color: #2e7d32;
+  color: #ffffff;
+}
+
+.app-tab-n {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.app-list-empty {
+  margin: 24px 2px;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #2e7d32;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.applications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.app-row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 14px;
+  align-items: start;
+  background: #ffffff;
+  border: 1px solid #e6e9ec;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.app-row-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--heading);
+}
+
+.app-row-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.app-row-main-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-row-title {
+  flex: 1 1 auto;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a2a3a;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.3;
+}
+
+.app-row-title:hover:not(:disabled) {
+  color: #2e7d32;
+}
+
+.app-row-title:disabled {
+  cursor: default;
+}
+
+.app-row-sub {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: #5a6672;
+}
+
+.app-row-metaline {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: #7a8a7d;
+}
+
+.app-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.app-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: 1px solid #d5dbe0;
+  background: #ffffff;
+  color: #3f4a56;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.app-act svg {
+  font-size: 11px;
+}
+
+.app-act:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.app-act-view {
+  background: #2e7d32;
+  border-color: #2e7d32;
+  color: #ffffff;
+}
+
+.app-act-view:hover:not(:disabled) {
+  background: #1b5e20;
+  border-color: #1b5e20;
+}
+
+.app-act-edit:hover:not(:disabled) {
+  border-color: #2e7d32;
+  color: #2e7d32;
+  background: #f0f7f1;
+}
+
+.app-act-withdraw {
+  color: #b03e2d;
+  border-color: #edc9c2;
+}
+
+.app-act-withdraw:hover:not(:disabled) {
+  background: #fdecea;
+  border-color: #e2a99f;
+}
+
+/* Status pill — shared shape with the job detail page */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.status-pill.tone-pending {
+  background: #eef2f0;
+  color: #566b60;
+}
+
+.status-pill.tone-shortlisted {
+  background: #fff4e2;
+  color: #a5601b;
+}
+
+.status-pill.tone-accepted {
+  background: #e4f5e9;
+  color: #1f7a3f;
+}
+
+.status-pill.tone-rejected {
+  background: #fdecea;
+  color: #b03e2d;
+}
+
+@media (max-width: 640px) {
+  .app-row {
+    grid-template-columns: 36px 1fr;
+  }
+
+  .app-row-main-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-row-actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+    margin-top: 4px;
+    width: 100%;
+  }
+
+  .app-row-actions .app-act {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 }

@@ -380,14 +380,6 @@ const validateMessage = (req, res, next) => {
   next();
 };
 
-const validateNotificationRead = (req, res, next) => {
-  const { notificationId } = req.params;
-  if (!notificationId || !/^[a-fA-F0-9]{24}$/.test(notificationId)) {
-    return res.status(400).json({ message: 'Invalid notification ID' });
-  }
-  next();
-};
-
 // ============ JOB VALIDATIONS (UNIFIED) ============
 const validateJobPosting = (req, res, next) => {
   const { title, description, location, jobType, requirements, salary, qualifications } = req.body;
@@ -505,7 +497,7 @@ const validateQualifications = (req, res, next) => {
 };
 
 const validateAnnouncementPayload = (req, res, next) => {
-  const { title, content, category, imageUrl, publishedAt, isActive } = req.body;
+  const { title, content, category, imageUrl, publishedAt, isActive, commentsEnabled } = req.body;
   const errors = [];
 
   if (title !== undefined) {
@@ -521,7 +513,7 @@ const validateAnnouncementPayload = (req, res, next) => {
   }
 
   if (category !== undefined) {
-    const validCategories = ["general", "hiring", "training", "event", "advisory"];
+    const validCategories = ["general", "hiring", "training", "event", "advisory", "spes"];
     if (!validCategories.includes(category)) {
       errors.push("Invalid category");
     }
@@ -540,8 +532,16 @@ const validateAnnouncementPayload = (req, res, next) => {
     }
   }
 
-  if (isActive !== undefined && typeof isActive !== "boolean") {
+  // Multipart form submissions (image upload) send these as the strings
+  // "true"/"false" rather than real booleans, so accept both shapes.
+  const isBooleanish = (value) => typeof value === "boolean" || value === "true" || value === "false";
+
+  if (isActive !== undefined && !isBooleanish(isActive)) {
     errors.push("isActive must be a boolean");
+  }
+
+  if (commentsEnabled !== undefined && !isBooleanish(commentsEnabled)) {
+    errors.push("commentsEnabled must be a boolean");
   }
 
   const isCreate = req.method === "POST";
@@ -570,7 +570,6 @@ module.exports = {
   validateJobPosting,
   validateJobApplication,
   validateMessage,
-  validateNotificationRead,
   validateQualifications,
   validateAnnouncementPayload,
 };

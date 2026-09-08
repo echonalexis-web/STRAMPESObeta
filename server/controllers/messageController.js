@@ -1,7 +1,8 @@
 const Conversation = require("../models/Conversation");
 const Message = require("../models/Message");
 const User = require("../models/User");
-const { createNotificationForUser } = require("../services/notificationService");
+const { notifyNewMessage } = require("../services/notificationService");
+const presenceService = require("../services/presenceService");
 
 const getUserId = (req) => req.user._id || req.user.id;
 const ACTIVE_USER_FILTER = { $ne: false };
@@ -67,6 +68,53 @@ const ensureConversationBetweenUsers = async (userA, userB) => {
 
 exports.ensureConversationBetweenUsers = ensureConversationBetweenUsers;
 
+// Programmatic message from one user to another, used by review flows
+// (employer verification, SPES). Mirrors sendMessage's side effects:
+// conversation preview update, socket push, and a collapsed notification.
+const postSystemMessage = async ({ fromUserId, toUserId, content, io = null }) => {
+  if (!fromUserId || !toUserId || !String(content || "").trim()) return null;
+  if (String(fromUserId) === String(toUserId)) return null;
+
+  const conversation = await ensureConversationBetweenUsers(fromUserId, toUserId);
+  const message = await Message.create({
+    conversationId: conversation._id,
+    sender: fromUserId,
+    content: String(content).trim(),
+  });
+
+  await Conversation.findByIdAndUpdate(conversation._id, {
+    $set: { lastMessage: message.content, lastMessageAt: message.createdAt },
+  });
+
+  const populated = await Message.findById(message._id).populate("sender", "name role");
+
+  if (io) {
+    io.to(`user:${String(toUserId)}`).emit("receive_message", {
+      ...populated.toObject(),
+      conversationId: String(conversation._id),
+    });
+  }
+
+  try {
+    if (!presenceService.isViewingConversation(toUserId, conversation._id)) {
+      await notifyNewMessage({
+        recipientId: toUserId,
+        actorId: fromUserId,
+        actorName: populated.sender?.name || "STRAM PESO",
+        conversationId: conversation._id,
+        messagePreview: String(content).trim(),
+        io,
+      });
+    }
+  } catch (_) {
+    // notification failure must not break the caller's flow
+  }
+
+  return conversation;
+};
+
+exports.postSystemMessage = postSystemMessage;
+
 exports.createConversation = async (req, res) => {
   try {
     const userId = getUserId(req);
@@ -100,7 +148,7 @@ exports.createConversation = async (req, res) => {
     const conversation = await ensureConversationBetweenUsers(userId, participantId);
     const populated = await Conversation.findById(conversation._id).populate({
       path: "participants",
-      select: "name role desiredJobTitle",
+      select: "name role desiredJobTitle profileImage",
     });
 
     return res.status(201).json(populated);
@@ -133,7 +181,7 @@ exports.searchUsers = async (req, res) => {
         { companyName: { $regex: query, $options: "i" } },
       ],
     })
-      .select("name email role desiredJobTitle companyName")
+      .select("name email role desiredJobTitle companyName profileImage")
       .sort({ name: 1 })
       .limit(60);
 
@@ -153,29 +201,60 @@ exports.getConversations = async (req, res) => {
     const userId = getUserId(req);
 
     const conversations = await Conversation.find({ participants: userId })
-      .populate({ path: "participants", select: "name role desiredJobTitle" })
-      .sort({ lastMessageAt: -1, createdAt: -1 });
+      .populate({
+        path: "participants",
+        select: "name role desiredJobTitle isActive profileImage",
+        // Keep a null slot for participants whose account was deleted so the
+        // conversation is still returned (shown as "unavailable" on the client)
+        // instead of silently vanishing.
+        options: { retainNullValues: true },
+      })
+      .sort({ lastMessageAt: -1, createdAt: -1 })
+      .lean();
 
     const seen = new Set();
-    const validConversations = conversations.filter((conversation) => {
-      const participantIds = getDistinctParticipantIds(conversation.participants);
-      if (participantIds.length < 2 || !participantIds.includes(String(userId))) {
-        return false;
-      }
+    const result = [];
 
-      if (!hasOtherParticipant(conversation, userId)) {
-        return false;
-      }
+    conversations.forEach((conversation) => {
+      const participants = Array.isArray(conversation.participants)
+        ? conversation.participants
+        : [];
 
-      const key = participantIds.slice().sort().join(":");
-      if (seen.has(key)) {
-        return false;
-      }
+      if (participants.length < 2) return;
+
+      const includesSelf = participants.some(
+        (participant) => participant && String(participant._id) === String(userId)
+      );
+      if (!includesSelf) return;
+
+      // Replace deleted (null) or deactivated participants with a lightweight
+      // placeholder carrying an `unavailable` flag the client can render.
+      const normalizedParticipants = participants.map((participant, index) => {
+        if (!participant) {
+          return {
+            _id: `unavailable-${conversation._id}-${index}`,
+            name: null,
+            unavailable: true,
+            unavailableReason: "deleted",
+          };
+        }
+        if (participant.isActive === false) {
+          return { ...participant, unavailable: true, unavailableReason: "suspended" };
+        }
+        return participant;
+      });
+
+      const key = normalizedParticipants
+        .map((participant) => String(participant._id))
+        .sort()
+        .join(":");
+      if (seen.has(key)) return;
       seen.add(key);
-      return true;
+
+      result.push({ ...conversation, participants: normalizedParticipants });
     });
 
-    return res.json(validConversations);
+    return res.json(result);
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch conversations" });
   }
@@ -199,7 +278,11 @@ exports.getMessages = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    const messages = await Message.find({ conversationId }).sort({ createdAt: 1 });
+    // Populate sender consistently with the create/broadcast paths so the
+    // client never has to guess between a raw id and a populated object.
+    const messages = await Message.find({ conversationId })
+      .sort({ createdAt: 1 })
+      .populate("sender", "name role");
 
     await Message.updateMany(
       {
@@ -247,6 +330,12 @@ exports.sendMessage = async (req, res) => {
       return res.status(400).json({ message: "Conversation has no valid receiver" });
     }
 
+    // Block sending when the other account has been deleted or deactivated.
+    const otherUser = await User.findById(otherParticipant).select("isActive");
+    if (!otherUser || otherUser.isActive === false) {
+      return res.status(403).json({ message: "This user is unavailable" });
+    }
+
     const message = await Message.create({
       conversationId,
       sender: userId,
@@ -265,29 +354,22 @@ exports.sendMessage = async (req, res) => {
     // Broadcast only to the other participant (not the sender)
     const io = req.app.get("io");
     if (io && otherParticipant) {
-      io.to(String(otherParticipant)).emit("receive_message", {
+      io.to(`user:${String(otherParticipant)}`).emit("receive_message", {
         ...populatedMessage.toObject(),
         conversationId: conversationId,
       });
     }
 
-    // Create notification for the other participant
-    if (otherParticipant) {
+    // Notify the other participant, unless they already have this
+    // conversation open (they'll see the message live in the thread).
+    if (otherParticipant && !presenceService.isViewingConversation(otherParticipant, conversationId)) {
       try {
-        const { createNotificationForUser } = require("../services/notificationService");
-        await createNotificationForUser({
+        await notifyNewMessage({
           recipientId: otherParticipant,
           actorId: userId,
-          type: "message",
-          title: "New message",
-          message: String(content).trim().slice(0, 120),
-          relatedEntityType: "conversation",
-          relatedEntityId: conversationId,
-          actionUrl: "/messages",
-          metadata: {
-            conversationId: String(conversationId),
-            messageId: String(message._id),
-          },
+          actorName: populatedMessage.sender?.name || "Someone",
+          conversationId,
+          messagePreview: String(content).trim(),
           io,
         });
       } catch (notifErr) {

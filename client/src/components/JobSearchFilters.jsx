@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import '../styles/jobSearchFilters.css';
-import { FaSearch } from 'react-icons/fa';   
+import { FaSearch } from 'react-icons/fa';
 
 const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Temporary', 'Remote'];
 
@@ -40,8 +40,6 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
     [phLocationsData]
   );
 
-  // UI-only state (input buffers, dropdown visibility)
-  const [skillInput, setSkillInput] = useState('');
   const [locationQuery, setLocationQuery] = useState(filters.location || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const locationRef = useRef(null);
@@ -50,15 +48,6 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
   useEffect(() => {
     setLocationQuery(filters.location || '');
   }, [filters.location]);
-
-  // Derive skills array from filters.skills (stored as comma-separated string)
-  const skills = useMemo(() => {
-    if (!filters.skills) return [];
-    return String(filters.skills)
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }, [filters.skills]);
 
   // Location autocomplete suggestions
   const suggestions = useMemo(() => {
@@ -98,31 +87,6 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
     setShowSuggestions(false);
   };
 
-  /* ─── Skills tag logic ─── */
-  const addSkill = () => {
-    const trimmed = skillInput.trim();
-    if (trimmed && !skills.includes(trimmed)) {
-      updateFilter('skills', [...skills, trimmed].join(','));
-    }
-    setSkillInput('');
-  };
-
-  const handleSkillKeyDown = (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addSkill();
-    } else if (e.key === 'Backspace' && skillInput === '' && skills.length > 0) {
-      updateFilter('skills', skills.slice(0, -1).join(','));
-    }
-  };
-
-  const removeSkill = (skill) => {
-    updateFilter(
-      'skills',
-      skills.filter((s) => s !== skill).join(',')
-    );
-  };
-
   /* ─── Submit / Reset ─── */
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -131,7 +95,6 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
 
   const handleResetClick = () => {
     setLocationQuery('');
-    setSkillInput('');
     setShowSuggestions(false);
     if (onReset) onReset();
   };
@@ -141,10 +104,8 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
       <label htmlFor="q" className="search-label">
         <FaSearch /> Search Jobs
       </label>
-      
-      {/* ═══════════════════════════════════════
-          ROW 1 — Primary Search
-          ═══════════════════════════════════════ */}
+
+      {/* ROW 1 — Primary Search */}
       <div className="filter-row primary-row">
         <input
           type="text"
@@ -181,9 +142,7 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
         </button>
       </div>
 
-      {/* ═══════════════════════════════════════
-          ROW 2 — Core Refinements
-          ═══════════════════════════════════════ */}
+      {/* ROW 2 — Refinements */}
       <div className="filter-row refinement-row">
         <select
           name="jobType"
@@ -213,31 +172,6 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
           ))}
         </select>
 
-        <div className="filter-skills-wrapper">
-          <div className="skills-tags">
-            {skills.map((skill) => (
-              <span key={skill} className="skill-tag">
-                {skill}
-                <button
-                  type="button"
-                  onClick={() => removeSkill(skill)}
-                  aria-label={`Remove ${skill}`}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-            <input
-              type="text"
-              className="skills-input"
-              placeholder={skills.length === 0 ? 'Add skills (press Enter)' : ''}
-              value={skillInput}
-              onChange={(e) => setSkillInput(e.target.value)}
-              onKeyDown={handleSkillKeyDown}
-            />
-          </div>
-        </div>
-
         <button
           type="button"
           className="filter-submit-btn btn-reset"
@@ -247,9 +181,7 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
         </button>
       </div>
 
-      {/* ═══════════════════════════════════════
-          ROW 3 — Industry Preferences (NEW)
-          ═══════════════════════════════════════ */}
+      {/* ROW 3 — Industry Preferences */}
       {preferredIndustries.length > 0 && (
         <div className="filter-row preferred-industries-row">
           <span className="preferred-label">Your Industries:</span>

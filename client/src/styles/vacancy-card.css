@@ -1,0 +1,295 @@
+/* ============================================================ */
+/* VACANCY CARD                                                  */
+/* Shared job card used by the Job Board and the jobseeker       */
+/* Dashboard. A listing advertises a vacancy — it does not brief */
+/* it — so the whole card is a link to /jobs/:id and carries     */
+/* only what a scan needs: brand, title, one metadata line,      */
+/* true-only pills, an optional match bar, and one action.       */
+/* ============================================================ */
+
+.vac-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #e6e9ec;
+  border-radius: 14px;
+  padding: 18px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.vac-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(16, 24, 40, 0.09);
+  border-color: #cfe0d4;
+}
+
+.vac-card:focus-visible {
+  outline: 2px solid #2e7d32;
+  outline-offset: 2px;
+}
+
+/* Employer draft preview — same card, no interaction affordances */
+.vac-card.is-preview {
+  cursor: default;
+}
+
+.vac-card.is-preview:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #e6e9ec;
+}
+
+.vac-card.is-preferred {
+  border-left: 3px solid #f5a623;
+}
+
+.vac-card.is-followed,
+.vac-card.is-preferred.is-followed {
+  border-left: 3px solid #2e7d32;
+}
+
+/* Top row: brand + favourite */
+.vac-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vac-brand {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.vac-logo {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 2px solid #2e7d32;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vac-brand-text {
+  min-width: 0;
+}
+
+.vac-company {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vac-title {
+  margin: 2px 0 0;
+  font-family: var(--heading);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #1a2a3a;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.vac-card:hover .vac-title {
+  color: #2e7d32;
+}
+
+/* Favourite button — the only control that lives on the card body */
+.vac-tools {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.vac-tools .btn-favorite-icon {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0 !important;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e6e9ec !important;
+  color: #9aa4b0;
+}
+
+.vac-tools .btn-favorite-icon:hover {
+  background: #fff5f5;
+  color: #dc2626;
+}
+
+.vac-tools .btn-favorite-icon.btn-favorite-active {
+  background: #fef2f2;
+  border-color: #fecaca !important;
+  color: #dc2626;
+}
+
+/* One metadata line: location · salary · type · openings */
+.vac-facts {
+  margin: 0;
+  font-size: 12.5px;
+  color: #5a6672;
+  line-height: 1.45;
+}
+
+/* Pills — rendered only when the corresponding flag is true */
+.vac-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.vac-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.vac-pill svg {
+  font-size: 9px;
+}
+
+.vac-pill--open {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.vac-pill--applied {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.vac-pill--follow {
+  background: #eef7f0;
+  color: #1f7a3f;
+  border: 1px solid #cfe6d6;
+}
+
+.vac-pill--preferred {
+  background: #fff8e1;
+  color: #b7791f;
+  border: 1px solid #f3d99b;
+}
+
+/* Applicant count + posting age on the left, match chip on the right */
+.vac-metaline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 0;
+}
+
+.vac-metaline-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #7a8a7d;
+  min-width: 0;
+}
+
+.vac-metaline-count svg {
+  color: #9aa4b0;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* Match indicator — shown on every jobseeker-facing card */
+.vac-match-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.vac-match-chip .lbl {
+  font-weight: 600;
+  font-size: 10.5px;
+  opacity: 0.85;
+}
+
+.vac-match-chip.tier-high {
+  background: #e4f5e9;
+  color: #1f7a3f;
+}
+
+.vac-match-chip.tier-mid {
+  background: #fff4e2;
+  color: #a5601b;
+}
+
+.vac-match-chip.tier-low,
+.vac-match-chip.tier-na {
+  background: #eef2f0;
+  color: #6b7a70;
+}
+
+/* Action — one button, right-aligned, at the card bottom */
+.vac-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.btn-vac {
+  padding: 9px 20px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-vac--primary {
+  background: #2e7d32;
+  color: #ffffff;
+}
+
+.btn-vac--primary:hover:not(:disabled) {
+  background: #256628;
+}
+
+.btn-vac--primary:disabled {
+  background: #b9c9bb;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .vac-actions {
+    justify-content: stretch;
+  }
+
+  .btn-vac {
+    width: 100%;
+  }
+}

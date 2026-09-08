@@ -2,6 +2,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 import "../styles/auth.css";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import pesoLogo from "../assets/images/peso-logo.png";
@@ -166,7 +167,77 @@ export default function Login() {
       navigate(getDefaultRouteByRole(role));
     } catch (err) {
       console.error("❌ Login error:", err);
+
+      // Account is suspended/banned — credentials were valid. Send the user to
+      // the suspension wall with an appeal-only session.
+      const data = err?.response?.data;
+      if (err?.response?.status === 403 && data?.code === "ACCOUNT_SUSPENDED") {
+        if (data.appealToken) localStorage.setItem("appealToken", data.appealToken);
+        localStorage.setItem(
+          "suspensionInfo",
+          JSON.stringify({
+            accountStatus: data.accountStatus || "suspended",
+            suspensionReason: data.suspensionReason || null,
+            suspendedAt: data.suspendedAt || null,
+          })
+        );
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setIsRedirecting(true);
+        navigate("/account-suspended");
+        return;
+      }
+
       setError(formatApiError(err, "Login failed"));
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleCredential = async (credential) => {
+    setError("");
+    setLoading(true);
+    setIsRedirecting(false);
+    try {
+      const { data } = await authAPI.google(credential);
+      const token = data.token;
+      const userData = data.user || {};
+      if (!token) throw new Error("No token received from server");
+
+      const normalizedUser = { ...userData, role: normalizeRole(userData.role) };
+      await login(token, normalizedUser);
+
+      const role = normalizeRole(normalizedUser.role);
+      const onboardingDone =
+        typeof normalizedUser.hasCompletedOnboarding === "boolean"
+          ? normalizedUser.hasCompletedOnboarding
+          : normalizedUser.onboardingComplete;
+
+      setIsRedirecting(true);
+      if (["resident", "employer"].includes(role) && onboardingDone === false) {
+        navigate("/onboarding");
+        return;
+      }
+      navigate(getDefaultRouteByRole(role));
+    } catch (err) {
+      console.error("❌ Google sign-in error:", err);
+      const data = err?.response?.data;
+      if (err?.response?.status === 403 && data?.code === "ACCOUNT_SUSPENDED") {
+        if (data.appealToken) localStorage.setItem("appealToken", data.appealToken);
+        localStorage.setItem(
+          "suspensionInfo",
+          JSON.stringify({
+            accountStatus: data.accountStatus || "suspended",
+            suspensionReason: data.suspensionReason || null,
+            suspendedAt: data.suspendedAt || null,
+          })
+        );
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setIsRedirecting(true);
+        navigate("/account-suspended");
+        return;
+      }
+      setError(formatApiError(err, "Google sign-in failed"));
       setLoading(false);
     }
   };
@@ -247,6 +318,10 @@ export default function Login() {
               </div>
             </div>
 
+            <div className="auth-forgot">
+              <Link to="/forgot-password">Forgot password?</Link>
+            </div>
+
             <button
               type="submit"
               className="auth-button"
@@ -255,6 +330,8 @@ export default function Login() {
               {loading ? "Logging in..." : isRedirecting ? "Redirecting..." : "Login"}
             </button>
           </form>
+
+          <GoogleSignInButton onCredential={handleGoogleCredential} text="signin_with" />
 
           <p className="auth-link">
             Don't have an account? <Link to="/register">Register</Link>

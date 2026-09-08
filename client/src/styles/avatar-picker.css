@@ -1,0 +1,112 @@
+/* =============================================================
+   AvatarPicker — reusable circular image upload control
+   Neutral treatment so it reads well on light cards and on the
+   dark rail of the edit-profile screen.
+   ============================================================= */
+.avatar-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-picker--inline {
+  flex-direction: row;
+  gap: 14px;
+  align-items: center;
+}
+
+/* The global `input { display: block }` rule in style.css overrides the
+   [hidden] attribute, so force the file input out of the layout here. */
+.avatar-picker-input {
+  display: none !important;
+}
+
+.avatar-picker-circle {
+  position: relative;
+  border-radius: 50%;
+  border: 2px dashed rgba(22, 163, 74, 0.45);
+  background: #f0fdf4;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.avatar-picker-circle:hover:not(:disabled) {
+  border-color: #16a34a;
+  box-shadow: 0 2px 10px rgba(20, 83, 45, 0.18);
+}
+
+.avatar-picker-circle:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}
+
+.avatar-picker-circle:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.avatar-picker-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-picker-initial {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #16a34a;
+}
+
+.avatar-picker-overlay {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  border: 2px solid #fff;
+}
+
+.avatar-picker-spin {
+  animation: avatar-picker-spin 0.8s linear infinite;
+}
+
+@keyframes avatar-picker-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.avatar-picker-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+
+.avatar-picker--inline .avatar-picker-meta {
+  text-align: left;
+}
+
+.avatar-picker-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #667169;
+}
+
+.avatar-picker-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #b42318;
+}

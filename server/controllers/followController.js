@@ -19,6 +19,12 @@ exports.followUser = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
+    // Only employers can be followed (e.g. by jobseekers tracking companies
+    // they're interested in) — residents/admins are never followable.
+    if (targetUser.role !== "employer") {
+      return res.status(403).json({ error: "Only employers can be followed" });
+    }
+
     // Check if already following
     const existingFollow = await Follow.findOne({ follower: followerId, following: userId });
     if (existingFollow) {
@@ -37,12 +43,14 @@ exports.followUser = async (req, res) => {
     await createNotificationForUser({
       recipientId: userId,
       actorId: followerId,
-      type: "system",
+      type: "follow",
       title: `${followerName} followed you`,
       message: `${followerName} is now following you`,
       relatedEntityType: "user",
       relatedEntityId: followerId,
-      actionUrl: `/profile/${followerId}`,
+      // /profile/:id isn't a real route — send them to the followers list,
+      // where they can click through to the follower's profile instead.
+      actionUrl: `/profile/followers`,
       metadata: { followerName },
       io,
     });

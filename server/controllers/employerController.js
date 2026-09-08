@@ -3,25 +3,42 @@ const JobApplication = require("../models/JobApplication");
 const Message = require("../models/Message");
 const { ensureConversationBetweenUsers } = require("./messageController");
 const JobseekerProfile = require("../models/JobseekerProfile");
+const User = require("../models/User");
+const Follow = require("../models/Follow");
 const { createNotificationForUser } = require("../services/notificationService");
 
 const getUserId = (req) => req.user._id || req.user.id;
 
-const autoCloseOverdueJobsForEmployer = async (employerId) => {
+const autoCloseOverdueJobsForEmployer = async (employerId, io = null) => {
   const now = new Date();
 
+  const overdueJobs = await JobVacancy.find({
+    employer: employerId,
+    status: "active",
+    applicationDeadline: { $ne: null, $lt: now },
+  }).select("_id title");
+
+  if (overdueJobs.length === 0) return;
+
   await JobVacancy.updateMany(
-    {
-      employer: employerId,
-      status: "active",
-      applicationDeadline: { $ne: null, $lt: now },
-    },
-    {
-      $set: {
-        status: "closed",
-        closedAt: now,
-      },
-    }
+    { _id: { $in: overdueJobs.map((job) => job._id) } },
+    { $set: { status: "closed", closedAt: now } }
+  );
+
+  await Promise.all(
+    overdueJobs.map((job) =>
+      createNotificationForUser({
+        recipientId: employerId,
+        type: "system",
+        title: "Job listing auto-closed",
+        message: `"${job.title}" passed its application deadline and was automatically closed.`,
+        relatedEntityType: "job",
+        relatedEntityId: job._id,
+        actionUrl: "/employer",
+        metadata: { jobTitle: job.title },
+        io,
+      })
+    )
   );
 };
 
@@ -39,7 +56,7 @@ const formatQualifications = (qualifications) => {
 exports.getEmployerJobs = async (req, res) => {
   try {
     const employerId = getUserId(req);
-    await autoCloseOverdueJobsForEmployer(employerId);
+    await autoCloseOverdueJobsForEmployer(employerId, req.app.get("io"));
 
     const jobs = await JobVacancy.find({ employer: employerId }).sort({ createdAt: -1 });
 
@@ -234,9 +251,14 @@ exports.getApplicantsForJob = async (req, res) => {
       return res.status(403).json({ message: "You can only view applicants for your own jobs" });
     }
 
-    const applications = await JobApplication.find({ vacancy: jobId })
-      .populate("applicant", "name email phone address skills resume resumeFile validIdFile")
+    let applications = await JobApplication.find({ vacancy: jobId })
+      .populate("applicant", "name email phone address skills resume resumeFile validIdFile isActive")
       .sort({ createdAt: -1 });
+
+    // Hide applications from jobseekers whose account is suspended/deleted.
+    applications = applications.filter(
+      (app) => app.applicant && app.applicant.isActive !== false
+    );
 
     // Fetch jobseeker profiles for all applicants
     const applicantIds = applications.map(app => app.applicant?._id).filter(Boolean);
@@ -390,7 +412,7 @@ exports.updateApplicationStatus = async (req, res) => {
 exports.getEmployerStats = async (req, res) => {
   try {
     const employerId = getUserId(req);
-    await autoCloseOverdueJobsForEmployer(employerId);
+    await autoCloseOverdueJobsForEmployer(employerId, req.app.get("io"));
 
     const jobs = await JobVacancy.find({ employer: employerId }).select("_id status");
     const jobIds = jobs.map((job) => job._id);
@@ -581,7 +603,7 @@ exports.bulkUpdateApplicationStatuses = async (req, res) => {
 exports.getEmployerProfileStats = async (req, res) => {
   try {
     const employerId = getUserId(req);
-    await autoCloseOverdueJobsForEmployer(employerId);
+    await autoCloseOverdueJobsForEmployer(employerId, req.app.get("io"));
 
     const jobs = await JobVacancy.find({ employer: employerId }).select("_id status");
     const jobIds = jobs.map((job) => job._id);
@@ -597,5 +619,45 @@ exports.getEmployerProfileStats = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch employer profile stats" });
+  }
+};
+
+// ---------------------------------------------------------------------
+// View a jobseeker's full profile — only if they've applied to one of
+// this employer's jobs or follow this employer. Keeps employer access to
+// jobseeker NSRP data scoped to people who've actually engaged with them,
+// rather than opening every resident's profile to every employer.
+// ---------------------------------------------------------------------
+exports.getConnectedJobseekerProfile = async (req, res) => {
+  try {
+    const employerId = String(getUserId(req));
+    const { userId } = req.params;
+
+    const targetUser = await User.findById(userId).select("-password");
+    if (!targetUser || targetUser.role !== "resident") {
+      return res.status(404).json({ message: "Jobseeker not found" });
+    }
+    if (targetUser.isActive === false) {
+      return res.status(404).json({ message: "This profile is unavailable" });
+    }
+
+    const employerJobIds = await JobVacancy.find({ employer: employerId }).distinct("_id");
+
+    const [hasApplied, isFollower] = await Promise.all([
+      employerJobIds.length
+        ? JobApplication.exists({ applicant: userId, vacancy: { $in: employerJobIds } })
+        : Promise.resolve(false),
+      Follow.exists({ follower: userId, following: employerId }),
+    ]);
+
+    if (!hasApplied && !isFollower) {
+      return res.status(403).json({ message: "You can only view profiles of applicants or followers" });
+    }
+
+    const profile = await JobseekerProfile.findOne({ userId: targetUser._id });
+
+    return res.json({ user: targetUser, profile });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to fetch jobseeker profile" });
   }
 };

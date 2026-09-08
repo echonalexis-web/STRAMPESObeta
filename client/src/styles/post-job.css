@@ -206,70 +206,26 @@
   flex-shrink: 0;
 }
 
-/* Preview Card */
+/* Preview Card — renders the real jobseeker-facing <VacancyCard> */
 .pj-preview-card {
   background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
 }
 
-.pj-preview-content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.pj-preview-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--pj-text);
-  line-height: 1.3;
-}
-
-.pj-preview-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--pj-text-secondary);
-  flex-wrap: wrap;
-}
-
-.pj-preview-meta svg {
-  color: var(--pj-primary);
+.pj-preview-hint {
+  margin: -8px 0 14px;
   font-size: 12px;
-}
-
-.pj-preview-meta .placeholder {
   color: var(--pj-text-muted);
-  font-style: italic;
+  line-height: 1.4;
 }
 
-.pj-preview-dot {
-  color: var(--pj-text-muted);
-}
-
-.pj-preview-salary,
-.pj-preview-slots,
-.pj-preview-deadline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--pj-text-secondary);
-  padding: 6px 10px;
+.pj-preview-stage {
+  border-radius: 14px;
   background: var(--pj-bg);
-  border-radius: 8px;
+  padding: 12px;
 }
 
-.pj-preview-salary svg {
-  color: var(--pj-accent);
-}
-
-.pj-preview-qual-count {
-  font-size: 12px;
-  color: var(--pj-text-muted);
-  margin-top: 4px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--pj-border);
+.pj-preview-stage .vac-card {
+  padding: 14px;
 }
 
 /* ─── Main Content ─── */
@@ -824,4 +780,58 @@
 }
 .pj-address-missing-warning svg {
   flex-shrink: 0;
+}
+/* ===== Post-success panel + save-as-template CTA (Skill Types Patch) ===== */
+.pj-success-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.pj-template-cta {
+  border: 1px solid #bfe3cf;
+  background: #f2fbf6;
+  border-radius: 14px;
+  padding: 1.25rem 1.35rem;
+}
+
+.pj-template-cta h3 {
+  margin: 0 0 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  color: #1f5138;
+}
+
+.pj-template-cta p {
+  margin: 0 0 0.9rem;
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.pj-template-cta-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.pj-template-cta-row input {
+  flex: 1;
+  min-width: 200px;
+  min-height: 2.6rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+.pj-template-cta-error {
+  margin-top: 0.5rem;
+  color: #b91c1c;
+  font-size: 0.82rem;
+  font-weight: 600;
 }

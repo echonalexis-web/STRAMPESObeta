@@ -1,5 +1,6 @@
 const JobVacancy = require('../models/JobVacancy');
 const JobseekerProfile = require('../models/JobseekerProfile');
+const Follow = require('../models/Follow');
 const { rankJobsBySkills } = require('../services/semanticService');
 const { getApplicationCountMap } = require('../utils/jobDisplay');
 
@@ -106,6 +107,17 @@ exports.hybridSearch = async (req, res) => {
 
     console.log(`[Job Board] hasSkills: ${hasSkills}, Preferred Industries: ${preferredIndustries.length}`);
 
+    // --- 2.6. Followed employers are fast-tracked to the top of recommendations ---
+    let followedEmployerIds = new Set();
+    if (userId) {
+      try {
+        const follows = await Follow.find({ follower: userId }).select('following');
+        followedEmployerIds = new Set(follows.map((f) => String(f.following)));
+      } catch (err) {
+        console.error('[Job Board] Error fetching followed employers:', err);
+      }
+    }
+
     // --- 2.5. Get user's applied jobs (to filter them out) ---
     let appliedJobIds = new Set();
     if (userId) {
@@ -123,8 +135,8 @@ exports.hybridSearch = async (req, res) => {
 
     // --- 3. Fetch jobs ---
     const jobs = await JobVacancy.find(filter)
-      .select('title description responsibilities qualifications industry workNature jobType location salary createdAt salaryMin salaryMax employer status isActive archived applicationDeadline')
-      .populate('employer', 'name email phone companyName companyDescription website verificationStatus industry companySize businessAddress')
+      .select('title description responsibilities qualifications industry workNature jobType location salary slots createdAt salaryMin salaryMax employer status isActive archived applicationDeadline')
+      .populate('employer', 'name email phone companyName companyDescription website verificationStatus industry companySize businessAddress profileImage')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -164,15 +176,30 @@ exports.hybridSearch = async (req, res) => {
 
     // --- 6. Ranking ---
     if (hasSkills || preferredIndustries.length > 0) {
-      rankedJobs = rankJobsBySkills(finalFilteredJobs, skills, { 
+      rankedJobs = rankJobsBySkills(finalFilteredJobs, skills, {
         limit: parsedLimit,
         skip: parsedSkip,
-        preferredIndustries, 
-        industryPreferenceLevel 
+        preferredIndustries,
+        industryPreferenceLevel,
+        followedEmployerIds,
       });
     } else {
-      rankedJobs = finalFilteredJobs.slice(parsedSkip, parsedSkip + parsedLimit);
-      rankedJobs = rankedJobs.map(job => ({ ...job, relevanceScore: 0 }));
+      const isFollowedJob = (job) => {
+        const employerId = job.employer?._id || job.employer;
+        return Boolean(employerId && followedEmployerIds.has(String(employerId)));
+      };
+
+      // Stable sort: followed-employer jobs float to the top, everything
+      // else keeps its existing (newest-first) order.
+      const fastTracked = [...finalFilteredJobs].sort((a, b) => {
+        const aFollowed = isFollowedJob(a);
+        const bFollowed = isFollowedJob(b);
+        if (aFollowed !== bFollowed) return aFollowed ? -1 : 1;
+        return 0;
+      });
+
+      rankedJobs = fastTracked.slice(parsedSkip, parsedSkip + parsedLimit);
+      rankedJobs = rankedJobs.map(job => ({ ...job, relevanceScore: 0, isFollowedEmployer: isFollowedJob(job) }));
     }
 
     // --- 7. Attach application counts and format ---

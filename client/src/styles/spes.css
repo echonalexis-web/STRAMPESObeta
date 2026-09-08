@@ -1,0 +1,325 @@
+/* ============================================================
+   SPES program panel + applicant / admin views
+   Light theme, aligned with the STRAM PESO green palette.
+   ============================================================ */
+
+.spes-panel {
+  border: 1px solid #dbe2ea;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 1.1rem 1.2rem;
+  margin-bottom: 1.25rem;
+}
+
+.spes-panel__title {
+  margin: 0 0 0.6rem;
+  font-size: 1.05rem;
+  color: #1b5e20;
+}
+
+.spes-meta {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+}
+
+.spes-meta li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.spes-reqs {
+  margin: 0 0 0.75rem;
+}
+
+.spes-reqs__label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #1a2a3a;
+}
+
+.spes-reqs ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.spes-reqs li {
+  font-size: 0.85rem;
+  color: #475569;
+  margin-bottom: 0.2rem;
+}
+
+.spes-note {
+  font-size: 0.83rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0 0 0.75rem;
+}
+
+.spes-note a {
+  color: #2e7d32;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.spes-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1a5c2a, #2e7d42, #43a047);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.spes-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spes-btn--ghost {
+  background: transparent;
+  color: #2e7d32;
+  border: 1px solid #2e7d32;
+}
+
+.spes-status-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.spes-chip {
+  align-self: flex-start;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.spes-chip--results_released { background: #e3f2fd; color: #1976d2; }
+.spes-chip--disqualified,
+.spes-chip--withdrawn { background: #fdecea; color: #b91c1c; }
+
+.spes-result {
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  background: #f5f7fa;
+  border: 1px solid #e8ecf0;
+}
+
+.spes-result strong { display: block; font-size: 0.95rem; }
+.spes-result p { margin: 0.3rem 0 0; font-size: 0.83rem; color: #475569; }
+.spes-result--accepted { background: #e8f5e9; border-color: #a5d6a7; }
+.spes-result--accepted strong { color: #1b5e20; }
+.spes-result--not_accepted { background: #fdecea; border-color: #f5c6cb; }
+.spes-result--not_accepted strong { color: #b91c1c; }
+.spes-result--waitlisted { background: #fff8e1; border-color: #ffe082; }
+
+/* ---- Apply modal ---- */
+.spes-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 1rem;
+}
+
+.spes-modal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.spes-modal h3 {
+  margin: 0;
+  color: #1b5e20;
+}
+
+.spes-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: #1a2a3a;
+}
+
+.spes-modal input {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.spes-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* ---- SPES config block in the announcement editor ---- */
+.na-spes-config {
+  border: 1px solid #dbe2ea;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #f8faf9;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.na-spes-config label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.83rem;
+  font-weight: 600;
+}
+
+.na-spes-config input,
+.na-spes-config textarea {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.na-spes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.na-spes-config .na-checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+/* ---- Applicant "My SPES applications" page ---- */
+.spes-page {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.spes-page h1 {
+  color: #1a2a3a;
+  margin-bottom: 1rem;
+}
+
+.spes-card {
+  border: 1px solid #e8ecf0;
+  border-radius: 14px;
+  background: #fff;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.spes-card h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  color: #1a2a3a;
+}
+
+.spes-card__meta {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin-bottom: 0.6rem;
+}
+
+/* ---- Admin SPES applications table ---- */
+.spes-admin-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.spes-admin-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1a2a3a;
+}
+
+.spes-admin-controls select,
+.spes-admin-controls input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.spes-eval-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.spes-eval-row input,
+.spes-eval-row select {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 6px;
+  font: inherit;
+  width: 5.5rem;
+}
+
+.spes-eval-row select { width: auto; }
+
+.spes-release-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 12px;
+  background: #f8faf9;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 560px) {
+  .na-spes-grid { grid-template-columns: 1fr; }
+}

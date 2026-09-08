@@ -15,40 +15,14 @@
 
 .dashboard-hero {
   max-width: 1200px;
-  margin: 0 auto 32px;
-  background: linear-gradient(135deg, #1a5c2a 0%, #2e7d42 50%, #43a047 100%);
+  margin: 0 auto 20px;
+  background: linear-gradient(135deg, #1a5c2a 0%, #2e7d42 55%, #43a047 100%);
   border-radius: 16px;
-  padding: 32px 40px;
+  padding: 24px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 8px 32px rgba(26, 92, 42, 0.25);
-  position: relative;
-  overflow: hidden;
-}
-
-.dashboard-hero::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -20%;
-  width: 400px;
-  height: 400px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.dashboard-hero::after {
-  content: '';
-  position: absolute;
-  bottom: -60%;
-  left: 10%;
-  width: 300px;
-  height: 300px;
-  background: rgba(255, 215, 0, 0.06);
-  border-radius: 50%;
-  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(26, 92, 42, 0.18);
 }
 
 .dashboard-hero-content {
@@ -110,58 +84,41 @@
 
 .stats-grid {
   max-width: 1200px;
-  margin: 0 auto 32px;
+  margin: 0 auto 20px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: 14px;
 }
 
 .stat-card {
   background: #ffffff;
-  border-radius: 14px;
-  padding: 20px 24px;
+  border-radius: 12px;
+  padding: 16px 18px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  transition: all 0.3s ease;
-  border: 1px solid #e8ecf0;
+  gap: 14px;
+  box-shadow: 0 2px 10px rgba(16, 24, 40, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid #e6e9ec;
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.08);
 }
 
+/* One calm, on-brand icon chip for every stat — no blue/purple/yellow. */
 .stat-card-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 17px;
   flex-shrink: 0;
-}
-
-.stat-card-green .stat-card-icon {
-  background: #e8f5e9;
+  background: #eef5ef;
   color: #2e7d32;
-}
-
-.stat-card-yellow .stat-card-icon {
-  background: #fff8e1;
-  color: #f5a623;
-}
-
-.stat-card-blue .stat-card-icon {
-  background: #e3f2fd;
-  color: #1976d2;
-}
-
-.stat-card-purple .stat-card-icon {
-  background: #f3e5f5;
-  color: #7b1fa2;
 }
 
 .stat-card-content {
@@ -170,14 +127,14 @@
 }
 
 .stat-card-content .stat-number {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: #1a2a3a;
   line-height: 1.2;
 }
 
 .stat-card-content .stat-label {
-  font-size: 13px;
+  font-size: 12px;
   color: #7a8a9a;
   font-weight: 500;
 }
@@ -188,10 +145,10 @@
 
 .profile-card {
   max-width: 1200px;
-  margin: 0 auto 32px;
+  margin: 0 auto 24px;
   background: #ffffff;
   border-radius: 14px;
-  padding: 24px 32px;
+  padding: 20px 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -315,10 +272,10 @@
 
 .jobs-grid {
   max-width: 1200px;
-  margin: 0 auto 40px;
+  margin: 0 auto 32px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
+  gap: 18px;
 }
 
 .job-card {
@@ -379,6 +336,30 @@
   background: #dcfce7;
   color: #16a34a;
   flex-shrink: 0;
+}
+
+.followed-card {
+  border: 1px solid #b9dbbf;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
+  box-shadow: 0 2px 12px rgba(31, 122, 63, 0.12);
+}
+
+.following-employer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #e9f8ee;
+  color: #1f7a3f;
+  border: 1px solid #b9dbbf;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.following-employer-badge svg {
+  font-size: 9px;
 }
 
 .job-card-location {
@@ -1368,4 +1349,61 @@
 
 .info-message .btn-profile-edit:hover {
   background: #d4920a;
+}
+
+/* ============================================ */
+/* PAGINATION (Recommended for You)             */
+/* ============================================ */
+
+.dash-pagination {
+  max-width: 1200px;
+  margin: 0 auto 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: #ffffff;
+  border: 1px solid #e6e9ec;
+  border-radius: 12px;
+}
+
+.dash-pagination .pagination-btn {
+  padding: 9px 18px;
+  background: #2e7d32;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dash-pagination .pagination-btn:hover:not(:disabled) {
+  background: #1b5e20;
+}
+
+.dash-pagination .pagination-btn:disabled {
+  background: #b9c9bb;
+  cursor: not-allowed;
+}
+
+.dash-pagination .pagination-info {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4a594e;
+  min-width: 120px;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .dash-pagination {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .dash-pagination .pagination-btn {
+    width: 100%;
+  }
 }

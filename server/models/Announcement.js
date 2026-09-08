@@ -17,8 +17,22 @@ const announcementSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ["general", "hiring", "training", "event", "advisory"],
+      enum: ["general", "hiring", "training", "event", "advisory", "spes"],
       default: "general",
+    },
+    // Extra configuration for SPES program announcements (category === "spes").
+    spes: {
+      applicationDeadline: { type: Date, default: null },
+      slots: { type: Number, default: null },
+      requirements: { type: [String], default: [] },
+      resultsUrl: { type: String, default: "" },
+      resultsStatus: { type: String, enum: ["pending", "published"], default: "pending" },
+      resultsPublishedAt: { type: Date, default: null },
+      resultsPublishedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+      resultsSummary: { type: String, default: "" },
+      publishAcceptedList: { type: Boolean, default: false },
+      exposeScores: { type: Boolean, default: false },
+      resultsAnnouncementId: { type: mongoose.Schema.Types.ObjectId, ref: "Announcement", default: null },
     },
     imageUrl: {
       type: String,
@@ -35,6 +49,10 @@ const announcementSchema = new mongoose.Schema(
       required: true,
     },
     isActive: {
+      type: Boolean,
+      default: true,
+    },
+    commentsEnabled: {
       type: Boolean,
       default: true,
     },

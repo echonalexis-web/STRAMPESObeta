@@ -25,12 +25,15 @@ exports.getRankedApplicants = async (req, res) => {
     }
 
     // 3. Fetch applications with applicant user and profile
-    const applications = await JobApplication.find({ vacancy: jobId })
+    let applications = await JobApplication.find({ vacancy: jobId })
       .populate({
         path: 'applicant',
-        select: 'name email phone address about desiredJobTitle workExperience educationalAttainment skills',
+        select: 'name email phone address about desiredJobTitle workExperience educationalAttainment skills isActive',
       })
       .lean();
+
+    // Exclude applicants whose account is suspended/deleted.
+    applications = applications.filter(app => app.applicant && app.applicant.isActive !== false);
 
     if (!applications.length) {
       return res.json({ applicants: [], total: 0 });

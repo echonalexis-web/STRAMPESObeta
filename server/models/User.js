@@ -4,8 +4,25 @@ const userSchema = new mongoose.Schema(
   {
     // ===== Authentication =====
     name: { type: String, required: true },
+    surname: { type: String, default: null },
+    firstName: { type: String, default: null },
+    middleName: { type: String, default: null },
+    suffix: { type: String, default: null },
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    // Not required for accounts created through Google sign-in (they have no
+    // password until the user sets one via "Forgot password?").
+    password: {
+      type: String,
+      required: function () {
+        return !this.googleId;
+      },
+    },
+    // ===== Google sign-in =====
+    // Google's stable account id (the ID token `sub`). Uniqueness is enforced
+    // in the controller (find-by-googleId) rather than a partial index, to keep
+    // the existing Atlas indexes untouched.
+    googleId: { type: String, default: null },
+    authProvider: { type: String, enum: ["local", "google"], default: "local" },
     role: {
       type: String,
       enum: ["resident", "employer", "admin"],
@@ -82,26 +99,54 @@ const userSchema = new mongoose.Schema(
     // ===== Verification & status =====
     verificationStatus: {
       type: String,
-      enum: ["unverified", "pending", "verified"],
+      enum: ["unverified", "pending", "verified", "rejected"],
       default: "unverified",
     },
     businessPermitUrl: { type: String, default: null },
     registrationDocUrl: { type: String, default: null },
+    // Review trail for the employer document verification flow.
+    verificationNote: { type: String, default: null },
+    verificationSubmittedAt: { type: Date, default: null },
+    verificationReviewedAt: { type: Date, default: null },
+    verificationReviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     resumeFile: { type: String, default: null },
     validIdFile: { type: String, default: null },
     isActive: { type: Boolean, default: true },
+
+    // ===== Moderation / suspension =====
+    // `isActive` stays the runtime gate every existing check relies on.
+    // `accountStatus` records *why* an account is inactive so the login wall
+    // and the appeal flow can tell a temporary suspension from a permanent ban.
+    accountStatus: {
+      type: String,
+      enum: ["active", "suspended", "banned"],
+      default: "active",
+    },
+    suspensionReason: { type: String, default: null },
+    suspendedAt: { type: Date, default: null },
+    suspendedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+
+    // ===== Password reset =====
+    // A SHA-256 hash of the token that was put in the reset link (never the raw
+    // token), so a database leak can't be used to reset accounts.
+    passwordResetToken: { type: String, default: null },
+    passwordResetExpires: { type: Date, default: null },
+
+    // ===== Email change (verification) =====
+    // The requested new address, held here until the user opens the
+    // confirmation link sent to it. `email` is only overwritten on confirm.
+    pendingEmail: { type: String, default: null },
+    emailChangeToken: { type: String, default: null },
+    emailChangeExpires: { type: Date, default: null },
+
+    // ===== Terms & community-guidelines acceptance =====
+    acceptedTermsAt: { type: Date, default: null },
+    termsVersion: { type: String, default: null },
+
     hasCompletedOnboarding: { type: Boolean, default: false },
     onboardingComplete: { type: Boolean, default: false },
 
     createdAt: { type: Date, default: Date.now },
-
-    notifications: [
-      {
-        message: String,
-        isRead: { type: Boolean, default: false },
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
   },
   {
     timestamps: true,

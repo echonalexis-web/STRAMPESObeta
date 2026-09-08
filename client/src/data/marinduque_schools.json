@@ -1,0 +1,1693 @@
+{
+  "source": {
+    "elementary_and_secondary": "https://depedmarinduque.com/icts/publicschools.php (DepEd Schools Division of Marinduque - Public/SUC schools directory)",
+    "higher_education_and_techvoc": "Compiled from Wikipedia, marsu.edu.ph, tesda.gov.ph, and TESDA MIMAROPA (tesdamimaropa.com) as of September 2026 - verify current status before use, as TVI rosters change"
+  },
+  "generated_date": "2026-09-05",
+  "province": "Marinduque, Philippines",
+  "summary": {
+    "elementary_schools": 183,
+    "secondary_schools": 46,
+    "universities_colleges": 5,
+    "technical_vocational_schools": 5
+  },
+  "elementary_schools": [
+    {
+      "school_id": "109865",
+      "name": "Agot ES",
+      "district": "Boac North",
+      "address": "Agot, Boac Marinduque",
+      "email": "109865@deped.gov.ph"
+    },
+    {
+      "school_id": "109866",
+      "name": "Agumaymayan ES",
+      "district": "Boac North",
+      "address": "Agumaymayan, Boac Marinduque",
+      "email": "109866@deped.gov.ph"
+    },
+    {
+      "school_id": "109867",
+      "name": "Balimbing ES",
+      "district": "Boac North",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "109868",
+      "name": "Bantauyan PS",
+      "district": "Boac North",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "109869",
+      "name": "Buliasnin ES",
+      "district": "Boac North",
+      "address": "Buliasnin, Boac Marinduque",
+      "email": "109869@deped.gov.ph"
+    },
+    {
+      "school_id": "109877",
+      "name": "Celso M. Mataac Sr. Elementary School",
+      "district": "Boac North",
+      "address": "(formerly Poctoy ES) Poctoy, Boac Marinduque",
+      "email": "109877@deped.gov.ph"
+    },
+    {
+      "school_id": "109870",
+      "name": "Don Luis Hidalgo MS",
+      "district": "Boac North",
+      "address": "Malusak, Boac Marinduque",
+      "email": "109870@deped.gov.ph"
+    },
+    {
+      "school_id": "109871",
+      "name": "Hinapulan ES",
+      "district": "Boac North",
+      "address": "Tayaban, Hinapulan, Boac Marinduque",
+      "email": "109871@deped.gov.ph"
+    },
+    {
+      "school_id": "109872",
+      "name": "Lupac-Tabigue ES",
+      "district": "Boac North",
+      "address": "Lupac, Boac Marinduque",
+      "email": "109872@deped.gov.ph"
+    },
+    {
+      "school_id": "109873",
+      "name": "Mahinhin ES",
+      "district": "Boac North",
+      "address": "Mahinhin",
+      "email": "kayzel.luci@deped.gov.ph"
+    },
+    {
+      "school_id": "109874",
+      "name": "Maligaya ES",
+      "district": "Boac North",
+      "address": "Maligaya, Boac Marinduque",
+      "email": "cresencia.landoy001@deped.gov.ph"
+    },
+    {
+      "school_id": "109875",
+      "name": "Pawa ES",
+      "district": "Boac North",
+      "address": "",
+      "email": "angelo.logatoc@deped.gov.ph"
+    },
+    {
+      "school_id": "109876",
+      "name": "Pili-Balogo ES",
+      "district": "Boac North",
+      "address": "Pili, Boac Marinduque",
+      "email": "109876@deped.gov.ph"
+    },
+    {
+      "school_id": "109878",
+      "name": "Poras ES",
+      "district": "Boac North",
+      "address": "Poras, Boac Marinduque",
+      "email": "109878@deped.gov.ph"
+    },
+    {
+      "school_id": "109879",
+      "name": "Puting Buhangin ES",
+      "district": "Boac North",
+      "address": "Puting Buhangin, Boac Marinduque",
+      "email": "109879@deped.gov.ph"
+    },
+    {
+      "school_id": "109880",
+      "name": "Puyog ES",
+      "district": "Boac North",
+      "address": "Puyog, Boac, Marinduque",
+      "email": "elizabeth.mayores@deped.gov.ph"
+    },
+    {
+      "school_id": "109881",
+      "name": "Sawi ES",
+      "district": "Boac North",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "109882",
+      "name": "Tanza ES",
+      "district": "Boac North",
+      "address": "Tanza Boac Marinduque",
+      "email": "109882tanzaes@deped.gov.ph"
+    },
+    {
+      "school_id": "109883",
+      "name": "Tumagabok ES",
+      "district": "Boac North",
+      "address": "Tumagabok, Boac Marinduque",
+      "email": "109883@deped.gov.ph"
+    },
+    {
+      "school_id": "109884",
+      "name": "Amoingon ES",
+      "district": "Boac South",
+      "address": "Amoingon Boac Marinduque",
+      "email": "109884@deped.gov.ph"
+    },
+    {
+      "school_id": "109885",
+      "name": "Balagasan ES",
+      "district": "Boac South",
+      "address": "Balagasan, Boac Marinduque",
+      "email": "109885@deped.gov.ph"
+    },
+    {
+      "school_id": "109886",
+      "name": "Balaring-Caganhao ES",
+      "district": "Boac South",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "109887",
+      "name": "Bamban Elementary School",
+      "district": "Boac South",
+      "address": "Bamban Boac Marinduque",
+      "email": "109887@deped.gov.ph"
+    },
+    {
+      "school_id": "109888",
+      "name": "Bangbangalon Elementary School",
+      "district": "Boac South",
+      "address": "Bangbangalon, Boac Marinduque",
+      "email": "109888@deped.gov.ph"
+    },
+    {
+      "school_id": "109889",
+      "name": "Bantay ES",
+      "district": "Boac South",
+      "address": "Bantay, Boac Marinduque",
+      "email": "109889@deped.gov.ph"
+    },
+    {
+      "school_id": "109890",
+      "name": "Binunga ES",
+      "district": "Boac South",
+      "address": "",
+      "email": "109890@deped.gov.ph"
+    },
+    {
+      "school_id": "109891",
+      "name": "Boac South Central School",
+      "district": "Boac South",
+      "address": "Laylay, Boac Marinduque",
+      "email": "109891@deped.gov.ph"
+    },
+    {
+      "school_id": "109892",
+      "name": "Boi ES",
+      "district": "Boac South",
+      "address": "",
+      "email": "109892@deped.gov.ph"
+    },
+    {
+      "school_id": "109893",
+      "name": "Canat ES",
+      "district": "Boac South",
+      "address": "Canat, Boac Marinduque",
+      "email": "109893@deped.gov.ph"
+    },
+    {
+      "school_id": "109894",
+      "name": "Catubugan ES",
+      "district": "Boac South",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "109895",
+      "name": "Cawit ES",
+      "district": "Boac South",
+      "address": "Cawit Boac Marinduque",
+      "email": "109895@deped.gov.ph"
+    },
+    {
+      "school_id": "109896",
+      "name": "Don Severino Lardizabal MS",
+      "district": "Boac South",
+      "address": "Ihatub, Boac Marinduque",
+      "email": "109896@deped.gov.ph"
+    },
+    {
+      "school_id": "109897",
+      "name": "Duyay ES",
+      "district": "Boac South",
+      "address": "Duyay,Boac Marinduque",
+      "email": "109897@deped.gov.ph"
+    },
+    {
+      "school_id": "109898",
+      "name": "Mainit ES",
+      "district": "Boac South",
+      "address": "Mainit, Boac Marinduque",
+      "email": "109898@deped.gov.ph"
+    },
+    {
+      "school_id": "109899",
+      "name": "Mansiwat Primary School",
+      "district": "Boac South",
+      "address": "Mansiwat Boac Marinduque",
+      "email": "109899@deped.gov.ph"
+    },
+    {
+      "school_id": "109900",
+      "name": "Maybo Elementary School",
+      "district": "Boac South",
+      "address": "Maybo Boac Marinduque",
+      "email": "109900@deped.gov.ph"
+    },
+    {
+      "school_id": "109901",
+      "name": "Tambunan ES",
+      "district": "Boac South",
+      "address": "Tambunan Boac,marinduque",
+      "email": "109901@deped.gov.ph"
+    },
+    {
+      "school_id": "109902",
+      "name": "Tugos ES",
+      "district": "Boac South",
+      "address": "",
+      "email": "109902@deped.gov.ph"
+    },
+    {
+      "school_id": "109938",
+      "name": "Argao ES",
+      "district": "Mogpog",
+      "address": "Argao",
+      "email": "109938@deped.gov.ph"
+    },
+    {
+      "school_id": "109939",
+      "name": "Balanacan ES",
+      "district": "Mogpog",
+      "address": "Balanacan,Mogpog Marinduque",
+      "email": "109939@deped.gov.ph"
+    },
+    {
+      "school_id": "109940",
+      "name": "Bintakay ES",
+      "district": "Mogpog",
+      "address": "Bintakay, Mogpog Marinduque",
+      "email": "elsa.licot@deped.gov.ph"
+    },
+    {
+      "school_id": "109941",
+      "name": "Bocboc ES",
+      "district": "Mogpog",
+      "address": "Bocboc, Mogpog Marinduque",
+      "email": "109941@deped.gov.ph"
+    },
+    {
+      "school_id": "109942",
+      "name": "Butansapa ES",
+      "district": "Mogpog",
+      "address": "Butansapa, Mogpog, Marinduque",
+      "email": "109942@deped.gov.ph"
+    },
+    {
+      "school_id": "109943",
+      "name": "Capayang ES",
+      "district": "Mogpog",
+      "address": "Capayang, Mogpog Marinduque",
+      "email": "109943@deped.gov.ph"
+    },
+    {
+      "school_id": "169004",
+      "name": "Danao ES",
+      "district": "Mogpog",
+      "address": "Danao, Mogpog Marinduque",
+      "email": "169004@deped.gov.ph"
+    },
+    {
+      "school_id": "109944",
+      "name": "Guisian ES",
+      "district": "Mogpog",
+      "address": "Guisian, Mogpog Marinduque",
+      "email": "109944@deped.gov.ph"
+    },
+    {
+      "school_id": "109945",
+      "name": "Hinadharan ES",
+      "district": "Mogpog",
+      "address": "Hinadharan, Mogpog Marinduque",
+      "email": "109945@deped.gov.ph"
+    },
+    {
+      "school_id": "109946",
+      "name": "Hinanggayon ES",
+      "district": "Mogpog",
+      "address": "Hinanggayon, Mogpog Marinduque",
+      "email": "109946@deped.gov.ph"
+    },
+    {
+      "school_id": "169001",
+      "name": "Ino ES",
+      "district": "Mogpog",
+      "address": "Torozo,Ino,Mogpog Marinduque",
+      "email": "169001@deped.gov.ph"
+    },
+    {
+      "school_id": "169008",
+      "name": "Janagdong ES",
+      "district": "Mogpog",
+      "address": "Janagdong Mogpog Marinduque",
+      "email": "169008@deped.gov.ph"
+    },
+    {
+      "school_id": "109947",
+      "name": "Lamesa ES",
+      "district": "Mogpog",
+      "address": "Lamesa Mogpog Marinduque",
+      "email": "maeann.peregrin@deped.gov.ph"
+    },
+    {
+      "school_id": "109948",
+      "name": "Laon ES",
+      "district": "Mogpog",
+      "address": "Laon, Mogpog Marinduque",
+      "email": "109948@deped.gov.ph"
+    },
+    {
+      "school_id": "109949",
+      "name": "Magapua ES",
+      "district": "Mogpog",
+      "address": "Magapua",
+      "email": "109949@deped.gov.ph"
+    },
+    {
+      "school_id": "169009",
+      "name": "Malayak ES",
+      "district": "Mogpog",
+      "address": "Malayak Mogpog Marinduque",
+      "email": "alnicagrace.ingeniero@deped.gov.ph"
+    },
+    {
+      "school_id": "109950",
+      "name": "Mampaitan Elementary School",
+      "district": "Mogpog",
+      "address": "Mampaitan Mogpog Marinduque",
+      "email": "109950@deped.gov.ph"
+    },
+    {
+      "school_id": "109951",
+      "name": "Mendez ES",
+      "district": "Mogpog",
+      "address": "Mendez, Mogpog Marinduque",
+      "email": "109951@deped.gov.ph"
+    },
+    {
+      "school_id": "109952",
+      "name": "MOGPOG CENTRAL SCHOOL",
+      "district": "Mogpog",
+      "address": "RIZAL ST. GITNANG BAYAN, MOGPOG MARINDUQUE",
+      "email": "109952@deped.gov.ph"
+    },
+    {
+      "school_id": "109953",
+      "name": "Nangka ES",
+      "district": "Mogpog",
+      "address": "Nangka II, Mogpog Marinduque",
+      "email": "109953@deped.gov.ph"
+    },
+    {
+      "school_id": "109954",
+      "name": "Paye ES",
+      "district": "Mogpog",
+      "address": "Paye Mogpog Marinduque",
+      "email": "109954@deped.gov.ph"
+    },
+    {
+      "school_id": "109955",
+      "name": "Pili ES",
+      "district": "Mogpog",
+      "address": "Pili, Mogpog Marinduque",
+      "email": "109955@deped.gov.ph"
+    },
+    {
+      "school_id": "109956",
+      "name": "Puting Buhangin ES",
+      "district": "Mogpog",
+      "address": "Puting Buhangin, Mogpog Marinduque",
+      "email": "109956@deped.gov.ph"
+    },
+    {
+      "school_id": "109957",
+      "name": "Sayao ES",
+      "district": "Mogpog",
+      "address": "Sayao, Mogpog Marinduque",
+      "email": "109957@deped.gov.ph"
+    },
+    {
+      "school_id": "109958",
+      "name": "Silangan ES",
+      "district": "Mogpog",
+      "address": "Silangan, Mogpog Marinduque",
+      "email": "109958@deped.gov.ph"
+    },
+    {
+      "school_id": "169002",
+      "name": "Sumangga ES",
+      "district": "Mogpog",
+      "address": "Brgy. Sumangga, Mogpog Marinduque",
+      "email": "princess.monteagudo001@deped.gov.ph"
+    },
+    {
+      "school_id": "109959",
+      "name": "Tarug ES",
+      "district": "Mogpog",
+      "address": "Tarug Mogpog Marinduque",
+      "email": "109959@deped.gov.ph"
+    },
+    {
+      "school_id": "109920",
+      "name": "Antipolo ES",
+      "district": "Gasan",
+      "address": "ANTIPOLO,GASAN MARINDUQUE",
+      "email": "109920@deped.gov.ph"
+    },
+    {
+      "school_id": "169011",
+      "name": "Aurora Sevilla Sotto Libtangin ES",
+      "district": "Gasan",
+      "address": "Purok 2, Libtangin, Gasan Marinduque",
+      "email": "169011@deped.gov.ph"
+    },
+    {
+      "school_id": "109921",
+      "name": "Bachao ES",
+      "district": "Gasan",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "109922",
+      "name": "Bacongbacong ES",
+      "district": "Gasan",
+      "address": "",
+      "email": "ivy.peralta@deped.gov.ph"
+    },
+    {
+      "school_id": "109923",
+      "name": "Bahi ES",
+      "district": "Gasan",
+      "address": "Purok 5, Bahi, Gasan Marinduque",
+      "email": "Bahies1952@gmail.com"
+    },
+    {
+      "school_id": "109924",
+      "name": "Bangbang ES",
+      "district": "Gasan",
+      "address": "Bangbang, Gasan Marinduque",
+      "email": "109924@deped.gov.ph"
+    },
+    {
+      "school_id": "109925",
+      "name": "Banot-Mahunig ES",
+      "district": "Gasan",
+      "address": "Banot, Gasan Marinduque",
+      "email": "109925@deped.gov.ph"
+    },
+    {
+      "school_id": "169006",
+      "name": "Banuyo Elementary School",
+      "district": "Gasan",
+      "address": "Banuyo, Gasan Marinduque",
+      "email": "169006@deped.gov.ph"
+    },
+    {
+      "school_id": "109926",
+      "name": "Bognuyan ES",
+      "district": "Gasan",
+      "address": "Bognuyan, Gasan Marinduque",
+      "email": "jennie.latorre@deped.gov.ph"
+    },
+    {
+      "school_id": "109927",
+      "name": "Cabugao ES",
+      "district": "Gasan",
+      "address": "Cabugao, Gasan Marinduque",
+      "email": "109927@deped.gov.ph"
+    },
+    {
+      "school_id": "109928",
+      "name": "Dawis ES",
+      "district": "Gasan",
+      "address": "Purok Pagasa, Dawis, Gasan Marinduque",
+      "email": "109928@deped.gov.ph"
+    },
+    {
+      "school_id": "109929",
+      "name": "Gasan Central School",
+      "district": "Gasan",
+      "address": "Brgy dos GASAN MARINDUQUE",
+      "email": "hilarion_cruz08@yahoo.com.ph"
+    },
+    {
+      "school_id": "109930",
+      "name": "Gaspar ES",
+      "district": "Gasan",
+      "address": "Pinggan, Gasan Marinduque",
+      "email": "109930@deped.gov.ph"
+    },
+    {
+      "school_id": "109931",
+      "name": "Masiga ES",
+      "district": "Gasan",
+      "address": "Masiga, Gasan Marinduque",
+      "email": "ariza.jaranilla@deped.gov.ph"
+    },
+    {
+      "school_id": "109932",
+      "name": "Matandang Gasan ES",
+      "district": "Gasan",
+      "address": "Matandang Gasan, Gasan Marinduque",
+      "email": "109932@deped.gov.ph"
+    },
+    {
+      "school_id": "109933",
+      "name": "Pangi ES",
+      "district": "Gasan",
+      "address": "Pangi, Gasan Marinduque",
+      "email": "maribeth.lumalang001@deped.gov.ph"
+    },
+    {
+      "school_id": "109934",
+      "name": "Pinggan Elementary School",
+      "district": "Gasan",
+      "address": "Pinggan, Gasan Marinduque",
+      "email": "matheresa.gutierrez002@deped.gov.ph"
+    },
+    {
+      "school_id": "169010",
+      "name": "Quatis ES",
+      "district": "Gasan",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "109935",
+      "name": "Tabionan ES",
+      "district": "Gasan",
+      "address": "Tabionan, Gasan Marinduque",
+      "email": "109935@deped.gov.ph"
+    },
+    {
+      "school_id": "109936",
+      "name": "Tapuyan ES",
+      "district": "Gasan",
+      "address": "Purok 4 Tapuyan, Gasan Marinduque",
+      "email": "crisabel.sosa002@deped.gov.ph"
+    },
+    {
+      "school_id": "109937",
+      "name": "Tiguion ES",
+      "district": "Gasan",
+      "address": "Central Dos, Tiguion, Gasan Marinduque",
+      "email": "jhonrex.sapunto@deped.gov.ph"
+    },
+    {
+      "school_id": "169007",
+      "name": "Tiguion I ES",
+      "district": "Gasan",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "109903",
+      "name": "Bagacay ES",
+      "district": "Buenavista",
+      "address": "Bagacay, Buenavista Marinduque",
+      "email": "109903@deped.gov.ph"
+    },
+    {
+      "school_id": "109904",
+      "name": "Bagtingon ES",
+      "district": "Buenavista",
+      "address": "Bagtingon, Buenavista",
+      "email": "109904@deped.gov.ph"
+    },
+    {
+      "school_id": "109905",
+      "name": "Bancoro ES",
+      "district": "Buenavista",
+      "address": "Bancoro Daykitin Buenavista Marinduque",
+      "email": "109905@deped.gov.ph"
+    },
+    {
+      "school_id": "109906",
+      "name": "Bicas-Bicas ES",
+      "district": "Buenavista",
+      "address": "Bicas-Bicas, Buenavista Marinduque",
+      "email": "109906@deped.gov.ph"
+    },
+    {
+      "school_id": "109907",
+      "name": "Binunga ES",
+      "district": "Buenavista",
+      "address": "Sitio Binunga, Yook, Buenavista, Marinduque",
+      "email": "109907@deped.gov.ph"
+    },
+    {
+      "school_id": "109908",
+      "name": "Buenavista CS",
+      "district": "Buenavista",
+      "address": "Barangay Uno Buenavista Marinduque",
+      "email": "109908@deped.gov.ph"
+    },
+    {
+      "school_id": "109909",
+      "name": "Caigangan ES",
+      "district": "Buenavista",
+      "address": "Caigangan, Buenavista Marinduque",
+      "email": "109909@deped.gov.ph"
+    },
+    {
+      "school_id": "109910",
+      "name": "Daat PS",
+      "district": "Buenavista",
+      "address": "Daat, Sihi Buenavista Marinduque",
+      "email": "109910@deped.gov.ph"
+    },
+    {
+      "school_id": "109911",
+      "name": "Daykitin ES",
+      "district": "Buenavista",
+      "address": "Daykitin, Buenavista, marinduque",
+      "email": "109911@deped.gov.ph"
+    },
+    {
+      "school_id": "109912",
+      "name": "Libas ES",
+      "district": "Buenavista",
+      "address": "Libas, Buenavista Marinduque",
+      "email": "109912@deped.gov.ph"
+    },
+    {
+      "school_id": "109913",
+      "name": "Lipata ES",
+      "district": "Buenavista",
+      "address": "Tungib-Lipata Buenavista Marinduque",
+      "email": "109913@deped.gov.ph"
+    },
+    {
+      "school_id": "109914",
+      "name": "Malbog Elementary School",
+      "district": "Buenavista",
+      "address": "Malbog, Buenavista Marinduque",
+      "email": "109914@deped.gov.ph"
+    },
+    {
+      "school_id": "109915",
+      "name": "Pag-asa ES",
+      "district": "Buenavista",
+      "address": "",
+      "email": "109915@deped.gov.ph"
+    },
+    {
+      "school_id": "109916",
+      "name": "Sihi ES",
+      "district": "Buenavista",
+      "address": "SIHI BUENAVISTA MARINDUQUE",
+      "email": "109916@deped.gov.ph"
+    },
+    {
+      "school_id": "109917",
+      "name": "Timbo ES",
+      "district": "Buenavista",
+      "address": "TIMBO, BUENAVISTA MARINDUQUE",
+      "email": "109917@deped.gov.ph"
+    },
+    {
+      "school_id": "109918",
+      "name": "Tungib Elementary School",
+      "district": "Buenavista",
+      "address": "Lipata-Tungib, Buenavista Marinduque",
+      "email": "109918@deped.gov.ph"
+    },
+    {
+      "school_id": "109919",
+      "name": "Yook ES",
+      "district": "Buenavista",
+      "address": "Yook, Buenavista Marinduque",
+      "email": "109919@deped.gov.ph"
+    },
+    {
+      "school_id": "109960",
+      "name": "Alobo ES",
+      "district": "Santa Cruz East",
+      "address": "Alobo, Santa Cruz Marinduque",
+      "email": "109960@deped.gov.ph"
+    },
+    {
+      "school_id": "109961",
+      "name": "Angas ES",
+      "district": "Santa Cruz East",
+      "address": "Angas Santa Cruz Marinduque",
+      "email": "109961@deped.gov.ph"
+    },
+    {
+      "school_id": "109962",
+      "name": "Banogbog ES",
+      "district": "Santa Cruz East",
+      "address": "Banogbog, Santa Cruz Marinduque",
+      "email": "109962@deped.gov.ph"
+    },
+    {
+      "school_id": "109963",
+      "name": "Biga ES",
+      "district": "Santa Cruz East",
+      "address": "Barangay Biga Santa Cruz Marinduque",
+      "email": "109963@deped.gov.ph"
+    },
+    {
+      "school_id": "109964",
+      "name": "Devilla ES",
+      "district": "Santa Cruz East",
+      "address": "Devilla, Santa Cruz, Marinduque",
+      "email": "109964@deped.gov.ph"
+    },
+    {
+      "school_id": "109965",
+      "name": "Haguimit ES",
+      "district": "Santa Cruz East",
+      "address": "Haguimit, Santa Cruz Marinduque",
+      "email": "109965@deped.gov.ph"
+    },
+    {
+      "school_id": "109966",
+      "name": "Makapuyat ES",
+      "district": "Santa Cruz East",
+      "address": "Napo, Santa Cruz Marinduque",
+      "email": "109966@deped.gov.ph"
+    },
+    {
+      "school_id": "109967",
+      "name": "Masaguisi ES",
+      "district": "Santa Cruz East",
+      "address": "MASAGUISI STA CRUZ MARINDUQUE",
+      "email": "109967@DEPED.GOV.PH"
+    },
+    {
+      "school_id": "109968",
+      "name": "Masalukot ES",
+      "district": "Santa Cruz East",
+      "address": "Masalukot Santa Cruz Marinduque",
+      "email": "109968@deped.gov.ph"
+    },
+    {
+      "school_id": "109969",
+      "name": "Morales ES",
+      "district": "Santa Cruz East",
+      "address": "Morales, Sta. Cruz Marinduque",
+      "email": "109969@deped.gov.ph"
+    },
+    {
+      "school_id": "109971",
+      "name": "Pansoy ES",
+      "district": "Santa Cruz East",
+      "address": "Brgy. Jolo, Santa Cruz Marinduque",
+      "email": "109971@deped.gov.ph"
+    },
+    {
+      "school_id": "109972",
+      "name": "Pantayin ES",
+      "district": "Santa Cruz East",
+      "address": "Brgy. Pantayin Santa Cruz Marinduque",
+      "email": "109972@deped.gov.ph"
+    },
+    {
+      "school_id": "109970",
+      "name": "Pulong Parang ES",
+      "district": "Santa Cruz East",
+      "address": "Pulong Parang, Santa Cruz Marinduque",
+      "email": "109970@deped.gov.ph"
+    },
+    {
+      "school_id": "109973",
+      "name": "Santa Cruz East Central School",
+      "district": "Santa Cruz East",
+      "address": "Lapu-Lapu Santa Cruz Marinduque",
+      "email": "109973@deped.gov.ph"
+    },
+    {
+      "school_id": "109974",
+      "name": "Tagum ES",
+      "district": "Santa Cruz East",
+      "address": "Tagum, Santa Cruz Marinduque",
+      "email": "109974@deped.gov.ph"
+    },
+    {
+      "school_id": "109975",
+      "name": "Tamayo ES",
+      "district": "Santa Cruz East",
+      "address": "Tamayo, Santa Cruz Marinduque",
+      "email": "109975@deped.gov.ph"
+    },
+    {
+      "school_id": "109976",
+      "name": "Tambangan ES",
+      "district": "Santa Cruz East",
+      "address": "Tambangan, Santa Cruz, Marinduque",
+      "email": "109976@deped.gov.ph"
+    },
+    {
+      "school_id": "109977",
+      "name": "Tawiran ES",
+      "district": "Santa Cruz East",
+      "address": "Tawiran, Santa Cruz Marinduque",
+      "email": "109977@deped.gov.ph"
+    },
+    {
+      "school_id": "109978",
+      "name": "Taytay ES",
+      "district": "Santa Cruz East",
+      "address": "Taytay, Santa Cruz Marinduque",
+      "email": "109978@deped.gov.ph"
+    },
+    {
+      "school_id": "109979",
+      "name": "Aturan ES",
+      "district": "Santa Cruz North",
+      "address": "Aturan Santa Cruz Marinduque",
+      "email": "109979@deped.gov.ph"
+    },
+    {
+      "school_id": "109980",
+      "name": "Baliis ES",
+      "district": "Santa Cruz North",
+      "address": "Sitio Central, Baliis, Santa Cruz Marinduque",
+      "email": "109980@deped.gov.ph"
+    },
+    {
+      "school_id": "109981",
+      "name": "Balogo ES",
+      "district": "Santa Cruz North",
+      "address": "BALOGO, SANTA CRUZ MARINDUQUE",
+      "email": "109981@deped.gov.ph"
+    },
+    {
+      "school_id": "109982",
+      "name": "Bangcuangan PS",
+      "district": "Santa Cruz North",
+      "address": "Bangcuangan, Santa Cruz Marinduque",
+      "email": "109982@deped.gov.ph"
+    },
+    {
+      "school_id": "109983",
+      "name": "Botilao ES",
+      "district": "Santa Cruz North",
+      "address": "",
+      "email": "109983@deped.gov.ph"
+    },
+    {
+      "school_id": "109984",
+      "name": "Dating Bayan ES",
+      "district": "Santa Cruz North",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "109985",
+      "name": "Dolores ES",
+      "district": "Santa Cruz North",
+      "address": "Dolores, Santa Cruz Marinduque",
+      "email": "109985@deped.gov.ph"
+    },
+    {
+      "school_id": "109986",
+      "name": "Hupi ES",
+      "district": "Santa Cruz North",
+      "address": "Bayanan Uno, Hupi, Santa Cruz Marinduque",
+      "email": "109986@deped.gov.ph"
+    },
+    {
+      "school_id": "109987",
+      "name": "Ipil ES",
+      "district": "Santa Cruz North",
+      "address": "Ipil Santa Cruz Marinduque",
+      "email": "109987@deped.gov.ph"
+    },
+    {
+      "school_id": "109988",
+      "name": "Kalangkang ES",
+      "district": "Santa Cruz North",
+      "address": "kalangkang, Santa Cruz Marinduque",
+      "email": "109988@deped.gov.ph"
+    },
+    {
+      "school_id": "109989",
+      "name": "Kamandugan ES",
+      "district": "Santa Cruz North",
+      "address": "Kamandugan, Santa Cruz Marinduque",
+      "email": "109989@deped.gov.ph"
+    },
+    {
+      "school_id": "109990",
+      "name": "Kasily ES",
+      "district": "Santa Cruz North",
+      "address": "Pantay I, Kasily, Santa Cruz Marinduque",
+      "email": "109990@deped.gov.ph"
+    },
+    {
+      "school_id": "109991",
+      "name": "Lamesa ES",
+      "district": "Santa Cruz North",
+      "address": "",
+      "email": "109991@deped.gov.ph"
+    },
+    {
+      "school_id": "109992",
+      "name": "Lusok ES",
+      "district": "Santa Cruz North",
+      "address": "Lusok Santa Cruz Marinduque",
+      "email": "109992@deped.gov.ph"
+    },
+    {
+      "school_id": "109993",
+      "name": "Punong ES",
+      "district": "Santa Cruz North",
+      "address": "Punong, Santa Cruz Marinduque",
+      "email": "109993@deped.gov.ph"
+    },
+    {
+      "school_id": "109994",
+      "name": "San Isidro ES",
+      "district": "Santa Cruz North",
+      "address": "San Isidro Santa Cruz Marinduque",
+      "email": "109994@deped.gov.ph"
+    },
+    {
+      "school_id": "109995",
+      "name": "Santa Cruz North CS",
+      "district": "Santa Cruz North",
+      "address": "Landy, Santa Cruz Marinduque",
+      "email": "109995@deped.gov.ph"
+    },
+    {
+      "school_id": "109996",
+      "name": "Buyabod ES",
+      "district": "Santa Cruz South",
+      "address": "Buyabod, Santa Cruz Marinduque",
+      "email": "antonniet.rodil001@deped.gov.ph"
+    },
+    {
+      "school_id": "109997",
+      "name": "Gabaldon ES",
+      "district": "Santa Cruz South",
+      "address": "Banahaw, Santa Cruz Marinduque",
+      "email": "109997@deped.gov.ph"
+    },
+    {
+      "school_id": "109998",
+      "name": "Kaganhao ES",
+      "district": "Santa Cruz South",
+      "address": "",
+      "email": "roselie.peregrin001@deped.gov.ph"
+    },
+    {
+      "school_id": "109999",
+      "name": "Kinyaman ES",
+      "district": "Santa Cruz South",
+      "address": "Kinyaman, Santa Cruz Marinduque",
+      "email": "jeffrey.mantala001@deped.gov.ph"
+    },
+    {
+      "school_id": "110000",
+      "name": "Labo ES",
+      "district": "Santa Cruz South",
+      "address": "Labo Santa Cruz Marinduque",
+      "email": "marygrace.palmero@deped.gov.ph"
+    },
+    {
+      "school_id": "169003",
+      "name": "Libjo Elementary School",
+      "district": "Santa Cruz South",
+      "address": "Libjo, Santa Cruz Marinduque",
+      "email": "169003@deped.gov.ph"
+    },
+    {
+      "school_id": "110001",
+      "name": "Lipa ES",
+      "district": "Santa Cruz South",
+      "address": "",
+      "email": "euzualina.gaspard@deped.gov.ph"
+    },
+    {
+      "school_id": "110002",
+      "name": "Makulapnit ES",
+      "district": "Santa Cruz South",
+      "address": "Makulapnit, Santa Cruz Marinduque",
+      "email": "lea.monterozo@deped.gov.ph"
+    },
+    {
+      "school_id": "110003",
+      "name": "Maniwaya ES",
+      "district": "Santa Cruz South",
+      "address": "Maniwaya, Santa Cruz Marinduque",
+      "email": "110003@deped.gov.ph"
+    },
+    {
+      "school_id": "110004",
+      "name": "Manlibunan ES",
+      "district": "Santa Cruz South",
+      "address": "Manlibunan Santa cruz Marinduque",
+      "email": "110004@deped.gov.ph"
+    },
+    {
+      "school_id": "110005",
+      "name": "Matalaba ES",
+      "district": "Santa Cruz South",
+      "address": "Matalaba, Santa Cruz, Marinduque",
+      "email": "110005@deped.gov.ph"
+    },
+    {
+      "school_id": "110006",
+      "name": "Mongpong ES",
+      "district": "Santa Cruz South",
+      "address": "Mongpong, Santa Cruz Marinduque",
+      "email": "110006@deped.gov.ph"
+    },
+    {
+      "school_id": "110007",
+      "name": "Polo ES",
+      "district": "Santa Cruz South",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "110008",
+      "name": "San Antonio ES",
+      "district": "Santa Cruz South",
+      "address": "San Antonio Santa Cruz Marinduque",
+      "email": "110008@deped.gov.ph"
+    },
+    {
+      "school_id": "110009",
+      "name": "Sta. Cruz South CS",
+      "district": "Santa Cruz South",
+      "address": "Banahaw Santa Cruz Marinduque",
+      "email": "110009@deped.gov.ph"
+    },
+    {
+      "school_id": "110010",
+      "name": "Tapian ES",
+      "district": "Santa Cruz South",
+      "address": "Kilo-Kilo, Santa Cruz Marinduque",
+      "email": "110010@deped.gov.ph"
+    },
+    {
+      "school_id": "110011",
+      "name": "Bangwayin ES",
+      "district": "Torrijos",
+      "address": "Bangwayin, Torrijos Marinduque",
+      "email": "110011@deped.gov.ph"
+    },
+    {
+      "school_id": "110012",
+      "name": "Banukbok PS",
+      "district": "Torrijos",
+      "address": "BANUKBOK , CABUYO, TORRIJOS MARINDUQUE",
+      "email": "110012@deped.gov.ph"
+    },
+    {
+      "school_id": "110013",
+      "name": "BAYAKBAKIN ELEMENTARY SCHOOL",
+      "district": "Torrijos",
+      "address": "BAYAKBAKIN, TORRIJOS MARINDUQUE",
+      "email": "leanallysa.hernandez@deped.gov.ph"
+    },
+    {
+      "school_id": "110014",
+      "name": "Bolo PS",
+      "district": "Torrijos",
+      "address": "BOLO TORRIJOS MARINDUQUE",
+      "email": "melinda.quimora@deped.gov.ph"
+    },
+    {
+      "school_id": "110015",
+      "name": "BONLIW ES",
+      "district": "Torrijos",
+      "address": "Bonliw, Torrijos Marinduque",
+      "email": "alwinjohn.reginio@deped.gov.ph"
+    },
+    {
+      "school_id": "110016",
+      "name": "Buangan ES",
+      "district": "Torrijos",
+      "address": "Buangan, Torrijos Marinduque",
+      "email": "marilyn.roldan003@deped.gov.ph"
+    },
+    {
+      "school_id": "110017",
+      "name": "Cabuyo ES",
+      "district": "Torrijos",
+      "address": "Cabuyo,Torrijos Marinduque",
+      "email": "floregail.regio@deped.gov.ph"
+    },
+    {
+      "school_id": "110018",
+      "name": "Cagpo ES",
+      "district": "Torrijos",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "110019",
+      "name": "Dampulan ES",
+      "district": "Torrijos",
+      "address": "Dampulan, Torrijos Marinduque",
+      "email": "110019@deped.gov.ph"
+    },
+    {
+      "school_id": "110020",
+      "name": "Kay Duke PS",
+      "district": "Torrijos",
+      "address": "Kay Duke, Torrijos Marinduque",
+      "email": "kaydukeps@gmail.com"
+    },
+    {
+      "school_id": "110021",
+      "name": "Mabuhay PS",
+      "district": "Torrijos",
+      "address": "MABUHAY TORRIJOS MARINDUQUE",
+      "email": "1100212@deped.gov.ph"
+    },
+    {
+      "school_id": "110022",
+      "name": "Makawayan ES",
+      "district": "Torrijos",
+      "address": "Makawayan, Torrijos Marinduque",
+      "email": "110022@deped.gov.ph"
+    },
+    {
+      "school_id": "110023",
+      "name": "Malibago ES",
+      "district": "Torrijos",
+      "address": "Malibago, Torrijos",
+      "email": "110023@deped,gov.ph"
+    },
+    {
+      "school_id": "110024",
+      "name": "Malinao ES",
+      "district": "Torrijos",
+      "address": "",
+      "email": "110024@deped.gov.ph"
+    },
+    {
+      "school_id": "110025",
+      "name": "Maranlig ES",
+      "district": "Torrijos",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "110026",
+      "name": "Marlangga ES",
+      "district": "Torrijos",
+      "address": "",
+      "email": "karlojose.valencia@deped.gov.ph"
+    },
+    {
+      "school_id": "110027",
+      "name": "Matuyatuya ES",
+      "district": "Torrijos",
+      "address": "Matuyatuya, Torrijos Marinduque",
+      "email": "joma.regio@deped.gov.ph"
+    },
+    {
+      "school_id": "110028",
+      "name": "Nangka ES",
+      "district": "Torrijos",
+      "address": "NANGKA TORRIJOS MARINDUQUE",
+      "email": "christopher.patriarca@deped.gov.ph"
+    },
+    {
+      "school_id": "110029",
+      "name": "Pakaskasan ES",
+      "district": "Torrijos",
+      "address": "Pakaskasan,Torrijos Marinduque",
+      "email": "110029@deped.gov.ph"
+    },
+    {
+      "school_id": "110030",
+      "name": "Payanas ES",
+      "district": "Torrijos",
+      "address": "",
+      "email": ""
+    },
+    {
+      "school_id": "110031",
+      "name": "Poctoy ES",
+      "district": "Torrijos",
+      "address": "Poctoy, Torrijos Marinduque",
+      "email": "110031@deped.gov.ph"
+    },
+    {
+      "school_id": "110032",
+      "name": "Sibuyao ES",
+      "district": "Torrijos",
+      "address": "Sibuyao Torrijos Marinduque",
+      "email": "110032@deped.gov.ph"
+    },
+    {
+      "school_id": "169005",
+      "name": "Sinambahan Primary School",
+      "district": "Torrijos",
+      "address": "Sitio Sinambahan, Malibago, Torrijos Marinduque",
+      "email": "169005@deped.gov.ph"
+    },
+    {
+      "school_id": "110033",
+      "name": "Suha ES",
+      "district": "Torrijos",
+      "address": "Suha, Torrijos Marinduque",
+      "email": "110033@deped.gov.ph"
+    },
+    {
+      "school_id": "110034",
+      "name": "Talawan ES",
+      "district": "Torrijos",
+      "address": "TALAWAN TORRIJOS MARINDUQUE",
+      "email": "lirio.naranjo@deped.gov.ph"
+    },
+    {
+      "school_id": "110035",
+      "name": "Tigwi ES",
+      "district": "Torrijos",
+      "address": "",
+      "email": "110035@deped.gov.ph"
+    },
+    {
+      "school_id": "110036",
+      "name": "Torrijos CS",
+      "district": "Torrijos",
+      "address": "",
+      "email": "diolita.zoleta001@deped.gov.ph"
+    }
+  ],
+  "secondary_schools": [
+    {
+      "school_id": "301544",
+      "name": "Ilaya NHS",
+      "district": "Boac North",
+      "address": "Balimbing, Boac Marinduque",
+      "email": "301544@deped.gov.ph"
+    },
+    {
+      "school_id": "301554",
+      "name": "Marinduque NHS",
+      "district": "Boac North",
+      "address": "Isok 1",
+      "email": "301554@deped.gov.ph"
+    },
+    {
+      "school_id": "301541",
+      "name": "Cawit NHS",
+      "district": "Boac South",
+      "address": "Cawit, Boac Marinduque",
+      "email": "301541@deped.gov.ph"
+    },
+    {
+      "school_id": "301529",
+      "name": "Argao NHS",
+      "district": "Mogpog",
+      "address": "Argao, Mogpog Marinduque",
+      "email": "301529@deped.gov.ph"
+    },
+    {
+      "school_id": "301530",
+      "name": "Balanacan NHS",
+      "district": "Mogpog",
+      "address": "Balanacan, Mogpog Marinduque",
+      "email": "patrick.llamas@deped.gov.ph"
+    },
+    {
+      "school_id": "301540",
+      "name": "Butansapa National High School",
+      "district": "Mogpog",
+      "address": "BUTANSAPA, MOGPOG Marinduque",
+      "email": "301540@deped.gov.ph"
+    },
+    {
+      "school_id": "301577",
+      "name": "Mogpog NCHS",
+      "district": "Mogpog",
+      "address": "MA. CORAZON A. BORJA, EDD",
+      "email": "mnchs1997@gmail.com"
+    },
+    {
+      "school_id": "308803",
+      "name": "Puting Buhangin NHS",
+      "district": "Mogpog",
+      "address": "Puting Buhangin, Mogpog Marinduque",
+      "email": "308803@deped.gov.ph"
+    },
+    {
+      "school_id": "301561",
+      "name": "Sayao NHS",
+      "district": "Mogpog",
+      "address": "Sayao, Mogpog Marinduque",
+      "email": "301561@deped.gov.ph"
+    },
+    {
+      "school_id": "301531",
+      "name": "Bangbang NHS",
+      "district": "Gasan",
+      "address": "Bangbang, Gasan Marinduque",
+      "email": "301531@r4b.deped.gov.ph"
+    },
+    {
+      "school_id": "301532",
+      "name": "Bognuyan NHS",
+      "district": "Gasan",
+      "address": "Bognuyan, Gasan Marinduque",
+      "email": "marivic.zamora001@deped.gov.ph"
+    },
+    {
+      "school_id": "308804",
+      "name": "Paciano A. Sena Memorial High School",
+      "district": "Gasan",
+      "address": "Tabionan, Gasan, Marinduque",
+      "email": "308804@deped.gov.ph"
+    },
+    {
+      "school_id": "301565",
+      "name": "Tapuyan NHS",
+      "district": "Gasan",
+      "address": "Purok 4, Barangay Tapuyan, Gasan Marinduque",
+      "email": "301565@deped.gov.ph"
+    },
+    {
+      "school_id": "301567",
+      "name": "Tiguion NHS",
+      "district": "Gasan",
+      "address": "Central Dos, Tiguion, Gasan, Marinduque",
+      "email": "301567@deped.gov.ph"
+    },
+    {
+      "school_id": "308805",
+      "name": "Bagtingon National High School",
+      "district": "Buenavista",
+      "address": "Bagtingon, Buenavista Marinduque",
+      "email": "308805@deped.gov.ph"
+    },
+    {
+      "school_id": "301536",
+      "name": "Buenavista National High School",
+      "district": "Buenavista",
+      "address": "- Bagacay Annex Bagacay, Buenavista Marinduque",
+      "email": "301536@deped.gov.ph"
+    },
+    {
+      "school_id": "301535",
+      "name": "Buenavista NHS",
+      "district": "Buenavista",
+      "address": "Barangay Uno, Poblacion, Buenavista Marinduque",
+      "email": "301535@deped.gov.ph"
+    },
+    {
+      "school_id": "301537",
+      "name": "Buenavista NHS",
+      "district": "Buenavista",
+      "address": "- Daykitin Annex Daykitin, Buenavista Marinduque",
+      "email": "301537@deped.gov.ph"
+    },
+    {
+      "school_id": "301538",
+      "name": "Buenavista NHS",
+      "district": "Buenavista",
+      "address": "- Lipata-Tungib Annex Tungib-Lipata, Buenavista Marinduque",
+      "email": "301538@deped.gov.ph"
+    },
+    {
+      "school_id": "301539",
+      "name": "Buenavista NHS",
+      "district": "Buenavista",
+      "address": "- Sihi Annex Sihi, Buenavista Marinduque",
+      "email": "301539@deped.gov.ph"
+    },
+    {
+      "school_id": "301568",
+      "name": "Yook NHS",
+      "district": "Buenavista",
+      "address": "Barangay Yook, Buenavista Marinduque",
+      "email": "301568@deped.gov.ph"
+    },
+    {
+      "school_id": "301528",
+      "name": "Alobo NHS",
+      "district": "Santa Cruz East",
+      "address": "Alobo Santa Cruz Marinduque",
+      "email": "301528@deped.gov.ph"
+    },
+    {
+      "school_id": "301549",
+      "name": "Makapuyat NHS",
+      "district": "Santa Cruz East",
+      "address": "NAPO, SANTA CRUZ MARINDUQUE",
+      "email": "301549@deped.gov.ph"
+    },
+    {
+      "school_id": "301550",
+      "name": "Masaguisi National Hig School",
+      "district": "Santa Cruz East",
+      "address": "Masaguisi, Santa Cruz",
+      "email": "301550@deped.gov.ph"
+    },
+    {
+      "school_id": "301563",
+      "name": "Tagum National High School",
+      "district": "Santa Cruz East",
+      "address": "Tagum, Santa Cruz, Marinduque",
+      "email": "301563@deped.gov.ph"
+    },
+    {
+      "school_id": "301564",
+      "name": "Tambangan NHS",
+      "district": "Santa Cruz East",
+      "address": "Tambangan Santa Cruz Marinduque",
+      "email": "301564@deped.gov.ph"
+    },
+    {
+      "school_id": "301534",
+      "name": "Botilao NHS",
+      "district": "Santa Cruz North",
+      "address": "Botilao, Santa Cruz Marinduque",
+      "email": "301534@deped.gov.ph"
+    },
+    {
+      "school_id": "301542",
+      "name": "Dolores NHS",
+      "district": "Santa Cruz North",
+      "address": "Dolores, Santa Cruz Marinduque",
+      "email": "301542@r4b.deped.gov.ph"
+    },
+    {
+      "school_id": "301543",
+      "name": "Hupi NHS",
+      "district": "Santa Cruz North",
+      "address": "Bayan II, Hupi Santa Cruz Marinduque",
+      "email": "301543@deped.gov.ph"
+    },
+    {
+      "school_id": "301545",
+      "name": "Ipil NHS",
+      "district": "Santa Cruz North",
+      "address": "Ipil, Santa Cruz Marinduque",
+      "email": "301545@deped.gov.ph"
+    },
+    {
+      "school_id": "301546",
+      "name": "Kasily NHS",
+      "district": "Santa Cruz North",
+      "address": "Kasily, Santa Cruz Marinduque",
+      "email": "301546@deped.gov.ph"
+    },
+    {
+      "school_id": "301548",
+      "name": "Landy NHS",
+      "district": "Santa Cruz North",
+      "address": "Lumang Bayanan, Landy, Santa Cruz",
+      "email": "enrico.esplana@deped.gov.ph"
+    },
+    {
+      "school_id": "301560",
+      "name": "Punong NHS",
+      "district": "Santa Cruz North",
+      "address": "Punong Sta. Cruz Marinduque",
+      "email": "301560@deped.gov.ph"
+    },
+    {
+      "school_id": "301547",
+      "name": "Kilo-Kilo NHS",
+      "district": "Santa Cruz South",
+      "address": "Kilo-Kilo, Santa Cruz Marinduque",
+      "email": "301547@deped.gov.ph"
+    },
+    {
+      "school_id": "301552",
+      "name": "Maniwaya NHS",
+      "district": "Santa Cruz South",
+      "address": "Maniwaya, Santa Cruz Marinduque",
+      "email": "jerson.lumbre@deped.gov.ph"
+    },
+    {
+      "school_id": "301555",
+      "name": "Matalaba National High School",
+      "district": "Santa Cruz South",
+      "address": "Matalaba, Santa Cruz Marinduque",
+      "email": "301555@deped.gov.ph"
+    },
+    {
+      "school_id": "301558",
+      "name": "Mongpong NHS",
+      "district": "Santa Cruz South",
+      "address": "Mongpong Santa Cruz Marinduque",
+      "email": "301558@deped.gov.ph"
+    },
+    {
+      "school_id": "301559",
+      "name": "Polo NHS",
+      "district": "Santa Cruz South",
+      "address": "Polo, Santa Cruz Marinduque",
+      "email": "301559@deped.gov.ph"
+    },
+    {
+      "school_id": "301533",
+      "name": "Bonliw NHS",
+      "district": "Torrijos",
+      "address": "Bonliw, Torrijos Marinduque",
+      "email": "301533@deped.gov.ph"
+    },
+    {
+      "school_id": "301551",
+      "name": "Malibago National High School",
+      "district": "Torrijos",
+      "address": "Malibago, Torrijos Marinduque",
+      "email": "301551@deped.gov.ph"
+    },
+    {
+      "school_id": "301553",
+      "name": "Maranlig NHS",
+      "district": "Torrijos",
+      "address": "Maranlig, Torrijos Marinduque",
+      "email": "301553@deped.gov.ph"
+    },
+    {
+      "school_id": "301556",
+      "name": "MATUYATUYA NHS",
+      "district": "Torrijos",
+      "address": "Brgy Matuyatuya, Torrijos Marinduque",
+      "email": "lawrence.rolluqui@deped.gov.ph"
+    },
+    {
+      "school_id": "308801",
+      "name": "Poctoy NHS",
+      "district": "Torrijos",
+      "address": "Poctoy, Torrijos, Marinduque",
+      "email": "308801@deped.gov.ph"
+    },
+    {
+      "school_id": "301562",
+      "name": "Sibuyao NHS",
+      "district": "Torrijos",
+      "address": "Sibuyao Torrijos Marinduque",
+      "email": "301562@deped.gov.ph"
+    },
+    {
+      "school_id": "301566",
+      "name": "Tigwi NHS",
+      "district": "Torrijos",
+      "address": "Sitio Malamig, Barangay, Tigwi, Torrijos Marinduque",
+      "email": "301566@deped.gov.ph"
+    },
+    {
+      "school_id": "342646",
+      "name": "Torrijos SHS",
+      "district": "Torrijos",
+      "address": "Standalone Sitio Bulihan, Tigwi, Torrijos Marinduque",
+      "email": "342646@deped.gov.ph"
+    }
+  ],
+  "universities_colleges": [
+    {
+      "name": "Marinduque State University (MarSU) - Boac Campus (Main)",
+      "type": "State University (SUC)",
+      "address": "Panfilo Manguera Sr. Rd., Tanza, Boac, Marinduque, 4900",
+      "notes": "Formerly Marinduque School of Arts and Trades (1952-1983), Marinduque Institute of Science and Technology (1983-1992), Marinduque State College (1992-2019). Converted to university status via RA 11334 (2019).",
+      "website": "marsu.edu.ph"
+    },
+    {
+      "name": "Marinduque State University (MarSU) - Gasan Campus",
+      "type": "State University (SUC) - Satellite Campus",
+      "address": "Gasan, Marinduque",
+      "notes": "Satellite/branch campus; hosts College of Fisheries and Allied Sciences.",
+      "website": "marsu.edu.ph"
+    },
+    {
+      "name": "Marinduque State University (MarSU) - Santa Cruz Campus",
+      "type": "State University (SUC) - Satellite Campus",
+      "address": "Santa Cruz, Marinduque",
+      "notes": "Satellite/branch campus.",
+      "website": "marsu.edu.ph"
+    },
+    {
+      "name": "Marinduque State University (MarSU) - Torrijos Campus",
+      "type": "State University (SUC) - Satellite Campus",
+      "address": "Torrijos, Marinduque",
+      "notes": "Satellite/branch campus.",
+      "website": "marsu.edu.ph"
+    },
+    {
+      "name": "Marinduque State University (MarSU) - Mogpog Campus",
+      "type": "State University (SUC) - Satellite Campus",
+      "address": "Mogpog, Marinduque",
+      "notes": "Satellite/branch campus.",
+      "website": "marsu.edu.ph"
+    }
+  ],
+  "technical_vocational_schools": [
+    {
+      "name": "Marinduque Technical Training Center Inc.",
+      "type": "Private TVI (TESDA-registered)",
+      "address": "Sitio Oriental, Brgy. Napo, Santa Cruz, Marinduque",
+      "phone": "9497215231",
+      "notes": "Offers NC courses including Electrical Installation & Maintenance, PV Systems Installation, Bread and Pastry Production, Welding (SMAW/GTAW), Driving."
+    },
+    {
+      "name": "Marinduque Manpower and Trade Skills Institute Inc.",
+      "type": "Private TVI (TESDA-registered)",
+      "address": "Brgy. Santol, Boac, Marinduque",
+      "phone": "(042) 311-1595",
+      "notes": "Offers Bread and Pastry Production, Welding (SMAW) NC I/II."
+    },
+    {
+      "name": "Marinduque Technical and Vocational Institute, Inc.",
+      "type": "Private TVI (TESDA-registered)",
+      "address": "Masiga, Gasan, Marinduque",
+      "notes": "Also offers Junior High School (Grade 7-9) under DepEd GPO; TESDA courses include Bookkeeping NC III, Computer Systems Servicing NC II, Electronics Products Assembly and Servicing NC II."
+    },
+    {
+      "name": "Torrijos Poblacion School of Arts and Trade",
+      "type": "Public TVI (TESDA-registered)",
+      "address": "Brgy. Poctoy, Torrijos, Marinduque",
+      "phone": "9999337776",
+      "notes": "Offers Food and Beverage Services NC II, Bread and Pastry Production NC II, Electronic Products Assembly and Servicing NC II, Ship's Catering Services NC I."
+    },
+    {
+      "name": "Buyabod School of Arts and Trades",
+      "type": "Public TVI (TESDA-registered)",
+      "address": "Buyabod, Santa Cruz, Marinduque",
+      "notes": "Public technical-vocational school; participated in TESDA quality management re-echo training."
+    }
+  ]
+}

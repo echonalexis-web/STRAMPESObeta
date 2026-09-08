@@ -1,21 +1,11 @@
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { jobAPI } from "../services/api";
+import EmployerAvatar from "../components/EmployerAvatar";
 import "../styles/jobboard.css";
-import Modal from "../components/Modal";
-import AppModal from "../components/AppModal";
-import JobFavoriteButton from "../components/JobFavoriteButton";
-import QualificationsDisplay from "../components/QualificationsDisplay";
-import { AuthContext } from "../context/AuthContext";
-import {
-  FaMapMarkerAlt,
-  FaBriefcase,
-  FaCalendarAlt,
-  FaTrash,
-  FaEdit,
-  FaFileAlt,
-  FaExclamationTriangle,
-} from "react-icons/fa";
+import { FaExclamationTriangle, FaRegEye, FaPen, FaTrashAlt } from "react-icons/fa";
+
+const PER_PAGE = 5;
 
 const formatDate = (date) => {
   if (!date) return "N/A";
@@ -26,42 +16,47 @@ const formatDate = (date) => {
   });
 };
 
-const getStatusBadgeColor = (status) => {
-  const normalizedStatus = String(status || "").toLowerCase();
-  if (
-    normalizedStatus === "hired" ||
-    normalizedStatus === "accepted"
-  ) {
-    return "hired";
-  }
-  if (normalizedStatus === "rejected") {
-    return "rejected";
-  }
-  if (normalizedStatus === "shortlisted") {
-    return "shortlisted";
-  }
-  if (normalizedStatus === "reviewed") {
-    return "reviewed";
-  }
-  return "pending";
+const baseName = (path) => (path ? String(path).replace(/\\/g, "/").split("/").pop() : "");
+
+const locationLine = (address) => {
+  if (!address) return "Location not specified";
+  const parts = String(address).split(", ").filter(Boolean);
+  return parts.length > 2 ? parts.slice(1).join(", ") : address;
 };
+
+const STATUS_META = {
+  pending:     { label: "Pending",      tone: "pending" },
+  applied:     { label: "Pending",      tone: "pending" },
+  reviewed:    { label: "Reviewed",     tone: "pending" },
+  shortlisted: { label: "Shortlisted",  tone: "shortlisted" },
+  accepted:    { label: "Accepted",     tone: "accepted" },
+  hired:       { label: "Hired",        tone: "accepted" },
+  rejected:    { label: "Not selected", tone: "rejected" },
+};
+
+const statusMeta = (status) =>
+  STATUS_META[String(status || "").toLowerCase()] || { label: status || "Pending", tone: "pending" };
+
+const TABS = [
+  { key: "all", label: "All", match: () => true },
+  { key: "pending", label: "Pending", match: (s) => s === "pending" || s === "applied" },
+  { key: "reviewed", label: "Reviewed", match: (s) => s === "reviewed" },
+  { key: "shortlisted", label: "Shortlisted", match: (s) => s === "shortlisted" },
+  { key: "accepted", label: "Accepted", match: (s) => s === "accepted" || s === "hired" },
+  { key: "rejected", label: "Rejected", match: (s) => s === "rejected" },
+];
 
 export default function YourApplications() {
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
 
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedJob, setSelectedJob] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingApplication, setEditingApplication] = useState(null);
+  const [activeTab, setActiveTab] = useState("all");
+  const [page, setPage] = useState(1);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
-  const [isUpdatingApplication, setIsUpdatingApplication] = useState(false);
-  const [isDeletingApplication, setIsDeletingApplication] = useState(false);
-  const [editResumeFile, setEditResumeFile] = useState(null);
-  const [editCoverLetterFile, setEditCoverLetterFile] = useState(null);
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -83,311 +78,186 @@ export default function YourApplications() {
 
   useEffect(() => {
     if (!toastMessage) return;
-    const timer = setTimeout(() => {
-      setToastMessage(null);
-    }, 3000);
+    const timer = setTimeout(() => setToastMessage(null), 3000);
     return () => clearTimeout(timer);
   }, [toastMessage]);
 
-  const handleViewDetails = (application) => {
-    if (application.vacancy) {
-      setSelectedJob(application.vacancy);
-      setIsModalOpen(true);
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
+
+  const counts = useMemo(() => {
+    const c = {};
+    for (const tab of TABS) {
+      c[tab.key] = applications.filter((a) => tab.match(String(a.status || "").toLowerCase())).length;
     }
-  };
+    return c;
+  }, [applications]);
 
-  const handleEdit = (application) => {
-    setEditingApplication(application);
-    setEditResumeFile(null);
-    setEditCoverLetterFile(null);
-  };
+  const filtered = useMemo(() => {
+    const tab = TABS.find((t) => t.key === activeTab) || TABS[0];
+    return applications.filter((a) => tab.match(String(a.status || "").toLowerCase()));
+  }, [applications, activeTab]);
 
-  const handleCancelEdit = () => {
-    setEditingApplication(null);
-    setEditResumeFile(null);
-    setEditCoverLetterFile(null);
-  };
-
-  const handleUpdateApplication = async () => {
-    if (!editingApplication) return;
-
-    setIsUpdatingApplication(true);
-    try {
-      const formData = new FormData();
-      formData.append("coverLetter", editingApplication.coverLetter || "");
-      if (editResumeFile) formData.append("resume", editResumeFile);
-      if (editCoverLetterFile) formData.append("coverLetterFile", editCoverLetterFile);
-
-      await jobAPI.updateApplication(editingApplication._id, formData);
-      setToastMessage("Application updated successfully!");
-      setEditingApplication(null);
-      await fetchApplications();
-    } catch (err) {
-      setToastMessage(err.response?.data?.message || "Failed to update application");
-    } finally {
-      setIsUpdatingApplication(false);
-    }
-  };
-
-  const handleWithdraw = (applicationId) => {
-    setConfirmDeleteId(applicationId);
-  };
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const visible = filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
 
   const handleConfirmWithdraw = async () => {
     if (!confirmDeleteId) return;
-
-    setIsDeletingApplication(true);
+    setIsDeleting(true);
     try {
       await jobAPI.deleteApplication(confirmDeleteId);
-      setToastMessage("Application withdrawn successfully!");
+      setToastMessage("Application withdrawn.");
       setConfirmDeleteId(null);
       await fetchApplications();
     } catch (err) {
-      setToastMessage(err.response?.data?.message || "Failed to withdraw application");
+      setToastMessage(err.response?.data?.message || "Failed to withdraw application.");
     } finally {
-      setIsDeletingApplication(false);
+      setIsDeleting(false);
     }
-  };
-
-  const handleCancelWithdraw = () => {
-    setConfirmDeleteId(null);
   };
 
   return (
     <div className="jobboard-container">
-      <section className="jobboard-hero">
+      <section className="jobboard-hero jobboard-hero--slim">
         <div className="jobboard-hero-content">
-          <h1 className="jobboard-hero-title">Your Applications</h1>
-          <p className="jobboard-hero-subtitle">
-            Manage and track all your job applications in one place
-          </p>
+          <h1>Your Applications</h1>
+          <p>Track every job you have applied to and pick up where you left off.</p>
         </div>
       </section>
 
       <div className="jobboard-content">
-        <div className="jobboard-count">
-          <span>
-            {loading ? "Loading..." : `${applications.length} Application${applications.length !== 1 ? "s" : ""}`}
-          </span>
+        <div className="app-status-tabs" role="tablist" aria-label="Filter applications by status">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              className={`app-tab ${activeTab === tab.key ? "is-active" : ""}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}<span className="app-tab-n">{counts[tab.key] ?? 0}</span>
+            </button>
+          ))}
         </div>
 
-        {toastMessage && (
-          <div className="toast-notification toast-success">
-            {toastMessage}
-          </div>
-        )}
-
-        {error && (
-          <div className="alert alert-error" style={{ marginBottom: "2rem" }}>
-            {error}
-          </div>
-        )}
+        {error && <div className="error-message" style={{ marginBottom: "1.5rem" }}>{error}</div>}
 
         {loading ? (
-          <div className="jobboard-grid">
-            <p>Loading your applications...</p>
-          </div>
+          <p className="app-list-empty">Loading your applications…</p>
         ) : applications.length === 0 ? (
-          <div className="jobboard-grid">
-            <p>You haven't applied to any jobs yet. Start exploring opportunities!</p>
-          </div>
+          <p className="app-list-empty">
+            You haven’t applied to any jobs yet. <button className="link-btn" onClick={() => navigate("/jobs")}>Browse jobs</button>
+          </p>
         ) : (
-          <div className="jobboard-grid">
-            {applications.map((application) => {
-              const job = application.vacancy || {};
-              const employer = job.employer || {};
-              const isEditing = editingApplication?._id === application._id;
+          <>
+            {visible.length === 0 ? (
+              <p className="app-list-empty">No applications in this status.</p>
+            ) : (
+              <div className="applications-list">
+                {visible.map((application) => {
+                  const job = application.vacancy || {};
+                  const employer = job.employer || {};
+                  const meta = statusMeta(application.status);
+                  const jobId = job._id;
 
-              if (isEditing) {
-                return (
-                  <div key={application._id} className="job-card job-card-editing">
-                    <div className="job-card-header">
-                      <div className="job-brand-block">
-                        <div className="job-brand-logo">
-                          {employer.companyName?.charAt(0) || "C"}
+                  return (
+                    <div key={application._id} className="app-row">
+                      <EmployerAvatar employer={employer} className="app-row-logo" />
+
+                      <div className="app-row-main">
+                        <div className="app-row-main-top">
+                          <button
+                            type="button"
+                            className="app-row-title"
+                            onClick={() => jobId && navigate(`/jobs/${jobId}`)}
+                            disabled={!jobId}
+                          >
+                            {job.title || "Untitled position"}
+                          </button>
+                          <span className={`status-pill tone-${meta.tone}`}>{meta.label}</span>
                         </div>
-                        <div className="job-brand-text">
-                          <p className="job-company-name">{employer.companyName || employer.name || "Unknown Employer"}</p>
-                          <h3>{job.title || "Untitled Position"}</h3>
+                        <div className="app-row-sub">
+                          {(employer.companyName || employer.name || "Unknown employer")}
+                          {" · "}
+                          {locationLine(job.location)}
+                        </div>
+                        <div className="app-row-metaline">
+                          Applied {formatDate(application.appliedAt)}
+                          {application.resume ? ` · résumé ${baseName(application.resume)}` : ""}
                         </div>
                       </div>
-                      <span className={`job-status status-${getStatusBadgeColor(application.status)}`}>
-                        {application.status || "Pending"}
-                      </span>
-                    </div>
 
-                    <div className="application-edit-form">
-                      <div className="form-group">
-                        <label htmlFor={`cover-letter-${application._id}`}>Cover Letter</label>
-                        <textarea
-                          id={`cover-letter-${application._id}`}
-                          value={editingApplication.coverLetter || ""}
-                          onChange={(e) =>
-                            setEditingApplication({
-                              ...editingApplication,
-                              coverLetter: e.target.value,
-                            })
-                          }
-                          rows="5"
-                          placeholder="Write or edit your cover letter..."
-                        />
-                      </div>
-
-                      <div className="form-group">
-                        <label htmlFor={`resume-${application._id}`}>Resume (optional)</label>
-                        <input
-                          id={`resume-${application._id}`}
-                          type="file"
-                          accept=".pdf,.doc,.docx"
-                          onChange={(e) => setEditResumeFile(e.target.files[0])}
-                        />
-                        {editResumeFile && <p className="file-name">New file: {editResumeFile.name}</p>}
-                        {application.resume && !editResumeFile && (
-                          <p className="file-name">Current: {application.resume}</p>
-                        )}
-                      </div>
-
-                      <div className="form-group">
-                        <label htmlFor={`cover-letter-file-${application._id}`}>Cover Letter File (optional)</label>
-                        <input
-                          id={`cover-letter-file-${application._id}`}
-                          type="file"
-                          accept=".pdf,.doc,.docx"
-                          onChange={(e) => setEditCoverLetterFile(e.target.files[0])}
-                        />
-                        {editCoverLetterFile && <p className="file-name">New file: {editCoverLetterFile.name}</p>}
-                        {application.coverLetterFile && !editCoverLetterFile && (
-                          <p className="file-name">Current: {application.coverLetterFile}</p>
-                        )}
-                      </div>
-
-                      <div className="form-actions">
+                      <div className="app-row-actions">
                         <button
                           type="button"
-                          className="btn btn-success btn-form-save"
-                          onClick={handleUpdateApplication}
-                          disabled={isUpdatingApplication}
+                          className="app-act app-act-view"
+                          onClick={() => jobId && navigate(`/jobs/${jobId}`)}
+                          disabled={!jobId}
                         >
-                          {isUpdatingApplication ? "Saving..." : "Save Changes"}
+                          <FaRegEye /> View
                         </button>
-                        <button 
+                        <button
                           type="button"
-                          className="btn btn-secondary btn-form-cancel" 
-                          onClick={handleCancelEdit} 
-                          disabled={isUpdatingApplication}
+                          className="app-act app-act-edit"
+                          onClick={() => jobId && navigate(`/jobs/${jobId}/apply?mode=edit`)}
+                          disabled={!jobId}
                         >
-                          Cancel
+                          <FaPen /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="app-act app-act-withdraw"
+                          onClick={() => setConfirmDeleteId(application._id)}
+                        >
+                          <FaTrashAlt /> Withdraw
                         </button>
                       </div>
                     </div>
-                  </div>
-                );
-              }
+                  );
+                })}
+              </div>
+            )}
 
-              return (
-                <div key={application._id} className="job-card">
-                  <div className="job-card-header">
-                    <div className="job-brand-block">
-                      <div className="job-brand-logo">
-                        {employer.companyName?.charAt(0) || "C"}
-                      </div>
-                      <div className="job-brand-text">
-                        <p className="job-company-name">{employer.companyName || employer.name || "Unknown Employer"}</p>
-                        <h3>{job.title || "Untitled Position"}</h3>
-                      </div>
-                    </div>
-                    <span className={`job-status status-${getStatusBadgeColor(application.status)}`}>
-                      {application.status || "Pending"}
-                    </span>
-                  </div>
-
-                  <div className="job-card-location">
-                    <FaMapMarkerAlt />
-                    <span>{job.location || "Not specified"}</span>
-                  </div>
-
-                  {job.qualifications && job.qualifications.length > 0 && (
-                    <div className="job-requirements-box">
-                      <QualificationsDisplay qualifications={job.qualifications} compact />
-                    </div>
-                  )}
-
-                  <div className="job-card-details" style={{ marginTop: "auto", paddingTop: "8px", fontSize: "13px", color: "#6b7280" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-                      <FaBriefcase style={{ fontSize: "12px" }} />
-                      <span>{job.jobType || "Not specified"}</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <FaCalendarAlt style={{ fontSize: "12px" }} />
-                      <span>Applied: {formatDate(application.appliedAt)}</span>
-                    </div>
-                  </div>
-
-                  <div className="job-card-actions">
-                    <button
-                      type="button"
-                      className="btn btn-info btn-app-view"
-                      onClick={() => handleViewDetails(application)}
-                    >
-                      View Details
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-warning btn-app-edit"
-                      onClick={() => handleEdit(application)}
-                    >
-                      <FaEdit /> Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-app-withdraw"
-                      onClick={() => handleWithdraw(application._id)}
-                    >
-                      <FaTrash /> Withdraw
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+            <div className="pagination-controls">
+              <button
+                className="pagination-btn"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage <= 1}
+              >
+                ← Previous
+              </button>
+              <div className="pagination-info">Page {safePage} of {totalPages}</div>
+              <button
+                className="pagination-btn"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage >= totalPages}
+              >
+                Next →
+              </button>
+            </div>
+          </>
         )}
       </div>
 
-      {isModalOpen && selectedJob && (
-        <Modal 
-          isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)}
-          job={selectedJob}
-          onMessageEmployer={() => {}}
-          applications={applications}
-          onViewApplication={() => setIsModalOpen(false)}
-        />
+      {toastMessage && (
+        <div className="app-toast app-toast--success" role="status" aria-live="polite">{toastMessage}</div>
       )}
 
       {confirmDeleteId && (
-        <div className="modal-overlay" onClick={handleCancelWithdraw}>
+        <div className="modal-overlay" onClick={() => !isDeleting && setConfirmDeleteId(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-icon modal-icon-warning">
-              <FaExclamationTriangle />
-            </div>
-            <h2>Withdraw Application?</h2>
-            <p>Are you sure you want to withdraw this application? This action cannot be undone.</p>
+            <div className="modal-icon modal-icon-warning"><FaExclamationTriangle /></div>
+            <h2>Withdraw application?</h2>
+            <p>This removes your application for this job. You can apply again while the vacancy is open.</p>
             <div className="modal-actions">
-              <button 
-                type="button"
-                className="btn btn-secondary" 
-                onClick={handleCancelWithdraw} 
-                disabled={isDeletingApplication}
-              >
+              <button type="button" className="btn btn-secondary" onClick={() => setConfirmDeleteId(null)} disabled={isDeleting}>
                 Cancel
               </button>
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={handleConfirmWithdraw}
-                disabled={isDeletingApplication}
-              >
-                {isDeletingApplication ? "Withdrawing..." : "Withdraw"}
+              <button type="button" className="btn btn-danger" onClick={handleConfirmWithdraw} disabled={isDeleting}>
+                {isDeleting ? "Withdrawing…" : "Withdraw"}
               </button>
             </div>
           </div>

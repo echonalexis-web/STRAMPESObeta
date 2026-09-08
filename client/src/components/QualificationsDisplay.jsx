@@ -1,51 +1,20 @@
 import React from "react";
 import "../styles/qualifications-editor.css";
-
-const TYPE_ICONS = {
-  education: "🎓",
-  experience: "💼",
-  skill: "🔧",
-  certification: "📜",
-  license: "📄",
-  other: "📌",
-};
-
-const TYPE_LABELS = {
-  education: "Education",
-  experience: "Experience",
-  skill: "Skills",
-  certification: "Certifications",
-  license: "Licenses",
-  other: "Other",
-};
+import {
+  TYPE_ICONS,
+  TYPE_LABELS,
+  foldType,
+  groupQualificationsByType,
+} from "../utils/qualifications";
 
 export default function QualificationsDisplay({ qualifications = [], maxBadges = 0, compact = false }) {
   if (!qualifications || qualifications.length === 0) {
     return <p className="qualifications-empty-text">No qualifications specified.</p>;
   }
 
-  // For compact mode (e.g., job cards), show only first N qualifications
-  let displayQuals = qualifications;
-  if (compact && maxBadges > 0) {
-    displayQuals = qualifications.slice(0, maxBadges);
-  }
-
-  // Group by type
-  const groups = displayQuals.reduce((acc, q) => {
-    const type = q.type || "other";
-    if (!acc[type]) acc[type] = [];
-    acc[type].push(q);
-    return acc;
-  }, {});
-
-  // Sort types
-  const typeOrder = ["education", "experience", "skill", "certification", "license", "other"];
-  const sortedTypes = Object.keys(groups).sort((a, b) => {
-    return typeOrder.indexOf(a) - typeOrder.indexOf(b);
-  });
-
   if (compact) {
-    // For compact display (badges), show as simple list
+    // Job cards etc. — a flat list of badges, optionally capped.
+    const displayQuals = maxBadges > 0 ? qualifications.slice(0, maxBadges) : qualifications;
     return (
       <div className="qualifications-badges">
         {displayQuals.map((q, idx) => (
@@ -54,33 +23,51 @@ export default function QualificationsDisplay({ qualifications = [], maxBadges =
             {q.value}
           </span>
         ))}
-        {qualifications.length > maxBadges && (
+        {maxBadges > 0 && qualifications.length > maxBadges && (
           <span className="qualification-badge more">+{qualifications.length - maxBadges} more</span>
         )}
       </div>
     );
   }
 
-  // Full display (grouped)
+  // Full display — grouped by type, with the legacy "other" folded into "skill".
+  // Non-skill groups read as clean lines; the skills bucket renders as chips.
+  const groups = groupQualificationsByType(qualifications);
+
   return (
     <div className="qualifications-display">
-      {sortedTypes.map((type) => (
-        <div key={type} className="qualifications-group">
-          <h4 className="qualifications-group-title">
-            {TYPE_ICONS[type]} {TYPE_LABELS[type] || type}
-          </h4>
-          <ul className="qualifications-group-list">
-            {groups[type].map((q, idx) => (
-              <li key={idx} className="qualifications-group-item">
-                <span className="qualifications-group-value">{q.value}</span>
-                {q.optional && (
-                  <span className="qualifications-group-optional">(Preferred)</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {groups.map(({ type, items }) => {
+        const folded = foldType(type);
+        const asChips = folded === "skill";
+        return (
+          <div key={type} className={`qualifications-group qualifications-group--${folded}`}>
+            <div className="qualifications-group-head">
+              <span className="qualifications-group-icon" aria-hidden="true">{TYPE_ICONS[folded]}</span>
+              <span className="qualifications-group-label">{TYPE_LABELS[folded] || type}</span>
+            </div>
+
+            {asChips ? (
+              <div className="qualifications-chips">
+                {items.map((q, idx) => (
+                  <span key={idx} className={`qualification-chip ${q.optional ? "is-optional" : ""}`}>
+                    {q.value}
+                    {q.optional && <em> · preferred</em>}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <ul className="qualifications-lines">
+                {items.map((q, idx) => (
+                  <li key={idx} className="qualifications-line">
+                    {q.value}
+                    {q.optional && <span className="qualifications-line-opt"> (preferred)</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

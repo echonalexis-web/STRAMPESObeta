@@ -575,6 +575,14 @@
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
+.jm-view-btn svg {
+  display: block;
+  width: 0.8rem;
+  height: 0.8rem;
+  color: inherit;
+  flex-shrink: 0;
+}
+
 .jm-view-btn:hover {
   background: #d1fae5;
   border-color: #86efac;

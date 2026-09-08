@@ -1,0 +1,278 @@
+/* Account suspended wall — STRAM PESO */
+.suspended-page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background: #e8f5e9; /* fallback if the photo fails to load */
+  font-family: var(--sans, system-ui, sans-serif);
+  overflow: hidden;
+}
+
+/* Blurred provincial capitol (Boac) behind the card, with a light green wash
+   so the white card and its text stay readable — keeps the light theme. */
+.suspended-page::before,
+.suspended-page::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.suspended-page::before {
+  background: url('../assets/images/capitolboac.jpg') center / cover no-repeat;
+  filter: blur(7px);
+  transform: scale(1.08);
+}
+
+.suspended-page::after {
+  background: linear-gradient(160deg, rgba(240, 249, 242, 0.55) 0%, rgba(224, 241, 227, 0.68) 100%);
+}
+
+.suspended-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 520px;
+  background: #ffffff;
+  border: 1px solid #e2ece4;
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(46, 125, 50, 0.18);
+  padding: 36px 34px 28px;
+  text-align: center;
+}
+
+.suspended-logo {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  margin-bottom: 14px;
+}
+
+.suspended-badge {
+  width: 62px;
+  height: 62px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  color: #b45309;
+  background: #fff4e5;
+}
+
+.suspended-badge.banned {
+  color: #b91c1c;
+  background: #fdecec;
+}
+
+.suspended-card h1 {
+  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a2a1d;
+}
+
+.suspended-lead {
+  margin: 0 0 22px;
+  color: #4a5b4e;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.suspended-meta {
+  text-align: left;
+  background: #f6faf6;
+  border: 1px solid #e6f0e8;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+
+.suspended-meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.suspended-meta-row + .suspended-meta-row {
+  border-top: 1px dashed #e0ebe2;
+}
+
+.suspended-meta-row span {
+  color: #7a8a7d;
+}
+
+.suspended-meta-row strong {
+  color: #24331f;
+  text-align: right;
+}
+
+.suspended-notice {
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.suspended-notice.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.suspended-notice.error {
+  background: #fdecec;
+  color: #c0392b;
+  border: 1px solid #f5c6c6;
+}
+
+.suspended-hint {
+  color: #6a7a6d;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 6px 0 4px;
+}
+
+.suspended-appeal {
+  text-align: left;
+  border-top: 1px solid #eef3ef;
+  margin-top: 8px;
+  padding-top: 18px;
+}
+
+.suspended-appeal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #2e7d32;
+  margin-bottom: 12px;
+}
+
+.suspended-appeal-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a2a1d;
+}
+
+.suspended-appeal-status {
+  background: #f6faf6;
+  border: 1px solid #e6f0e8;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.status-pill {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fff4e5;
+  color: #b45309;
+}
+
+.suspended-appeal-status.approved .status-pill {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.suspended-appeal-status.denied .status-pill {
+  background: #fdecec;
+  color: #c0392b;
+}
+
+.submitted-on {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #7a8a7d;
+}
+
+.admin-response {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: #37483a;
+  line-height: 1.5;
+}
+
+.suspended-form label {
+  display: block;
+  font-size: 13px;
+  color: #4a5b4e;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.suspended-form textarea {
+  width: 100%;
+  border: 1px solid #d8e6db;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #1a2a1d;
+  background: #fbfefb;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.suspended-form textarea:focus {
+  outline: none;
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+}
+
+.suspended-form-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #93a396;
+}
+
+.suspended-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #2e7d32;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.suspended-primary:hover {
+  background: #276b2b;
+}
+
+.suspended-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.suspended-link {
+  display: inline-block;
+  margin-top: 18px;
+  background: none;
+  border: none;
+  color: #6a7a6d;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.suspended-link:hover {
+  color: #2e7d32;
+}

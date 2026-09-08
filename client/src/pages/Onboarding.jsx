@@ -8,10 +8,5 @@ export default function Onboarding() {
   const { user } = useContext(AuthContext);
   const isEmployer = user?.role === "employer";
 
-  return (
-    <div className="onboarding-page">
-      <div className="onboarding-overlay"></div>
-      {isEmployer ? <EmployerOnboarding /> : <JobSeekerOnboarding />}
-    </div>
-  );
+  return isEmployer ? <EmployerOnboarding /> : <JobSeekerOnboarding />;
 }

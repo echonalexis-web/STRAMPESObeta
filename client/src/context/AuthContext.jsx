@@ -24,7 +24,12 @@ const mergeProfileIntoUser = (userData = {}, profileData = {}) => {
   }
 
   if (profileData && typeof profileData === "object") {
-    const { businessAddress, ...restProfile } = profileData;
+    // profileData is a separate document (JobseekerProfile/EmployerProfile)
+    // with its own _id/userId/timestamps — those must never overwrite the
+    // User document's own identity fields, or every "is this me?" check
+    // downstream (message bubbles, comment ownership, likes, follows)
+    // ends up comparing against the wrong id.
+    const { businessAddress, _id, id, userId, createdAt, updatedAt, __v, ...restProfile } = profileData;
     Object.assign(merged, restProfile);
   }
 
@@ -69,6 +74,26 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     hydrateUserProfile();
+  }, []);
+
+  // localStorage is shared across every tab of this origin. If a different
+  // account logs in (or out) in another tab, this tab's in-memory `user`
+  // would otherwise keep pointing at the old identity while every new API
+  // call it makes actually authenticates as whoever is now in storage —
+  // silently attributing this tab's actions to the wrong account. Re-sync
+  // on any cross-tab change so that can't happen.
+  useEffect(() => {
+    const handleStorageChange = (event) => {
+      if (event.key !== "token" && event.key !== "user" && event.key !== null) return;
+
+      const nextToken = localStorage.getItem("token");
+      const nextUserRaw = localStorage.getItem("user");
+      setToken(nextToken);
+      setUserState(nextUserRaw ? normalizeUser(JSON.parse(nextUserRaw)) : null);
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const setUser = (value) => {

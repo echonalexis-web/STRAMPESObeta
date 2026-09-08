@@ -14,6 +14,7 @@ const connectDB = require("./config/db");
 const { fileFilter, generateSecureFilename, MAX_FILE_SIZE } = require("./middleware/upload");
 const { sanitizeRequestBody, sanitizeQueryParams } = require("./middleware/validation");
 const { detectMaliciousPayload, securityLogger } = require("./middleware/security");
+const presenceService = require("./services/presenceService");
 
 const app = express();
 const server = http.createServer(app);
@@ -152,6 +153,10 @@ app.use("/api/v1/admin", adminLimiter);
 app.use("/api/admin", adminLimiter);
 app.use("/api/v1/auth/login", authLimiter);
 app.use("/api/v1/auth/register", authLimiter);
+app.use("/api/v1/auth/forgot-password", authLimiter);
+app.use("/api/v1/auth/reset-password", authLimiter);
+app.use("/api/v1/auth/google", authLimiter);
+app.use("/api/v1/auth/email-change", authLimiter);
 
 // ============ FILE UPLOAD CONFIGURATION ============
 
@@ -281,11 +286,27 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   const newsLikeRoutes = require("./routes/newsLikeRoutes");
   console.log("✅ News Like routes loaded");
 
+  const fileRoutes = require("./routes/fileRoutes");
+  console.log("✅ File routes loaded");
+
+  const reportRoutes = require("./routes/reportRoutes");
+  console.log("✅ Report routes loaded");
+
+  const appealRoutes = require("./routes/appealRoutes");
+  console.log("✅ Appeal routes loaded");
+
+  const spesRoutes = require("./routes/spesRoutes");
+  console.log("✅ SPES routes loaded");
+
   const mountApiRoutes = (basePath) => {
     console.log(`📁 Mounting routes at ${basePath}...`);
     
     app.use(`${basePath}/auth/login`, authLimiter);
     app.use(`${basePath}/auth/register`, authLimiter);
+    app.use(`${basePath}/auth/forgot-password`, authLimiter);
+    app.use(`${basePath}/auth/reset-password`, authLimiter);
+    app.use(`${basePath}/auth/google`, authLimiter);
+    app.use(`${basePath}/auth/email-change`, authLimiter);
     
     try {
       app.use(`${basePath}/auth`, authRoutes);
@@ -374,6 +395,34 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       console.error(`❌ Failed to mount ${basePath}/news-likes:`, e.message);
     }
 
+    try {
+      app.use(`${basePath}/files`, fileRoutes);
+      console.log(`✅ ${basePath}/files mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/files:`, e.message);
+    }
+
+    try {
+      app.use(`${basePath}/reports`, reportRoutes);
+      console.log(`✅ ${basePath}/reports mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/reports:`, e.message);
+    }
+
+    try {
+      app.use(`${basePath}/appeals`, appealRoutes);
+      console.log(`✅ ${basePath}/appeals mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/appeals:`, e.message);
+    }
+
+    try {
+      app.use(`${basePath}/spes`, spesRoutes);
+      console.log(`✅ ${basePath}/spes mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/spes:`, e.message);
+    }
+
     console.log(`✅ All routes mounted at ${basePath}`);
   };
 
@@ -434,9 +483,8 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     }
   });
 
-  // Track user connections and rate limiting
+  // Track user connections
   const userConnections = new Map();
-  const messageCounts = new Map();
 
   io.on("connection", (socket) => {
     console.log(`✅ User connected: ${socket.userId}`);
@@ -450,16 +498,6 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     }
     userConnections.get(socket.userId).add(socket.id);
 
-    // Initialize message count for rate limiting
-    if (!messageCounts.has(socket.userId)) {
-      messageCounts.set(socket.userId, 0);
-    }
-
-    // Reset message count every minute
-    const rateLimitInterval = setInterval(() => {
-      messageCounts.set(socket.userId, 0);
-    }, 60000);
-
     socket.on("join_conversation", (conversationId) => {
       if (!conversationId || !/^[a-fA-F0-9]{24}$/.test(conversationId)) {
         return socket.emit("error", { message: "Invalid conversation ID" });
@@ -468,6 +506,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       socket.rooms = socket.rooms || new Set();
       socket.rooms.add(conversationId);
       socket.join(String(conversationId));
+      presenceService.markConversationActive(socket.userId, conversationId);
       console.log(`📩 User ${socket.userId} joined conversation: ${conversationId}`);
     });
 
@@ -477,67 +516,18 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       if (socket.rooms) {
         socket.rooms.delete(conversationId);
       }
+      presenceService.markConversationInactive(socket.userId, conversationId);
       console.log(`📤 User ${socket.userId} left conversation: ${conversationId}`);
     });
 
-    socket.on("send_message", async (data = {}) => {
-      const { conversationId, content } = data;
-      
-      if (!conversationId || !/^[a-fA-F0-9]{24}$/.test(conversationId)) {
-        return socket.emit("error", { message: "Invalid conversation ID" });
-      }
-      
-      const sanitizedContent = String(content || "").trim();
-      if (!sanitizedContent || sanitizedContent.length > 2000) {
-        return socket.emit("error", { message: "Invalid message content" });
-      }
-
-      const userMessageCount = messageCounts.get(socket.userId) || 0;
-      if (userMessageCount > 30) {
-        return socket.emit("error", { message: "Rate limit exceeded. Please wait a moment before sending more messages." });
-      }
-      messageCounts.set(socket.userId, userMessageCount + 1);
-      
-      try {
-        const Message = require("./models/Message");
-        const Conversation = require("./models/Conversation");
-
-        const conversation = await Conversation.findById(conversationId);
-        if (!conversation) {
-          return socket.emit("error", { message: "Conversation not found" });
-        }
-
-        const isParticipant = conversation.participants.some(
-          p => String(p) === String(socket.userId)
-        );
-        if (!isParticipant) {
-          return socket.emit("error", { message: "You are not a participant in this conversation" });
-        }
-
-        const newMessage = await Message.create({
-          conversationId: conversationId,
-          sender: socket.userId,
-          content: sanitizedContent,
-          isRead: false,
-        });
-
-        await Conversation.findByIdAndUpdate(conversationId, {
-          lastMessage: sanitizedContent,
-          lastMessageAt: newMessage.createdAt,
-        });
-
-        const populatedMessage = await Message.findById(newMessage._id)
-          .populate("sender", "name email");
-
-        io.to(String(conversationId)).emit("receive_message", {
-          ...populatedMessage.toObject(),
-          conversationId: conversationId,
-        });
-      } catch (error) {
-        console.error("Error saving message:", error);
-        socket.emit("error", { message: "Failed to send message" });
-      }
-    });
+    // Note: sending a message is handled exclusively via the REST endpoint
+    // (POST /messages/conversations/:id/messages -> messageController.sendMessage),
+    // which runs through the full validation/sanitization middleware chain,
+    // presence-aware notification collapsing, and the correct `user:<id>`
+    // room targeting. There is deliberately no socket-based "send_message"
+    // path here anymore — a second implementation of the same write path
+    // only invites the two to drift out of sync (as happened with room
+    // naming and sender population), so ship exactly one.
 
     socket.on("typing", (data = {}) => {
       if (!data.conversationId || !/^[a-fA-F0-9]{24}$/.test(data.conversationId)) return;
@@ -556,12 +546,11 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
 
     socket.on("disconnect", () => {
       console.log(`❌ User disconnected: ${socket.userId}`);
-      clearInterval(rateLimitInterval);
       if (userConnections.has(socket.userId)) {
         userConnections.get(socket.userId).delete(socket.id);
         if (userConnections.get(socket.userId).size === 0) {
           userConnections.delete(socket.userId);
-          messageCounts.delete(socket.userId);
+          presenceService.clearUserPresence(socket.userId);
         }
       }
       if (socket.rooms) {

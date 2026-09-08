@@ -9,10 +9,17 @@ export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
 // Origin that serves uploaded assets (strip the trailing /api/vN)
 export const ASSET_BASE_URL = API_URL.replace(/\/api\/v\d+\/?$/, "");
 
+// A stored value that is a private storage ref (Cloudinary etc.) — not directly
+// loadable; resolve it with filesAPI.getSignedUrl() first.
+export const isPrivateFileRef = (value) =>
+  typeof value === "string" && value.startsWith("cloudinary:");
+
 // Turn a stored image path into a loadable URL. Absolute URLs pass through;
 // server-relative "/uploads/..." paths get the API origin prefixed.
+// Private refs return "" (caller must use filesAPI.getSignedUrl).
 export const resolveAssetUrl = (value) => {
   if (!value) return "";
+  if (isPrivateFileRef(value)) return "";
   if (/^(https?:)?\/\//i.test(value) || value.startsWith("data:")) return value;
   return `${ASSET_BASE_URL}${value.startsWith("/") ? "" : "/"}${value}`;
 };
@@ -62,6 +69,32 @@ api.interceptors.response.use(
       }
     }
     
+    // Account suspended mid-session — the API now returns a structured 403.
+    // Move the user to the suspension wall instead of a generic error.
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.code === "ACCOUNT_SUSPENDED"
+    ) {
+      const data = error.response.data;
+      if (data.appealToken) {
+        localStorage.setItem("appealToken", data.appealToken);
+      }
+      localStorage.setItem(
+        "suspensionInfo",
+        JSON.stringify({
+          accountStatus: data.accountStatus || "suspended",
+          suspensionReason: data.suspensionReason || null,
+          suspendedAt: data.suspendedAt || null,
+        })
+      );
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      if (window.location.pathname !== "/account-suspended") {
+        window.location.href = "/account-suspended";
+      }
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401) {
       const token = localStorage.getItem("token");
       if (token) {
@@ -104,6 +137,18 @@ const getAuthFormHeader = () => {
   };
 };
 
+// Header carrying the short-lived "appeal-only" token issued at login when
+// the account is suspended.
+const getAppealHeader = () => {
+  const appealToken = localStorage.getItem("appealToken");
+  return {
+    headers: {
+      Authorization: `Bearer ${appealToken}`,
+      "Content-Type": "application/json",
+    },
+  };
+};
+
 // Helper function for delays
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -111,12 +156,33 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (payload) => api.post('/auth/reset-password', payload),
+  google: (credential) => api.post('/auth/google', { credential }),
+  requestEmailChange: (payload) => api.post('/auth/email-change/request', payload, getAuthHeader()),
+  confirmEmailChange: (payload) => api.post('/auth/email-change/confirm', payload),
   registerEmployee: (data) => api.post('/auth/register/employee', data),
   generateInvite: () => api.post('/auth/invite', {}, getAuthHeader()),
   getProfile: () => api.get('/auth/profile', getAuthHeader()),
   updateProfile: (data) => api.put('/auth/profile', data, getAuthFormHeader()),
-  deleteAccount: () => api.delete('/auth/profile', getAuthHeader()),
+  updateAvatar: (file) => {
+    const fd = new FormData();
+    fd.append('profileImage', file);
+    return api.patch('/auth/profile/avatar', fd, getAuthFormHeader());
+  },
   registerEmployer: (data) => api.post('/auth/register/employer', data),
+  acceptTerms: (version) => api.post('/auth/accept-terms', { version }, getAuthHeader()),
+};
+
+// Suspension appeal — authenticated with the appeal-only token.
+export const appealAPI = {
+  getMine: () => api.get('/appeals/me', getAppealHeader()),
+  submit: (message) => api.post('/appeals', { message }, getAppealHeader()),
+};
+
+// User reports (policy violations).
+export const reportAPI = {
+  create: (payload) => api.post('/reports', payload, getAuthHeader()),
 };
 
 export const jobAPI = {
@@ -157,10 +223,24 @@ export const adminAPI = {
   updateJobStatus: (id, status) => api.put(`/admin/jobs/${id}/status`, { status }, getAuthHeader()),
   deleteJob: (id) => api.delete(`/admin/jobs/${id}`, getAuthHeader()),
   updateUserRole: (id, role) => api.put(`/admin/users/${id}/role`, { role }, getAuthHeader()),
-  deactivateUser: (id) => api.put(`/admin/users/${id}/deactivate`, {}, getAuthHeader()),
+  deactivateUser: (id, options = {}) =>
+    api.put(`/admin/users/${id}/deactivate`, {
+      reason: options.reason || "",
+      permanent: options.permanent === true,
+    }, getAuthHeader()),
   reactivateUser: (id) => api.put(`/admin/users/${id}/reactivate`, {}, getAuthHeader()),
-  updateEmployerVerification: (id, verificationStatus) =>
-    api.put(`/admin/users/${id}/verification`, { verificationStatus }, getAuthHeader()),
+  // Moderation queue
+  getReports: (params = {}) => api.get('/reports/admin', { ...getAuthHeader(), params }),
+  resolveReport: (id, payload) => api.patch(`/reports/admin/${id}/resolve`, payload, getAuthHeader()),
+  getAppeals: (params = {}) => api.get('/appeals/admin', { ...getAuthHeader(), params }),
+  resolveAppeal: (id, payload) => api.patch(`/appeals/admin/${id}/resolve`, payload, getAuthHeader()),
+  // Accepts either a bare status string (legacy) or a { decision, note } payload.
+  updateEmployerVerification: (id, payload) =>
+    api.put(
+      `/admin/users/${id}/verification`,
+      typeof payload === "string" ? { verificationStatus: payload } : payload,
+      getAuthHeader()
+    ),
   getVerificationQueue: (params = {}) =>
     api.get('/admin/users/verification-queue', { ...getAuthHeader(), params }),
   getAuditLogs: (params = {}) =>
@@ -182,6 +262,17 @@ export const newsAPI = {
       ? api.put(`/news/${id}`, data, getAuthFormHeader())
       : api.put(`/news/${id}`, data, getAuthHeader()),
   remove: (id) => api.delete(`/news/${id}`, getAuthHeader()),
+};
+
+export const filesAPI = {
+  // Resolve a private storage ref to a short-lived signed URL
+  getSignedUrl: (ref) => api.get('/files/signed-url', { ...getAuthHeader(), params: { ref } }),
+};
+
+export const newsCommentAPI = {
+  list: (newsId) => api.get(`/news/${newsId}/comments`),
+  create: (newsId, content) => api.post(`/news/${newsId}/comments`, { content }, getAuthHeader()),
+  remove: (newsId, commentId) => api.delete(`/news/${newsId}/comments/${commentId}`, getAuthHeader()),
 };
 
 export const newsLikeAPI = {
@@ -216,12 +307,43 @@ export const employerAPI = {
     api.get(`/employer/jobs/${jobId}/applicants/ranked`, { ...getAuthHeader(), params }),
   updateApplicationStatus: (applicationId, data) => 
     api.put(`/employer/applications/${applicationId}/status`, data, getAuthHeader()),
-  bulkUpdateApplicationStatuses: (data) => 
+  bulkUpdateApplicationStatuses: (data) =>
     api.put('/employer/applications/bulk-status', data, getAuthHeader()),
+  getJobseekerProfile: (userId) => api.get(`/employer/jobseekers/${userId}`, getAuthHeader()),
+  // Reusable qualification / skillset templates
+  getQualificationTemplates: () =>
+    api.get('/employer/qualification-templates', getAuthHeader()),
+  createQualificationTemplate: (data) =>
+    api.post('/employer/qualification-templates', data, getAuthHeader()),
+  updateQualificationTemplate: (id, data) =>
+    api.put(`/employer/qualification-templates/${id}`, data, getAuthHeader()),
+  deleteQualificationTemplate: (id) =>
+    api.delete(`/employer/qualification-templates/${id}`, getAuthHeader()),
 };
 
 export const usersAPI = {
   completeOnboarding: (data) => api.put('/users/onboarding', data, getAuthHeader()),
+};
+
+// Employer document verification submission.
+export const verificationAPI = {
+  submit: () => api.post('/users/verification/submit', {}, getAuthHeader()),
+};
+
+// SPES (Special Program for Employment of Students) applications.
+export const spesAPI = {
+  getMine: () => api.get('/spes/applications', getAuthHeader()),
+  getForAnnouncement: (announcementId) => api.get(`/spes/${announcementId}/me`, getAuthHeader()),
+  getResults: (announcementId) => api.get(`/spes/${announcementId}/results`, getAuthHeader()),
+  apply: (announcementId, formData) =>
+    api.post(`/spes/${announcementId}/apply`, formData, getAuthFormHeader()),
+  adminList: (params = {}) => api.get('/spes/admin/list', { ...getAuthHeader(), params }),
+  adminGet: (id) => api.get(`/spes/admin/${id}`, getAuthHeader()),
+  adminRecordEvaluation: (id, payload) =>
+    api.patch(`/spes/admin/${id}/evaluation`, payload, getAuthHeader()),
+  adminAmendResult: (id, payload) => api.patch(`/spes/admin/${id}/result`, payload, getAuthHeader()),
+  adminReleaseResults: (announcementId, payload = {}) =>
+    api.post(`/spes/admin/announcements/${announcementId}/release-results`, payload, getAuthHeader()),
 };
 
 export const notificationAPI = {

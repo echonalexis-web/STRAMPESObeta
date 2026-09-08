@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaBell, FaCheck, FaTrash } from "react-icons/fa";
 import { useNotifications } from "../hooks/useNotifications";
+import { useToast } from "../components/feedback/context";
 import "../styles/notifications.css";
 
 const formatDateTime = (value) => {
@@ -18,6 +19,7 @@ const formatDateTime = (value) => {
 
 export default function Notifications() {
   const navigate = useNavigate();
+  const toast = useToast();
   const {
     notifications,
     loading,
@@ -28,6 +30,15 @@ export default function Notifications() {
   } = useNotifications({ initialLimit: 100, autoLoad: true });
 
   const hasItems = notifications.length > 0;
+
+  const handleDelete = async (id) => {
+    const ok = await deleteNotification(id);
+    if (ok) {
+      toast.success("Notification deleted.");
+    } else {
+      toast.error("Couldn't delete that notification. Please try again.");
+    }
+  };
 
   const sortedItems = useMemo(() => {
     return [...notifications].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
@@ -103,7 +114,7 @@ export default function Notifications() {
                 )}
                 <button
                   type="button"
-                  onClick={() => deleteNotification(item._id)}
+                  onClick={() => handleDelete(item._id)}
                   className="notification-action-btn notification-action-btn--danger"
                   aria-label="Delete notification"
                 >

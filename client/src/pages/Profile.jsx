@@ -39,6 +39,43 @@ const formatUnemploymentReason = (value) => {
   return unemploymentReasonMap[value] || value;
 };
 
+// Helper: format a list of strings ("Boac, Marinduque; Santa Cruz, Marinduque")
+const formatList = (list) => {
+  if (!Array.isArray(list) || list.length === 0) return <span className="profile-missing">Not provided</span>;
+  return <span>{list.join("; ")}</span>;
+};
+
+// Helper: format an expected salary range
+const formatSalaryRange = (min, max) => {
+  if (!min && !max) return <span className="profile-missing">Not provided</span>;
+  if (min && max) return <span>₱{min} – ₱{max}</span>;
+  return <span>₱{min || max}</span>;
+};
+
+const LANGUAGE_SKILLS = [
+  { key: "read", label: "Read" },
+  { key: "write", label: "Write" },
+  { key: "speak", label: "Speak" },
+  { key: "understand", label: "Understand" },
+];
+
+// Helper: format the language-proficiency matrix into readable lines
+const formatLanguageProficiency = (proficiency, othersLabel) => {
+  if (!proficiency) return <span className="profile-missing">Not provided</span>;
+  const rows = ["English", "Filipino", "Others"]
+    .map((lang) => {
+      const row = proficiency[lang];
+      if (!row) return null;
+      const skills = LANGUAGE_SKILLS.filter((s) => row[s.key]).map((s) => s.label);
+      if (skills.length === 0) return null;
+      const label = lang === "Others" ? (othersLabel || "Others") : lang;
+      return `${label}: ${skills.join(", ")}`;
+    })
+    .filter(Boolean);
+  if (rows.length === 0) return <span className="profile-missing">Not provided</span>;
+  return <span>{rows.join(" · ")}</span>;
+};
+
 export default function Profile({ isAdminView = false }) {
   const { user, setUser } = useContext(AuthContext);
   const { userId } = useParams();
@@ -329,8 +366,13 @@ export default function Profile({ isAdminView = false }) {
               <div className="profile-detail-row"><span>Civil Status</span><strong>{fallback(profile?.civilStatus)}</strong></div>
               <div className="profile-detail-row"><span>Place of Birth</span><strong>{fallback(profile?.placeOfBirth)}</strong></div>
               <div className="profile-detail-row"><span>Citizenship</span><strong>{fallback(profile?.citizenship)}</strong></div>
+              <div className="profile-detail-row"><span>Religion</span><strong>{fallback(profile?.religion)}</strong></div>
               <div className="profile-detail-row"><span>Height (cm)</span><strong>{fallback(profile?.height)}</strong></div>
               <div className="profile-detail-row"><span>Weight (kg)</span><strong>{fallback(profile?.weight)}</strong></div>
+              <div className="profile-detail-row"><span>TIN</span><strong>{fallback(profile?.tin)}</strong></div>
+              <div className="profile-detail-row"><span>GSIS/SSS ID No.</span><strong>{fallback(profile?.sssGsisNo)}</strong></div>
+              <div className="profile-detail-row"><span>PAG-IBIG No.</span><strong>{fallback(profile?.pagibigNo)}</strong></div>
+              <div className="profile-detail-row"><span>PhilHealth No.</span><strong>{fallback(profile?.philhealthNo)}</strong></div>
               <div className="profile-detail-row"><span>Landline</span><strong>{fallback(profile?.landline)}</strong></div>
               <div className="profile-detail-row"><span>Secondary Mobile</span><strong>{fallback(profile?.mobileSecondary)}</strong></div>
               <div className="profile-detail-row">
@@ -349,6 +391,8 @@ export default function Profile({ isAdminView = false }) {
                 <>
                   <div className="profile-detail-row"><span>Repatriated / Returning to PH</span><strong>{profile?.isRepatriated ? "Yes" : "No"}</strong></div>
                   {profile?.isRepatriated && <div className="profile-detail-row"><span>Repatriation Intent</span><strong>{fallback(profile?.repatriationIntent)}</strong></div>}
+                  <div className="profile-detail-row"><span>Passport No.</span><strong>{fallback(profile?.passportNo)}</strong></div>
+                  <div className="profile-detail-row"><span>Passport Expiry Date</span><strong>{formatDate(profile?.passportExpiryDate)}</strong></div>
                 </>
               )}
               <div className="profile-detail-row"><span>Employment Status</span><strong>{fallback(profile?.employmentStatus)}</strong></div>
@@ -380,14 +424,69 @@ export default function Profile({ isAdminView = false }) {
             </div>
 
             <div className="profile-view-section">
-              <h2>Work Background</h2>
-              <div className="profile-detail-row"><span>Desired Position</span><strong>{fallback(profile?.desiredJobTitle)}</strong></div>
-              <div className="profile-detail-row"><span>Educational Attainment</span><strong>{fallback(profile?.educationalAttainment)}</strong></div>
-              <div className="profile-detail-row"><span>Work Experience</span><strong>{fallback(profile?.workExperience)}</strong></div>
+              <h2>Job Preferences</h2>
+              <div className="profile-detail-row"><span>Preferred Occupations</span><strong>{formatList(profile?.preferredOccupations)}</strong></div>
+              <div className="profile-detail-row"><span>Preferred Work Location (Local)</span><strong>{formatList(profile?.preferredWorkLocationLocal)}</strong></div>
+              <div className="profile-detail-row"><span>Preferred Work Location (Overseas)</span><strong>{formatList(profile?.preferredWorkLocationOverseas)}</strong></div>
+              <div className="profile-detail-row"><span>Expected Salary Range</span><strong>{formatSalaryRange(profile?.expectedSalaryMin, profile?.expectedSalaryMax)}</strong></div>
               <div className="profile-detail-row">
                 <span>Availability Status</span>
                 <strong>{profile?.availabilityStatus ? <span className="profile-availability-badge">{profile.availabilityStatus}</span> : <span className="profile-missing">Not provided</span>}</strong>
               </div>
+            </div>
+
+            <div className="profile-view-section">
+              <h2>Work Background</h2>
+              <div className="profile-detail-row"><span>Educational Attainment</span><strong>{fallback(profile?.educationalAttainment)}</strong></div>
+              <div className="profile-detail-row"><span>School Attended</span><strong>{fallback(profile?.schoolAttended === "__other__" ? profile?.schoolAttendedOther : profile?.schoolAttended)}</strong></div>
+              <div className="profile-detail-row"><span>Course</span><strong>{fallback(profile?.course)}</strong></div>
+              <div className="profile-detail-row"><span>Year Graduated</span><strong>{fallback(profile?.yearGraduated)}</strong></div>
+              <div className="profile-detail-row"><span>Language / Dialect Proficiency</span><strong>{formatLanguageProficiency(profile?.languageProficiency, profile?.languageOthersLabel)}</strong></div>
+              <div className="profile-detail-row"><span>Work Experience</span><strong>{fallback(profile?.workExperience)}</strong></div>
+              {Array.isArray(profile?.workHistory) && profile.workHistory.length > 0 ? (
+                profile.workHistory.map((entry, i) => (
+                  <div className="profile-detail-row" key={i}>
+                    <span>Employer {i + 1}</span>
+                    <strong>{[entry.position, entry.companyName && `at ${entry.companyName}`].filter(Boolean).join(" ")}{entry.status ? ` (${entry.status})` : ""}{(entry.dateFrom || entry.dateTo) ? ` · ${[entry.dateFrom, entry.dateTo].filter(Boolean).join(" – ")}` : ""}</strong>
+                  </div>
+                ))
+              ) : (
+                <div className="profile-detail-row"><span>Work History</span><strong><span className="profile-missing">Not provided</span></strong></div>
+              )}
+            </div>
+
+            <div className="profile-view-section">
+              <h2>Technical/Vocational Training &amp; Eligibility</h2>
+              {Array.isArray(profile?.vocationalTrainings) && profile.vocationalTrainings.length > 0 ? (
+                profile.vocationalTrainings.map((entry, i) => (
+                  <div className="profile-detail-row" key={i}>
+                    <span>Training {i + 1}</span>
+                    <strong>{[entry.course, entry.certificate && `(${entry.certificate})`, entry.institution === "__other__" ? entry.institutionOther : entry.institution].filter(Boolean).join(" · ")}</strong>
+                  </div>
+                ))
+              ) : (
+                <div className="profile-detail-row"><span>Technical/Vocational Training</span><strong><span className="profile-missing">Not provided</span></strong></div>
+              )}
+              {Array.isArray(profile?.eligibilities) && profile.eligibilities.length > 0 ? (
+                profile.eligibilities.map((entry, i) => (
+                  <div className="profile-detail-row" key={i}>
+                    <span>Eligibility {i + 1}</span>
+                    <strong>{[entry.name, entry.rating && `Rating: ${entry.rating}`].filter(Boolean).join(" · ")}</strong>
+                  </div>
+                ))
+              ) : (
+                <div className="profile-detail-row"><span>Civil Service Eligibility</span><strong><span className="profile-missing">Not provided</span></strong></div>
+              )}
+              {Array.isArray(profile?.professionalLicenses) && profile.professionalLicenses.length > 0 ? (
+                profile.professionalLicenses.map((entry, i) => (
+                  <div className="profile-detail-row" key={i}>
+                    <span>License {i + 1}</span>
+                    <strong>{[entry.name, entry.validUntil && `Valid until ${entry.validUntil}`].filter(Boolean).join(" · ")}</strong>
+                  </div>
+                ))
+              ) : (
+                <div className="profile-detail-row"><span>Professional License (PRC)</span><strong><span className="profile-missing">Not provided</span></strong></div>
+              )}
             </div>
 
             <div className="profile-view-section">

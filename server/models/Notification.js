@@ -24,6 +24,10 @@ const notificationSchema = new Schema(
         "job_application",
         "application_status",
         "admin_action",
+        "follow",
+        "news",
+        "like",
+        "spes",
       ],
       default: "system",
     },
@@ -41,7 +45,7 @@ const notificationSchema = new Schema(
     },
     relatedEntityType: {
       type: String,
-      enum: ["job", "application", "conversation", "message", "user", "system"],
+      enum: ["job", "application", "conversation", "message", "user", "system", "announcement", "spes_application"],
       default: "system",
     },
     relatedEntityId: {
@@ -75,5 +79,11 @@ const notificationSchema = new Schema(
 
 notificationSchema.index({ recipient: 1, createdAt: -1 });
 notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
+// Read notifications auto-expire 30 days after being read, so the collection
+// doesn't grow without bound; unread notifications are kept indefinitely.
+notificationSchema.index(
+  { readAt: 1 },
+  { expireAfterSeconds: 30 * 24 * 60 * 60, partialFilterExpression: { isRead: true } }
+);
 
 module.exports = mongoose.model("Notification", notificationSchema);

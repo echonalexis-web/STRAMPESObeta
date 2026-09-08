@@ -276,7 +276,7 @@ export default function About() {
           <div className="head reveal">
             <span className="eyebrow">Behind This Page</span>
             <h2>A student capstone project</h2>
-            <p>This portal was designed and built by four students as their capstone project. Photos and names below are placeholders - swap them for the real team.</p>
+            <p>This portal was designed and built by a group of 4th-year students from Marinduque State University - College of Information and Computing Sciences as requirement for their capstone project.</p>
           </div>
 
           <div className="team-grid reveal">

@@ -2,10 +2,12 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
-import { messageAPI } from "../services/api";
+import { messageAPI, resolveAssetUrl } from "../services/api";
+import { useToast, useConfirm } from "../components/feedback/context";
 import "../styles/messages.css";
 import { FaSearch, FaPaperPlane, FaUserCircle, FaTrash, FaArrowLeft } from "react-icons/fa";
 import DOMPurify from 'dompurify';
+import ReportButton from "../components/ReportButton";
 
 const sanitizeMessage = (content) => {
   if (!content) return '';
@@ -50,7 +52,9 @@ const getDateLabel = (isoDate) => {
   return date.toLocaleDateString([], { month: "long", day: "numeric" });
 };
 
-// ===== FIXED: String-only ID extraction =====
+// Normalize every ID to the same canonical string form before comparing
+// sender/receiver values. This prevents a message from being treated as
+// "received" just because the API returned the ID in a different shape.
 const getEntityId = (value) => {
   if (!value) return "";
   if (typeof value === "string" || typeof value === "number") return String(value);
@@ -58,6 +62,7 @@ const getEntityId = (value) => {
     if (value._id) return String(value._id);
     if (value.id) return String(value.id);
     if (value.$oid) return String(value.$oid);
+    if (value.userId) return String(value.userId);
     if (typeof value.toString === "function" && value.toString() !== "[object Object]") {
       return value.toString();
     }
@@ -66,13 +71,64 @@ const getEntityId = (value) => {
 };
 
 const getSenderId = (message) => {
-  const raw = message?.sender?._id || message?.sender?.id || message?.sender || message?.senderId;
-  return raw ? String(raw) : "";
+  if (!message) return "";
+
+  const candidates = [
+    message.senderId,
+    message.sender?._id,
+    message.sender?.id,
+    message.sender,
+    message.author?._id,
+    message.author?.id,
+    message.author,
+    message.user?._id,
+    message.user?.id,
+    message.user,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = getEntityId(candidate);
+    if (normalized) return normalized;
+  }
+
+  return "";
 };
 
 const getParticipantId = (participant) => {
   const raw = participant?._id || participant?.id || participant;
   return raw ? String(raw) : "";
+};
+
+// A participant is "unavailable" when their account was deleted or deactivated.
+// The server flags these explicitly; the name/id checks are a defensive
+// fallback for older payloads.
+const isParticipantUnavailable = (participant) => {
+  if (!participant) return true;
+  if (participant.unavailable === true) return true;
+  if (!getParticipantId(participant)) return true;
+  return false;
+};
+
+const getParticipantDisplayName = (participant) => {
+  if (!participant) return "Unavailable user";
+  if (isParticipantUnavailable(participant)) return participant.name || "Unavailable user";
+  return participant.name || "Unknown User";
+};
+
+const getRoleLabel = (role) => {
+  const normalizedRole = role === "employee" || role === "jobseeker" ? "resident" : role;
+
+  if (normalizedRole === "admin") return "Admin";
+  if (normalizedRole === "employer") return "Employer";
+  if (normalizedRole === "resident") return "Jobseeker";
+  if (!normalizedRole) return "User";
+
+  return normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1);
+};
+
+const getUserAvatarUrl = (user) => {
+  const imageSource = user?.profileImage || user?.avatar || user?.image || user?.photo;
+  return imageSource ? resolveAssetUrl(imageSource) : "";
 };
 
 // ===== FIXED: Better message key with fallback =====
@@ -127,6 +183,8 @@ const normalizeConversation = (conversation) => {
 export default function Messages() {
   const { user } = useContext(AuthContext);
   const { socket, isConnected } = useSocket();
+  const toast = useToast();
+  const confirm = useConfirm();
   const location = useLocation();
   const preselectedConversationId = location.state?.conversationId || null;
 
@@ -173,7 +231,9 @@ export default function Messages() {
         const filtered = list.filter((conv) => {
           const other = getOtherParticipant(conv, currentUserId);
           const otherId = getParticipantId(other);
-          if (!other || !otherId || !other.name) return false;
+          // Keep conversations whose other participant is deleted/suspended
+          // (rendered as "unavailable") instead of hiding them.
+          if (!other || !otherId) return false;
 
           const key = getConversationKey(conv);
           if (!key || seenKeys.has(key)) return false;
@@ -379,6 +439,10 @@ export default function Messages() {
     ? getOtherParticipant(selectedConversation, currentUserId)
     : null;
 
+  const participantUnavailable = Boolean(
+    selectedConversation && (!selectedParticipant || isParticipantUnavailable(selectedParticipant))
+  );
+
   const selectedMessages = selectedConversationId ? messagesByConversation[selectedConversationId] || [] : [];
 
   const getReceiverIdFromConversation = (conversation) => {
@@ -389,11 +453,17 @@ export default function Messages() {
 
   // ----- Handlers -----
   const handleDeleteConversation = async (conversationId) => {
-    const confirmed = window.confirm("Delete this conversation? This cannot be undone.");
+    const confirmed = await confirm({
+      title: "Delete this conversation?",
+      message: "The whole message history will be removed for you. This cannot be undone.",
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     try {
       await messageAPI.deleteConversation(conversationId);
+      toast.success("Conversation deleted.");
 
       setConversations((prev) => prev.filter((conv) => conv._id !== conversationId));
       setMessagesByConversation((prev) => {
@@ -412,7 +482,7 @@ export default function Messages() {
         setSelectedConversationId(remaining[0]?._id || null);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to delete conversation");
+      toast.error(err.response?.data?.message || "Failed to delete conversation.");
     }
   };
 
@@ -420,6 +490,11 @@ export default function Messages() {
   const handleSend = async () => {
     const rawContent = draft.trim();
     if (!rawContent || !selectedConversationId) return;
+
+    if (participantUnavailable) {
+      setError("This user is unavailable");
+      return;
+    }
 
     let sanitized = DOMPurify.sanitize(rawContent, {
       ALLOWED_TAGS: [],
@@ -553,7 +628,7 @@ export default function Messages() {
         return merged.filter((conversation) => {
           const other = getOtherParticipant(conversation, currentUserId);
           const otherId = getParticipantId(other);
-          if (!other || !otherId || !other.name) return false;
+          if (!other || !otherId) return false;
 
           const key = getConversationKey(conversation);
           if (!key || seenKeys.has(key)) return false;
@@ -629,11 +704,11 @@ export default function Messages() {
                     onClick={() => handleStartConversation(item)}
                   >
                     <span className="user-avatar">
-                      {(item.name || "U").trim().charAt(0).toUpperCase()}
+                      {getUserAvatarUrl(item) ? <img src={getUserAvatarUrl(item)} alt="" /> : (item.name || "U").trim().charAt(0).toUpperCase()}
                     </span>
                     <div className="user-info">
                       <strong>{item.name}</strong>
-                      <small>{item.role === "employer" ? item.companyName || item.email : item.desiredJobTitle || item.email}</small>
+                      <small>{getRoleLabel(item.role)}</small>
                     </div>
                     <span className="start-chat-btn">Message</span>
                   </button>
@@ -656,20 +731,28 @@ export default function Messages() {
 
               const isActive = selectedConversationId === conversation._id;
               const unreadCount = unreadByConversation[conversation._id] || 0;
+              const unavailable = isParticipantUnavailable(otherUser);
 
               return (
-                <div key={conversation._id} className={`conversation-item ${isActive ? "active" : ""}`}>
+                <div
+                  key={conversation._id}
+                  className={`conversation-item ${isActive ? "active" : ""} ${unavailable ? "unavailable" : ""}`}
+                >
                   <button
                     type="button"
                     className="conversation-btn"
                     onClick={() => handleSelectConversation(conversation._id)}
                   >
-                    <span className="user-avatar">
-                      {(otherUser?.name || "U").trim().charAt(0).toUpperCase()}
+                    <span className={`user-avatar ${unavailable ? "unavailable" : ""}`}>
+                      {unavailable
+                        ? "?"
+                        : getUserAvatarUrl(otherUser)
+                          ? <img src={getUserAvatarUrl(otherUser)} alt="" />
+                          : (otherUser?.name || "U").trim().charAt(0).toUpperCase()}
                     </span>
                     <div className="conversation-info">
                       <div className="conversation-top">
-                        <strong>{otherUser?.name || "Unknown User"}</strong>
+                        <strong>{getParticipantDisplayName(otherUser)}</strong>
                         <span className="conversation-time">
                           {formatListTime(conversation.lastMessageAt || conversation.createdAt)}
                         </span>
@@ -721,13 +804,31 @@ export default function Messages() {
                 >
                   <FaArrowLeft />
                 </button>
-                <span className="chat-avatar">
-                  {(selectedParticipant?.name || "U").trim().charAt(0).toUpperCase()}
+                <span className={`chat-avatar ${participantUnavailable ? "unavailable" : ""}`}>
+                  {participantUnavailable
+                    ? "?"
+                    : getUserAvatarUrl(selectedParticipant)
+                      ? <img src={getUserAvatarUrl(selectedParticipant)} alt="" />
+                      : (selectedParticipant?.name || "U").trim().charAt(0).toUpperCase()}
                 </span>
                 <div className="chat-user-info">
-                  <strong>{selectedParticipant?.name || "Unknown User"}</strong>
-                  <p>{selectedParticipant?.desiredJobTitle || selectedParticipant?.role || "Conversation"}</p>
+                  <strong>{getParticipantDisplayName(selectedParticipant)}</strong>
+                  <p>
+                    {participantUnavailable
+                      ? "This user is unavailable"
+                      : getRoleLabel(selectedParticipant?.role)}
+                  </p>
                 </div>
+                {!participantUnavailable && getParticipantId(selectedParticipant) ? (
+                  <div className="chat-header-actions">
+                    <ReportButton
+                      targetType="user"
+                      targetId={getParticipantId(selectedParticipant)}
+                      targetOwnerId={getParticipantId(selectedParticipant)}
+                      variant="icon"
+                    />
+                  </div>
+                ) : null}
               </header>
 
               {/* Messages */}
@@ -765,24 +866,31 @@ export default function Messages() {
               </div>
 
               {/* Input Bar */}
-              <footer className="chat-input-bar">
-                <input
-                  type="text"
-                  placeholder="Type a message..."
-                  value={draft}
-                  onChange={(event) => handleInputChange(event.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
-                <button
-                  type="button"
-                  className="send-btn"
-                  onClick={handleSend}
-                  disabled={!draft.trim()}
-                  aria-label="Send message"
-                >
-                  <FaPaperPlane />
-                </button>
-              </footer>
+              {participantUnavailable ? (
+                <footer className="chat-input-bar chat-unavailable-notice">
+                  <FaUserCircle className="unavailable-icon" />
+                  <span>This user is unavailable. You can no longer reply to this conversation.</span>
+                </footer>
+              ) : (
+                <footer className="chat-input-bar">
+                  <input
+                    type="text"
+                    placeholder="Type a message..."
+                    value={draft}
+                    onChange={(event) => handleInputChange(event.target.value)}
+                    onKeyDown={handleKeyDown}
+                  />
+                  <button
+                    type="button"
+                    className="send-btn"
+                    onClick={handleSend}
+                    disabled={!draft.trim()}
+                    aria-label="Send message"
+                  >
+                    <FaPaperPlane />
+                  </button>
+                </footer>
+              )}
             </>
           )}
         </main>

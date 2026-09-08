@@ -1,0 +1,22 @@
+/* Shared employer/company avatar. The caller's shape class (.vac-logo,
+   .job-hero-logo, .app-row-logo, …) still owns size, radius, background,
+   and the initial's font/colour; this only clips the image to that shape. */
+
+.emp-avatar {
+  overflow: hidden;
+}
+
+.emp-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.emp-avatar-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}

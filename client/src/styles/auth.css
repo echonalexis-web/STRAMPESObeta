@@ -237,6 +237,24 @@
   gap: 1.2rem;
 }
 
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.optional-label {
+  font-weight: 400;
+  opacity: 0.6;
+  font-size: 0.85em;
+}
+
+@media (max-width: 560px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .auth-form input {
   width: 100%;
   padding: 1rem 1.15rem;
@@ -343,6 +361,53 @@
   backdrop-filter: blur(4px);
 }
 
+.auth-forgot {
+  margin-top: -0.4rem;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+.auth-forgot a {
+  color: #16a34a;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-forgot a:hover {
+  text-decoration: underline;
+  color: #15803d;
+}
+
+.auth-notice {
+  background: rgba(240, 253, 244, 0.95);
+  color: #166534;
+  border: 1px solid rgba(22, 163, 74, 0.18);
+  border-radius: 12px;
+  padding: 0.95rem 1rem;
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.auth-notice p {
+  margin: 0;
+}
+
+.auth-notice p + p {
+  margin-top: 0.6rem;
+}
+
+.auth-notice__dev {
+  font-size: 0.88rem;
+  color: #3f6212;
+}
+
+.auth-notice a {
+  color: #15803d;
+  font-weight: 700;
+  word-break: break-all;
+}
+
 .auth-link {
   margin-top: 1.25rem;
   text-align: center;
@@ -360,6 +425,40 @@
 .auth-link a:hover {
   color: #15803d;
   text-decoration: underline;
+}
+
+/* Google sign-in */
+.google-signin {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.google-signin__divider {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.google-signin__divider::before,
+.google-signin__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.google-signin__btn {
+  min-height: 40px;
+  display: flex;
+  justify-content: center;
 }
 
 /* Password requirements */

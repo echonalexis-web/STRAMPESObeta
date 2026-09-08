@@ -1,5 +1,7 @@
 const NewsLike = require("../models/NewsLike");
 const Announcement = require("../models/Announcement");
+const User = require("../models/User");
+const { notifyLike } = require("../services/notificationService");
 
 // Like a news announcement
 exports.likeNews = async (req, res) => {
@@ -24,6 +26,18 @@ exports.likeNews = async (req, res) => {
 
     await NewsLike.create({ userId, newsId });
     const likeCount = await NewsLike.countDocuments({ newsId });
+
+    const liker = await User.findById(userId).select("name");
+    await notifyLike({
+      recipientId: news.author,
+      actorId: userId,
+      actorName: liker?.name || "Someone",
+      relatedEntityType: "system",
+      relatedEntityId: newsId,
+      itemLabel: `your announcement "${news.title}"`,
+      actionUrl: `/news/${newsId}`,
+      io: req.app.get("io"),
+    });
 
     return res.status(201).json({
       success: true,

@@ -124,6 +124,15 @@
   font-weight: 600;
   font-size: 14px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.user-avatar img,
+.chat-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .user-info {
@@ -292,8 +301,8 @@
   width: 32px;
   height: 32px;
   border: none;
-  background: transparent;
-  color: #bcc6d0;
+  background: rgba(148, 163, 184, 0.08);
+  color: #7a8a9a;
   border-radius: 8px;
   cursor: pointer;
   display: flex;
@@ -301,16 +310,22 @@
   justify-content: center;
   transition: all 0.15s;
   flex-shrink: 0;
-  opacity: 0;
+  opacity: 0.9;
 }
 
 .conversation-item:hover .delete-btn {
   opacity: 1;
+  background: rgba(239, 68, 68, 0.06);
 }
 
 .delete-btn:hover {
   background: #fef2f2;
   color: #dc2626;
+}
+
+.delete-btn:focus-visible {
+  outline: 2px solid rgba(46, 125, 50, 0.4);
+  outline-offset: 2px;
 }
 
 /* Chat Area */
@@ -392,6 +407,7 @@
   font-weight: 600;
   font-size: 16px;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .chat-user-info {
@@ -736,4 +752,41 @@
     font-size: 13px;
     padding: 8px 12px;
   }
+}
+/* ===== Unavailable user (deleted / suspended account) ===== */
+.conversation-item.unavailable .conversation-info strong {
+  color: #9aa6b2;
+  font-style: italic;
+}
+
+.user-avatar.unavailable,
+.chat-avatar.unavailable {
+  background: #cfd8dc;
+  color: #ffffff;
+  font-style: normal;
+}
+
+.chat-unavailable-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 20px;
+  background: #f5f7f8;
+  color: #7a8a9a;
+  font-size: 13px;
+  text-align: center;
+}
+
+.chat-unavailable-notice .unavailable-icon {
+  font-size: 18px;
+  color: #9aa6b2;
+  flex-shrink: 0;
+}
+
+/* Report action in the chat header */
+.chat-header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
 }

@@ -9,11 +9,18 @@
   --accent-border: rgba(170, 59, 255, 0.5);
   --social-bg: rgba(244, 243, 236, 0.5);
   --shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Brand type system: Poppins for display / UI, Inter for body copy. */
+  --font-display: 'Poppins', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'JetBrains Mono', Consolas, monospace;
 
-  font: 18px/145% var(--sans);
+  /* Legacy aliases — existing `var(--sans)` / `var(--heading)` call sites
+     across the stylesheets keep working with no edits. */
+  --sans: var(--font-body);
+  --heading: var(--font-display);
+  --mono: var(--font-mono);
+
+  font: 16px/1.55 var(--font-body);
   letter-spacing: 0.18px;
   color: var(--text);
   background: var(--bg);
@@ -69,6 +76,16 @@ a {
 img {
   max-width: 100%;
   display: block;
+}
+
+/* Form controls don't inherit the document font — pin search inputs and
+   dropdowns to Inter (the body typeface) app-wide. */
+input,
+select,
+textarea,
+optgroup,
+option {
+  font-family: var(--font-body);
 }
 
 ::-webkit-scrollbar {

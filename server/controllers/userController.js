@@ -3,6 +3,7 @@ const JobseekerProfile = require("../models/JobseekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
 const authController = require("./authController");
 const VALID_INDUSTRIES = require("../data/industries"); // Import industry validation list
+const { isAdultAge, MIN_ACCOUNT_AGE } = require("../utils/age");
 
 // Helper to update or create profile
 const upsertProfile = async (userId, role, data) => {
@@ -46,6 +47,17 @@ exports.completeOnboarding = async (req, res) => {
     const userId = req.user._id || req.user.id;
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Age gate — enforced here too because residents supply their birth date
+    // during onboarding rather than at registration.
+    const dobForCheck = req.body.dateOfBirth || user.dateOfBirth;
+    if (dobForCheck) {
+      if (!isAdultAge(dobForCheck)) {
+        return res.status(400).json({
+          message: `You must be at least ${MIN_ACCOUNT_AGE} years old to use STRAM PESO.`,
+        });
+      }
+    }
 
     // 1. Build common updates (fields that belong to User model)
     const commonUpdates = {
@@ -182,8 +194,8 @@ exports.updateProfile = authController.updateProfile;
 // ---------- Other user operations ----------
 exports.uploadProfileImage = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-    const imageUrl = `/uploads/profiles/${req.file.filename}`;
+    if (!req.file?.storedValue) return res.status(400).json({ message: "No file uploaded" });
+    const imageUrl = req.file.storedValue;
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { profileImage: imageUrl },
@@ -197,8 +209,8 @@ exports.uploadProfileImage = async (req, res) => {
 
 exports.uploadResume = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-    const resumeUrl = `/uploads/resumes/${req.file.filename}`;
+    if (!req.file?.storedValue) return res.status(400).json({ message: "No file uploaded" });
+    const resumeUrl = req.file.storedValue;
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { resumeFile: resumeUrl },
@@ -239,49 +251,3 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-exports.deleteAccount = async (req, res) => {
-  try {
-    await User.findByIdAndDelete(req.user.id);
-    await JobseekerProfile.deleteOne({ userId: req.user.id });
-    await EmployerProfile.deleteOne({ userId: req.user.id });
-    res.json({ message: "Account deleted" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// Notifications (unchanged)
-exports.getNotifications = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select("notifications");
-    res.json(user?.notifications || []);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-exports.markNotificationRead = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: "User not found" });
-    const notification = user.notifications.id(req.params.notificationId);
-    if (!notification) return res.status(404).json({ message: "Notification not found" });
-    notification.isRead = true;
-    await user.save();
-    res.json({ message: "Notification marked as read" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-exports.markAllNotificationsRead = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: "User not found" });
-    user.notifications.forEach(n => (n.isRead = true));
-    await user.save();
-    res.json({ message: "All notifications marked as read" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};

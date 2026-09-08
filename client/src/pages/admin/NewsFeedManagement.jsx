@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBullhorn, FaHeart, FaEyeSlash, FaTrashAlt, FaPlus } from "react-icons/fa";
+import {
+  FaBullhorn,
+  FaHeart,
+  FaEye,
+  FaEyeSlash,
+  FaPen,
+  FaTrashAlt,
+  FaPlus,
+  FaComments,
+  FaCommentSlash,
+} from "react-icons/fa";
 import { newsAPI } from "../../services/api";
+import { useToast, useConfirm } from "../../components/feedback/context";
 import "../../styles/admin.css";
 import "../../styles/newsAdmin.css";
 import AdminHeader from "./AdminHeader";
@@ -23,6 +34,8 @@ const excerpt = (text, max = 90) => {
 
 export default function NewsFeedManagement() {
   const navigate = useNavigate();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,19 +63,37 @@ export default function NewsFeedManagement() {
     try {
       await newsAPI.update(post._id, { isActive: !post.isActive });
       await loadPosts();
+      toast.success(post.isActive ? "Announcement unpublished." : "Announcement published.");
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to update announcement status");
+      toast.error(err.response?.data?.message || "Failed to update announcement status.");
+    }
+  };
+
+  const handleToggleComments = async (post) => {
+    try {
+      await newsAPI.update(post._id, { commentsEnabled: !post.commentsEnabled });
+      await loadPosts();
+      toast.success(post.commentsEnabled ? "Comments disabled for this announcement." : "Comments enabled for this announcement.");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update comment setting.");
     }
   };
 
   const handleDelete = async (post) => {
-    if (!window.confirm(`Delete "${post.title}"?`)) return;
+    const ok = await confirm({
+      title: "Delete this announcement?",
+      message: `“${post.title}” will be permanently removed from the news feed.`,
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!ok) return;
 
     try {
       await newsAPI.remove(post._id);
       await loadPosts();
+      toast.success("Announcement deleted.");
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to delete announcement");
+      toast.error(err.response?.data?.message || "Failed to delete announcement.");
     }
   };
 
@@ -172,6 +203,33 @@ export default function NewsFeedManagement() {
                     <td><span className="na-status">Published</span></td>
                     <td>
                       <div className="na-row-actions">
+                        <button
+                          type="button"
+                          className="na-icon-btn"
+                          title="View"
+                          aria-label={`View ${post.title}`}
+                          onClick={() => navigate(`/news/${post._id}`)}
+                        >
+                          <FaEye aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="na-icon-btn"
+                          title="Edit"
+                          aria-label={`Edit ${post.title}`}
+                          onClick={() => navigate(`/admin/news/edit/${post._id}`)}
+                        >
+                          <FaPen aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="na-icon-btn"
+                          title={post.commentsEnabled ? "Disable comments" : "Enable comments"}
+                          aria-label={`${post.commentsEnabled ? "Disable" : "Enable"} comments for ${post.title}`}
+                          onClick={() => handleToggleComments(post)}
+                        >
+                          {post.commentsEnabled ? <FaComments aria-hidden="true" /> : <FaCommentSlash aria-hidden="true" />}
+                        </button>
                         <button
                           type="button"
                           className="na-icon-btn"

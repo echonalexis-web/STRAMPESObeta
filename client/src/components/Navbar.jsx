@@ -2,12 +2,17 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FaEnvelope, FaUserCircle, FaChevronDown, FaBars, FaTimes, FaBell } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
-import { messageAPI } from "../services/api";
+import { messageAPI, notificationAPI, resolveAssetUrl } from "../services/api";
 import { useSocket } from "../context/SocketContext";
 import "../styles/navbar.css";
 import pesoLogo from "../assets/images/peso-logo.png";
 
 const normalizeRole = (role) => (role === "employee" || role === "jobseeker" ? "resident" : role);
+
+// Routes whose page renders its own dedicated setup rail (e.g. the applicant /
+// employer detail onboarding). The app sidebar is suppressed on these so it
+// doesn't compete with the flow's own step navigator.
+const SETUP_PATHS = new Set(["/onboarding"]);
 
 const getLoggedInMenuItems = (userRole) => {
   if (userRole === "admin") {
@@ -24,9 +29,16 @@ const getLoggedInMenuItems = (userRole) => {
         submenu: [
           { label: "News Feed", to: "/admin/news" },
           { label: "Post Announcement", to: "/admin/news/create" },
+          { label: "SPES Applications", to: "/admin/spes" },
         ],
       },
-      { label: "User Management", to: "/admin/users" },
+      {
+        label: "User Management",
+        submenu: [
+          { label: "User Management", to: "/admin/users" },
+          { label: "Reports & Appeals", to: "/admin/users/moderation" },
+        ],
+      },
       { label: "Job Monitoring", to: "/admin/job-monitoring" },
       { label: "Audit Trail", to: "/admin/audit-logs" },
       { label: "My Profile", to: "/profile" },
@@ -48,6 +60,7 @@ const getLoggedInMenuItems = (userRole) => {
       submenu: [
         { label: "Dashboard", to: "/dashboard" },
         { label: "Your Applications", to: "/applications" },
+        { label: "My SPES", to: "/spes/applications" },
       ],
     },
     { label: "Browse Jobs", to: "/jobs" },
@@ -70,6 +83,15 @@ const getInitials = (name) => {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+};
+
+const UserAvatar = ({ user }) => {
+  const src = user?.profileImage ? resolveAssetUrl(user.profileImage) : "";
+  return (
+    <span className="user-avatar-circle">
+      {src ? <img src={src} alt="" /> : getInitials(user?.name)}
+    </span>
+  );
 };
 
 export default function Navbar() {
@@ -114,7 +136,23 @@ export default function Navbar() {
     fetchUnreadCount();
   }, [user, location.pathname]);
 
-  // (unread notifications logic omitted for brevity – same as original)
+  useEffect(() => {
+    const fetchUnreadNotifications = async () => {
+      if (!user) {
+        setUnreadNotifications(0);
+        return;
+      }
+
+      try {
+        const { data } = await notificationAPI.getUnreadCount();
+        setUnreadNotifications(Number(data?.count || 0));
+      } catch (error) {
+        setUnreadNotifications(0);
+      }
+    };
+
+    fetchUnreadNotifications();
+  }, [user]);
 
   useEffect(() => {
     if (!socket || !isConnected || !user) return;
@@ -128,14 +166,41 @@ export default function Navbar() {
       setUnreadCount((prev) => prev + 1);
     };
 
-    // (other socket listeners omitted for brevity)
+    const handleNewNotification = (incoming) => {
+      if (incoming?.isRead) return;
+      setUnreadNotifications((prev) => prev + 1);
+    };
+
+    const handleNotificationsAllRead = () => setUnreadNotifications(0);
+
+    const handleNotificationUpdated = (incoming) => {
+      if (!incoming?.isRead) return;
+      setUnreadNotifications((prev) => Math.max(0, prev - 1));
+    };
+
+    // A deleted notification might have been unread; re-fetch the count
+    // rather than guessing, since the delete event doesn't tell us.
+    const handleNotificationDeleted = async () => {
+      try {
+        const { data } = await notificationAPI.getUnreadCount();
+        setUnreadNotifications(Number(data?.count || 0));
+      } catch (error) {
+        // ignore
+      }
+    };
 
     socket.on("receive_message", handleReceiveMessage);
-    // ...
+    socket.on("notification:new", handleNewNotification);
+    socket.on("notification:all-read", handleNotificationsAllRead);
+    socket.on("notification:updated", handleNotificationUpdated);
+    socket.on("notification:deleted", handleNotificationDeleted);
 
     return () => {
       socket.off("receive_message", handleReceiveMessage);
-      // ...
+      socket.off("notification:new", handleNewNotification);
+      socket.off("notification:all-read", handleNotificationsAllRead);
+      socket.off("notification:updated", handleNotificationUpdated);
+      socket.off("notification:deleted", handleNotificationDeleted);
     };
   }, [socket, isConnected, user, location.pathname]);
 
@@ -202,12 +267,19 @@ export default function Navbar() {
 
   const isSubmenuOpen = (label) => openSubmenu === label || hoveredSubmenu === label;
 
+  const isSetupRoute = SETUP_PATHS.has(location.pathname);
+
   useEffect(() => {
     const bodyClass = "app-with-sidebar";
-    if (isLoggedIn) document.body.classList.add(bodyClass);
+    if (isLoggedIn && !isSetupRoute) document.body.classList.add(bodyClass);
     else document.body.classList.remove(bodyClass);
     return () => document.body.classList.remove(bodyClass);
-  }, [isLoggedIn]);
+  }, [isLoggedIn, isSetupRoute]);
+
+  // On setup / onboarding flows the page supplies its own step rail, so the
+  // app sidebar is collapsed away entirely (same behaviour as the applicant
+  // detail setup).
+  if (isLoggedIn && isSetupRoute) return null;
 
   if (isLoggedIn) {
     return (
@@ -235,7 +307,7 @@ export default function Navbar() {
         <div className="auth-sidebar-profile">
           <button type="button" className="user-pill-button" onClick={() => navigate("/profile")}>
             <span className="user-name">
-              <span className="user-avatar-circle">{getInitials(user?.name)}</span>
+              <UserAvatar user={user} />
               {user?.name}
             </span>
           </button>
@@ -329,7 +401,7 @@ export default function Navbar() {
                   }}
                 >
                   <span className="user-name">
-                    <span className="user-avatar-circle">{getInitials(user?.name)}</span>
+                    <UserAvatar user={user} />
                     {user?.name}
                   </span>
                 </button>

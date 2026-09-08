@@ -201,11 +201,23 @@ function rankItemsByUnifiedScore(job, items, options = {}) {
 
 // ---------- For jobs ranking (Phase 1) ----------
 function rankJobsBySkills(jobs, skills, options = {}) {
-  const { limit = 50, skip = 0, preferredIndustries = [], industryPreferenceLevel = 'flexible' } = options;
+  const {
+    limit = 50,
+    skip = 0,
+    preferredIndustries = [],
+    industryPreferenceLevel = 'flexible',
+    followedEmployerIds = null,
+  } = options;
 
   if (!jobs.length) {
     return jobs.map(job => ({ ...job, relevanceScore: 0 }));
   }
+
+  const isFollowedJob = (job) => {
+    if (!followedEmployerIds || followedEmployerIds.size === 0) return false;
+    const employerId = job.employer?._id || job.employer;
+    return employerId ? followedEmployerIds.has(String(employerId)) : false;
+  };
 
   // Build a fake applicant object with the user's skills
   const fakeApplicant = {
@@ -234,10 +246,19 @@ function rankJobsBySkills(jobs, skills, options = {}) {
     return {
       ...job,
       relevanceScore: score !== null ? parseFloat(score.toFixed(4)) : 0,
+      isFollowedEmployer: isFollowedJob(job),
     };
   });
 
-  ranked.sort((a, b) => b.relevanceScore - a.relevanceScore);
+  // Jobs from a followed employer are fast-tracked to the top of the
+  // recommended list, ahead of everything else; relevance score still
+  // orders jobs within each of those two groups.
+  ranked.sort((a, b) => {
+    if (a.isFollowedEmployer !== b.isFollowedEmployer) {
+      return a.isFollowedEmployer ? -1 : 1;
+    }
+    return b.relevanceScore - a.relevanceScore;
+  });
   return ranked.slice(skip, skip + limit);
 }
 

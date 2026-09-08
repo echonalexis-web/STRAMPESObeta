@@ -12,9 +12,8 @@ import {
   FaUser,
 } from "react-icons/fa";
 import { adminAPI } from "../../services/api";
+import SecureFileLink from "../../components/SecureFileLink";
 import "../../styles/adminUserProfile.css";
-
-const API_ORIGIN = "http://localhost:3000";
 
 const formatDate = (value) => {
   if (!value) return null;
@@ -54,11 +53,11 @@ const Field = ({ label, value, full = false, children }) => {
   );
 };
 
-const DocLink = ({ href, label = "View document" }) =>
-  href ? (
-    <a className="aup-doclink" href={href} target="_blank" rel="noreferrer">
+const DocLink = ({ value, label = "View document" }) =>
+  value ? (
+    <SecureFileLink className="aup-doclink" value={value}>
       <FaFileAlt aria-hidden="true" /> {label}
-    </a>
+    </SecureFileLink>
   ) : null;
 
 export default function UserProfileView() {
@@ -150,9 +149,9 @@ export default function UserProfileView() {
     profile?.businessAddress || user?.businessAddress || profile?.address || user?.address,
   );
   const summary = profile?.companyDescription || profile?.bio || "";
-  const resumeHref = profile?.resumeFile ? `${API_ORIGIN}${profile.resumeFile}` : null;
-  const permitHref = profile?.businessPermitUrl ? `${API_ORIGIN}${profile.businessPermitUrl}` : null;
-  const registrationHref = profile?.registrationDocUrl ? `${API_ORIGIN}${profile.registrationDocUrl}` : null;
+  const resumeRef = profile?.resumeFile || null;
+  const permitRef = profile?.businessPermitUrl || null;
+  const registrationRef = profile?.registrationDocUrl || null;
 
   return (
     <div className="aup-page">
@@ -268,15 +267,15 @@ export default function UserProfileView() {
                 {user.phone ? <a href={`tel:${user.phone}`}>{user.phone}</a> : <span className="is-empty">Not provided</span>}
               </Field>
               <Field label="Resume">
-                {resumeHref ? <DocLink href={resumeHref} label="View resume" /> : "Not uploaded"}
+                {resumeRef ? <DocLink value={resumeRef} label="View resume" /> : "Not uploaded"}
               </Field>
               {isEmployer ? (
                 <>
                   <Field label="Business permit">
-                    {permitHref ? <DocLink href={permitHref} label="View permit" /> : "Not uploaded"}
+                    {permitRef ? <DocLink value={permitRef} label="View permit" /> : "Not uploaded"}
                   </Field>
                   <Field label="Registration document">
-                    {registrationHref ? <DocLink href={registrationHref} label="View document" /> : "Not uploaded"}
+                    {registrationRef ? <DocLink value={registrationRef} label="View document" /> : "Not uploaded"}
                   </Field>
                 </>
               ) : null}
