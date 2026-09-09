@@ -2,7 +2,7 @@ import axios from "axios";
 
 const DEFAULT_API_URL = import.meta.env.DEV
   ? "http://localhost:3000/api/v1"
-  : "https://stram-peso.onrender.com/api/v1";
+  : "https://strampesobeta.onrender.com/api/v1";
 
 export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
 
@@ -27,7 +27,7 @@ export const resolveAssetUrl = (value) => {
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
-  timeout: 30000,
+  timeout: 90000,
 });
 
 // Request interceptor - Add token to every request
