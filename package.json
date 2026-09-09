@@ -1,7 +1,7 @@
 {
   "private": true,
   "engines": {
-    "node": ">=20.19.0"
+    "node": "22.x"
   },
   "scripts": {
     "install:client": "npm --prefix client install --include=dev",
