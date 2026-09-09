@@ -233,13 +233,40 @@
   margin-top: 9px;
 }
 
-.rd2-role {
-  background: var(--violet-soft);
-  color: var(--violet);
+.rd2-role,
+.rd2-follow-count {
   border-radius: 999px;
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 700;
+}
+
+.rd2-role {
+  background: var(--violet-soft);
+  color: var(--violet);
+}
+
+.rd2-follow-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: #2e7d32;
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.rd2-follow-count:hover {
+  text-decoration: underline;
+}
+
+.rd2-follow-count svg {
+  font-size: 12px;
+  color: #2e7d32;
 }
 
 .rd2-status {
@@ -803,6 +830,14 @@
   font-weight: 700;
   color: var(--text-2);
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.rd-connection-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .rd-connection-info p { margin: 0; font-weight: 700; font-size: 13px; color: var(--text); }

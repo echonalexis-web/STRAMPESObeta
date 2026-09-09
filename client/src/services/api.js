@@ -158,7 +158,9 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
   resetPassword: (payload) => api.post('/auth/reset-password', payload),
-  google: (credential) => api.post('/auth/google', { credential }),
+  // `intent` ("employer" | "resident") is only honoured when the Google account
+  // is brand new — it decides which role/profile the account is created with.
+  google: (credential, intent) => api.post('/auth/google', { credential, intent }),
   requestEmailChange: (payload) => api.post('/auth/email-change/request', payload, getAuthHeader()),
   confirmEmailChange: (payload) => api.post('/auth/email-change/confirm', payload),
   registerEmployee: (data) => api.post('/auth/register/employee', data),
@@ -172,6 +174,21 @@ export const authAPI = {
   },
   registerEmployer: (data) => api.post('/auth/register/employer', data),
   acceptTerms: (version) => api.post('/auth/accept-terms', { version }, getAuthHeader()),
+  changePassword: (payload) => api.post('/auth/change-password', payload, getAuthHeader()),
+};
+
+// Superadmin console — provisioning and lifecycle of LMDPESO admin accounts.
+// Every call requires the "superadmin" role server-side.
+export const superadminAPI = {
+  listAdmins: () => api.get('/superadmin/admins', getAuthHeader()),
+  createAdmin: (payload) => api.post('/superadmin/admins', payload, getAuthHeader()),
+  setAdminActive: (id, active) =>
+    api.patch(`/superadmin/admins/${id}/active`, { active }, getAuthHeader()),
+  resetAdminPassword: (id) =>
+    api.post(`/superadmin/admins/${id}/reset-password`, {}, getAuthHeader()),
+  // Permanent policy-violation takedown of a job posting (superadmin only).
+  deleteJob: (id, reason) =>
+    api.delete(`/superadmin/jobs/${id}`, { ...getAuthHeader(), data: { reason } }),
 };
 
 // Suspension appeal — authenticated with the appeal-only token.
@@ -221,7 +238,6 @@ export const adminAPI = {
   toggleHomepageFeature: (id, isFeatured) =>
     api.put(`/admin/jobs/${id}/homepage-feature`, { isFeatured }, getAuthHeader()),
   updateJobStatus: (id, status) => api.put(`/admin/jobs/${id}/status`, { status }, getAuthHeader()),
-  deleteJob: (id) => api.delete(`/admin/jobs/${id}`, getAuthHeader()),
   updateUserRole: (id, role) => api.put(`/admin/users/${id}/role`, { role }, getAuthHeader()),
   deactivateUser: (id, options = {}) =>
     api.put(`/admin/users/${id}/deactivate`, {
@@ -234,15 +250,6 @@ export const adminAPI = {
   resolveReport: (id, payload) => api.patch(`/reports/admin/${id}/resolve`, payload, getAuthHeader()),
   getAppeals: (params = {}) => api.get('/appeals/admin', { ...getAuthHeader(), params }),
   resolveAppeal: (id, payload) => api.patch(`/appeals/admin/${id}/resolve`, payload, getAuthHeader()),
-  // Accepts either a bare status string (legacy) or a { decision, note } payload.
-  updateEmployerVerification: (id, payload) =>
-    api.put(
-      `/admin/users/${id}/verification`,
-      typeof payload === "string" ? { verificationStatus: payload } : payload,
-      getAuthHeader()
-    ),
-  getVerificationQueue: (params = {}) =>
-    api.get('/admin/users/verification-queue', { ...getAuthHeader(), params }),
   getAuditLogs: (params = {}) =>
     api.get('/admin/audit-logs', { ...getAuthHeader(), params }),
   deleteUser: (id) => api.delete(`/admin/users/${id}`, getAuthHeader()),
@@ -325,9 +332,13 @@ export const usersAPI = {
   completeOnboarding: (data) => api.put('/users/onboarding', data, getAuthHeader()),
 };
 
-// Employer document verification submission.
+// Employer verification — employer submits their docs; staff review the queue.
 export const verificationAPI = {
   submit: () => api.post('/users/verification/submit', {}, getAuthHeader()),
+  // Staff: pending-employer queue (admin + superadmin read; admin acts).
+  getQueue: (params = {}) => api.get('/verification/queue', { ...getAuthHeader(), params }),
+  // Accepts { decision: "approved" } or { decision: "rejected", note }.
+  review: (id, payload) => api.patch(`/verification/${id}`, payload, getAuthHeader()),
 };
 
 // SPES (Special Program for Employment of Students) applications.

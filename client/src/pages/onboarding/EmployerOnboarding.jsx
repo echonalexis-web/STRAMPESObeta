@@ -6,13 +6,13 @@ import "../../styles/onboarding.css";
 import LocationSelect from "../../components/LocationSelect";
 import AvatarPicker from "../../components/AvatarPicker";
 import { usePersistentState } from "../../hooks/usePersistentState";
+import { WORKFORCE_SIZE_OPTIONS, workforceSizeLabel } from "../../data/employerProfile";
 
 const industries = [
   "Retail", "Manufacturing", "Government", "Healthcare", "Education", "NGO / Non-profit",
   "Agriculture", "Technology", "Construction", "Transportation", "Hospitality",
   "Real Estate", "Food & Beverage", "Financial Services", "Other",
 ];
-const companySizes = ["1-10", "11-50", "51-200", "201-500", "500+"];
 
 const STEP_LABELS = ["Company Information", "Contact Details", "Review & Submit", "Profile Photo"];
 
@@ -233,8 +233,8 @@ export default function EmployerOnboarding() {
             <div>
               <span className="onboarding-label">Company Size *</span>
               <div className="pill-row">
-                {companySizes.map(size => (
-                  <button key={size} type="button" className={`pill-btn ${form.companySize === size ? "active" : ""}`} onClick={() => updateField("companySize", size)} disabled={saving}>{size}</button>
+                {WORKFORCE_SIZE_OPTIONS.map(({ value, label }) => (
+                  <button key={value} type="button" className={`pill-btn ${form.companySize === value ? "active" : ""}`} onClick={() => updateField("companySize", value)} disabled={saving}>{label}</button>
                 ))}
               </div>
               {errors.companySize && <span className="onboarding-field-error">{errors.companySize}</span>}
@@ -260,10 +260,9 @@ export default function EmployerOnboarding() {
               <label>Total Workforce Size
                 <select value={form.totalWorkforceSize} onChange={e => updateField("totalWorkforceSize", e.target.value)} disabled={saving}>
                   <option value="">Select</option>
-                  <option value="micro">Micro (1-9)</option>
-                  <option value="small">Small (10-99)</option>
-                  <option value="medium">Medium (100-199)</option>
-                  <option value="large">Large (200+)</option>
+                  {WORKFORCE_SIZE_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
                 </select>
               </label>
             </div>
@@ -337,7 +336,7 @@ export default function EmployerOnboarding() {
           <div className="onboarding-summary-card">
             <div className="onboarding-summary-row"><span className="onboarding-summary-label">Company Name</span><span className="onboarding-summary-value">{form.companyName || "-"}</span></div>
             <div className="onboarding-summary-row"><span className="onboarding-summary-label">Industry</span><span className="onboarding-summary-value">{form.industry || "-"}</span></div>
-            <div className="onboarding-summary-row"><span className="onboarding-summary-label">Company Size</span><span className="onboarding-summary-value">{form.companySize || "-"}</span></div>
+            <div className="onboarding-summary-row"><span className="onboarding-summary-label">Company Size</span><span className="onboarding-summary-value">{workforceSizeLabel(form.companySize) || "-"}</span></div>
             <div className="onboarding-summary-row"><span className="onboarding-summary-label">Business Address</span><span className="onboarding-summary-value">{form.businessAddress || "-"}</span></div>
             <div className="onboarding-summary-row"><span className="onboarding-summary-label">Phone Number</span><span className="onboarding-summary-value">{form.phone || "-"}</span></div>
             <div className="onboarding-summary-row"><span className="onboarding-summary-label">Website</span><span className="onboarding-summary-value">{form.website || "-"}</span></div>
@@ -346,7 +345,7 @@ export default function EmployerOnboarding() {
             <div className="onboarding-summary-row"><span className="onboarding-summary-label">TIN</span><span className="onboarding-summary-value">{form.tin || "-"}</span></div>
             <div className="onboarding-summary-row"><span className="onboarding-summary-label">Office Type</span><span className="onboarding-summary-value">{form.officeType || "-"}</span></div>
             <div className="onboarding-summary-row"><span className="onboarding-summary-label">Employer Classification</span><span className="onboarding-summary-value">{form.employerClassificationType ? `${form.employerClassificationType}${form.employerClassificationSubtype ? ` - ${form.employerClassificationSubtype}` : ''}` : "-"}</span></div>
-            <div className="onboarding-summary-row"><span className="onboarding-summary-label">Workforce Size</span><span className="onboarding-summary-value">{form.totalWorkforceSize || "-"}</span></div>
+            <div className="onboarding-summary-row"><span className="onboarding-summary-label">Workforce Size</span><span className="onboarding-summary-value">{workforceSizeLabel(form.totalWorkforceSize) || "-"}</span></div>
             <div className="onboarding-summary-row"><span className="onboarding-summary-label">Owner</span><span className="onboarding-summary-value">{form.ownerName || "-"}</span></div>
             <div className="onboarding-summary-row"><span className="onboarding-summary-label">Contact Person</span><span className="onboarding-summary-value">{form.contactPersonName || "-"}</span></div>
             <div className="onboarding-summary-row"><span className="onboarding-summary-label">Contact Position</span><span className="onboarding-summary-value">{form.contactPersonPosition || "-"}</span></div>

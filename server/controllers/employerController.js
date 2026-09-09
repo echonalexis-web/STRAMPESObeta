@@ -6,6 +6,18 @@ const JobseekerProfile = require("../models/JobseekerProfile");
 const User = require("../models/User");
 const Follow = require("../models/Follow");
 const { createNotificationForUser } = require("../services/notificationService");
+const { MIN_ACCOUNT_AGE } = require("../utils/age");
+
+const EDUCATION_LEVELS = [
+  "Elementary Graduate",
+  "High School Graduate",
+  "Senior High School Graduate",
+  "Vocational / TESDA",
+  "College Undergraduate",
+  "College Graduate",
+  "Master's Degree",
+  "Doctorate",
+];
 
 const getUserId = (req) => req.user._id || req.user.id;
 
@@ -50,6 +62,92 @@ const formatQualifications = (qualifications) => {
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 };
 
+const VALID_WORK_NATURES = ["remote", "onsite", "hybrid"];
+
+// Builds a human-readable "PHP X - Y" (or "PHP X") string from numeric
+// salaryMin/salaryMax so cards/listings still have something to display
+// even though the source of truth is now the numeric fields.
+const formatSalaryDisplay = (salaryMin, salaryMax) => {
+  const hasMin = Number.isFinite(salaryMin);
+  const hasMax = Number.isFinite(salaryMax);
+  if (!hasMin && !hasMax) return "";
+  const fmt = (n) => `PHP ${Number(n).toLocaleString("en-PH")}`;
+  if (hasMin && hasMax && salaryMin !== salaryMax) return `${fmt(salaryMin)} - ${fmt(salaryMax)}`;
+  return fmt(hasMin ? salaryMin : salaryMax);
+};
+
+// Parses salaryMin/salaryMax out of a request body. A field is only present
+// on the returned object if the caller sent the key at all: an explicit
+// null/"" means "clear this field" (resolves to null), while an omitted key
+// means "leave the existing value alone" and is left off the result.
+const parseSalaryRange = (body) => {
+  const result = {};
+  if (body.salaryMin !== undefined) {
+    result.salaryMin = body.salaryMin === null || body.salaryMin === "" ? null : Number(body.salaryMin);
+  }
+  if (body.salaryMax !== undefined) {
+    result.salaryMax = body.salaryMax === null || body.salaryMax === "" ? null : Number(body.salaryMax);
+  }
+  return result;
+};
+
+// Pulls the structured "basic requirements" block out of a request body.
+// Follows parseSalaryRange's convention: a key lands on the result only if the
+// caller actually sent it, so partial updates leave untouched fields alone.
+// An explicit null / "" clears the field.
+const parseBasicRequirements = (body) => {
+  const out = {};
+  const num = (v) => (v === null || v === "" || v === undefined ? null : Number(v));
+
+  if (body.minAge !== undefined) out.minAge = num(body.minAge);
+  if (body.maxAge !== undefined) out.maxAge = num(body.maxAge);
+  if (body.minExperienceYears !== undefined) out.minExperienceYears = num(body.minExperienceYears);
+  if (body.minEducationLevel !== undefined) {
+    out.minEducationLevel = EDUCATION_LEVELS.includes(body.minEducationLevel)
+      ? body.minEducationLevel
+      : null;
+  }
+  if (body.educationOrEquivalentExperience !== undefined) {
+    out.educationOrEquivalentExperience = Boolean(body.educationOrEquivalentExperience);
+  }
+  if (body.languageRequirements !== undefined) {
+    out.languageRequirements = Array.isArray(body.languageRequirements)
+      ? body.languageRequirements
+          .filter((l) => l && l.language)
+          .map((l) => ({
+            language: String(l.language).trim(),
+            read: Boolean(l.read),
+            write: Boolean(l.write),
+            speak: Boolean(l.speak),
+            understand: Boolean(l.understand),
+            required: l.required !== false,
+          }))
+      : [];
+  }
+  return out;
+};
+
+// Validates an *effective* basic-requirements object (incoming values merged
+// over whatever the job already has). Returns an error string, or null if OK.
+const validateBasicRequirements = (reqs) => {
+  if (reqs.minAge != null && (!Number.isFinite(reqs.minAge) || reqs.minAge < MIN_ACCOUNT_AGE)) {
+    return `Minimum age cannot be below ${MIN_ACCOUNT_AGE}`;
+  }
+  if (reqs.maxAge != null && !Number.isFinite(reqs.maxAge)) {
+    return "Maximum age must be a number";
+  }
+  if (reqs.minAge != null && reqs.maxAge != null && reqs.minAge > reqs.maxAge) {
+    return "Minimum age cannot be greater than maximum age";
+  }
+  if (
+    reqs.minExperienceYears != null &&
+    (!Number.isFinite(reqs.minExperienceYears) || reqs.minExperienceYears < 0)
+  ) {
+    return "Minimum experience must be zero or a positive number";
+  }
+  return null;
+};
+
 // ---------------------------------------------------------------------
 // Get all jobs for the logged-in employer
 // ---------------------------------------------------------------------
@@ -84,7 +182,7 @@ exports.getEmployerJobs = async (req, res) => {
 exports.createJob = async (req, res) => {
   try {
     const employerId = getUserId(req);
-    const { title, location, description, salary, qualifications, jobType, slots, applicationDeadline } = req.body;
+    const { title, location, description, salary, qualifications, jobType, slots, applicationDeadline, industry, workNature } = req.body;
 
     if (!title || !location || !description) {
       return res.status(400).json({ message: "title, location, and description are required" });
@@ -94,8 +192,8 @@ exports.createJob = async (req, res) => {
     let parsedQualifications = [];
     if (qualifications) {
       try {
-        parsedQualifications = typeof qualifications === "string" 
-          ? JSON.parse(qualifications) 
+        parsedQualifications = typeof qualifications === "string"
+          ? JSON.parse(qualifications)
           : qualifications;
       } catch (e) {
         return res.status(400).json({ message: "Invalid qualifications format" });
@@ -113,11 +211,32 @@ exports.createJob = async (req, res) => {
       order: q.order !== undefined ? q.order : index,
     }));
 
+    const { salaryMin, salaryMax } = parseSalaryRange(req.body);
+    if (salaryMin != null && !Number.isFinite(salaryMin)) {
+      return res.status(400).json({ message: "Salary minimum must be a number" });
+    }
+    if (salaryMax != null && !Number.isFinite(salaryMax)) {
+      return res.status(400).json({ message: "Salary maximum must be a number" });
+    }
+    if (salaryMin != null && salaryMax != null && salaryMin > salaryMax) {
+      return res.status(400).json({ message: "Salary minimum cannot be greater than salary maximum" });
+    }
+
+    const salaryDisplay = salary ? String(salary).trim() : formatSalaryDisplay(salaryMin, salaryMax);
+
+    const basicRequirements = parseBasicRequirements(req.body);
+    const basicReqError = validateBasicRequirements(basicRequirements);
+    if (basicReqError) {
+      return res.status(400).json({ message: basicReqError });
+    }
+
     const job = await JobVacancy.create({
       title: String(title).trim(),
       location: String(location).trim(),
       description: String(description).trim(),
-      salary: salary ? String(salary).trim() : "",
+      salary: salaryDisplay,
+      salaryMin: salaryMin !== undefined ? salaryMin : null,
+      salaryMax: salaryMax !== undefined ? salaryMax : null,
       qualifications: processedQualifications,
       jobType: jobType || "Full-time",
       slots: Number(slots) > 0 ? Number(slots) : 1,
@@ -125,6 +244,9 @@ exports.createJob = async (req, res) => {
       employer: employerId,
       status: "active",
       isActive: true,
+      industry: industry ? String(industry).trim() : "",
+      workNature: VALID_WORK_NATURES.includes(workNature) ? workNature : null,
+      ...basicRequirements,
       updatedAt: new Date(),
     });
 
@@ -175,15 +297,65 @@ exports.updateJob = async (req, res) => {
       }));
     }
 
-    const allowedFields = ["title", "location", "description", "salary", "jobType", "slots", "status", "applicationDeadline"];
+    const allowedFields = ["title", "location", "description", "jobType", "slots", "status", "applicationDeadline"];
     allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) {
         job[field] = req.body[field];
       }
     });
 
+    if (req.body.industry !== undefined) {
+      job.industry = String(req.body.industry).trim();
+    }
+    if (req.body.workNature !== undefined) {
+      job.workNature = VALID_WORK_NATURES.includes(req.body.workNature) ? req.body.workNature : null;
+    }
+
+    const { salaryMin, salaryMax } = parseSalaryRange(req.body);
+    if (salaryMin != null && !Number.isFinite(salaryMin)) {
+      return res.status(400).json({ message: "Salary minimum must be a number" });
+    }
+    if (salaryMax != null && !Number.isFinite(salaryMax)) {
+      return res.status(400).json({ message: "Salary maximum must be a number" });
+    }
+    const nextMin = salaryMin !== undefined ? salaryMin : job.salaryMin;
+    const nextMax = salaryMax !== undefined ? salaryMax : job.salaryMax;
+    if (Number.isFinite(nextMin) && Number.isFinite(nextMax) && nextMin > nextMax) {
+      return res.status(400).json({ message: "Salary minimum cannot be greater than salary maximum" });
+    }
+    if (salaryMin !== undefined) job.salaryMin = salaryMin;
+    if (salaryMax !== undefined) job.salaryMax = salaryMax;
+
+    if (req.body.salary !== undefined) {
+      job.salary = String(req.body.salary).trim();
+    } else if (salaryMin !== undefined || salaryMax !== undefined) {
+      // No explicit display string provided, but the numeric range changed —
+      // regenerate the display string so it doesn't go stale.
+      job.salary = formatSalaryDisplay(job.salaryMin, job.salaryMax);
+    }
+
     if (req.body.qualifications !== undefined) {
       job.qualifications = parsedQualifications;
+    }
+
+    // Structured basic requirements (age / education / experience / language).
+    const basicRequirements = parseBasicRequirements(req.body);
+    if (Object.keys(basicRequirements).length > 0) {
+      const effective = {
+        minAge: "minAge" in basicRequirements ? basicRequirements.minAge : job.minAge,
+        maxAge: "maxAge" in basicRequirements ? basicRequirements.maxAge : job.maxAge,
+        minExperienceYears:
+          "minExperienceYears" in basicRequirements
+            ? basicRequirements.minExperienceYears
+            : job.minExperienceYears,
+      };
+      const basicReqError = validateBasicRequirements(effective);
+      if (basicReqError) {
+        return res.status(400).json({ message: basicReqError });
+      }
+      Object.entries(basicRequirements).forEach(([key, value]) => {
+        job[key] = value;
+      });
     }
 
     if (req.body.status === "closed") {

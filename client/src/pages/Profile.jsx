@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI, employerAPI, adminAPI } from "../services/api";
+import { workforceSizeLabel } from "../data/employerProfile";
 import "../styles/profile.css";
 
 // Helper: format simple address (string) – displays as a single line
@@ -259,7 +260,7 @@ export default function Profile({ isAdminView = false }) {
               </div>
               <div className="profile-detail-row"><span>Company Name</span><strong>{fallback(profile?.companyName)}</strong></div>
               <div className="profile-detail-row"><span>Industry / Sector</span><strong>{fallback(profile?.industry)}</strong></div>
-              <div className="profile-detail-row"><span>Company Size</span><strong>{fallback(profile?.companySize)}</strong></div>
+              <div className="profile-detail-row"><span>Company Size</span><strong>{fallback(workforceSizeLabel(profile?.companySize))}</strong></div>
               <div className="profile-detail-row"><span>Website / Facebook Page</span><strong>{profile?.website ? <a href={profile.website} target="_blank" rel="noreferrer" className="profile-inline-link">{profile.website}</a> : <span className="profile-missing">Not provided</span>}</strong></div>
             </div>
 
@@ -270,7 +271,7 @@ export default function Profile({ isAdminView = false }) {
               <div className="profile-detail-row"><span>TIN</span><strong>{fallback(profile?.tin)}</strong></div>
               <div className="profile-detail-row"><span>Office Type</span><strong>{fallback(profile?.officeType)}</strong></div>
               <div className="profile-detail-row"><span>Classification</span><strong>{profile?.employerClassification ? `${profile.employerClassification.type}${profile.employerClassification.subtype ? ` - ${profile.employerClassification.subtype}` : ''}` : <span className="profile-missing">Not provided</span>}</strong></div>
-              <div className="profile-detail-row"><span>Total Workforce Size</span><strong>{fallback(profile?.totalWorkforceSize)}</strong></div>
+              <div className="profile-detail-row"><span>Total Workforce Size</span><strong>{fallback(workforceSizeLabel(profile?.totalWorkforceSize))}</strong></div>
               <div className="profile-detail-row"><span>Owner / President</span><strong>{fallback(profile?.ownerName)}</strong></div>
               <div className="profile-detail-row"><span>Contact Person</span><strong>{fallback(profile?.contactPersonName)}</strong></div>
               <div className="profile-detail-row"><span>Contact Person Position</span><strong>{fallback(profile?.contactPersonPosition)}</strong></div>

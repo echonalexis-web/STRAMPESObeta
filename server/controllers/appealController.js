@@ -61,7 +61,7 @@ exports.submitAppeal = async (req, res) => {
     });
 
     try {
-      const admins = await User.find({ role: "admin" }).select("_id");
+      const admins = await User.find({ role: "superadmin" }).select("_id");
       await notifyManyUsers({
         recipientIds: admins.map((a) => a._id),
         actorId: userId,
@@ -70,7 +70,7 @@ exports.submitAppeal = async (req, res) => {
         message: `${user.name || "A user"} submitted an appeal for review.`,
         relatedEntityType: "user",
         relatedEntityId: userId,
-        actionUrl: "/admin/users",
+        actionUrl: "/admin/users/moderation",
         io: req.app.get("io"),
       });
     } catch {
@@ -209,7 +209,7 @@ exports.resolveAppeal = async (req, res) => {
     await logAuditEvent({
       req,
       actorId: getUserId(req),
-      actorRole: "admin",
+      actorRole: req.user.role,
       action: "appeal.resolved",
       targetUserId: appeal.user,
       targetType: "user",

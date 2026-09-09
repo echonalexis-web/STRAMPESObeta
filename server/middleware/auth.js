@@ -31,6 +31,15 @@ exports.verifyToken = async (req, res, next) => {
     }
 
     if (user.isActive === false) {
+      // Staff accounts (admin / superadmin) are disabled by a superadmin, not
+      // "suspended" through moderation — they must not land on the resident
+      // appeal wall. Send a plain 403 with no appeal affordance.
+      if (user.role === "admin" || user.role === "superadmin") {
+        return res.status(403).json({
+          code: "ACCOUNT_DISABLED",
+          message: "This staff account has been disabled. Contact the system superadmin.",
+        });
+      }
       // Structured payload so the client can route to the suspended wall
       // instead of showing a bare error toast.
       return res.status(403).json({
@@ -126,8 +135,18 @@ exports.isEmployeeOrResident = (req, res, next) => {
 };
 
 exports.isAdmin = (req, res, next) => {
-  if (req.user.role !== "admin") {
+  // A superadmin supersedes admin and can reach every admin surface.
+  if (req.user.role !== "admin" && req.user.role !== "superadmin") {
     return res.status(403).json({ message: "Only admins can perform this action" });
+  }
+  next();
+};
+
+// The superadmin tier: the only role allowed to provision / disable / reset
+// admin accounts. Deliberately does NOT accept "admin".
+exports.isSuperadmin = (req, res, next) => {
+  if (req.user.role !== "superadmin") {
+    return res.status(403).json({ message: "Superadmin access required" });
   }
   next();
 };

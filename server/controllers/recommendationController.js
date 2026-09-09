@@ -53,11 +53,14 @@ exports.hybridSearch = async (req, res) => {
     if (jobType) filter.jobType = jobType;
     if (location) filter.location = { $regex: location, $options: 'i' };
 
-    if (salaryMin !== undefined || salaryMax !== undefined) {
-      filter.salaryMin = {};
-      filter.salaryMax = {};
-      if (salaryMin !== undefined) filter.salaryMin.$gte = Number(salaryMin);
-      if (salaryMax !== undefined) filter.salaryMax.$lte = Number(salaryMax);
+    // Match jobs whose salary range overlaps the requested range, rather than
+    // requiring the job's entire range to sit inside it (which would wrongly
+    // exclude e.g. a 15k-25k job from a 20k-30k search).
+    if (salaryMin !== undefined && Number.isFinite(Number(salaryMin))) {
+      filter.salaryMax = { $ne: null, $gte: Number(salaryMin) };
+    }
+    if (salaryMax !== undefined && Number.isFinite(Number(salaryMax))) {
+      filter.salaryMin = { $ne: null, $lte: Number(salaryMax) };
     }
 
     if (q) {
@@ -72,12 +75,25 @@ exports.hybridSearch = async (req, res) => {
     let skills = [];
     let preferredIndustries = [];
     let industryPreferenceLevel = 'flexible';
+    let expectedSalaryMin = null;
+    let expectedSalaryMax = null;
+    let preferredOccupations = [];
+    let workHistory = [];
+    let educationalAttainment = null;
+    let workExperienceBand = null;
+    let desiredJobTitle = null;
+    let seekerDateOfBirth = null;
+    let languageProficiency = null;
 
     if (userId) {
       try {
-        const profile = await JobseekerProfile.findOne({ userId }).select('skills preferredIndustries').lean();
+        const profile = await JobseekerProfile.findOne({ userId })
+          .select('skills preferredIndustries expectedSalaryMin expectedSalaryMax preferredOccupations workHistory languageProficiency')
+          .lean();
         const User = require('../models/User');
-        const user = await User.findById(userId).select('preferredIndustries industryPreferenceLevel').lean();
+        const user = await User.findById(userId)
+          .select('preferredIndustries industryPreferenceLevel educationalAttainment workExperience desiredJobTitle dateOfBirth')
+          .lean();
         
         console.log(`[Job Board] Profile found:`, profile ? 'YES' : 'NO');
         console.log(`[Job Board] Profile skills:`, profile?.skills);
@@ -93,9 +109,18 @@ exports.hybridSearch = async (req, res) => {
         hasSkills = skills.length > 0;
 
         // Fetch preferred industries from both profile and user model (use user model as source of truth)
-        preferredIndustries = Array.isArray(user?.preferredIndustries) ? user.preferredIndustries : 
+        preferredIndustries = Array.isArray(user?.preferredIndustries) ? user.preferredIndustries :
                             (Array.isArray(profile?.preferredIndustries) ? profile.preferredIndustries : []);
         industryPreferenceLevel = user?.industryPreferenceLevel || 'flexible';
+        expectedSalaryMin = Number.isFinite(profile?.expectedSalaryMin) ? profile.expectedSalaryMin : null;
+        expectedSalaryMax = Number.isFinite(profile?.expectedSalaryMax) ? profile.expectedSalaryMax : null;
+        preferredOccupations = Array.isArray(profile?.preferredOccupations) ? profile.preferredOccupations : [];
+        workHistory = Array.isArray(profile?.workHistory) ? profile.workHistory : [];
+        educationalAttainment = user?.educationalAttainment || null;
+        workExperienceBand = user?.workExperience || null;
+        desiredJobTitle = user?.desiredJobTitle || null;
+        seekerDateOfBirth = user?.dateOfBirth || null;
+        languageProficiency = profile?.languageProficiency || null;
 
         console.log(`[Job Board] Profile skills (${skills.length}):`, skills);
         console.log(`[Job Board] Preferred Industries (${preferredIndustries.length}):`, preferredIndustries);
@@ -175,13 +200,33 @@ exports.hybridSearch = async (req, res) => {
     }
 
     // --- 6. Ranking ---
-    if (hasSkills || preferredIndustries.length > 0) {
+    // Personalize whenever the seeker has any usable signal, not just skills /
+    // industry — a freshly completed NSRP profile often has an occupation,
+    // education level and work history before discrete "skills" are typed in.
+    const canPersonalize =
+      hasSkills ||
+      preferredIndustries.length > 0 ||
+      preferredOccupations.length > 0 ||
+      workHistory.length > 0 ||
+      Boolean(educationalAttainment) ||
+      Boolean(desiredJobTitle);
+
+    if (canPersonalize) {
       rankedJobs = rankJobsBySkills(finalFilteredJobs, skills, {
         limit: parsedLimit,
         skip: parsedSkip,
         preferredIndustries,
         industryPreferenceLevel,
         followedEmployerIds,
+        expectedSalaryMin,
+        expectedSalaryMax,
+        preferredOccupations,
+        workHistory,
+        educationalAttainment,
+        workExperienceBand,
+        desiredJobTitle,
+        seekerDateOfBirth,
+        languageProficiency,
       });
     } else {
       const isFollowedJob = (job) => {

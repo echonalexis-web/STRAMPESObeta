@@ -10,7 +10,8 @@
     "test:coverage": "jest --coverage --passWithNoTests",
     "migrate:qualifications": "node scripts/migrateRequirementsToQualifications.js",
     "migrate:salary-numbers": "node scripts/migrateJobSalaryNumbers.js",
-    "migrate:uploads": "node scripts/migrateUploadsToCloudinary.js"
+    "migrate:uploads": "node scripts/migrateUploadsToCloudinary.js",
+    "seed:superadmin": "node scripts/seedSuperadmin.js"
   },
   "jest": {
     "testMatch": [

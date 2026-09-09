@@ -75,7 +75,49 @@ const jobVacancySchema = new mongoose.Schema({
     enum: ["remote", "onsite", "hybrid"],
     default: null,
   },
-  
+
+  // ===== NEW: Structured "basic requirements" =====
+  // Edited in the Qualifications & Requirements modal and read directly by the
+  // matcher, so it no longer has to keyword-parse free-text education /
+  // experience strings. All default to "unspecified" (null / empty), which the
+  // matcher treats as "no requirement on this axis" — not a zero.
+  minAge: { type: Number, default: null },
+  maxAge: { type: Number, default: null },
+  minEducationLevel: {
+    type: String,
+    enum: [
+      "Elementary Graduate",
+      "High School Graduate",
+      "Senior High School Graduate",
+      "Vocational / TESDA",
+      "College Undergraduate",
+      "College Graduate",
+      "Master's Degree",
+      "Doctorate",
+      null,
+    ],
+    default: null,
+  },
+  // "…or equivalent work experience" — lets a candidate who misses the paper
+  // qualification still qualify by meeting the experience bar.
+  educationOrEquivalentExperience: { type: Boolean, default: false },
+  // 0 = fresh graduates welcome; null = experience not a factor.
+  minExperienceYears: { type: Number, default: null },
+  languageRequirements: {
+    type: [
+      {
+        language: { type: String, default: "" },
+        read: { type: Boolean, default: false },
+        write: { type: Boolean, default: false },
+        speak: { type: Boolean, default: false },
+        understand: { type: Boolean, default: false },
+        required: { type: Boolean, default: true },
+        _id: false,
+      },
+    ],
+    default: [],
+  },
+
   // NEW: Job archival and closure tracking
   archived: {
     type: Boolean,

@@ -1,4 +1,4 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { employerAPI } from "../services/api";
@@ -24,6 +24,15 @@ import {
 } from "react-icons/fa";
 import LocationSelect from "../components/LocationSelect";
 import QualificationsEditor from "../components/QualificationsEditor";
+import BasicRequirements from "../components/BasicRequirements";
+import Autosuggest from "../components/Autosuggest";
+import PH_JOB_TITLES from "../data/ph_job_titles_complete.json";
+import {
+  EMPTY_BASIC_REQUIREMENTS,
+  pickBasicRequirements,
+  serializeBasicRequirements,
+  validateBasicRequirements,
+} from "../utils/basicRequirements";
 import VacancyCard from "../components/VacancyCard";
 import { usePersistentState } from "../hooks/usePersistentState";
 
@@ -61,25 +70,34 @@ const JOB_TYPE_ICONS = {
   Remote: "🌐",
 };
 
-const isValidSalaryFormat = (value) => {
-  if (value === null || value === undefined) return true;
-  const trimmed = String(value).trim();
-  if (!trimmed) return true;
+const WORK_NATURES = [
+  { value: "onsite", label: "Onsite" },
+  { value: "remote", label: "Remote" },
+  { value: "hybrid", label: "Hybrid" },
+];
 
-  const salaryPattern = /^(?:PHP\s*)?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)(?:\s*-\s*(?:PHP\s*)?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?))?$/i;
-  return salaryPattern.test(trimmed);
+const formatSalaryPreview = (min, max) => {
+  const hasMin = min !== "" && min !== null && min !== undefined && Number.isFinite(Number(min));
+  const hasMax = max !== "" && max !== null && max !== undefined && Number.isFinite(Number(max));
+  if (!hasMin && !hasMax) return "";
+  const fmt = (n) => `PHP ${Number(n).toLocaleString("en-PH")}`;
+  if (hasMin && hasMax && Number(min) !== Number(max)) return `${fmt(min)} - ${fmt(max)}`;
+  return fmt(hasMin ? min : max);
 };
 
 const getInitialFormData = () => ({
   title: "",
   description: "",
   location: "",
-  salary: "",
+  salaryMin: "",
+  salaryMax: "",
   industry: "",
   jobType: "Full-time",
+  workNature: "",
   slots: 1,
   qualifications: [],
   applicationDeadline: "",
+  ...EMPTY_BASIC_REQUIREMENTS,
 });
 
 export default function PostJob() {
@@ -97,6 +115,7 @@ export default function PostJob() {
       ...getInitialFormData(),
       ...data,
       qualifications: Array.isArray(data?.qualifications) ? data.qualifications : [],
+      languageRequirements: Array.isArray(data?.languageRequirements) ? data.languageRequirements : [],
     };
   };
 
@@ -107,14 +126,21 @@ export default function PostJob() {
     : defaultState;
 
   const { formData, activeSection } = safeState;
-  const setFormData = (updater) => setPersistedState(prev => {
-    const newFormData = typeof updater === 'function' ? updater(prev.formData) : updater;
-    return { ...prev, formData: newFormData };
-  });
-  const setActiveSection = (updater) => setPersistedState(prev => {
-    const newVal = typeof updater === 'function' ? updater(prev.activeSection) : updater;
-    return { ...prev, activeSection: newVal };
-  });
+  const setFormData = useCallback((updater) => {
+    setPersistedState((prev) => {
+      const newFormData = typeof updater === 'function' ? updater(prev.formData) : updater;
+      if (newFormData === prev.formData) return prev;
+      return { ...prev, formData: newFormData };
+    });
+  }, [setPersistedState]);
+
+  const setActiveSection = useCallback((updater) => {
+    setPersistedState((prev) => {
+      const newVal = typeof updater === 'function' ? updater(prev.activeSection) : updater;
+      if (newVal === prev.activeSection) return prev;
+      return { ...prev, activeSection: newVal };
+    });
+  }, [setPersistedState]);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -190,9 +216,15 @@ export default function PostJob() {
         if (value < 1) errors.slots = "Min 1 slot";
         else if (value > 100) errors.slots = "Max 100 slots";
         break;
-      case "salary":
-        if (value && !isValidSalaryFormat(value)) errors.salary = "Please use a valid salary format such as PHP 18,000 or 18,000 - 25,000.";
+      case "salaryMin":
+      case "salaryMax": {
+        if (value === "" || value === null || value === undefined) break;
+        const num = Number(value);
+        if (!Number.isFinite(num) || num < 0) {
+          errors[name] = "Enter a valid amount";
+        }
         break;
+      }
       case "applicationDeadline":
         if (value && new Date(value) < new Date(new Date().setHours(0, 0, 0, 0)))
           errors.applicationDeadline = "Must be today or later";
@@ -215,6 +247,12 @@ export default function PostJob() {
     setTouched((prev) => ({ ...prev, [name]: true }));
     const errs = validateField(name, formData[name]);
     setValidationErrors((prev) => ({ ...prev, ...errs }));
+  };
+
+  // Cancel discards the saved draft so the form starts blank next time.
+  const handleCancel = () => {
+    clearPersistedState();
+    navigate("/employer");
   };
 
   const registeredBusinessAddress = (() => {
@@ -270,15 +308,22 @@ export default function PostJob() {
 
   // Update location when checkbox state or registered address changes
   useEffect(() => {
-    if (useRegisteredBusinessAddress && registeredBusinessAddress) {
-      setFormData((prev) => ({ ...prev, location: registeredBusinessAddress }));
-      setValidationErrors((prev) => ({ ...prev, location: "" }));
-    } else if (useRegisteredBusinessAddress && !registeredBusinessAddress) {
-      // If checked but no address, clear location and show error
-      setFormData((prev) => ({ ...prev, location: "" }));
-      setValidationErrors((prev) => ({ ...prev, location: "No registered business address found. Please update your profile." }));
+    if (!useRegisteredBusinessAddress) return;
+
+    const nextLocation = registeredBusinessAddress || "";
+    if (formData.location !== nextLocation) {
+      setFormData((prev) => ({ ...prev, location: nextLocation }));
     }
-  }, [useRegisteredBusinessAddress, registeredBusinessAddress, setFormData]);
+
+    const nextError = registeredBusinessAddress
+      ? ""
+      : "No registered business address found. Please update your profile.";
+
+    setValidationErrors((prev) => {
+      if (prev.location === nextError) return prev;
+      return { ...prev, location: nextError };
+    });
+  }, [useRegisteredBusinessAddress, registeredBusinessAddress, formData.location, setFormData]);
 
   const handleLocationChange = (nextLocation) => {
     setUseRegisteredBusinessAddress(false);
@@ -327,13 +372,20 @@ export default function PostJob() {
 
   const validateForm = () => {
     const errors = {};
-    ["title", "description", "location", "industry", "qualifications", "slots"].forEach((field) => {
+    ["title", "description", "location", "industry", "qualifications", "slots", "salaryMin", "salaryMax"].forEach((field) => {
       const fieldErrors = validateField(field, formData[field]);
       Object.assign(errors, fieldErrors);
     });
-    if (formData.salary && !isValidSalaryFormat(formData.salary)) errors.salary = "Please use a valid salary format such as PHP 18,000 or 18,000 - 25,000.";
+    if (
+      formData.salaryMin !== "" && formData.salaryMax !== "" &&
+      Number(formData.salaryMin) > Number(formData.salaryMax)
+    ) {
+      errors.salaryMax = "Maximum must be greater than or equal to minimum";
+    }
     if (formData.applicationDeadline && new Date(formData.applicationDeadline) < new Date(new Date().setHours(0, 0, 0, 0)))
       errors.applicationDeadline = "Must be today or later";
+    const basicReqIssues = validateBasicRequirements(pickBasicRequirements(formData));
+    if (basicReqIssues.length > 0) errors.basicRequirements = basicReqIssues[0];
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -355,12 +407,15 @@ export default function PostJob() {
         title: formData.title.trim(),
         description: formData.description.trim(),
         location: formData.location.trim(),
-        salary: (formData.salary || "").trim(),
+        salaryMin: formData.salaryMin !== "" ? Number(formData.salaryMin) : undefined,
+        salaryMax: formData.salaryMax !== "" ? Number(formData.salaryMax) : undefined,
         industry: (formData.industry || "").trim(),
         jobType: formData.jobType,
+        workNature: formData.workNature || undefined,
         slots: Number(formData.slots) || 1,
         qualifications: Array.isArray(formData.qualifications) ? formData.qualifications : [],
         applicationDeadline: formData.applicationDeadline || undefined,
+        ...serializeBasicRequirements(pickBasicRequirements(formData)),
       };
       await employerAPI.createJob(trimmedData);
       setPostedQualifications(trimmedData.qualifications || []);
@@ -487,7 +542,7 @@ export default function PostJob() {
                   title: formData.title,
                   description: formData.description,
                   location: formData.location,
-                  salary: formData.salary,
+                  salary: formatSalaryPreview(formData.salaryMin, formData.salaryMax),
                   jobType: formData.jobType,
                   slots: Number(formData.slots) || 1,
                   qualifications: formData.qualifications,
@@ -582,17 +637,16 @@ export default function PostJob() {
                 <label htmlFor="title">
                   Job Title <span className="pj-required">*</span>
                 </label>
-                <input
+                <Autosuggest
                   id="title"
-                  type="text"
                   name="title"
                   placeholder="e.g. Senior Frontend Developer"
                   value={formData.title}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={validationErrors.title && touched.title ? "pj-error-input" : ""}
+                  onChange={(v) => handleChange({ target: { name: "title", value: v } })}
+                  onBlur={() => handleBlur({ target: { name: "title" } })}
+                  options={PH_JOB_TITLES}
+                  inputClassName={validationErrors.title && touched.title ? "pj-error-input" : ""}
                   maxLength={100}
-                  required
                   disabled={loading}
                 />
                 <div className="pj-field-footer">
@@ -694,24 +748,43 @@ export default function PostJob() {
 
                 <div className="pj-logistics-panel">
                   <div className="pj-field">
-                    <label htmlFor="salary">
-                      <FaMoneyBillWave /> Salary <span className="pj-optional">(Optional)</span>
+                    <label htmlFor="salaryMin">
+                      <FaMoneyBillWave /> Salary Range (PHP) <span className="pj-optional">(Optional)</span>
                     </label>
-                    <input
-                      id="salary"
-                      type="text"
-                      name="salary"
-                      placeholder="PHP 18,000 - 25,000"
-                      value={formData.salary}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      className={validationErrors.salary && touched.salary ? "pj-error-input" : ""}
-                      disabled={loading}
-                    />
-                    {validationErrors.salary && touched.salary && (
-                      <span className="pj-field-error">{validationErrors.salary}</span>
+                    <div className="pj-salary-range-row">
+                      <input
+                        id="salaryMin"
+                        type="number"
+                        min="0"
+                        name="salaryMin"
+                        placeholder="Min, e.g. 18000"
+                        value={formData.salaryMin}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={validationErrors.salaryMin && touched.salaryMin ? "pj-error-input" : ""}
+                        disabled={loading}
+                      />
+                      <span className="pj-salary-range-sep">to</span>
+                      <input
+                        id="salaryMax"
+                        type="number"
+                        min="0"
+                        name="salaryMax"
+                        placeholder="Max, e.g. 25000"
+                        value={formData.salaryMax}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={validationErrors.salaryMax && touched.salaryMax ? "pj-error-input" : ""}
+                        disabled={loading}
+                      />
+                    </div>
+                    {(validationErrors.salaryMin && touched.salaryMin) && (
+                      <span className="pj-field-error">{validationErrors.salaryMin}</span>
                     )}
-                    <span className="pj-hint">Use a fixed amount or a salary range such as PHP 18,000 - 25,000.</span>
+                    {(validationErrors.salaryMax && touched.salaryMax) && (
+                      <span className="pj-field-error">{validationErrors.salaryMax}</span>
+                    )}
+                    <span className="pj-hint">Leave blank if negotiable. Numeric ranges let jobseekers filter and match by salary.</span>
                   </div>
 
                   <div className="pj-field">
@@ -738,6 +811,26 @@ export default function PostJob() {
                     {validationErrors.industry && touched.industry && (
                       <span className="pj-field-error">{validationErrors.industry}</span>
                     )}
+                  </div>
+
+                  <div className="pj-field">
+                    <label htmlFor="workNature">
+                      <FaBuilding /> Work Nature <span className="pj-optional">(Optional)</span>
+                    </label>
+                    <div className="pj-select-wrapper">
+                      <select
+                        id="workNature"
+                        name="workNature"
+                        value={formData.workNature}
+                        onChange={handleChange}
+                        disabled={loading}
+                      >
+                        <option value="">-- Not specified --</option>
+                        {WORK_NATURES.map((wn) => (
+                          <option key={wn.value} value={wn.value}>{wn.label}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <div className="pj-field">
@@ -817,6 +910,17 @@ export default function PostJob() {
               </div>
 
               <div className="pj-field pj-field-full">
+                <BasicRequirements
+                  value={pickBasicRequirements(formData)}
+                  onChange={(next) => setFormData((prev) => ({ ...prev, ...next }))}
+                  disabled={loading}
+                />
+                {validationErrors.basicRequirements && (
+                  <span className="pj-field-error">{validationErrors.basicRequirements}</span>
+                )}
+              </div>
+
+              <div className="pj-field pj-field-full">
                 <QualificationsEditor
                   value={formData.qualifications}
                   onChange={handleQualificationsChange}
@@ -836,7 +940,7 @@ export default function PostJob() {
               <button
                 type="button"
                 className="pj-btn pj-btn-secondary"
-                onClick={() => navigate("/employer")}
+                onClick={handleCancel}
                 disabled={loading}
               >
                 Cancel

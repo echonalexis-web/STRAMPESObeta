@@ -2406,6 +2406,21 @@
   color: var(--pj-text-muted);
   margin-top: 2px;
 }
+.pj-salary-range-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pj-salary-range-row input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.pj-salary-range-sep {
+  color: var(--pj-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  flex: 0 0 auto;
+}
 .job-form-modal-footer {
   display: flex;
   gap: 14px;
@@ -5058,6 +5073,23 @@
 .rt-gauge.match-medium { --ring: #d97706; }
 .rt-gauge.match-low { --ring: #94a3b8; }
 .rt-rank { display: block; margin-top: 3px; font-size: .7rem; font-weight: 700; color: var(--emp-muted); }
+
+/* Applicant disqualified by a hard gate (e.g. outside the job's age range) */
+.rt-dq-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #fdecec;
+  color: #b42318;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.rt-row-dq { opacity: 0.62; }
+.rt-row-dq:hover { opacity: 0.85; }
 
 /* identity */
 .rt-identity { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }

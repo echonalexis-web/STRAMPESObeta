@@ -310,6 +310,42 @@
   color: #991b1b;
 }
 
+.jm-btn--danger {
+  width: 100%;
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.jm-btn--danger:hover {
+  background: #b91c1c;
+}
+
+/* Superadmin policy-takedown modal */
+.jm-takedown__reason {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.jm-takedown__warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
 .jm-filters {
   display: grid;
   grid-template-columns: 2.2fr 1.2fr 1.2fr;

@@ -22,6 +22,7 @@ export const ProtectedRoute = ({ children, requiredRole }) => {
   const userRole = normalizeRole(user?.role);
 
   const getDefaultRouteByRole = (role) => {
+    if (role === "superadmin") return "/superadmin";
     if (role === "admin") return "/admin";
     if (role === "employer") return "/employer-dashboard";
     return "/dashboard";
@@ -33,6 +34,12 @@ export const ProtectedRoute = ({ children, requiredRole }) => {
 
   if (!token || !user) {
     return <Navigate to="/login" />;
+  }
+
+  // A superadmin-provisioned admin must set their own password before doing
+  // anything else. The change-password screen itself is exempt.
+  if (user?.mustChangePassword === true && location.pathname !== "/change-password") {
+    return <Navigate to="/change-password" replace />;
   }
 
   const hasCompletedOnboarding =
@@ -59,6 +66,9 @@ export const ProtectedRoute = ({ children, requiredRole }) => {
     return <Navigate to="/employer-dashboard" replace />;
   }
 
+  // Superadmin access to admin pages is granted per-route in App.jsx (an
+  // explicit ["admin", "superadmin"] list), not blanket-inherited — so the
+  // superadmin only reaches the technical modules, not news / SPES.
   if (requiredRole && ![].concat(requiredRole).includes(userRole)) {
     return <Navigate to="/" />;
   }

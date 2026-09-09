@@ -4,12 +4,16 @@ const DEFAULT_MAX_SUGGESTIONS = 8;
 
 export default function Autosuggest({
   id,
+  name,
   value,
   onChange,
+  onBlur,
   options,
   placeholder,
   disabled,
   className = "",
+  inputClassName = "",
+  maxLength,
   maxSuggestions = DEFAULT_MAX_SUGGESTIONS,
 }) {
   const [open, setOpen] = useState(false);
@@ -65,12 +69,16 @@ export default function Autosuggest({
     <div className={`autosuggest ${className}`.trim()} ref={containerRef}>
       <input
         id={id}
+        name={name}
         type="text"
+        className={inputClassName}
         value={currentValue}
         placeholder={placeholder}
+        maxLength={maxLength}
         onChange={handleChange}
         onFocus={() => currentValue.trim() && setOpen(true)}
         onKeyDown={handleKeyDown}
+        onBlur={onBlur}
         disabled={disabled}
         autoComplete="off"
         role="combobox"

@@ -630,6 +630,24 @@
   margin-top: 2px;
 }
 
+.pj-salary-range-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pj-salary-range-row input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.pj-salary-range-sep {
+  color: var(--pj-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+
 /* ─── Actions ─── */
 .pj-actions {
   display: flex;
@@ -834,4 +852,44 @@
   color: #b91c1c;
   font-size: 0.82rem;
   font-weight: 600;
+}
+
+/* ─── Job title autosuggest ─── */
+.pj-field .autosuggest {
+  position: relative;
+}
+
+.pj-field .autosuggest input {
+  width: 100%;
+}
+
+.pj-field .autosuggest-list {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--pj-card);
+  border: 1px solid var(--pj-border);
+  border-radius: var(--pj-radius-sm);
+  box-shadow: var(--pj-shadow-lg);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.pj-field .autosuggest-list li {
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--pj-text);
+  cursor: pointer;
+}
+
+.pj-field .autosuggest-list li:hover,
+.pj-field .autosuggest-list li.is-highlighted {
+  background: var(--pj-primary-light);
+  color: var(--pj-primary-dark);
 }

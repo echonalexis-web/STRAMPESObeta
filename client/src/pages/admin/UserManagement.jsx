@@ -1,7 +1,6 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminAPI } from "../../services/api";
-import SecureFileLink from "../../components/SecureFileLink";
 import "../../styles/admin.css";
 import AdminHeader from "./AdminHeader";
 
@@ -16,12 +15,6 @@ const tabMeta = {
     emoji: "👤",
     badgeKey: "jobseekerCount",
   },
-  verification: {
-    label: "Verification Queue",
-    emoji: "📋",
-    badgeKey: "verificationCount",
-    warning: true,
-  },
 };
 
 const formatDate = (value) => {
@@ -33,11 +26,10 @@ const formatDate = (value) => {
   });
 };
 
-function UserStatCards({ employers, jobseekers, verificationQueue }) {
+function UserStatCards({ employers, jobseekers }) {
   const stats = [
     { label: "Employers", value: employers, tone: "info" },
     { label: "Jobseekers", value: jobseekers, tone: "success" },
-    { label: "Pending Verification", value: verificationQueue, tone: "warning" },
   ];
 
   return (
@@ -158,149 +150,6 @@ function JobseekersDirectory({ data, onToggleStatus, onViewProfile }) {
   );
 }
 
-function VerificationQueueTable({ data, onDecision, busyId }) {
-  const [rejectingId, setRejectingId] = useState(null);
-  const [reason, setReason] = useState("");
-
-  const startReject = (userId) => {
-    setRejectingId(userId);
-    setReason("");
-  };
-  const cancelReject = () => {
-    setRejectingId(null);
-    setReason("");
-  };
-  const confirmReject = (userId) => {
-    const note = reason.trim();
-    if (!note) return;
-    onDecision(userId, { decision: "rejected", note });
-    cancelReject();
-  };
-
-  return (
-    <div className="admin-panel-card">
-      <div className="admin-card-header">
-        <h3>Verification Queue</h3>
-      </div>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Employer</th>
-              <th>Company</th>
-              <th>Documents</th>
-              <th>Status</th>
-              <th>Submitted</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="admin-empty-state"><p>No pending verifications.</p></td>
-              </tr>
-            ) : (
-              data.map((user) => (
-                <Fragment key={user._id}>
-                  <tr>
-                    <td>
-                      <div className="admin-stack-cell">
-                        <strong>{user.name}</strong>
-                        <span className="admin-muted">{user.email}</span>
-                      </div>
-                    </td>
-                    <td>{user.companyName || "—"}</td>
-                    <td>
-                      <div className="admin-doc-links">
-                        {user.businessPermitUrl ? (
-                          <SecureFileLink className="admin-inline-btn" value={user.businessPermitUrl}>
-                            Business Permit
-                          </SecureFileLink>
-                        ) : (
-                          <span className="admin-muted">No permit</span>
-                        )}
-                        {user.registrationDocUrl ? (
-                          <SecureFileLink className="admin-inline-btn" value={user.registrationDocUrl}>
-                            Registration
-                          </SecureFileLink>
-                        ) : (
-                          <span className="admin-muted">No registration</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        className={`admin-status-badge ${
-                          user.verificationStatus === "verified"
-                            ? "active"
-                            : user.verificationStatus === "pending"
-                            ? "pending"
-                            : "inactive"
-                        }`}
-                      >
-                        {user.verificationStatus || "unverified"}
-                      </span>
-                      {user.verificationNote ? (
-                        <div className="admin-muted admin-reject-note">Last note: {user.verificationNote}</div>
-                      ) : null}
-                    </td>
-                    <td>{formatDate(user.verificationSubmittedAt || user.createdAt)}</td>
-                    <td>
-                      <div className="admin-inline-actions">
-                        <button
-                          className="admin-inline-btn"
-                          type="button"
-                          disabled={busyId === user._id || user.verificationStatus === "verified"}
-                          onClick={() => onDecision(user._id, { decision: "approved" })}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          className="admin-inline-btn"
-                          type="button"
-                          disabled={busyId === user._id}
-                          onClick={() => startReject(user._id)}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  {rejectingId === user._id ? (
-                    <tr>
-                      <td colSpan={6}>
-                        <div className="admin-reject-row">
-                          <input
-                            type="text"
-                            value={reason}
-                            placeholder="Reason shown to the employer (required)"
-                            onChange={(event) => setReason(event.target.value)}
-                          />
-                          <button
-                            className="admin-warning-confirm"
-                            type="button"
-                            disabled={!reason.trim() || busyId === user._id}
-                            onClick={() => confirmReject(user._id)}
-                          >
-                            Confirm rejection
-                          </button>
-                          <button className="admin-warning-cancel" type="button" onClick={cancelReject}>
-                            Cancel
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : null}
-                </Fragment>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
 export default function UserManagement() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("employers");
@@ -310,7 +159,6 @@ export default function UserManagement() {
   const [actionToast, setActionToast] = useState(null);
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendPermanent, setSuspendPermanent] = useState(false);
-  const [verifyBusyId, setVerifyBusyId] = useState(null);
 
   useEffect(() => {
     if (!actionToast) return;
@@ -350,16 +198,12 @@ export default function UserManagement() {
   const counts = useMemo(() => {
     const employerCount = users.filter((user) => user.role === "employer").length;
     const jobseekerCount = users.filter((user) => user.role === "resident" || user.role === "jobseeker").length;
-    const verificationCount = users.filter(
-      (user) => user.role === "employer" && user.verificationStatus !== "verified"
-    ).length;
 
-    return { employerCount, jobseekerCount, verificationCount };
+    return { employerCount, jobseekerCount };
   }, [users]);
 
   const employerDirectory = users.filter((user) => user.role === "employer");
   const jobSeekerDirectory = users.filter((user) => user.role === "resident" || user.role === "jobseeker");
-  const verificationQueue = employerDirectory.filter((user) => user.verificationStatus !== "verified");
 
   const performToggleUserStatus = async (user) => {
     const nextStatus = user.isActive === false;
@@ -409,63 +253,25 @@ export default function UserManagement() {
     navigate(`/admin/users/${user._id}`);
   };
 
-  const handleVerificationDecision = async (userId, payload) => {
-    setVerifyBusyId(userId);
-    try {
-      const { data } = await adminAPI.updateEmployerVerification(userId, payload);
-      const nextStatus = data?.user?.verificationStatus;
-      setUsers((prev) =>
-        prev.map((item) =>
-          item._id === userId
-            ? {
-                ...item,
-                verificationStatus: nextStatus || item.verificationStatus,
-                verificationNote: data?.user?.verificationNote ?? null,
-              }
-            : item
-        )
-      );
-      setActionToast({
-        type: "success",
-        message: `Verification ${payload.decision === "approved" ? "approved" : "rejected"}.`,
-      });
-    } catch (error) {
-      setActionToast({
-        type: "error",
-        message: error.response?.data?.message || "Failed to update verification.",
-      });
-    } finally {
-      setVerifyBusyId(null);
-    }
-  };
-
   const renderTabContent = () => {
     if (loading) {
       return <div className="admin-panel-card"><p className="admin-loading">Loading users...</p></div>;
     }
 
-    if (activeTab === "employers") return <EmployersDirectory data={employerDirectory} onToggleStatus={handleToggleUserStatus} onViewProfile={handleViewProfile} />;
     if (activeTab === "jobseekers") return <JobseekersDirectory data={jobSeekerDirectory} onToggleStatus={handleToggleUserStatus} onViewProfile={handleViewProfile} />;
-    return (
-      <VerificationQueueTable
-        data={verificationQueue}
-        onDecision={handleVerificationDecision}
-        busyId={verifyBusyId}
-      />
-    );
+    return <EmployersDirectory data={employerDirectory} onToggleStatus={handleToggleUserStatus} onViewProfile={handleViewProfile} />;
   };
 
   return (
     <div className="admin-page-container">
       <AdminHeader
         title="User Management"
-        description="Supervise employer accreditations, jobseeker profiles, and compliance verification queues."
+        description="Supervise employer accreditations and jobseeker profiles."
       />
 
       <UserStatCards
         employers={counts.employerCount}
         jobseekers={counts.jobseekerCount}
-        verificationQueue={counts.verificationCount}
       />
 
       <div className="tab-pill-bar" role="tablist" aria-label="User management tabs">
@@ -477,7 +283,7 @@ export default function UserManagement() {
             onClick={() => setActiveTab(key)}
           >
             <span>{meta.emoji} {meta.label}</span>
-            <span className={`badge ${meta.warning ? "warning" : ""}`}>
+            <span className="badge">
               {counts[meta.badgeKey]}
             </span>
           </button>

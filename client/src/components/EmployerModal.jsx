@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import { FaStar, FaUsers, FaEnvelope, FaPhone, FaGlobe, FaMapMarkerAlt, FaBriefcase, FaRegClock, FaTimes } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { useFollow } from "../hooks/useFollow";
+import { workforceSizeLabel } from "../data/employerProfile";
 import "../styles/EmployerModal.css";
 
 const formatAddress = (address) => {
@@ -68,7 +69,7 @@ export default function EmployerModal({ isOpen, onClose, employer }) {
         </div>
 
         <div className="employer-stats">
-          <div className="stat-item"><FaUsers className="stat-icon" /><div><span className="stat-value">{employer.companySize || "N/A"}</span><span className="stat-label">Company Size</span></div></div>
+          <div className="stat-item"><FaUsers className="stat-icon" /><div><span className="stat-value">{workforceSizeLabel(employer.companySize) || "N/A"}</span><span className="stat-label">Company Size</span></div></div>
           <div className="stat-item"><FaBriefcase className="stat-icon" /><div><span className="stat-value">{employer.industry || "N/A"}</span><span className="stat-label">Industry</span></div></div>
           <div className="stat-item"><FaRegClock className="stat-icon" /><div><span className="stat-value">Active</span><span className="stat-label">Status</span></div></div>
         </div>

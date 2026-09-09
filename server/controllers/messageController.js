@@ -37,7 +37,10 @@ const normalizeRole = (role) => {
 
 const getAllowedSearchRoles = (role) => {
   const normalized = normalizeRole(role);
-  if (normalized === "admin") return ["resident", "employee", "employer", "admin"];
+  // The superadmin is intentionally isolated: it may only converse with PESO
+  // admins, and admins may reach it in turn.
+  if (normalized === "superadmin") return ["admin"];
+  if (normalized === "admin") return ["resident", "employee", "employer", "admin", "superadmin"];
   if (normalized === "employer") return ["resident", "employee"];
   if (normalized === "resident") return ["employer"];
   return [];
@@ -47,7 +50,8 @@ const canMessageTarget = (sourceRole, targetRole) => {
   const source = normalizeRole(sourceRole);
   const target = normalizeRole(targetRole);
 
-  if (source === "admin") return ["resident", "employer", "admin"].includes(target);
+  if (source === "superadmin") return target === "admin";
+  if (source === "admin") return ["resident", "employer", "admin", "superadmin"].includes(target);
   if (source === "resident") return target === "employer";
   if (source === "employer") return target === "resident";
   return false;

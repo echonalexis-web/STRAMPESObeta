@@ -773,7 +773,7 @@ export default function Messages() {
                     onClick={() => handleDeleteConversation(conversation._id)}
                     aria-label="Delete conversation"
                   >
-                    <FaTrash />
+                    <FaTrash aria-hidden="true" focusable="false" />
                   </button>
                 </div>
               );

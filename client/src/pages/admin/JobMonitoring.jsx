@@ -12,10 +12,12 @@ import {
   FaPlus,
   FaSearch,
   FaTimes,
+  FaTrash,
   FaUsers,
 } from "react-icons/fa";
-import { adminAPI } from "../../services/api";
+import { adminAPI, superadminAPI } from "../../services/api";
 import { useToast } from "../../components/feedback/context";
+import { useAuth } from "../../context/AuthContext";
 import "../../styles/jobMonitoring.css";
 import { normalizeJobMonitoringRecord } from "../../data/jobMonitoringData";
 
@@ -48,9 +50,16 @@ const STATUS_META = {
 export default function JobMonitoring() {
   const PAGE_SIZE = 10;
   const toast = useToast();
+  const { user } = useAuth();
+  // The superadmin gets a lean, monitoring-only view: no KPI cards, no charts,
+  // no "post a listing" — but it can permanently take down policy-violating jobs.
+  const isSuperadmin = user?.role === "superadmin";
 
   const [jobs, setJobs] = useState([]);
   const [statsData, setStatsData] = useState(null);
+  const [takedownJob, setTakedownJob] = useState(null);
+  const [takedownReason, setTakedownReason] = useState("");
+  const [takingDown, setTakingDown] = useState(false);
   const [statsRefreshKey, setStatsRefreshKey] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMunicipality, setSelectedMunicipality] = useState("All Marinduque");
@@ -110,6 +119,11 @@ export default function JobMonitoring() {
   }, [currentPage, searchTerm, selectedMunicipality, selectedStatus]);
 
   useEffect(() => {
+    if (isSuperadmin) {
+      setStatsData(null);
+      return undefined;
+    }
+
     let isMounted = true;
 
     const loadStats = async () => {
@@ -131,7 +145,7 @@ export default function JobMonitoring() {
     return () => {
       isMounted = false;
     };
-  }, [searchTerm, selectedMunicipality, selectedStatus, statsRefreshKey]);
+  }, [searchTerm, selectedMunicipality, selectedStatus, statsRefreshKey, isSuperadmin]);
 
   const provinceSummary = useMemo(() => {
     const breakdown = Array.isArray(statsData?.municipalityBreakdown)
@@ -223,80 +237,111 @@ export default function JobMonitoring() {
     }
   };
 
+  const openTakedown = (job) => {
+    setSelectedJob(null);
+    setTakedownReason("");
+    setTakedownJob(job);
+  };
+
+  const confirmTakedown = async () => {
+    if (!takedownJob) return;
+    setTakingDown(true);
+    try {
+      await superadminAPI.deleteJob(takedownJob.id, takedownReason.trim());
+      setJobs((prev) => prev.filter((job) => job.id !== takedownJob.id));
+      setTotalJobs((count) => Math.max(0, count - 1));
+      toast.success("Job permanently removed.");
+      setTakedownJob(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to remove the job.");
+    } finally {
+      setTakingDown(false);
+    }
+  };
+
   return (
     <div className="jm-page">
       <header className="jm-banner">
         <div className="jm-banner__rings" aria-hidden="true" />
-        <div className="jm-banner__eyebrow">Admin Control Center</div>
+        <div className="jm-banner__eyebrow">
+          {isSuperadmin ? "Superadmin · Policy Enforcement" : "Admin Control Center"}
+        </div>
         <h1 className="jm-banner__title">Job Monitoring &amp; Vacancy Pipeline</h1>
         <p className="jm-banner__desc">
-          Monitor employer job postings, review pending vacancies, track hiring demand across Marinduque
-          municipalities, and verify slot allocations in real-time.
+          {isSuperadmin
+            ? "Review employer job postings and permanently remove any that violate platform policy."
+            : "Monitor employer job postings, review pending vacancies, track hiring demand across Marinduque municipalities, and verify slot allocations in real-time."}
         </p>
       </header>
 
-      <section className="jm-kpi-grid">
-        {stats.map(({ label, value, sub, accent, icon: Icon }) => (
-          <article key={label} className={`jm-kpi jm-kpi--${accent}`}>
-            <div className="jm-kpi__header">
-              <span className="jm-kpi__label">{label}</span>
-              <div className="jm-kpi__icon">
-                <Icon />
-              </div>
-            </div>
-            <div className="jm-kpi__value">{value}</div>
-            <div className="jm-kpi__sub">{sub}</div>
-          </article>
-        ))}
-      </section>
-
-      <section className="jm-panel">
-        <div className="jm-panel__head">
-          <h2 className="jm-panel__title">Job Vacancies &amp; Slot Openings by Municipality</h2>
-          <div className="jm-province-pill">Marinduque Province</div>
-        </div>
-
-        {provinceSummary.length === 0 ? (
-          <div className="jm-chart jm-chart--empty">
-            No slot openings match the current filters.
-          </div>
-        ) : (
-          <div
-            className="jm-chart"
-            role="img"
-            aria-label={`Slot openings by municipality: ${provinceSummary
-              .map((item) => `${item.label} ${item.value}`)
-              .join(", ")}`}
-          >
-            {provinceSummary.map((item) => (
-              <div key={item.label} className="jm-chart__column">
-                <div className="jm-chart__value">{item.value}</div>
-                <div className="jm-chart__track">
-                  <div
-                    className="jm-chart__bar"
-                    style={{ height: `${Math.max((item.value / maxChartValue) * 100, 3)}%` }}
-                  />
+      {!isSuperadmin && (
+        <section className="jm-kpi-grid">
+          {stats.map(({ label, value, sub, accent, icon: Icon }) => (
+            <article key={label} className={`jm-kpi jm-kpi--${accent}`}>
+              <div className="jm-kpi__header">
+                <span className="jm-kpi__label">{label}</span>
+                <div className="jm-kpi__icon">
+                  <Icon />
                 </div>
-                <div className="jm-chart__label">{item.label}</div>
               </div>
-            ))}
+              <div className="jm-kpi__value">{value}</div>
+              <div className="jm-kpi__sub">{sub}</div>
+            </article>
+          ))}
+        </section>
+      )}
+
+      {!isSuperadmin && (
+        <section className="jm-panel">
+          <div className="jm-panel__head">
+            <h2 className="jm-panel__title">Job Vacancies &amp; Slot Openings by Municipality</h2>
+            <div className="jm-province-pill">Marinduque Province</div>
           </div>
-        )}
-      </section>
+
+          {provinceSummary.length === 0 ? (
+            <div className="jm-chart jm-chart--empty">
+              No slot openings match the current filters.
+            </div>
+          ) : (
+            <div
+              className="jm-chart"
+              role="img"
+              aria-label={`Slot openings by municipality: ${provinceSummary
+                .map((item) => `${item.label} ${item.value}`)
+                .join(", ")}`}
+            >
+              {provinceSummary.map((item) => (
+                <div key={item.label} className="jm-chart__column">
+                  <div className="jm-chart__value">{item.value}</div>
+                  <div className="jm-chart__track">
+                    <div
+                      className="jm-chart__bar"
+                      style={{ height: `${Math.max((item.value / maxChartValue) * 100, 3)}%` }}
+                    />
+                  </div>
+                  <div className="jm-chart__label">{item.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="jm-panel">
         <div className="jm-panel__head jm-panel__head--directory">
           <h2 className="jm-panel__title">Job Vacancy Directory</h2>
-          <div className="jm-directory-actions">
-            <button type="button" className="jm-btn jm-btn--ghost">
-              <FaDownload />
-              <span>Export CSV</span>
-            </button>
-            <button type="button" className="jm-btn jm-btn--primary">
-              <FaPlus />
-              <span>Post PESO Listing</span>
-            </button>
-          </div>
+          {!isSuperadmin && (
+            <div className="jm-directory-actions">
+              <button type="button" className="jm-btn jm-btn--ghost">
+                <FaDownload />
+                <span>Export CSV</span>
+              </button>
+              <button type="button" className="jm-btn jm-btn--primary">
+                <FaPlus />
+                <span>Post PESO Listing</span>
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="jm-filters">
@@ -487,11 +532,85 @@ export default function JobMonitoring() {
                     <button type="button" className="jm-btn jm-btn--reject" onClick={() => handleStatusUpdate(selectedJob.id, "closed")}>
                       <FaTimes aria-hidden="true" /> Reject listing
                     </button>
+                    {isSuperadmin && (
+                      <button type="button" className="jm-btn jm-btn--danger" onClick={() => openTakedown(selectedJob)}>
+                        <FaTrash aria-hidden="true" /> Permanently delete
+                      </button>
+                    )}
                     <button type="button" className="jm-btn jm-btn--ghost" onClick={() => setSelectedJob(null)}>
                       Close
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {takedownJob ? (
+        <div className="jm-backdrop" onClick={() => !takingDown && setTakedownJob(null)}>
+          <div className="jm-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="jm-modal__header">
+              <div className="jm-modal__icon">
+                <FaTrash />
+              </div>
+              <div className="jm-modal__heading">
+                <p className="jm-modal__eyebrow">Policy Violation Takedown</p>
+                <h3 className="jm-modal__title">{takedownJob.title}</h3>
+              </div>
+              <button
+                type="button"
+                className="jm-modal__close"
+                onClick={() => setTakedownJob(null)}
+                disabled={takingDown}
+                aria-label="Cancel takedown"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="jm-modal__body">
+              <p>
+                This permanently removes <strong>{takedownJob.title}</strong> by {takedownJob.employer}
+                {" "}and every application submitted to it. This cannot be undone.
+              </p>
+
+              <label className="jm-field__label" htmlFor="jm-takedown-reason">
+                Reason (recorded in the audit trail)
+              </label>
+              <textarea
+                id="jm-takedown-reason"
+                className="jm-takedown__reason"
+                rows={3}
+                value={takedownReason}
+                onChange={(event) => setTakedownReason(event.target.value)}
+                placeholder="e.g. Recruitment scam — charges applicants a placement fee."
+                disabled={takingDown}
+              />
+
+              <p className="jm-takedown__warn">
+                <FaExclamationTriangle aria-hidden="true" />
+                The employer is notified that the posting was removed for a policy violation.
+              </p>
+
+              <div className="jm-modal__actions">
+                <button
+                  type="button"
+                  className="jm-btn jm-btn--danger"
+                  onClick={confirmTakedown}
+                  disabled={takingDown}
+                >
+                  <FaTrash aria-hidden="true" /> {takingDown ? "Removing…" : "Permanently delete job"}
+                </button>
+                <button
+                  type="button"
+                  className="jm-btn jm-btn--ghost"
+                  onClick={() => setTakedownJob(null)}
+                  disabled={takingDown}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>

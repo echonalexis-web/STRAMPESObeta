@@ -6,6 +6,13 @@ import { API_URL } from "../services/api";
 import { AuthContext } from "../context/AuthContext";
 import LocationSelect from "../components/LocationSelect";
 import QualificationsEditor from "../components/QualificationsEditor";
+import BasicRequirements from "../components/BasicRequirements";
+import {
+  EMPTY_BASIC_REQUIREMENTS,
+  pickBasicRequirements,
+  serializeBasicRequirements,
+  validateBasicRequirements,
+} from "../utils/basicRequirements";
 import "../styles/qualifications-editor.css";
 import RankedApplicantsTable from "../components/RankedApplicantsTable";
 import SecureFileLink from "../components/SecureFileLink";
@@ -77,15 +84,26 @@ const SALARY_GRADES = [
 
 const tabList = ["overview", "jobs", "applicants", "archived"];
 
+const formatSalaryPreview = (min, max) => {
+  const hasMin = min !== "" && min !== null && min !== undefined && Number.isFinite(Number(min));
+  const hasMax = max !== "" && max !== null && max !== undefined && Number.isFinite(Number(max));
+  if (!hasMin && !hasMax) return "";
+  const fmt = (n) => `PHP ${Number(n).toLocaleString("en-PH")}`;
+  if (hasMin && hasMax && Number(min) !== Number(max)) return `${fmt(min)} - ${fmt(max)}`;
+  return fmt(hasMin ? min : max);
+};
+
 const defaultJobForm = {
   title: "",
   location: "",
   jobType: "Full-time",
-  salary: "",
+  salaryMin: "",
+  salaryMax: "",
   slots: 1,
   description: "",
   qualifications: [],
   applicationDeadline: "",
+  ...EMPTY_BASIC_REQUIREMENTS,
 };
 
 const statusClass = (value) => {
@@ -622,11 +640,13 @@ export default function EmployerDashboard() {
       title: job.title || "",
       location: job.location || "",
       jobType: job.jobType || "Full-time",
-      salary: job.salary || "",
+      salaryMin: Number.isFinite(job.salaryMin) ? String(job.salaryMin) : "",
+      salaryMax: Number.isFinite(job.salaryMax) ? String(job.salaryMax) : "",
       slots: job.slots || 1,
       description: job.description || "",
       qualifications: quals,
       applicationDeadline: job.applicationDeadline ? String(job.applicationDeadline).slice(0, 10) : "",
+      ...pickBasicRequirements(job),
     });
     setModalActiveSection("details");
     setIsJobModalOpen(true);
@@ -642,16 +662,32 @@ export default function EmployerDashboard() {
       if (!jobForm.title.trim()) { setError("Job title is required"); setIsSavingJob(false); return; }
       if (!jobForm.description.trim()) { setError("Job description is required"); setIsSavingJob(false); return; }
       if (!jobForm.location.trim()) { setError("Location is required"); setIsSavingJob(false); return; }
+      if (
+        jobForm.salaryMin !== "" && jobForm.salaryMax !== "" &&
+        Number(jobForm.salaryMin) > Number(jobForm.salaryMax)
+      ) {
+        setError("Salary minimum cannot be greater than salary maximum");
+        setIsSavingJob(false);
+        return;
+      }
+      const basicReqIssues = validateBasicRequirements(pickBasicRequirements(jobForm));
+      if (basicReqIssues.length > 0) {
+        setError(basicReqIssues[0]);
+        setIsSavingJob(false);
+        return;
+      }
 
       const payload = {
         title: jobForm.title.trim(),
         location: jobForm.location.trim(),
         description: jobForm.description.trim(),
-        salary: jobForm.salary.trim(),
+        salaryMin: jobForm.salaryMin !== "" ? Number(jobForm.salaryMin) : null,
+        salaryMax: jobForm.salaryMax !== "" ? Number(jobForm.salaryMax) : null,
         jobType: jobForm.jobType,
         slots: Number(jobForm.slots) || 1,
         qualifications: jobForm.qualifications || [],
         applicationDeadline: jobForm.applicationDeadline || undefined,
+        ...serializeBasicRequirements(pickBasicRequirements(jobForm)),
       };
 
       if (editingJob?._id) {
@@ -2158,9 +2194,9 @@ export default function EmployerDashboard() {
                       <span className="job-form-preview-dot">•</span>
                       <span>{jobForm.jobType}</span>
                     </div>
-                    {jobForm.salary && (
+                    {(jobForm.salaryMin !== "" || jobForm.salaryMax !== "") && (
                       <div className="job-form-preview-salary">
-                        <FaMoneyBillWave /> {jobForm.salary}
+                        <FaMoneyBillWave /> {formatSalaryPreview(jobForm.salaryMin, jobForm.salaryMax)}
                       </div>
                     )}
                     <div className="job-form-preview-slots">
@@ -2257,17 +2293,30 @@ export default function EmployerDashboard() {
 
                       <div className="form-section">
                         <label className="form-label">
-                          <FaMoneyBillWave /> Salary <span className="pj-optional">(Optional)</span>
+                          <FaMoneyBillWave /> Salary Range (PHP) <span className="pj-optional">(Optional)</span>
                         </label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          value={jobForm.salary}
-                          onChange={(e) => setJobForm({ ...jobForm, salary: e.target.value })}
-                          placeholder="PHP 18,000 - 25,000"
-                          disabled={isSavingJob}
-                        />
-                        <span className="form-hint">Example: PHP 18,000 or 18,000 - 25,000</span>
+                        <div className="pj-salary-range-row">
+                          <input
+                            type="number"
+                            min="0"
+                            className="form-input"
+                            value={jobForm.salaryMin}
+                            onChange={(e) => setJobForm({ ...jobForm, salaryMin: e.target.value })}
+                            placeholder="Min, e.g. 18000"
+                            disabled={isSavingJob}
+                          />
+                          <span className="pj-salary-range-sep">to</span>
+                          <input
+                            type="number"
+                            min="0"
+                            className="form-input"
+                            value={jobForm.salaryMax}
+                            onChange={(e) => setJobForm({ ...jobForm, salaryMax: e.target.value })}
+                            placeholder="Max, e.g. 25000"
+                            disabled={isSavingJob}
+                          />
+                        </div>
+                        <span className="form-hint">Leave blank if negotiable.</span>
                       </div>
 
                       <div className="form-section">
@@ -2331,6 +2380,14 @@ export default function EmployerDashboard() {
                         <h3>Requirements</h3>
                         <p>What candidates need to qualify</p>
                       </div>
+                    </div>
+
+                    <div className="form-section form-field-full">
+                      <BasicRequirements
+                        value={pickBasicRequirements(jobForm)}
+                        onChange={(next) => setJobForm({ ...jobForm, ...next })}
+                        disabled={isSavingJob}
+                      />
                     </div>
 
                     <div className="form-section form-field-full">

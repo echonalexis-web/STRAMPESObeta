@@ -1796,3 +1796,43 @@
 .employer-verify-block .profile-save-btn {
   margin-top: 0.5rem;
 }
+
+/* Password input wrapper with toggle icon */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  padding-right: 2.5rem;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 4px;
+  transition: color 0.2s, background-color 0.2s;
+  padding: 0;
+}
+
+.password-toggle-btn:hover {
+  color: #1a2a3a;
+  background-color: #f1f5f9;
+}
+
+.password-toggle-btn:focus {
+  outline: 2px solid #15803d;
+  outline-offset: -2px;
+}

@@ -35,6 +35,7 @@ import {
 } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { adminAPI, authAPI, employerAPI, jobLikeAPI, messageAPI, followAPI, newsLikeAPI, resolveAssetUrl } from "../services/api";
+import { workforceSizeLabel } from "../data/employerProfile";
 import SecureFileLink from "../components/SecureFileLink";
 import ImageEditorModal from "../components/ImageEditorModal";
 import "../styles/profile-redesign.css";
@@ -339,7 +340,9 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
         : "overview";
   const normalizedRole = profile?.role === "employee" || profile?.role === "jobseeker" ? "resident" : profile?.role;
   const isEmployer = normalizedRole === "employer";
-  const isAdmin = normalizedRole === "admin";
+  const isSuperadmin = normalizedRole === "superadmin";
+  // The superadmin shares the admin's minimal profile layout.
+  const isAdmin = normalizedRole === "admin" || isSuperadmin;
   const isReadOnly = isAdminView || isEmployerView;
 
   useEffect(() => {
@@ -644,6 +647,13 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
     ? (profile?.companyName || profile?.name || "C").trim().charAt(0).toUpperCase()
     : (profile?.name ? profile.name.trim().charAt(0).toUpperCase() : "U");
   const avatarUrl = profile?.profileImage ? resolveAssetUrl(profile.profileImage) : "";
+  const getUserAvatarUrl = (person) => {
+    if (!person) return "";
+    const source = person.profileImage || person.avatar || person.image || person.photo || person.companyLogo || person.logo;
+    return source ? resolveAssetUrl(source) : "";
+  };
+  const followerCount = followers.length;
+  const followingCount = following.length;
   const sectionTabs = isAdmin ? [] : isEmployer ? EMPLOYER_TABS : RESIDENT_TABS;
 
   if (!profile && loading) return null;
@@ -717,12 +727,18 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                   </>
                 ) : (
                   <>
-                    <span className="rd2-role">{profile?.desiredJobTitle || (isAdmin ? "Administrator" : "Jobseeker")}</span>
+                    <span className="rd2-role">{profile?.desiredJobTitle || (isSuperadmin ? "System Superadmin" : isAdmin ? "Administrator" : "Jobseeker")}</span>
                     {profile?.availabilityStatus ? (
                       <span className="rd2-status"><i className="rd2-dot" />{profile.availabilityStatus}</span>
                     ) : null}
                   </>
                 )}
+                {!isAdmin ? (
+                  <Link to="/profile/followers" className="rd2-follow-count" aria-label={isEmployer ? "View followers" : "View following"}>
+                    <FaUsers aria-hidden="true" />
+                    {isEmployer ? `${followerCount} Follower${followerCount === 1 ? "" : "s"}` : `${followingCount} Following`}
+                  </Link>
+                ) : null}
               </div>
 
               <div className="rd2-contact">
@@ -764,7 +780,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
               {!isEmployer ? <Link to="/profile/favorites" className={activeTab === "favorites" ? "is-active" : ""}>Favorites</Link> : null}
               <Link to="/profile/likes" className={activeTab === "likes" ? "is-active" : ""}>My Likes</Link>
               <Link to="/profile/followers" className={activeTab === "followers" ? "is-active" : ""}>
-                {isEmployer ? "Followers" : "Following"}
+                {isEmployer ? `Followers (${followerCount})` : `Following (${followingCount})`}
               </Link>
             </nav>
           ) : null}
@@ -867,7 +883,9 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                                 }
                               } : undefined}
                             >
-                              <div className="rd-connection-avatar">{follower.name?.charAt(0).toUpperCase() || "U"}</div>
+                              <div className="rd-connection-avatar">
+                                {getUserAvatarUrl(follower) ? <img src={getUserAvatarUrl(follower)} alt="" /> : (follower.name?.charAt(0).toUpperCase() || "U")}
+                              </div>
                               <div className="rd-connection-info">
                                 <p>{follower.name || "User"}</p>
                                 <span>{follower.email}</span>
@@ -888,7 +906,9 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                     <div className="rd-connections-list">
                       {following.map((followedUser) => (
                         <div key={followedUser._id} className="rd-connection-row">
-                          <div className="rd-connection-avatar">{followedUser.name?.charAt(0).toUpperCase() || "U"}</div>
+                          <div className="rd-connection-avatar">
+                            {getUserAvatarUrl(followedUser) ? <img src={getUserAvatarUrl(followedUser)} alt="" /> : (followedUser.name?.charAt(0).toUpperCase() || "U")}
+                          </div>
                           <div className="rd-connection-info">
                             <p>{followedUser.name || "User"}</p>
                             <span>{followedUser.email}</span>
@@ -907,7 +927,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
               <div className="rd2-rows">
                 <DataItem label="Email" value={profile?.email} />
                 <DataItem label="Phone" value={profile?.phone} />
-                <DataItem label="Role" value="Administrator" />
+                <DataItem label="Role" value={isSuperadmin ? "System Superadmin" : "Administrator"} />
                 <DataItem label="Account status" value={profile?.isActive === false ? "Inactive" : "Active"} />
               </div>
             </Section>
@@ -924,8 +944,8 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                 <DataItem label="Trade Name" value={profile?.tradeName} />
                 <DataItem label="Acronym" value={profile?.acronym} />
                 <DataItem label="Industry" value={profile?.industry} />
-                <DataItem label="Company Size" value={profile?.companySize} />
-                <DataItem label="Total Workforce Size" value={profile?.totalWorkforceSize} />
+                <DataItem label="Company Size" value={workforceSizeLabel(profile?.companySize) || null} />
+                <DataItem label="Total Workforce Size" value={workforceSizeLabel(profile?.totalWorkforceSize) || null} />
                 <DataItem label="Office Type" value={profile?.officeType ? (profile.officeType === "main" ? "Main Office" : "Branch") : null} />
                 <DataItem label="Classification" value={profile?.employerClassification?.type} />
                 <DataItem label="Classification Subtype" value={profile?.employerClassification?.subtype} />

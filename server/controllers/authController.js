@@ -184,7 +184,7 @@ exports.registerEmployer = async (req, res) => {
       message: `${user.name} registered as an employer and is awaiting verification.`,
       relatedEntityType: "user",
       relatedEntityId: user._id,
-      actionUrl: "/admin/users",
+      actionUrl: "/admin/verification",
       io: req.app.get("io"),
     });
 
@@ -214,6 +214,15 @@ exports.login = async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ message: "Invalid password" });
 
+    if (user.isActive === false && (user.role === "admin" || user.role === "superadmin")) {
+      // Staff accounts are disabled by a superadmin, not moderated — no appeal
+      // path, just a plain rejection.
+      return res.status(403).json({
+        code: "ACCOUNT_DISABLED",
+        message: "This staff account has been disabled. Contact the system superadmin.",
+      });
+    }
+
     if (user.isActive === false) {
       // Credentials are valid but the account is suspended/banned. Issue a
       // narrow "appeal-only" token so the client can render the suspension
@@ -234,6 +243,10 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Record the sign-in so the superadmin console can flag dormant admin
+    // accounts. Fire-and-forget — a write hiccup must not fail a valid login.
+    User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } }).catch(() => {});
+
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
@@ -252,11 +265,63 @@ exports.login = async (req, res) => {
         onboardingComplete: user.onboardingComplete,
         acceptedTermsAt: user.acceptedTermsAt,
         termsVersion: user.termsVersion,
+        mustChangePassword: user.mustChangePassword === true,
       },
       termsVersion: CURRENT_TERMS_VERSION,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// ---------- Change password for the signed-in user ----------
+// Used both for the normal "change my password" action and to clear the
+// `mustChangePassword` flag on a superadmin-provisioned admin's first sign-in.
+exports.changePassword = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const currentPassword = String(req.body.currentPassword || "");
+    const newPassword = String(req.body.newPassword || "");
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: "Your new password must be at least 8 characters." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (!user.password) {
+      return res.status(400).json({
+        message: 'Set a password first via "Forgot password?" before changing it.',
+      });
+    }
+
+    const ok = await bcrypt.compare(currentPassword, user.password);
+    if (!ok) return res.status(400).json({ message: "Your current password is incorrect." });
+
+    if (await bcrypt.compare(newPassword, user.password)) {
+      return res.status(400).json({ message: "The new password must be different from the current one." });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.mustChangePassword = false;
+    await user.save();
+
+    sendPasswordChangedEmail({ to: user.email, name: user.name }).catch(() => {});
+
+    await logAuditEvent({
+      req,
+      actorId: user._id,
+      actorRole: user.role,
+      action: "auth.password_changed",
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "warning",
+    });
+
+    return res.json({ message: "Your password has been updated." });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Could not change the password" });
   }
 };
 
@@ -526,32 +591,57 @@ exports.googleAuth = async (req, res) => {
     const googleId = String(payload.sub);
     const displayName = (payload.name || "").trim() || email.split("@")[0];
 
+    // Which sign-up flow the button lived on. Only consulted when we're
+    // creating a brand-new account; capped to the two self-service roles so a
+    // hand-crafted request can't mint an admin/superadmin.
+    const signupRole = String(req.body.intent || "").trim() === "employer" ? "employer" : "resident";
+
     let user = await User.findOne({ $or: [{ googleId }, { email }] });
     let isNewUser = false;
 
     if (!user) {
       // First sign-in with no existing account → create one and drop the user
-      // into onboarding to pick a role and finish their profile.
+      // into onboarding to finish their profile.
       user = await User.create({
         name: displayName,
         email,
         googleId,
         authProvider: "google",
-        role: "resident",
+        role: signupRole,
+        ...(signupRole === "employer" ? { verificationStatus: "pending" } : {}),
       });
-      await JobseekerProfile.create({ userId: user._id });
+      if (signupRole === "employer") {
+        await EmployerProfile.create({ userId: user._id });
+      } else {
+        await JobseekerProfile.create({ userId: user._id });
+      }
       isNewUser = true;
 
       await logAuditEvent({
         req,
         actorId: user._id,
-        actorRole: "resident",
-        action: "auth.user.registered",
+        actorRole: signupRole,
+        action: signupRole === "employer" ? "auth.employer.registered" : "auth.user.registered",
         targetUserId: user._id,
         targetType: "user",
         targetId: String(user._id),
         severity: "info",
       });
+
+      if (signupRole === "employer") {
+        const admins = await User.find({ role: "admin" }).select("_id");
+        await notifyManyUsers({
+          recipientIds: admins.map((admin) => admin._id),
+          actorId: user._id,
+          type: "admin_action",
+          title: "New employer pending verification",
+          message: `${user.name} registered as an employer and is awaiting verification.`,
+          relatedEntityType: "user",
+          relatedEntityId: user._id,
+          actionUrl: "/admin/verification",
+          io: req.app.get("io"),
+        });
+      }
     } else if (!user.googleId) {
       // Existing password account with the same (Google-verified) email — link it.
       user.googleId = googleId;
@@ -682,8 +772,9 @@ exports.updateProfile = async (req, res) => {
     // payload is ignored here.
     delete req.body.email;
 
-    // ---- 2. Admin password change ----
-    if (currentUser.role === "admin" && req.body.newPassword) {
+    // ---- 2. Staff (admin / superadmin) password change ----
+    const isStaff = currentUser.role === "admin" || currentUser.role === "superadmin";
+    if (isStaff && req.body.newPassword) {
       const isCurrentValid = await bcrypt.compare(req.body.currentPassword || "", currentUser.password);
       if (!isCurrentValid) return res.status(400).json({ message: "Current password is incorrect" });
       if (req.body.newPassword.length < 8) return res.status(400).json({ message: "New password must be at least 8 characters" });
@@ -863,8 +954,8 @@ exports.updateProfile = async (req, res) => {
       updatedProfile = await upsertProfile(userId, currentUser.role, profileData);
     }
 
-    // ---- 8. Admin password update ----
-    if (currentUser.role === "admin" && req.body.newPassword) {
+    // ---- 8. Staff (admin / superadmin) password update ----
+    if (isStaff && req.body.newPassword) {
       const hashedPassword = await bcrypt.hash(req.body.newPassword, 10);
       await User.findByIdAndUpdate(userId, { password: hashedPassword });
     }

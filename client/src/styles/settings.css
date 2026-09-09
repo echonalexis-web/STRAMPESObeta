@@ -1,0 +1,650 @@
+/* Settings — shared page for every role. Light-green STRAM PESO theme, plain
+   CSS (no Tailwind). Renders inside the shared app sidebar layout
+   (body.app-with-sidebar), so it only needs its own max-width container. */
+
+.set {
+  --set-green: #15803d;
+  --set-green-dark: #166534;
+  --set-green-50: #f0fdf4;
+  --set-green-100: #dcfce7;
+  --set-green-200: #bbf7d0;
+  --set-bg: #f8fafc;
+  --set-surface: #ffffff;
+  --set-border: #e2e8f0;
+  --set-border-strong: #cbd5e1;
+  --set-heading: #0f172a;
+  --set-text: #334155;
+  --set-muted: #64748b;
+  --set-faint: #94a3b8;
+  --set-danger: #dc2626;
+  --set-danger-bg: #fef2f2;
+  --set-danger-border: #fecaca;
+  --set-amber-bg: #fffbeb;
+  --set-amber-fg: #92400e;
+  --set-amber-border: #fde68a;
+
+  min-height: 100vh;
+  background: var(--set-bg);
+  color: var(--set-text);
+  font-family: var(--font-body, "Inter", system-ui, -apple-system, sans-serif);
+}
+
+.set *,
+.set *::before,
+.set *::after {
+  box-sizing: border-box;
+}
+
+.set__main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+/* ── Page header ─────────────────────────────────────────────── */
+.set__pagehead {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.set__pagehead-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--set-green);
+  color: #fff;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.set__pagehead h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--set-heading);
+  font-family: var(--font-display, "Poppins", sans-serif);
+}
+
+.set__pagehead p {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  color: var(--set-muted);
+}
+
+/* ── Layout: rail + panel ───────────────────────────────────── */
+.set__layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.set__rail {
+  position: sticky;
+  top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: var(--set-surface);
+  border: 1px solid var(--set-border);
+  border-radius: 14px;
+  padding: 0.5rem;
+}
+
+.set__rail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: none;
+  background: transparent;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--set-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.set__rail-item:hover {
+  background: var(--set-green-50);
+}
+
+.set__rail-item.is-active {
+  background: var(--set-green);
+  color: #fff;
+}
+
+.set__rail-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.set__rail-caret {
+  margin-left: auto;
+  font-size: 0.7rem;
+  opacity: 0.35;
+}
+
+.set__rail-item.is-active .set__rail-caret {
+  opacity: 0.85;
+}
+
+/* ── Cards ──────────────────────────────────────────────────── */
+.set__panel {
+  min-width: 0;
+}
+
+.set-card {
+  background: var(--set-surface);
+  border: 1px solid var(--set-border);
+  border-radius: 16px;
+  padding: 1.4rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.set-card--danger {
+  border-color: var(--set-danger-border);
+}
+
+.set-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.set-card__title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--set-heading);
+  font-family: var(--font-display, "Poppins", sans-serif);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.set-card__subtitle {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+  color: var(--set-muted);
+  line-height: 1.5;
+}
+
+/* ── Key/value (account) ────────────────────────────────────── */
+.set-kv {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem 1.5rem;
+}
+
+.set-kv > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.set-kv dt {
+  font-size: 0.73rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--set-faint);
+}
+
+.set-kv dd {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--set-heading);
+  word-break: break-word;
+}
+
+.set-rolebadge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: var(--set-green-100);
+  color: var(--set-green-dark);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* ── Fields ─────────────────────────────────────────────────── */
+.set-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-width: 460px;
+}
+
+.set-field__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--set-heading);
+}
+
+.set-field select,
+.set-field input[type="number"] {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--set-border-strong);
+  border-radius: 9px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--set-heading);
+  background: #fff;
+}
+
+.set-field select:focus,
+.set-field input:focus {
+  outline: none;
+  border-color: var(--set-green);
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.15);
+}
+
+.set-field__inline {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  color: var(--set-muted);
+}
+
+.set-field__inline input[type="number"] {
+  width: 90px;
+  flex-shrink: 0;
+}
+
+/* ── Toggles ────────────────────────────────────────────────── */
+.set-toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.set-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.set-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.set-toggle__track {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 22px;
+  margin-top: 0.1rem;
+  border-radius: 999px;
+  background: var(--set-border-strong);
+  transition: background 0.15s ease;
+}
+
+.set-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.set-toggle input:checked + .set-toggle__track {
+  background: var(--set-green);
+}
+
+.set-toggle input:checked + .set-toggle__track .set-toggle__thumb {
+  transform: translateX(18px);
+}
+
+.set-toggle input:focus-visible + .set-toggle__track {
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.25);
+}
+
+.set-toggle__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.set-toggle__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--set-heading);
+}
+
+.set-toggle__hint {
+  font-size: 0.8rem;
+  color: var(--set-muted);
+  line-height: 1.45;
+}
+
+/* ── Buttons & actions ──────────────────────────────────────── */
+.set-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.set-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 1rem;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 0.87rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.set-btn:active {
+  transform: translateY(1px);
+}
+
+.set-btn--primary {
+  background: var(--set-green);
+  color: #fff;
+}
+
+.set-btn--primary:hover {
+  background: var(--set-green-dark);
+}
+
+.set-btn--ghost {
+  background: #fff;
+  border-color: var(--set-border-strong);
+  color: var(--set-text);
+}
+
+.set-btn--ghost:hover {
+  background: var(--set-green-50);
+  border-color: var(--set-green-200);
+}
+
+.set-btn--danger {
+  background: var(--set-danger);
+  color: #fff;
+}
+
+.set-btn--danger:hover {
+  background: #b91c1c;
+}
+
+.set-btn--danger-ghost {
+  background: #fff;
+  border-color: var(--set-danger-border);
+  color: var(--set-danger);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+.set-btn--danger-ghost:hover {
+  background: var(--set-danger-bg);
+}
+
+/* ── Prose / hints / lists ──────────────────────────────────── */
+.set-prose {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--set-text);
+  max-width: 62ch;
+}
+
+.set-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--set-faint);
+  max-width: 62ch;
+}
+
+.set-hint a {
+  color: var(--set-green-dark);
+  font-weight: 600;
+}
+
+.set-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--set-danger);
+}
+
+.set-empty {
+  margin: 0;
+  padding: 1rem;
+  border: 1px dashed var(--set-border-strong);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: var(--set-muted);
+  background: var(--set-bg);
+  line-height: 1.55;
+}
+
+.set-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--set-text);
+}
+
+/* ── Template list (employer) ───────────────────────────────── */
+.set-tpl-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.set-tpl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--set-border);
+  border-radius: 11px;
+  background: var(--set-bg);
+}
+
+.set-tpl__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.set-tpl__name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--set-heading);
+}
+
+.set-tpl__hint {
+  font-size: 0.8rem;
+  color: var(--set-muted);
+  font-style: italic;
+}
+
+.set-tpl__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--set-faint);
+}
+
+/* ── Sub-row ("coming soon") ────────────────────────────────── */
+.set-subrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px dashed var(--set-border-strong);
+  border-radius: 11px;
+}
+
+.set-subrow__title {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--set-heading);
+}
+
+.set-subrow__hint {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--set-muted);
+  line-height: 1.45;
+}
+
+.set-comingsoon {
+  flex-shrink: 0;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: var(--set-slate-bg, #f1f5f9);
+  color: var(--set-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Link list (admin tools) ────────────────────────────────── */
+.set-linklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.set-linkrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--set-border);
+  border-radius: 11px;
+  text-decoration: none;
+  color: var(--set-text);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.set-linkrow:hover {
+  background: var(--set-green-50);
+  border-color: var(--set-green-200);
+}
+
+.set-linkrow strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--set-heading);
+}
+
+.set-linkrow small {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.8rem;
+  color: var(--set-muted);
+}
+
+/* ── "Not yet available" indicator ──────────────────────────── */
+.nya-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--set-amber-bg, #fffbeb);
+  color: var(--set-amber-fg, #92400e);
+  border: 1px solid var(--set-amber-border, #fde68a);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.nya-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  background: var(--set-amber-bg, #fffbeb);
+  border: 1px solid var(--set-amber-border, #fde68a);
+  color: var(--set-amber-fg, #92400e);
+  font-size: 0.83rem;
+  line-height: 1.5;
+}
+
+.nya-banner__icon {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .set__main {
+    padding: 1.1rem;
+  }
+
+  .set__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .set__rail {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .set__rail-item {
+    width: auto;
+  }
+
+  .set__rail-caret {
+    display: none;
+  }
+
+  .set-kv {
+    grid-template-columns: 1fr;
+  }
+}

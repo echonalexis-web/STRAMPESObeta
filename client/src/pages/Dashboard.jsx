@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { jobAPI } from "../services/api";
+import { jobAPI, resolveAssetUrl } from "../services/api";
 import VacancyCard from "../components/VacancyCard";
 import "../styles/dashboard.css";
 import { FaBriefcase, FaFileAlt, FaBuilding, FaCalendarAlt, FaSearch, FaArrowRight, FaExclamationTriangle, FaSpinner, FaStar } from "react-icons/fa";
@@ -76,6 +76,7 @@ export default function Dashboard() {
   };
 
   const initials = user?.name?.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2) || "U";
+  const profileImageUrl = user?.profileImage ? resolveAssetUrl(user.profileImage) : "";
 
   const isJobAlreadyApplied = (jobId) =>
     applications.some((app) => String(app.vacancy?._id) === String(jobId));
@@ -178,7 +179,9 @@ export default function Dashboard() {
         <>
           <div className="profile-card">
             <div className="profile-card-left">
-              <div className="profile-avatar-large">{initials}</div>
+              <div className="profile-avatar-large">
+                {profileImageUrl ? <img src={profileImageUrl} alt={user.name || "User avatar"} /> : initials}
+              </div>
               <div className="profile-details">
                 <h2>{user.name}</h2><p className="profile-email">{user.email}</p><span className="profile-role-badge">Job Seeker</span>
               </div>

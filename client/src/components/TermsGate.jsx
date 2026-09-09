@@ -45,6 +45,7 @@ export default function TermsGate() {
     !!user &&
     !dismissed &&
     user.role !== "admin" &&
+    user.role !== "superadmin" &&
     onboarded &&
     !user.acceptedTermsAt &&
     // Let the user finish onboarding + avatar setup first — that flow lives

@@ -151,6 +151,8 @@ app.options("*", cors());
 app.use("/api", globalLimiter);
 app.use("/api/v1/admin", adminLimiter);
 app.use("/api/admin", adminLimiter);
+app.use("/api/v1/superadmin", adminLimiter);
+app.use("/api/superadmin", adminLimiter);
 app.use("/api/v1/auth/login", authLimiter);
 app.use("/api/v1/auth/register", authLimiter);
 app.use("/api/v1/auth/forgot-password", authLimiter);
@@ -260,6 +262,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   
   const adminRoutes = require("./routes/adminRoutes");
   console.log("✅ Admin routes loaded");
+
+  const superadminRoutes = require("./routes/superadminRoutes");
+  console.log("✅ Superadmin routes loaded");
   
   const messageRoutes = require("./routes/messageRoutes");
   console.log("✅ Message routes loaded");
@@ -298,6 +303,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   const spesRoutes = require("./routes/spesRoutes");
   console.log("✅ SPES routes loaded");
 
+  const verificationRoutes = require("./routes/verificationRoutes");
+  console.log("✅ Verification routes loaded");
+
   const mountApiRoutes = (basePath) => {
     console.log(`📁 Mounting routes at ${basePath}...`);
     
@@ -334,6 +342,13 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       console.log(`✅ ${basePath}/admin mounted`);
     } catch (e) {
       console.error(`❌ Failed to mount ${basePath}/admin:`, e.message);
+    }
+
+    try {
+      app.use(`${basePath}/superadmin`, superadminRoutes);
+      console.log(`✅ ${basePath}/superadmin mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/superadmin:`, e.message);
     }
     
     try {
@@ -421,6 +436,13 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       console.log(`✅ ${basePath}/spes mounted`);
     } catch (e) {
       console.error(`❌ Failed to mount ${basePath}/spes:`, e.message);
+    }
+
+    try {
+      app.use(`${basePath}/verification`, verificationRoutes);
+      console.log(`✅ ${basePath}/verification mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/verification:`, e.message);
     }
 
     console.log(`✅ All routes mounted at ${basePath}`);

@@ -23,12 +23,29 @@ const userSchema = new mongoose.Schema(
     // the existing Atlas indexes untouched.
     googleId: { type: String, default: null },
     authProvider: { type: String, enum: ["local", "google"], default: "local" },
+    // "admin"     – LMDPESO / PESO office staff (day-to-day operations)
+    // "superadmin" – the maintainer. Superset of admin, and the ONLY role that
+    //               can create, disable, or reset admin accounts. Never created
+    //               through the app — only by scripts/seedSuperadmin.js.
     role: {
       type: String,
-      enum: ["resident", "employer", "admin"],
+      enum: ["resident", "employer", "admin", "superadmin"],
       default: "resident",
     },
     phone: { type: String, default: null },
+
+    // ===== Staff account provisioning (superadmin-managed admin accounts) =====
+    // Set when a superadmin provisions an admin with a temporary password; the
+    // account is forced through the change-password screen on first sign-in.
+    mustChangePassword: { type: Boolean, default: false },
+    // The superadmin who provisioned this admin account (audit trail / "whose
+    // account is this" six months later).
+    createdBySuperadmin: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    // Free-text note the superadmin records per admin: real name + PESO position.
+    staffNote: { type: String, default: null },
+    // Updated on every successful login so the superadmin console can show which
+    // admin accounts are dormant.
+    lastLoginAt: { type: Date, default: null },
 
     // ===== Common profile fields =====
     about: { type: String, default: "" },
@@ -87,9 +104,11 @@ const userSchema = new mongoose.Schema(
     // ===== Employer-specific fields =====
     companyName: { type: String, default: "" },
     industry: { type: String, default: "" },
+    // Headcount band. Uses the same NSRP / DOLE MSME classification as
+    // EmployerProfile.totalWorkforceSize so the two attributes stay in sync.
     companySize: {
       type: String,
-      enum: ["", "1-10", "11-50", "51-200", "201-500", "501-1000", "1001-5000", "5000+"],
+      enum: ["", "micro", "small", "medium", "large"],
       default: "",
     },
     website: { type: String, default: "" },

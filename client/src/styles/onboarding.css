@@ -546,6 +546,10 @@
   margin-bottom: 0.85rem;
 }
 
+.skills-entry-row .autosuggest {
+  flex: 1;
+}
+
 .onboarding-add-btn {
   border: none;
   background: var(--ob-green-600);

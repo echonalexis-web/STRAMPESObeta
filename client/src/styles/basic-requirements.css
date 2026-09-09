@@ -1,0 +1,407 @@
+/* Structured "basic eligibility" block on the job-posting form.
+   STRAM PESO light theme — emerald brand accents (brand-700 #15803d,
+   brand-800 #166534), slate neutrals. */
+
+.br-block {
+  --br-brand-700: #15803d;
+  --br-brand-800: #166534;
+  --br-brand-50: #f0fdf4;
+  --br-border: #e2e8f0;
+  --br-ink: #1e293b;
+  --br-muted: #64748b;
+
+  border: 1px solid var(--br-border);
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 1.15rem 1.25rem 1.35rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Keep the structured eligibility controls from inheriting the generic post-job form styles. */
+.pj-field .br-block,
+.pj-field .br-card,
+.pj-field .br-card-body,
+.pj-field .br-lang-card,
+.pj-field .br-lang-modes,
+.pj-field .br-inline,
+.pj-field .br-check,
+.pj-field .br-num,
+.pj-field .br-select {
+  box-sizing: border-box;
+}
+
+.pj-field .br-num,
+.pj-field .br-select {
+  width: 100%;
+  min-width: 0;
+  max-width: 88px;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--br-ink);
+  font-size: 0.88rem;
+  font-family: var(--font-body, "Inter", sans-serif);
+}
+
+.pj-field .br-select {
+  max-width: none;
+  min-height: 42px;
+}
+
+.pj-field .br-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  font-weight: 400;
+  color: #334155;
+  cursor: pointer;
+}
+
+/* The generic .pj-field input rule forces width:100% + padding on every input,
+   which blows the eligibility checkboxes up and shoves their label out of the
+   card. Pin them back to a real checkbox size. */
+.pj-field .br-check input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  flex: 0 0 15px;
+  margin: 0.1rem 0 0;
+  padding: 0;
+  border-radius: 4px;
+  background: #ffffff;
+  accent-color: var(--br-brand-700);
+}
+
+.pj-field .br-check span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.br-block-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.1rem;
+}
+
+.br-title {
+  font-family: var(--font-display, "Poppins", sans-serif);
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--br-ink);
+  margin: 0 0 0.2rem;
+}
+
+.br-subtitle {
+  font-size: 0.82rem;
+  color: var(--br-muted);
+  margin: 0;
+  max-width: 52ch;
+  line-height: 1.45;
+}
+
+.br-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #bbf7d0;
+  background: var(--br-brand-50);
+  color: var(--br-brand-800);
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.5rem 0.8rem;
+  border-radius: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.br-quick-btn:hover:not(:disabled) {
+  background: #dcfce7;
+  border-color: var(--br-brand-700);
+  transform: translateY(-1px);
+}
+
+.br-quick-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---- Eligibility cards -------------------------------------------------- */
+
+.br-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
+}
+
+@media (min-width: 768px) {
+  .br-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.br-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--br-border);
+  border-radius: 12px;
+  background: #fbfdfc;
+  padding: 0.9rem 0.95rem 1rem;
+}
+
+.br-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.br-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--br-brand-50);
+  color: var(--br-brand-700);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.br-card-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--br-ink);
+}
+
+.br-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.br-card-hint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.br-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.br-inline-sep {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.br-num,
+.br-select {
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: 0.88rem;
+  color: var(--br-ink);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  padding: 0.55rem 0.6rem;
+  width: 100%;
+}
+
+.br-num {
+  max-width: 88px;
+  text-align: center;
+}
+
+.br-num-wide {
+  max-width: 110px;
+}
+
+.br-select:focus,
+.br-num:focus {
+  outline: none;
+  border-color: var(--br-brand-700);
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.15);
+}
+
+.br-num:disabled,
+.br-select:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.br-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: 0.8rem;
+  color: #334155;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.br-check input {
+  accent-color: var(--br-brand-700);
+  width: 15px;
+  height: 15px;
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+}
+
+.br-check.is-muted {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* ---- Language cards --------------------------------------------------- */
+
+.br-lang {
+  margin-top: 1.15rem;
+}
+
+.br-lang-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+}
+
+.br-lang-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.7rem;
+}
+
+@media (min-width: 640px) {
+  .br-lang-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.br-lang-card {
+  border: 1px solid var(--br-border);
+  border-radius: 12px;
+  background: #fbfdfc;
+  padding: 0.8rem 0.85rem 0.85rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.br-lang-card.is-on {
+  border-color: #bbf7d0;
+  background: var(--br-brand-50);
+}
+
+.br-lang-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.br-lang-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--br-ink);
+}
+
+.br-lang-switch {
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.br-lang-switch.is-on {
+  color: #ffffff;
+  background: var(--br-brand-700);
+  border-color: var(--br-brand-700);
+}
+
+.br-lang-switch:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.br-lang-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  transition: opacity 0.15s ease;
+}
+
+.br-lang-card:not(.is-on) .br-lang-modes {
+  opacity: 0.45;
+}
+
+.br-pill {
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 0.32rem 0.7rem;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+}
+
+.br-pill:hover:not(:disabled) {
+  border-color: var(--br-brand-700);
+  transform: translateY(-1px);
+}
+
+.br-pill.is-active {
+  color: #ffffff;
+  background: var(--br-brand-700);
+  border-color: var(--br-brand-700);
+}
+
+.br-pill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.br-issues {
+  margin: 1rem 0 0;
+  padding: 0.65rem 0.8rem 0.65rem 1.7rem;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 9px;
+  color: #92400e;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 560px) {
+  .br-block-head {
+    flex-direction: column;
+  }
+  .br-quick-btn {
+    align-self: flex-start;
+  }
+}

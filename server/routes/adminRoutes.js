@@ -7,18 +7,15 @@ const {
   getHomepageJobManagement,
   getAdminVacancies,
   getAdminVacancyStats,
-  deleteJob,
   updateJobStatus,
   updateUserRole,
   deactivateUser,
   reactivateUser,
-  updateEmployerVerification,
-  getVerificationQueue,
   getAuditLogs,
   deleteUser,
   toggleHomepageFeature,
 } = require("../controllers/adminController");
-const { verifyToken: protect, isAdmin } = require("../middleware/auth");
+const { verifyToken: protect, isAdmin, isSuperadmin } = require("../middleware/auth");
 const {
   sanitizeRequestBody,
   sanitizeQueryParams,
@@ -34,16 +31,19 @@ router.use(protect, isAdmin);
 router.get("/analytics", sanitizeQueryParams, getAdminAnalytics);
 router.get("/analytics/provincial", sanitizeQueryParams, getProvincialAnalytics);
 
-// User management
+// User management.
+// The management surface (provisioning-tier actions, the audit trail) is
+// superadmin-only. Admins keep read access: the directory listing feeds the
+// admin Reports & Statistics page, and the per-user detail view is still
+// reachable from job monitoring. Employer verification lives on its own route
+// module (routes/verificationRoutes.js).
 router.get("/users", sanitizeQueryParams, getAllUsers);
-router.get("/users/verification-queue", sanitizeQueryParams, getVerificationQueue);
 router.get("/users/:id", validateMongoId("id"), sanitizeQueryParams, validateRequest, getUserProfileDetails);
-router.put("/users/:id/role", validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, updateUserRole);
-router.put("/users/:id/deactivate", validateMongoId("id"), sanitizeRequestBody, deactivateUser);
-router.put("/users/:id/reactivate", validateMongoId("id"), sanitizeRequestBody, reactivateUser);
-router.put("/users/:id/verification", validateMongoId("id"), sanitizeRequestBody, updateEmployerVerification);
-router.delete("/users/:id", validateMongoId("id"), deleteUser);
-router.get("/audit-logs", sanitizeQueryParams, getAuditLogs);
+router.put("/users/:id/role", isSuperadmin, validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, updateUserRole);
+router.put("/users/:id/deactivate", isSuperadmin, validateMongoId("id"), sanitizeRequestBody, deactivateUser);
+router.put("/users/:id/reactivate", isSuperadmin, validateMongoId("id"), sanitizeRequestBody, reactivateUser);
+router.delete("/users/:id", isSuperadmin, validateMongoId("id"), deleteUser);
+router.get("/audit-logs", isSuperadmin, sanitizeQueryParams, getAuditLogs);
 
 // Job management
 router.get("/jobs", sanitizeQueryParams, getAdminVacancies);
@@ -51,6 +51,5 @@ router.get("/jobs/stats", sanitizeQueryParams, getAdminVacancyStats);
 router.get("/jobs/homepage-display", sanitizeQueryParams, getHomepageJobManagement);
 router.put("/jobs/:id/homepage-feature", validateMongoId("id"), sanitizeRequestBody, toggleHomepageFeature);
 router.put("/jobs/:id/status", validateMongoId("id"), sanitizeRequestBody, validateRequest, updateJobStatus);
-router.delete("/jobs/:id", validateMongoId("id"), deleteJob);
 
 module.exports = router;

@@ -11,6 +11,7 @@ import AvatarPicker from "../../components/AvatarPicker";
 import { usePersistentState } from "../../hooks/usePersistentState";
 import marinduqueSchools from "../../data/marinduque_schools.json";
 import collegeCourses from "../../data/philippine_college_courses.json";
+import PH_JOB_TITLES from "../../data/ph_job_titles_complete.json";
 import { parseHeightToCm, parseWeightToKg, wasConverted } from "../../utils/unitConversion";
 
 // STRAM PESO accounts are for ages 15 and up (SPES applicants may be 15–30).
@@ -184,29 +185,84 @@ const getInitialForm = (user) => ({
   laidoffCountry: "",
 });
 
-function CappedChipField({ label, hint, placeholder, values, cap, onAdd, onRemove, disabled }) {
+function CappedChipField({ label, hint, placeholder, values, cap, onAdd, onRemove, disabled, options }) {
   const [input, setInput] = useState("");
+  const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(-1);
+  const wrapRef = useRef(null);
   const atCap = values.length >= cap;
-  const handleAdd = () => {
-    const trimmed = input.trim();
+
+  const add = (raw) => {
+    const trimmed = (raw ?? input).trim();
     if (!trimmed || atCap) return;
-    onAdd(trimmed);
+    if (!values.some((v) => v.toLowerCase() === trimmed.toLowerCase())) onAdd(trimmed);
     setInput("");
+    setOpen(false);
+    setHighlighted(-1);
   };
+
+  const suggestions = useMemo(() => {
+    if (!options || !options.length) return [];
+    const q = input.trim().toLowerCase();
+    if (!q) return [];
+    const taken = new Set(values.map((v) => v.toLowerCase()));
+    return options.filter((o) => o.toLowerCase().includes(q) && !taken.has(o.toLowerCase())).slice(0, 8);
+  }, [options, input, values]);
+
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  const handleKeyDown = (e) => {
+    if (open && suggestions.length) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setHighlighted((h) => Math.min(h + 1, suggestions.length - 1)); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setHighlighted((h) => Math.max(h - 1, 0)); return; }
+      if (e.key === "Escape") { setOpen(false); return; }
+      if (e.key === "Enter" && highlighted >= 0) { e.preventDefault(); add(suggestions[highlighted]); return; }
+    }
+    if (e.key === "Enter") { e.preventDefault(); add(); }
+  };
+
   return (
     <div>
       <span className="onboarding-label">{label} ({values.length}/{cap})</span>
       {hint && <p className="onboarding-hint" style={{ marginTop: "0.25rem" }}>{hint}</p>}
       <div className="skills-entry-row">
-        <input
-          type="text"
-          value={input}
-          placeholder={atCap ? `Maximum of ${cap} reached` : placeholder}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } }}
-          disabled={disabled || atCap}
-        />
-        <button type="button" className="onboarding-add-btn" onClick={handleAdd} disabled={disabled || atCap}>Add</button>
+        <div className="autosuggest" ref={wrapRef}>
+          <input
+            type="text"
+            value={input}
+            placeholder={atCap ? `Maximum of ${cap} reached` : placeholder}
+            onChange={(e) => { setInput(e.target.value); setOpen(true); setHighlighted(-1); }}
+            onFocus={() => input.trim() && setOpen(true)}
+            onKeyDown={handleKeyDown}
+            disabled={disabled || atCap}
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={open && suggestions.length > 0}
+            aria-autocomplete="list"
+          />
+          {open && suggestions.length > 0 && (
+            <ul className="autosuggest-list" role="listbox">
+              {suggestions.map((s, i) => (
+                <li
+                  key={s}
+                  role="option"
+                  aria-selected={i === highlighted}
+                  className={i === highlighted ? "is-highlighted" : ""}
+                  onMouseDown={(e) => { e.preventDefault(); add(s); }}
+                >
+                  {s}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <button type="button" className="onboarding-add-btn" onClick={() => add()} disabled={disabled || atCap}>Add</button>
       </div>
       <div className="skills-tags-wrap">
         {values.map((v) => (
@@ -771,6 +827,7 @@ export default function JobSeekerOnboarding() {
               placeholder="e.g. Administrative Assistant"
               values={form.preferredOccupations}
               cap={4}
+              options={PH_JOB_TITLES}
               onAdd={(v) => addToCappedList("preferredOccupations", v)}
               onRemove={(v) => removeFromCappedList("preferredOccupations", v)}
               disabled={saving}

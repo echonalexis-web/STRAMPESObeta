@@ -15,7 +15,38 @@ const normalizeRole = (role) => (role === "employee" || role === "jobseeker" ? "
 const SETUP_PATHS = new Set(["/onboarding"]);
 
 const getLoggedInMenuItems = (userRole) => {
+  // The superadmin handles the technical surface only: account provisioning,
+  // user management, audit trail, job monitoring, a read-only view of the
+  // employer verification queue, and read-only oversight of the admin
+  // dashboard. News / announcements / SPES stay with PESO admins.
+  if (userRole === "superadmin") {
+    return [
+      { label: "Superadmin Console", to: "/superadmin" },
+      {
+        label: "Admin Dashboard",
+        submenu: [
+          { label: "Dashboard", to: "/admin" },
+          { label: "Reports & Statistics", to: "/admin/reports" },
+        ],
+      },
+      {
+        label: "User Management",
+        submenu: [
+          { label: "User Management", to: "/admin/users" },
+          { label: "Reports & Appeals", to: "/admin/users/moderation" },
+        ],
+      },
+      { label: "Employer Verification", to: "/admin/verification" },
+      { label: "Job Monitoring", to: "/admin/job-monitoring" },
+      { label: "Audit Trail", to: "/admin/audit-logs" },
+      { label: "My Profile", to: "/profile" },
+      { label: "Settings", to: "/settings" },
+    ];
+  }
+
   if (userRole === "admin") {
+    // User Management (directory, verification queue, reports & appeals) and the
+    // Audit Trail are superadmin-only surfaces — PESO admins no longer see them.
     return [
       {
         label: "Admin Dashboard",
@@ -32,16 +63,10 @@ const getLoggedInMenuItems = (userRole) => {
           { label: "SPES Applications", to: "/admin/spes" },
         ],
       },
-      {
-        label: "User Management",
-        submenu: [
-          { label: "User Management", to: "/admin/users" },
-          { label: "Reports & Appeals", to: "/admin/users/moderation" },
-        ],
-      },
+      { label: "Employer Verification", to: "/admin/verification" },
       { label: "Job Monitoring", to: "/admin/job-monitoring" },
-      { label: "Audit Trail", to: "/admin/audit-logs" },
       { label: "My Profile", to: "/profile" },
+      { label: "Settings", to: "/settings" },
     ];
   }
 
@@ -51,6 +76,7 @@ const getLoggedInMenuItems = (userRole) => {
       { label: "Post Vacancy", to: "/post-job" },
       { label: "News Feed", to: "/news" },
       { label: "My Profile", to: "/profile" },
+      { label: "Settings", to: "/settings" },
     ];
   }
 
@@ -66,10 +92,12 @@ const getLoggedInMenuItems = (userRole) => {
     { label: "Browse Jobs", to: "/jobs" },
     { label: "News Feed", to: "/news" },
     { label: "My Profile", to: "/profile" },
+    { label: "Settings", to: "/settings" },
   ];
 };
 
 const getDefaultRouteByRole = (role) => {
+  if (role === "superadmin") return "/superadmin";
   if (role === "admin") return "/admin";
   if (role === "employer") return "/employer";
   return "/dashboard";
@@ -102,6 +130,8 @@ export default function Navbar() {
   const userRole = normalizeRole(user?.role);
   const isLoggedIn = Boolean(user);
   const loggedInMenuItems = getLoggedInMenuItems(userRole);
+  // The superadmin is isolated from the general notification feed.
+  const showNotifications = userRole !== "superadmin";
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -363,13 +393,15 @@ export default function Navbar() {
             )}
           </Link>
 
-          <Link to="/notifications" className={isActiveLink("/notifications") ? "messages-link is-active" : "messages-link"}>
-            <FaBell className="nav-link-icon" aria-hidden="true" />
-            <span>Notifications</span>
-            {unreadNotifications > 0 && (
-              <span className="user-unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
-            )}
-          </Link>
+          {showNotifications && (
+            <Link to="/notifications" className={isActiveLink("/notifications") ? "messages-link is-active" : "messages-link"}>
+              <FaBell className="nav-link-icon" aria-hidden="true" />
+              <span>Notifications</span>
+              {unreadNotifications > 0 && (
+                <span className="user-unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
+              )}
+            </Link>
+          )}
         </div>
 
         <button className="logout-btn auth-sidebar-logout" onClick={openLogoutModal}>
@@ -447,13 +479,15 @@ export default function Navbar() {
                   )}
                 </Link>
 
-                <Link to="/notifications" className={isActiveLink("/notifications") ? "messages-link is-active" : "messages-link"} onClick={closeMobileMenu}>
-                  <FaBell className="nav-link-icon" aria-hidden="true" />
-                  <span>Notifications</span>
-                  {unreadNotifications > 0 && (
-                    <span className="user-unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
-                  )}
-                </Link>
+                {showNotifications && (
+                  <Link to="/notifications" className={isActiveLink("/notifications") ? "messages-link is-active" : "messages-link"} onClick={closeMobileMenu}>
+                    <FaBell className="nav-link-icon" aria-hidden="true" />
+                    <span>Notifications</span>
+                    {unreadNotifications > 0 && (
+                      <span className="user-unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
+                    )}
+                  </Link>
+                )}
 
                 <button className="logout-btn" onClick={openLogoutModal}>
                   Logout

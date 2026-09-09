@@ -110,9 +110,9 @@ exports.createReport = async (req, res) => {
       metadata: { reportId: String(report._id), targetType, category },
     });
 
-    // Alert admins so oversight stays consistent.
+    // Alert superadmins — moderation is their surface now.
     try {
-      const admins = await User.find({ role: "admin" }).select("_id");
+      const admins = await User.find({ role: "superadmin" }).select("_id");
       await notifyManyUsers({
         recipientIds: admins.map((a) => a._id),
         actorId: reporterId,
@@ -121,7 +121,7 @@ exports.createReport = async (req, res) => {
         message: `A ${category.replace(/_/g, " ")} report was filed on a ${targetType.replace(/_/g, " ")}.`,
         relatedEntityType: "user",
         relatedEntityId: targetOwner || reporterId,
-        actionUrl: "/admin/users",
+        actionUrl: "/admin/users/moderation",
         io: req.app.get("io"),
       });
     } catch {
@@ -290,7 +290,7 @@ exports.resolveReport = async (req, res) => {
     await logAuditEvent({
       req,
       actorId: getUserId(req),
-      actorRole: "admin",
+      actorRole: req.user.role,
       action: "report.resolved",
       targetType: "user",
       targetId: String(report.targetOwner || report.targetId),

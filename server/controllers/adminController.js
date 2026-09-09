@@ -9,7 +9,6 @@ const AuditLog = require("../models/AuditLog");
 const { getApplicationCountMap, normalizeFeaturedOrdering } = require("../utils/jobDisplay");
 const { logAuditEvent } = require("../services/auditService");
 const { createNotificationForUser } = require("../services/notificationService");
-const { postSystemMessage } = require("./messageController");
 
 const monthBuckets = () => Array.from({ length: 12 }, () => 0);
 
@@ -148,7 +147,7 @@ exports.getAdminAnalytics = async (req, res) => {
       applications,
       auditEventsToday,
     ] = await Promise.all([
-      User.countDocuments(),
+      User.countDocuments({ role: { $ne: "superadmin" } }),
       User.countDocuments({ role: "employer" }),
       User.countDocuments({ role: "resident" }),
       JobVacancy.countDocuments(),
@@ -497,7 +496,9 @@ exports.getAllUsers = async (req, res) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
 
-    const filter = {};
+    // Superadmin accounts are invisible to the admin surface — they never show
+    // in listings, counts, or moderation targets.
+    const filter = { role: { $ne: "superadmin" } };
 
     if (["employer", "resident", "admin"].includes(role)) {
       filter.role = role;
@@ -537,47 +538,6 @@ exports.getAllUsers = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to fetch users" });
-  }
-};
-
-exports.getVerificationQueue = async (req, res) => {
-  try {
-    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-    const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
-    const search = String(req.query.search || "").trim();
-
-    const filter = {
-      role: "employer",
-      verificationStatus: "pending",
-    };
-
-    if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-        { companyName: { $regex: search, $options: "i" } },
-      ];
-    }
-
-    const [total, users] = await Promise.all([
-      User.countDocuments(filter),
-      User.find(filter)
-        .select(
-          "name email companyName verificationStatus businessPermitUrl registrationDocUrl verificationNote verificationSubmittedAt createdAt"
-        )
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-    ]);
-
-    return res.json({
-      items: users,
-      total,
-      currentPage: page,
-      totalPages: Math.max(Math.ceil(total / limit), 1),
-    });
-  } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load verification queue" });
   }
 };
 
@@ -902,8 +862,15 @@ exports.updateUserRole = async (req, res) => {
     const { id } = req.params;
     const { role } = req.body;
 
-    if (!["resident", "employer", "admin"].includes(role)) {
-      return res.status(400).json({ message: "Invalid role" });
+    // Admins can only move accounts between the two public roles. Granting or
+    // revoking the "admin" role is a superadmin-only action performed from the
+    // superadmin console — never from here — and "superadmin" is never assignable
+    // through the app at all.
+    if (!["resident", "employer"].includes(role)) {
+      return res.status(400).json({
+        message:
+          "Invalid role. Admin accounts are managed by the system superadmin in the superadmin console.",
+      });
     }
 
     const user = await User.findById(id);
@@ -911,8 +878,10 @@ exports.updateUserRole = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (user.role === "admin") {
-      return res.status(403).json({ message: "Cannot change role of another admin" });
+    if (user.role === "admin" || user.role === "superadmin") {
+      return res.status(403).json({
+        message: "Staff accounts can only be changed by the system superadmin.",
+      });
     }
 
     user.role = role;
@@ -965,6 +934,10 @@ exports.deactivateUser = async (req, res) => {
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role === "superadmin") {
+      return res.status(403).json({ message: "Superadmin accounts cannot be modified here." });
     }
 
     const permanent = req.body.permanent === true || req.body.permanent === "true";
@@ -1051,103 +1024,6 @@ exports.reactivateUser = async (req, res) => {
   }
 };
 
-exports.updateEmployerVerification = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { verificationStatus: rawStatus, decision, note } = req.body;
-
-    // Accept either an explicit status (legacy callers) or an approve/reject verb.
-    let verificationStatus = rawStatus;
-    if (decision === "approved") verificationStatus = "verified";
-    else if (decision === "rejected") verificationStatus = "rejected";
-
-    if (!["unverified", "pending", "verified", "rejected"].includes(verificationStatus)) {
-      return res.status(400).json({ message: "Invalid verification status" });
-    }
-
-    const trimmedNote = typeof note === "string" ? note.trim().slice(0, 500) : "";
-    if (verificationStatus === "rejected" && !trimmedNote) {
-      return res.status(400).json({ message: "A reason is required when rejecting a submission." });
-    }
-
-    const update = {
-      verificationStatus,
-      verificationReviewedAt: new Date(),
-      verificationReviewedBy: req.user.id,
-    };
-    if (verificationStatus === "rejected") update.verificationNote = trimmedNote;
-    if (verificationStatus === "verified") update.verificationNote = null;
-
-    // $set only these fields so validation on unrelated fields (companySize) is skipped.
-    const user = await User.findByIdAndUpdate(
-      id,
-      { $set: update },
-      { new: true, runValidators: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    if (user.role !== "employer") {
-      return res.status(400).json({ message: "Only employers can be verified" });
-    }
-
-    await logAuditEvent({
-      req,
-      actorId: req.user.id,
-      actorRole: "admin",
-      action: "admin.user.verification_updated",
-      targetUserId: user._id,
-      targetType: "user",
-      targetId: String(user._id),
-      severity: verificationStatus === "verified" ? "info" : "warning",
-      metadata: { verificationStatus, note: trimmedNote || undefined },
-    });
-
-    const io = req.app.get("io");
-    const verificationMessages = {
-      verified: "Your employer account has been verified. You can now post jobs.",
-      rejected: `Your verification was not approved. Reason: ${trimmedNote} — update your documents in Profile → Documents and submit again.`,
-      pending: "Your employer verification is under review.",
-      unverified: "Your employer verification status was reset. Please re-submit your documents.",
-    };
-    const resultMessage =
-      verificationMessages[verificationStatus] || "Your employer verification status was updated.";
-
-    await createNotificationForUser({
-      recipientId: user._id,
-      actorId: req.user.id,
-      type: "admin_action",
-      title: "Employer verification updated",
-      message: resultMessage,
-      relatedEntityType: "user",
-      relatedEntityId: user._id,
-      actionUrl: "/employer",
-      metadata: { verificationStatus },
-      io,
-    });
-
-    // Deliver the decision into a message thread the employer can reply to.
-    if (["verified", "rejected"].includes(verificationStatus)) {
-      try {
-        await postSystemMessage({
-          fromUserId: req.user.id,
-          toUserId: user._id,
-          content: resultMessage,
-          io,
-        });
-      } catch (msgErr) {
-        console.warn("Failed to post verification message:", msgErr.message);
-      }
-    }
-
-    return res.json({ message: "Employer verification updated", user });
-  } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to update verification" });
-  }
-};
-
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1159,6 +1035,12 @@ exports.deleteUser = async (req, res) => {
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role === "superadmin" || user.role === "admin") {
+      return res.status(403).json({
+        message: "Staff accounts are managed by the system superadmin and cannot be deleted here.",
+      });
     }
 
     const jobs = await JobVacancy.find({ employer: id }).select("_id");
@@ -1207,6 +1089,11 @@ exports.getUserProfileDetails = async (req, res) => {
     const user = await User.findById(id).select("-password");
 
     if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Superadmin accounts are not part of the admin surface.
+    if (user.role === "superadmin") {
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -1261,48 +1148,8 @@ exports.getUserProfileDetails = async (req, res) => {
   }
 };
 
-exports.deleteJob = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const job = await JobVacancy.findById(id);
-
-    if (!job) {
-      return res.status(404).json({ message: "Job not found" });
-    }
-
-    await Promise.all([
-      JobApplication.deleteMany({ vacancy: job._id }),
-      JobVacancy.findByIdAndDelete(job._id),
-    ]);
-
-    await logAuditEvent({
-      req,
-      actorId: req.user.id,
-      actorRole: "admin",
-      action: "admin.job.deleted",
-      targetType: "job",
-      targetId: String(job._id),
-      severity: "warning",
-      metadata: {
-        title: job.title,
-      },
-    });
-
-    await createNotificationForUser({
-      recipientId: job.employer,
-      actorId: req.user.id,
-      type: "admin_action",
-      title: "Your job posting was removed",
-      message: `An administrator removed your job posting "${job.title}".`,
-      relatedEntityType: "job",
-      io: req.app.get("io"),
-    });
-
-    return res.json({ message: "Job deleted successfully" });
-  } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to delete job" });
-  }
-};
+// Permanent job deletion moved to the superadmin (policy-violation takedown).
+// PESO admins can only close/reject a vacancy via updateJobStatus below.
 
 exports.updateJobStatus = async (req, res) => {
   try {

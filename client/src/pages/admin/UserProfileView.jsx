@@ -128,8 +128,8 @@ export default function UserProfileView() {
       <div className="aup-page">
         <div className="aup-state">
           <p>{error || "User profile not found."}</p>
-          <button type="button" className="aup-state__btn" onClick={() => navigate("/admin/users")}>
-            Back to users
+          <button type="button" className="aup-state__btn" onClick={() => navigate(-1)}>
+            Go back
           </button>
         </div>
       </div>
@@ -157,8 +157,8 @@ export default function UserProfileView() {
     <div className="aup-page">
       <div className="aup-shell">
         <header className="aup-header">
-          <button type="button" className="aup-back" onClick={() => navigate("/admin/users")}>
-            <FaArrowLeft aria-hidden="true" /> Back to users
+          <button type="button" className="aup-back" onClick={() => navigate(-1)}>
+            <FaArrowLeft aria-hidden="true" /> Go back
           </button>
 
           <div className="aup-id">

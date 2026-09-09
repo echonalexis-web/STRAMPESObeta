@@ -13,14 +13,16 @@ exports.getRankedApplicants = async (req, res) => {
     const { jobId } = req.params;
     const { limit = 50, skip = 0 } = req.query;
 
-    // 1. Find the job
-    const job = await JobVacancy.findById(jobId);
+    // 1. Find the job (with the employer's industry, used as a fallback when
+    //    the job itself has no industry set).
+    const job = await JobVacancy.findById(jobId).populate('employer', 'industry companyName');
     if (!job) {
       return res.status(404).json({ message: 'Job not found' });
     }
 
     // 2. Check ownership
-    if (job.employer.toString() !== req.user.id) {
+    const jobEmployerId = String(job.employer?._id || job.employer);
+    if (jobEmployerId !== req.user.id) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -28,7 +30,7 @@ exports.getRankedApplicants = async (req, res) => {
     let applications = await JobApplication.find({ vacancy: jobId })
       .populate({
         path: 'applicant',
-        select: 'name email phone address about desiredJobTitle workExperience educationalAttainment skills isActive',
+        select: 'name email phone address about desiredJobTitle workExperience educationalAttainment skills dateOfBirth isActive',
       })
       .lean();
 
@@ -39,10 +41,16 @@ exports.getRankedApplicants = async (req, res) => {
       return res.json({ applicants: [], total: 0 });
     }
 
-    // 4. Fetch jobseeker profiles for these applicants
+    // 4. Fetch jobseeker profiles for these applicants. Pull the NSRP Form 1
+    //    fields the matcher now scores against (occupation, education detail,
+    //    work history, trainings, eligibilities, licenses, industry prefs).
     const applicantIds = applications.map(app => app.applicant._id);
     const profiles = await JobseekerProfile.find({ userId: { $in: applicantIds } })
-      .select('userId skills')
+      .select(
+        'userId skills expectedSalaryMin expectedSalaryMax preferredIndustries ' +
+        'preferredOccupations course schoolAttended yearGraduated workHistory ' +
+        'vocationalTrainings eligibilities professionalLicenses languageProficiency'
+      )
       .lean();
 
     const profileMap = {};
@@ -68,6 +76,17 @@ exports.getRankedApplicants = async (req, res) => {
           ),
           workExperience: applicantUser.workExperience || '',
           educationalAttainment: applicantUser.educationalAttainment || '',
+          expectedSalaryMin: Number.isFinite(profile.expectedSalaryMin) ? profile.expectedSalaryMin : null,
+          expectedSalaryMax: Number.isFinite(profile.expectedSalaryMax) ? profile.expectedSalaryMax : null,
+          preferredIndustries: Array.isArray(profile.preferredIndustries) ? profile.preferredIndustries : [],
+          preferredOccupations: Array.isArray(profile.preferredOccupations) ? profile.preferredOccupations : [],
+          course: profile.course || null,
+          yearGraduated: profile.yearGraduated || null,
+          workHistory: Array.isArray(profile.workHistory) ? profile.workHistory : [],
+          vocationalTrainings: Array.isArray(profile.vocationalTrainings) ? profile.vocationalTrainings : [],
+          eligibilities: Array.isArray(profile.eligibilities) ? profile.eligibilities : [],
+          professionalLicenses: Array.isArray(profile.professionalLicenses) ? profile.professionalLicenses : [],
+          languageProficiency: profile.languageProficiency || null,
         },
       };
     });
@@ -93,6 +112,8 @@ exports.getRankedApplicants = async (req, res) => {
       employerNote: item.employerNote,
       resume: item.resume,
       relevanceScore: item.relevanceScore,
+      matchBreakdown: item.matchBreakdown || null,
+      disqualified: item.disqualified || null,
     }));
 
     res.json({

@@ -24,6 +24,28 @@ const matchTier = (score) => {
   return { cls: "match-low", label: "Low", percent };
 };
 
+const DIMENSION_LABELS = {
+  skills: "Skills",
+  title: "Job title fit",
+  experience: "Experience",
+  education: "Education",
+  credentials: "Certifications / licenses",
+  industry: "Industry",
+  language: "Language",
+  salary: "Salary fit",
+};
+
+// Turn the matchBreakdown object into a readable hover summary.
+const breakdownSummary = (breakdown) => {
+  if (!breakdown || typeof breakdown !== "object") return "";
+  if (breakdown.ageEligible === false) return "Outside the job's age range";
+  const parts = Object.entries(DIMENSION_LABELS)
+    .filter(([key]) => typeof breakdown[key] === "number")
+    .map(([key, label]) => `${label}: ${Math.round(breakdown[key] * 100)}%`);
+  if (breakdown.ageUnknown) parts.push("Age: not on file");
+  return parts.join("  •  ");
+};
+
 function RowMenu({ onShortlist, onReject, onViewProfile, onMessage }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
@@ -152,11 +174,13 @@ export default function RankedApplicantsTable({
               const isSelected = selectedApplicants.includes(application._id);
               const tier = matchTier(application.relevanceScore);
               const normalized = normalizeApplicationStatus(application.status);
+              const isDisqualified = application.disqualified === "age";
+              const matchHint = breakdownSummary(application.matchBreakdown);
 
               return (
                 <tr
                   key={application._id}
-                  className={`rt-row ${isSelected ? "selected" : ""} ${normalized === "pending" ? "is-new" : ""}`}
+                  className={`rt-row ${isSelected ? "selected" : ""} ${normalized === "pending" ? "is-new" : ""} ${isDisqualified ? "rt-row-dq" : ""}`}
                   onClick={() => onViewApplicant(application)}
                 >
                   <td className="rt-c-check" onClick={(e) => e.stopPropagation()}>
@@ -169,13 +193,19 @@ export default function RankedApplicantsTable({
                   </td>
 
                   <td className="rt-c-match">
-                    <span
-                      className={`rt-gauge ${tier.cls}`}
-                      style={{ "--pct": tier.percent }}
-                      title={`${tier.label} match (${tier.percent}%)`}
-                    >
-                      <span className="rt-gauge-val">{tier.percent}%</span>
-                    </span>
+                    {isDisqualified ? (
+                      <span className="rt-dq-badge" title="Outside the job's age requirement">
+                        <FaBan /> Age
+                      </span>
+                    ) : (
+                      <span
+                        className={`rt-gauge ${tier.cls}`}
+                        style={{ "--pct": tier.percent }}
+                        title={matchHint || `${tier.label} match (${tier.percent}%)`}
+                      >
+                        <span className="rt-gauge-val">{tier.percent}%</span>
+                      </span>
+                    )}
                     <span className="rt-rank">#{index + 1}</span>
                   </td>
 

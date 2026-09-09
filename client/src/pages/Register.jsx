@@ -267,7 +267,7 @@ export default function Register() {
     setError("");
     setLoading(true);
     try {
-      const { data } = await authAPI.google(credential);
+      const { data } = await authAPI.google(credential, "resident");
       const token = data.token;
       const userData = data.user || {};
       if (!token) throw new Error("Invalid response from server");

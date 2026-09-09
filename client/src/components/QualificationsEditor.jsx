@@ -7,27 +7,28 @@ import {
   FaPencilAlt,
   FaPlus,
   FaRegSave,
+  FaSearch,
   FaTimes,
-  FaTrash,
 } from "react-icons/fa";
 import "../styles/qualifications-editor.css";
 import { COMMON_SKILLS } from "../data/skills";
+import { MODAL_TAG_GROUPS } from "../data/jobRequirements";
 import {
   REQUIREMENT_TYPES,
   STATIC_TEMPLATES,
-  TYPE_ICONS,
-  TYPE_LABELS,
   foldType,
-  groupQualificationsByType,
-  isSkillType,
   normalizeQualifications,
   suggestTemplateForTitle,
 } from "../utils/qualifications";
 
 const SKILL_DATALIST_ID = "qualifications-skill-suggestions";
 
-// Type options offered on each draft row (skill first, then the non-skill types).
+// Type options offered on the custom-item row (skill first, then the rest).
 const ROW_TYPE_OPTIONS = [{ value: "skill", label: "Skill" }, ...REQUIREMENT_TYPES];
+
+// Tabs shown in the modal palette. "all" is the union of every group.
+const MODAL_TABS = [{ id: "all", label: "All" }, ...MODAL_TAG_GROUPS.map((g) => ({ id: g.id, label: g.label }))];
+const ALL_TAG_ITEMS = MODAL_TAG_GROUPS.flatMap((g) => g.items);
 
 const dedupeKey = (item) => `${foldType(item.type)}::${String(item.value).trim().toLowerCase()}`;
 
@@ -45,7 +46,11 @@ const mergeItems = (base, incoming) => {
   return merged.map((item, index) => ({ ...item, order: index }));
 };
 
-const createEmptyEntry = () => ({ type: "education", value: "", optional: false });
+const createEmptyEntry = () => ({ type: "skill", value: "", optional: false });
+
+const sameItem = (item, value, type) =>
+  foldType(item.type) === foldType(type) &&
+  String(item.value).trim().toLowerCase() === String(value).trim().toLowerCase();
 
 export default function QualificationsEditor({
   value,
@@ -75,9 +80,10 @@ export default function QualificationsEditor({
   const [draft, setDraft] = useState(safeValue);
   const [templateId, setTemplateId] = useState("");
   const [templateMode, setTemplateMode] = useState("append");
-  const [skillInput, setSkillInput] = useState("");
   const [customEntry, setCustomEntry] = useState(createEmptyEntry());
 
+  const [modalSearch, setModalSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
   const [cardTemplateId, setCardTemplateId] = useState("");
   const [showTemplateSave, setShowTemplateSave] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -89,8 +95,6 @@ export default function QualificationsEditor({
     return suggestTemplateForTitle(resolvedTemplates, jobTitleHint);
   }, [safeValue.length, resolvedTemplates, jobTitleHint]);
 
-  const summaryGroups = useMemo(() => groupQualificationsByType(safeValue), [safeValue]);
-
   // Keep the draft in sync whenever the editor is (re)opened.
   useEffect(() => {
     if (isModalOpen) setDraft(safeValue);
@@ -99,7 +103,8 @@ export default function QualificationsEditor({
 
   const openEditor = () => {
     setDraft(safeValue);
-    setSkillInput("");
+    setModalSearch("");
+    setActiveTab("all");
     setCustomEntry(createEmptyEntry());
     setTemplateId("");
     setShowTemplateSave(false);
@@ -108,9 +113,7 @@ export default function QualificationsEditor({
     setIsModalOpen(true);
   };
 
-  const closeEditor = () => {
-    setIsModalOpen(false);
-  };
+  const closeEditor = () => setIsModalOpen(false);
 
   // ---- On-page template loader (works without opening the modal) ----------
   const loadTemplateIntoValue = (id, { replace = false } = {}) => {
@@ -133,41 +136,17 @@ export default function QualificationsEditor({
     loadTemplateIntoValue(suggestion.id, { replace: true });
   };
 
+  const removeFromValue = (index) => {
+    onChange(safeValue.filter((_, i) => i !== index).map((item, i) => ({ ...item, order: i })));
+  };
+
   // ---- Draft mutations --------------------------------------------------
   const updateDraftItem = (index, patch) => {
     setDraft((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   };
 
   const removeDraftItem = (index) => {
-    setDraft((prev) =>
-      prev.filter((_, i) => i !== index).map((item, i) => ({ ...item, order: i }))
-    );
-  };
-
-  const moveDraftItem = (index, direction) => {
-    setDraft((prev) => {
-      const target = index + direction;
-      if (target < 0 || target >= prev.length) return prev;
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next.map((item, i) => ({ ...item, order: i }));
-    });
-  };
-
-  // Skills: accept one or many (comma / newline separated) at once.
-  const addSkills = () => {
-    const parts = skillInput
-      .split(/[,\n]/)
-      .map((part) => part.trim())
-      .filter(Boolean);
-    if (!parts.length) return;
-    setDraft((prev) =>
-      mergeItems(
-        prev,
-        parts.map((value) => ({ type: "skill", value, optional: false }))
-      )
-    );
-    setSkillInput("");
+    setDraft((prev) => prev.filter((_, i) => i !== index).map((item, i) => ({ ...item, order: i })));
   };
 
   const addCustomItem = () => {
@@ -176,7 +155,19 @@ export default function QualificationsEditor({
     setDraft((prev) =>
       mergeItems(prev, [{ type: customEntry.type, value: clean, optional: Boolean(customEntry.optional) }])
     );
-    setCustomEntry((prev) => ({ ...prev, value: "", optional: false }));
+    setCustomEntry(createEmptyEntry());
+  };
+
+  const draftHas = (value, type) => draft.some((item) => sameItem(item, value, type));
+
+  const toggleItem = (value, type) => {
+    setDraft((prev) => {
+      const exists = prev.some((item) => sameItem(item, value, type));
+      if (exists) {
+        return prev.filter((item) => !sameItem(item, value, type)).map((item, index) => ({ ...item, order: index }));
+      }
+      return mergeItems(prev, [{ type, value, optional: false }]);
+    });
   };
 
   const applyModalTemplate = () => {
@@ -184,9 +175,7 @@ export default function QualificationsEditor({
     if (!template) return;
     const items = normalizeQualifications(template.items);
     setDraft((prev) =>
-      templateMode === "replace"
-        ? items.map((item, i) => ({ ...item, order: i }))
-        : mergeItems(prev, items)
+      templateMode === "replace" ? items.map((item, i) => ({ ...item, order: i })) : mergeItems(prev, items)
     );
     setTemplateId("");
   };
@@ -236,7 +225,6 @@ export default function QualificationsEditor({
     }
   };
 
-  const draftSkills = draft.filter((item) => isSkillType(item.type));
   const templateOptions = resolvedTemplates.map((tpl) => (
     <option key={tpl.id} value={tpl.id}>
       {tpl.name}
@@ -244,8 +232,29 @@ export default function QualificationsEditor({
     </option>
   ));
 
+  // ---- Modal palette: filter by tab + search --------------------------
+  const visibleGroups = useMemo(() => {
+    const q = modalSearch.trim().toLowerCase();
+    const base =
+      activeTab === "all"
+        ? MODAL_TAG_GROUPS
+        : MODAL_TAG_GROUPS.filter((group) => group.id === activeTab);
+    return base
+      .map((group) => ({
+        ...group,
+        items: q ? group.items.filter((item) => item.value.toLowerCase().includes(q)) : group.items,
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [activeTab, modalSearch]);
+
+  const searchMisses = useMemo(() => {
+    const q = modalSearch.trim().toLowerCase();
+    if (!q) return false;
+    return !ALL_TAG_ITEMS.some((item) => item.value.toLowerCase().includes(q));
+  }, [modalSearch]);
+
   return (
-    <div className="qualifications-editor">
+    <div className="qe">
       {/* One shared datalist for every skill input on the page. */}
       <datalist id={SKILL_DATALIST_ID}>
         {COMMON_SKILLS.map((skill) => (
@@ -254,26 +263,26 @@ export default function QualificationsEditor({
       </datalist>
 
       {label && (
-        <div className="qualifications-editor-label">
+        <div className="qe-label">
           {label}
-          {required && <span className="required-star"> *</span>}
+          {required && <span className="qe-req-star"> *</span>}
         </div>
       )}
 
       {/* On-page "Start from a template" dropdown — always visible, no modal. */}
       {showTemplates && resolvedTemplates.length > 0 && (
-        <div className="qualifications-quick-template">
-          <label htmlFor="qualifications-quick-template-select">
+        <div className="qe-quick-template">
+          <label htmlFor="qe-quick-template-select">
             <FaListUl /> Start from a template
           </label>
           <select
-            id="qualifications-quick-template-select"
+            id="qe-quick-template-select"
             value={cardTemplateId}
             onChange={handleCardTemplateChange}
             disabled={disabled}
           >
             <option value="">
-              {safeValue.length === 0 ? "-- Choose a template to prefill --" : "-- Add a template's items --"}
+              {safeValue.length === 0 ? "Choose a template to prefill" : "Add a template's items"}
             </option>
             {templateOptions}
           </select>
@@ -281,217 +290,192 @@ export default function QualificationsEditor({
       )}
 
       {suggestion && (
-        <button
-          type="button"
-          className="qualifications-suggestion"
-          onClick={applySuggestion}
-          disabled={disabled}
-        >
+        <button type="button" className="qe-suggestion" onClick={applySuggestion} disabled={disabled}>
           <FaMagic /> Use the <strong>{suggestion.name}</strong> template for &ldquo;{jobTitleHint}&rdquo;?
         </button>
       )}
 
-      <div className="qualifications-card-shell">
-        {safeValue.length === 0 ? (
-          <div className="qualifications-empty-state">
-            <div className="qualifications-empty-icon">
-              <FaClipboardList />
-            </div>
-            <div className="qualifications-empty-text">No qualifications added yet</div>
-            <div className="qualifications-empty-subtext">
-              Define what candidates need to qualify for this role
-            </div>
-            <button
-              type="button"
-              className="qualifications-primary-btn"
-              onClick={openEditor}
-              disabled={disabled}
-            >
-              <FaPlus /> Add / Edit Qualifications
-            </button>
+      {/* ---- In-page active qualifications ---- */}
+      <div className="qe-active">
+        <div className="qe-active-head">
+          <div className="qe-active-title">
+            <FaListUl />
+            <span>Active qualifications</span>
+            <span className="qe-count">{safeValue.length}</span>
           </div>
+          <button type="button" className="qe-manage-btn" onClick={openEditor} disabled={disabled}>
+            {safeValue.length === 0 ? <FaPlus /> : <FaPencilAlt />}
+            {safeValue.length === 0 ? "Add qualifications" : "Manage"}
+          </button>
+        </div>
+
+        {safeValue.length === 0 ? (
+          <p className="qe-active-empty">
+            No qualifications yet. Add the skills, licences and clearances a candidate needs
+            &mdash; or start from a template above.
+          </p>
         ) : (
-          <div className="qualifications-summary-card">
-            <div className="qualifications-summary-header">
-              <div className="qualifications-summary-title">
-                <FaListUl /> Requirements Overview
-              </div>
-              <button type="button" className="qualifications-edit-btn" onClick={openEditor} disabled={disabled}>
-                <FaPencilAlt /> Edit
-              </button>
-            </div>
-
-            <div className="qualifications-summary-list">
-              {summaryGroups.map(({ type, items }) => (
-                <div className="qualifications-summary-group" key={type}>
-                  <div className="qualifications-summary-group-label">
-                    {TYPE_ICONS[type] || "📌"} {TYPE_LABELS[type] || type}
-                  </div>
-                  <div className="qualifications-summary-values">
-                    {items.slice(0, 6).map((item, index) => (
-                      <span key={`${type}-${index}`} className="qualifications-summary-chip">
-                        {item.value}
-                        {item.optional ? " · preferred" : ""}
-                      </span>
-                    ))}
-                    {items.length > 6 && (
-                      <span className="qualifications-summary-chip more">+{items.length - 6} more</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="qualifications-summary-total">
-              {safeValue.length} requirement{safeValue.length === 1 ? "" : "s"} set
-            </div>
+          <div className="qe-active-grid">
+            {safeValue.map((item, index) => (
+              <span key={`${item.type}-${item.value}-${index}`} className="qe-tag">
+                <span className="qe-tag-value">{item.value}</span>
+                <span className={`qe-tag-status ${item.optional ? "is-preferred" : "is-required"}`}>
+                  {item.optional ? "Preferred" : "Required"}
+                </span>
+                <button
+                  type="button"
+                  className="qe-tag-remove"
+                  onClick={() => removeFromValue(index)}
+                  disabled={disabled}
+                  aria-label={`Remove ${item.value}`}
+                >
+                  <FaTimes />
+                </button>
+              </span>
+            ))}
           </div>
         )}
       </div>
 
       {isModalOpen && (
-        <div className="qualifications-modal-backdrop" onClick={closeEditor}>
-          <div className="qualifications-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="qualifications-modal-header">
-              <div className="qualifications-modal-title-wrap">
-                <div className="qualifications-modal-icon">
-                  <FaClipboardList />
+        <div className="qe-modal-backdrop" onClick={closeEditor}>
+          <div
+            className="qe-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Manage qualifications and requirements"
+          >
+            {/* Header */}
+            <div className="qe-modal-head">
+              <div className="qe-modal-head-top">
+                <div className="qe-modal-head-title">
+                  <span className="qe-modal-icon"><FaClipboardList /></span>
+                  <div>
+                    <h3>Manage qualifications &amp; requirements</h3>
+                    <p>Search, browse by category, or add your own. Set each as required or preferred below.</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="qualifications-modal-title">Manage Job Qualifications &amp; Requirements</h3>
-                  <p className="qualifications-modal-subtitle">
-                    Define what candidates need to qualify for this role
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  className="qe-modal-close"
+                  onClick={closeEditor}
+                  aria-label="Close"
+                >
+                  <FaTimes />
+                </button>
               </div>
-              <button
-                type="button"
-                className="qualifications-close-btn"
-                onClick={closeEditor}
-                aria-label="Close requirements editor"
-              >
-                <FaTimes />
-              </button>
-            </div>
 
-            {showTemplates && resolvedTemplates.length > 0 && (
-              <div className="qualifications-template-section">
-                <label className="qualifications-template-label">Load Template</label>
-                <div className="qualifications-template-row">
+              <div className="qe-search">
+                <FaSearch />
+                <input
+                  type="search"
+                  value={modalSearch}
+                  placeholder="Search skills, licences, clearances…"
+                  onChange={(event) => setModalSearch(event.target.value)}
+                  disabled={disabled}
+                />
+              </div>
+
+              {showTemplates && resolvedTemplates.length > 0 && (
+                <div className="qe-template-row">
                   <select
                     value={templateId}
                     onChange={(event) => setTemplateId(event.target.value)}
                     disabled={disabled}
-                    className="qualifications-template-select"
                   >
-                    <option value="">-- Select a template --</option>
+                    <option value="">Load a template…</option>
                     {templateOptions}
                   </select>
                   <button
                     type="button"
-                    className="qualifications-template-mode-btn"
+                    className="qe-ghost-btn"
                     onClick={() => setTemplateMode((prev) => (prev === "append" ? "replace" : "append"))}
                   >
                     {templateMode === "append" ? "Append" : "Replace"}
                   </button>
                   <button
                     type="button"
-                    className="qualifications-template-load-btn"
+                    className="qe-ghost-btn"
                     onClick={applyModalTemplate}
                     disabled={!templateId || disabled}
                   >
                     Load
                   </button>
                 </div>
-              </div>
-            )}
-
-            <div className="qualifications-modal-body">
-              {/* ---- Merged skills bucket ---- */}
-              <div className="qualifications-core-header">
-                <span className="qualifications-core-bar" />
-                <span>Skills &amp; Competencies</span>
-              </div>
-
-              <div className="qualifications-skill-adder">
-                <input
-                  type="text"
-                  value={skillInput}
-                  list={SKILL_DATALIST_ID}
-                  placeholder="Type a skill and press Enter (or paste a comma-separated list)"
-                  onChange={(event) => setSkillInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      addSkills();
-                    }
-                  }}
-                  disabled={disabled}
-                />
-                <button
-                  type="button"
-                  className="qualifications-inline-add-btn"
-                  onClick={addSkills}
-                  disabled={!skillInput.trim() || disabled}
-                >
-                  <FaPlus /> Add
-                </button>
-              </div>
-
-              {draftSkills.length > 0 && (
-                <div className="qualifications-skill-chips">
-                  {draft.map((item, index) =>
-                    isSkillType(item.type) ? (
-                      <span
-                        key={`skill-${index}`}
-                        className={`qualifications-skill-chip ${item.optional ? "preferred" : ""}`}
-                      >
-                        <button
-                          type="button"
-                          className="qualifications-skill-chip-preferred"
-                          title={item.optional ? "Marked preferred — click to make required" : "Mark as preferred"}
-                          onClick={() => updateDraftItem(index, { optional: !item.optional })}
-                        >
-                          {item.optional ? "★" : "☆"}
-                        </button>
-                        {item.value}
-                        <button
-                          type="button"
-                          className="qualifications-skill-chip-remove"
-                          onClick={() => removeDraftItem(index)}
-                          aria-label={`Remove ${item.value}`}
-                        >
-                          <FaTimes />
-                        </button>
-                      </span>
-                    ) : null
-                  )}
-                </div>
               )}
 
-              {/* ---- Non-skill requirements ---- */}
-              <div className="qualifications-core-header" style={{ marginTop: "1.25rem" }}>
-                <span className="qualifications-core-bar" />
-                <span>Other Requirements</span>
+              <div className="qe-tabs" role="tablist">
+                {MODAL_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === tab.id}
+                    className={`qe-tab ${activeTab === tab.id ? "is-active" : ""}`}
+                    onClick={() => setActiveTab(tab.id)}
+                    disabled={disabled}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <div className="qualifications-modal-custom-item">
-                <div className="qualifications-modal-custom-selects">
+            {/* Body: pill palette + custom item */}
+            <div className="qe-modal-body">
+              {visibleGroups.length === 0 ? (
+                <p className="qe-palette-empty">
+                  {searchMisses
+                    ? "Nothing matches that. Add it as a custom requirement below."
+                    : "No items in this category."}
+                </p>
+              ) : (
+                visibleGroups.map((group) => (
+                  <div className="qe-palette-group" key={group.id}>
+                    <div className="qe-palette-group-label">{group.label}</div>
+                    <div className="qe-palette">
+                      {group.items.map((item) => {
+                        const active = draftHas(item.value, item.type);
+                        return (
+                          <button
+                            key={`${item.type}-${item.value}`}
+                            type="button"
+                            className={`qe-palette-pill ${active ? "is-active" : ""}`}
+                            onClick={() => toggleItem(item.value, item.type)}
+                            disabled={disabled}
+                          >
+                            {active ? <FaCheck /> : <FaPlus />}
+                            {item.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+
+              <div className="qe-custom">
+                <div className="qe-custom-label">Add a custom requirement</div>
+                <div className="qe-custom-row">
                   <select
+                    className="qe-custom-type"
                     value={customEntry.type}
                     onChange={(event) => setCustomEntry((prev) => ({ ...prev, type: event.target.value }))}
                     disabled={disabled}
+                    aria-label="Requirement type"
                   >
-                    {REQUIREMENT_TYPES.map((option) => (
+                    {ROW_TYPE_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
                     ))}
                   </select>
-
                   <input
                     type="text"
+                    className="qe-custom-input"
                     value={customEntry.value}
+                    list={SKILL_DATALIST_ID}
                     placeholder="e.g. Bachelor's degree in Accounting"
                     onChange={(event) => setCustomEntry((prev) => ({ ...prev, value: event.target.value }))}
                     onKeyDown={(event) => {
@@ -502,97 +486,39 @@ export default function QualificationsEditor({
                     }}
                     disabled={disabled}
                   />
-
-                  <label className="qualifications-checkbox-wrap">
-                    <input
-                      type="checkbox"
-                      checked={customEntry.optional}
-                      onChange={(event) => setCustomEntry((prev) => ({ ...prev, optional: event.target.checked }))}
+                  <div className="qe-seg" role="group" aria-label="Required or preferred">
+                    <button
+                      type="button"
+                      className={`qe-seg-btn ${!customEntry.optional ? "is-active" : ""}`}
+                      onClick={() => setCustomEntry((prev) => ({ ...prev, optional: false }))}
                       disabled={disabled}
-                    />
-                    Preferred
-                  </label>
+                    >
+                      Required
+                    </button>
+                    <button
+                      type="button"
+                      className={`qe-seg-btn ${customEntry.optional ? "is-active" : ""}`}
+                      onClick={() => setCustomEntry((prev) => ({ ...prev, optional: true }))}
+                      disabled={disabled}
+                    >
+                      Preferred
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="qe-add-btn"
+                    onClick={addCustomItem}
+                    disabled={!customEntry.value.trim() || disabled}
+                  >
+                    <FaPlus /> Add
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  className="qualifications-inline-add-btn"
-                  onClick={addCustomItem}
-                  disabled={!customEntry.value.trim() || disabled}
-                >
-                  <FaPlus /> Add
-                </button>
               </div>
 
-              {draft.some((item) => !isSkillType(item.type)) && (
-                <div className="qualifications-draft-list">
-                  {draft.map((item, index) =>
-                    isSkillType(item.type) ? null : (
-                      <div className="qualifications-draft-row" key={`${item.type}-${index}`}>
-                        <div className="qualifications-draft-left">
-                          <select
-                            className="qualifications-draft-type-select"
-                            value={foldType(item.type)}
-                            onChange={(event) => updateDraftItem(index, { type: event.target.value })}
-                          >
-                            {ROW_TYPE_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            type="text"
-                            value={item.value}
-                            onChange={(event) => updateDraftItem(index, { value: event.target.value })}
-                          />
-                        </div>
-
-                        <div className="qualifications-draft-actions">
-                          <label className="qualifications-checkbox-wrap small">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(item.optional)}
-                              onChange={(event) => updateDraftItem(index, { optional: event.target.checked })}
-                            />
-                            Preferred
-                          </label>
-
-                          <button
-                            type="button"
-                            className="qualifications-move-btn"
-                            onClick={() => moveDraftItem(index, -1)}
-                            disabled={index === 0}
-                          >
-                            ↑
-                          </button>
-                          <button
-                            type="button"
-                            className="qualifications-move-btn"
-                            onClick={() => moveDraftItem(index, 1)}
-                            disabled={index === draft.length - 1}
-                          >
-                            ↓
-                          </button>
-                          <button
-                            type="button"
-                            className="qualifications-remove-btn"
-                            onClick={() => removeDraftItem(index)}
-                            aria-label="Remove requirement"
-                          >
-                            <FaTrash />
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
-
               {onSaveTemplate && (
-                <div className="qualifications-save-template">
+                <div className="qe-save-template">
                   {showTemplateSave ? (
-                    <div className="qualifications-save-template-form">
+                    <div className="qe-save-template-form">
                       <input
                         type="text"
                         value={templateName}
@@ -602,15 +528,15 @@ export default function QualificationsEditor({
                       />
                       <button
                         type="button"
-                        className="qualifications-template-load-btn"
+                        className="qe-ghost-btn"
                         onClick={handleSaveTemplate}
                         disabled={savingTemplate || !templateName.trim()}
                       >
-                        {savingTemplate ? "Saving..." : "Save"}
+                        {savingTemplate ? "Saving…" : "Save"}
                       </button>
                       <button
                         type="button"
-                        className="qualifications-cancel-btn"
+                        className="qe-ghost-btn"
                         onClick={() => {
                           setShowTemplateSave(false);
                           setSaveError("");
@@ -623,7 +549,7 @@ export default function QualificationsEditor({
                   ) : (
                     <button
                       type="button"
-                      className="qualifications-save-template-btn"
+                      className="qe-link-btn"
                       onClick={() => {
                         setShowTemplateSave(true);
                         setTemplateName("");
@@ -634,22 +560,73 @@ export default function QualificationsEditor({
                       <FaRegSave /> Save these as a reusable template
                     </button>
                   )}
-                  {saveError && <div className="qualifications-save-template-error">{saveError}</div>}
+                  {saveError && <div className="qe-save-template-error">{saveError}</div>}
                 </div>
               )}
             </div>
 
-            <div className="qualifications-modal-footer">
-              <div className="qualifications-modal-total">
-                {draft.length} requirement{draft.length === 1 ? "" : "s"} total
+            {/* Sticky selected drawer */}
+            <div className="qe-drawer">
+              <div className="qe-drawer-head">
+                <span className="qe-drawer-title">
+                  Selected <span className="qe-count">{draft.length}</span>
+                </span>
+                {draft.length > 0 && (
+                  <button
+                    type="button"
+                    className="qe-link-btn"
+                    onClick={() => setDraft([])}
+                    disabled={disabled}
+                  >
+                    Clear all
+                  </button>
+                )}
               </div>
 
-              <div className="qualifications-modal-actions">
-                <button type="button" className="qualifications-cancel-btn" onClick={closeEditor}>
+              {draft.length === 0 ? (
+                <p className="qe-drawer-empty">Nothing selected yet — pick from the palette or add a custom item.</p>
+              ) : (
+                <div className="qe-drawer-chips">
+                  {draft.map((item, index) => (
+                    <span key={`${item.type}-${item.value}-${index}`} className="qe-chip">
+                      <span className="qe-chip-value">{item.value}</span>
+                      <span className="qe-chip-seg" role="group">
+                        <button
+                          type="button"
+                          className={`qe-chip-seg-btn ${!item.optional ? "is-active" : ""}`}
+                          onClick={() => updateDraftItem(index, { optional: false })}
+                          title="Required"
+                        >
+                          Req
+                        </button>
+                        <button
+                          type="button"
+                          className={`qe-chip-seg-btn ${item.optional ? "is-active" : ""}`}
+                          onClick={() => updateDraftItem(index, { optional: true })}
+                          title="Preferred"
+                        >
+                          Pref
+                        </button>
+                      </span>
+                      <button
+                        type="button"
+                        className="qe-chip-remove"
+                        onClick={() => removeDraftItem(index)}
+                        aria-label={`Remove ${item.value}`}
+                      >
+                        <FaTimes />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="qe-drawer-actions">
+                <button type="button" className="qe-ghost-btn" onClick={closeEditor}>
                   Cancel
                 </button>
-                <button type="button" className="qualifications-apply-btn" onClick={handleApply}>
-                  <FaCheck /> Apply &amp; Save
+                <button type="button" className="qe-apply-btn" onClick={handleApply}>
+                  <FaCheck /> Apply &amp; save
                 </button>
               </div>
             </div>

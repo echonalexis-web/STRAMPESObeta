@@ -64,7 +64,7 @@ const validateUserUpdate = (req, res, next) => {
     isOfw, isRepatriated, repatriationIntent,
     employmentStatus, employmentType, unemploymentReason, laidoffCountry,
     tradeName, acronym, tin, officeType, employerClassification,
-    totalWorkforceSize, ownerName, contactPersonName, contactPersonPosition, fax
+    totalWorkforceSize, companySize, ownerName, contactPersonName, contactPersonPosition, fax
   } = req.body;
   const errors = [];
 
@@ -194,6 +194,10 @@ const validateUserUpdate = (req, res, next) => {
     }
     if (totalWorkforceSize !== undefined && totalWorkforceSize && !["micro", "small", "medium", "large"].includes(totalWorkforceSize)) {
       errors.push('Invalid workforce size');
+    }
+    // companySize shares the same NSRP / DOLE MSME bands as totalWorkforceSize.
+    if (companySize !== undefined && companySize && !["micro", "small", "medium", "large"].includes(companySize)) {
+      errors.push('Invalid company size');
     }
     if (ownerName !== undefined && ownerName && ownerName.length > 100) {
       errors.push('Owner name too long');

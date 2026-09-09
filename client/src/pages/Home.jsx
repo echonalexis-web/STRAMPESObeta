@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { FaMapMarkerAlt, FaBuilding, FaArrowRight, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { jobAPI } from "../services/api";
+import VacancyCard from "../components/VacancyCard";
 import "../styles/home.css";
 import heroVideo from "../assets/videos/hero-video.mp4";
 import pesoLogo from "../assets/images/peso-logo.png";
@@ -349,64 +350,18 @@ export default function Home() {
             {/* CAROUSEL CONTAINER */}
             <div className="jobs-carousel" ref={carouselRef} onWheel={handleWheel} onScroll={handleCarouselScroll}>
               {filteredJobs.length > 0 ? (
-                filteredJobs.map((job, index) => {
-                  const title = job?.title || "Untitled Position";
-                  const jobId = job?._id || job?.id || title;
-                  const employerName = getEmployerName(job) || "Employer";
-                  const status = getJobStatus(job);
-                  const employerInitial = employerName.charAt(0).toUpperCase() || "E";
-                  const jobType = job?.jobType || job?.type || job?.employmentType || "";
-                  const description = job?.description || "";
-                  return (
-                    <article
-                      key={jobId}
-                      className={`job-card-v2 ${visibleCards[jobId] ? "is-visible" : ""} ${status.variant === "closing" ? "job-card-v2--closing" : ""}`}
-                      data-fade-card="true"
-                      data-card-id={jobId}
-                      ref={(element) => { cardRefs.current[index] = element; }}
-                      style={{ "--card-delay": `${index * 90}ms` }}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => handleViewJob(job)}
-                      onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleViewJob(job); } }}
-                    >
-                      <div className="job-card-v2-top">
-                        <div className="job-card-v2-logo">
-                          <div className="job-card-v2-logo-circle">{employerInitial}</div>
-                        </div>
-                        <div className="job-card-v2-badges">
-                          {jobType && <span className="job-card-v2-type-badge">{jobType}</span>}
-                          <div className={`job-card-v2-status job-card-v2-status--${status.variant}`}>
-                            <span className={`job-card-v2-status-dot job-card-v2-status-dot--${status.variant}`}></span>
-                            {status.variant === "closing" ? "Closing" : "Open"}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="job-card-v2-body">
-                        <span className="job-card-v2-employer" title={employerName}>
-                          <FaBuilding className="job-card-v2-employer-icon" />
-                          <span>{employerName}</span>
-                        </span>
-                        <h3 className="job-card-v2-title" title={title}>{title}</h3>
-                        <div className="job-card-v2-location" title={typeof job.location === "string" ? job.location : ""}>
-                          <FaMapMarkerAlt className="job-card-v2-loc-icon" />
-                          <span>{formatAddress(job.location)}</span>
-                        </div>
-                        {description && (
-                          <p className="job-card-v2-description">{description}</p>
-                        )}
-                      </div>
-
-                      <div className="job-card-v2-footer">
-                        <button type="button" className="job-card-v2-button" onClick={(event) => { event.stopPropagation(); handleViewJob(job); }}>
-                          <span>View Details</span>
-                          <FaArrowRight className="job-card-v2-btn-arrow" />
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })
+                filteredJobs.map((job, index) => (
+                  <VacancyCard
+                    key={job?._id || job?.id || index}
+                    job={job}
+                    applied={Boolean(job?.hasApplied || job?.isApplied || job?.applied)}
+                    followed={Boolean(job?.isFollowedEmployer || job?.followedEmployer)}
+                    preferred={Boolean(job?.isPreferred || job?.preferred)}
+                    matchAvailable={Boolean(user)}
+                    onOpen={() => handleViewJob(job)}
+                    onApply={() => handleViewJob(job)}
+                  />
+                ))
               ) : (
                 <div className="no-results-container"><div className="no-results-icon">🔍</div><h3>No jobs available</h3><p>There are currently no job postings. Please check back later.</p></div>
               )}

@@ -232,23 +232,6 @@ export default function JobDetail() {
     navigate("/register");
   };
 
-  const handleAdminDeleteJob = async () => {
-    const ok = await confirm({
-      title: "Delete this job posting?",
-      message: "This removes the vacancy and all of its applications. This action cannot be undone.",
-      confirmLabel: "Delete",
-      tone: "danger",
-    });
-    if (!ok) return;
-    try {
-      await adminAPI.deleteJob(id);
-      toast.success("Job posting deleted.");
-      navigate("/admin");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to delete job.");
-    }
-  };
-
   const handleAdminToggleJobStatus = async () => {
     const nextStatus = job?.status === "closed" ? "active" : "closed";
     try {
@@ -401,9 +384,6 @@ export default function JobDetail() {
               <div className="admin-job-actions">
                 <button type="button" className="btn-admin-action" onClick={handleAdminToggleJobStatus}>
                   {job?.status === "closed" ? "Reopen Job" : "Close Job"}
-                </button>
-                <button type="button" className="btn-admin-action danger" onClick={handleAdminDeleteJob}>
-                  Delete Job
                 </button>
               </div>
             </div>

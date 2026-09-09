@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI, resolveAssetUrl, verificationAPI } from "../services/api";
 import "../styles/profile.css";
-import { FaUser, FaEnvelope, FaPhone, FaBriefcase, FaBuilding, FaMapMarkerAlt, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaIdCard, FaTimes, FaPlus, FaSave, FaArrowLeft } from "react-icons/fa";
+import { FaUser, FaEnvelope, FaPhone, FaBriefcase, FaBuilding, FaMapMarkerAlt, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaIdCard, FaTimes, FaPlus, FaSave, FaArrowLeft, FaEye, FaEyeSlash } from "react-icons/fa";
 import LocationSelect from "../components/LocationSelect";
 import LocationAutosuggest from "../components/LocationAutosuggest";
 import Autosuggest from "../components/Autosuggest";
@@ -16,6 +16,7 @@ import { ALL_LOCATIONS } from "../utils/philippineLocations";
 import marinduqueSchools from "../data/marinduque_schools.json";
 import collegeCourses from "../data/philippine_college_courses.json";
 import countriesData from "../data/countries.json";
+import { WORKFORCE_SIZE_OPTIONS } from "../data/employerProfile";
 
 const COUNTRY_OPTIONS = countriesData.countries || [];
 
@@ -240,7 +241,10 @@ const getInitialPersisted = () => ({
 export default function EditProfile() {
   const { user, login } = useContext(AuthContext);
   const isEmployer = user?.role === "employer";
-  const isAdmin = user?.role === "admin";
+  const isSuperadmin = user?.role === "superadmin";
+  // The superadmin shares the admin's minimal edit form (name, phone, password) —
+  // no NSRP / career / documents tabs.
+  const isAdmin = user?.role === "admin" || isSuperadmin;
 
   // Persistent state
   const normalizeFormData = (data) => {
@@ -325,6 +329,9 @@ export default function EditProfile() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [skillFilterInput, setSkillFilterInput] = useState("");
   const [showSkillsDropdown, setShowSkillsDropdown] = useState(false);
   const [occupationInput, setOccupationInput] = useState("");
@@ -645,7 +652,7 @@ export default function EditProfile() {
   };
 
   const railName = formData.name || [formData.firstName, formData.surname].filter(Boolean).join(" ") || "Your Profile";
-  const railRole = isAdmin ? "Administrator" : isEmployer ? "Employer" : "Job Seeker";
+  const railRole = isSuperadmin ? "System Superadmin" : isAdmin ? "Administrator" : isEmployer ? "Employer" : "Job Seeker";
 
   return (
     <div className="editprofile-shell">
@@ -748,16 +755,31 @@ export default function EditProfile() {
                   <h3 className="profile-section-title">🔒 Change Password</h3>
                   <div className="profile-field">
                     <label htmlFor="currentPassword">Current Password</label>
-                    <input id="currentPassword" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Enter current password" />
+                    <div className="password-input-wrapper">
+                      <input id="currentPassword" type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Enter current password" />
+                      <button type="button" className="password-toggle-btn" onClick={() => setShowCurrentPassword(!showCurrentPassword)} aria-label={showCurrentPassword ? "Hide password" : "Show password"}>
+                        {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
+                      </button>
+                    </div>
                   </div>
                   <div className="profile-field-grid">
                     <div className="profile-field">
                       <label htmlFor="newPassword">New Password</label>
-                      <input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 8 characters" />
+                      <div className="password-input-wrapper">
+                        <input id="newPassword" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 8 characters" />
+                        <button type="button" className="password-toggle-btn" onClick={() => setShowNewPassword(!showNewPassword)} aria-label={showNewPassword ? "Hide password" : "Show password"}>
+                          {showNewPassword ? <FaEyeSlash /> : <FaEye />}
+                        </button>
+                      </div>
                     </div>
                     <div className="profile-field">
                       <label htmlFor="confirmPassword">Confirm Password</label>
-                      <input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" />
+                      <div className="password-input-wrapper">
+                        <input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" />
+                        <button type="button" className="password-toggle-btn" onClick={() => setShowConfirmPassword(!showConfirmPassword)} aria-label={showConfirmPassword ? "Hide password" : "Show password"}>
+                          {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -858,10 +880,9 @@ export default function EditProfile() {
                       <label htmlFor="companySize">Company Size</label>
                       <select id="companySize" name="companySize" value={formData.companySize} onChange={handleChange}>
                         <option value="">Select Size</option>
-                        <option value="1-10">1-10</option>
-                        <option value="11-50">11-50</option>
-                        <option value="51-200">51-200</option>
-                        <option value="200+">200+</option>
+                        {WORKFORCE_SIZE_OPTIONS.map(({ value, label }) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -1360,10 +1381,9 @@ export default function EditProfile() {
                     <label htmlFor="totalWorkforceSize">Total Workforce Size</label>
                     <select id="totalWorkforceSize" name="totalWorkforceSize" value={formData.totalWorkforceSize} onChange={handleChange}>
                       <option value="">Select</option>
-                      <option value="micro">Micro (1-9)</option>
-                      <option value="small">Small (10-99)</option>
-                      <option value="medium">Medium (100-199)</option>
-                      <option value="large">Large (200+)</option>
+                      {WORKFORCE_SIZE_OPTIONS.map(({ value, label }) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="profile-field">

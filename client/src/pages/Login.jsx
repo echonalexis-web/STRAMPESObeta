@@ -64,8 +64,13 @@ export default function Login() {
 
   useEffect(() => {
     if (user && !isRedirecting) {
+      if (user.mustChangePassword === true) {
+        navigate("/change-password");
+        return;
+      }
       const role = normalizeRole(user.role);
-      if (role === "admin") navigate("/admin");
+      if (role === "superadmin") navigate("/superadmin");
+      else if (role === "admin") navigate("/admin");
       else if (role === "employer") navigate("/employer-dashboard");
       else navigate("/dashboard");
     }
@@ -73,6 +78,7 @@ export default function Login() {
 
   const getDefaultRouteByRole = (role) => {
     const normalizedRole = normalizeRole(role);
+    if (normalizedRole === "superadmin") return "/superadmin";
     if (normalizedRole === "admin") return "/admin";
     if (normalizedRole === "employer") return "/employer-dashboard";
     return "/dashboard";
@@ -149,6 +155,14 @@ export default function Login() {
       };
 
       login(token, mergedUser);
+
+      // A superadmin-provisioned admin signing in with a temporary password is
+      // sent straight to the change-password screen before anything else.
+      if (mergedUser?.mustChangePassword === true) {
+        setIsRedirecting(true);
+        navigate("/change-password");
+        return;
+      }
 
       const hasCompletedOnboarding =
         typeof mergedUser?.hasCompletedOnboarding === "boolean"

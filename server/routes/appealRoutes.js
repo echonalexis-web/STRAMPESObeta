@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { verifyToken: protect, verifyAppealToken, isAdmin } = require("../middleware/auth");
+const { verifyToken: protect, verifyAppealToken, isSuperadmin } = require("../middleware/auth");
 const { sanitizeRequestBody, sanitizeQueryParams, validateMongoId, validateRequest } = require("../middleware/validation");
 const { detectMaliciousPayload } = require("../middleware/security");
 const { submitAppeal, getMyAppeal, listAppeals, resolveAppeal } = require("../controllers/appealController");
@@ -8,12 +8,12 @@ const { submitAppeal, getMyAppeal, listAppeals, resolveAppeal } = require("../co
 router.post("/", verifyAppealToken, sanitizeRequestBody, detectMaliciousPayload, submitAppeal);
 router.get("/me", verifyAppealToken, getMyAppeal);
 
-// Admin review.
-router.get("/admin", protect, isAdmin, sanitizeQueryParams, listAppeals);
+// Appeal review — superadmin-only.
+router.get("/admin", protect, isSuperadmin, sanitizeQueryParams, listAppeals);
 router.patch(
   "/admin/:id/resolve",
   protect,
-  isAdmin,
+  isSuperadmin,
   validateMongoId("id"),
   sanitizeRequestBody,
   detectMaliciousPayload,

@@ -4,10 +4,71 @@ import { FaSearch } from 'react-icons/fa';
 
 const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Temporary', 'Remote'];
 
-const SALARY_GRADES = Array.from({ length: 33 }, (_, i) => ({
-  value: `SG-${i + 1}`,
-  label: `Salary Grade ${i + 1}`,
-}));
+const SALARY_MIN_BOUND = 0;
+const SALARY_MAX_BOUND = 100000;
+const SALARY_STEP = 1000;
+
+const formatSalaryTick = (value) => {
+  if (value >= SALARY_MAX_BOUND) return `₱${SALARY_MAX_BOUND.toLocaleString('en-PH')}+`;
+  return `₱${value.toLocaleString('en-PH')}`;
+};
+
+/* ─── Dual-handle salary range slider ─── */
+function SalaryRangeSlider({ min, max, onChange }) {
+  const currentMin = Number.isFinite(min) ? min : SALARY_MIN_BOUND;
+  const currentMax = Number.isFinite(max) ? max : SALARY_MAX_BOUND;
+
+  const handleMinChange = (e) => {
+    const next = Math.min(Number(e.target.value), currentMax);
+    onChange(next, currentMax);
+  };
+
+  const handleMaxChange = (e) => {
+    const next = Math.max(Number(e.target.value), currentMin);
+    onChange(currentMin, next);
+  };
+
+  const minPct = ((currentMin - SALARY_MIN_BOUND) / (SALARY_MAX_BOUND - SALARY_MIN_BOUND)) * 100;
+  const maxPct = ((currentMax - SALARY_MIN_BOUND) / (SALARY_MAX_BOUND - SALARY_MIN_BOUND)) * 100;
+
+  return (
+    <div className="salary-range-field">
+      <div className="salary-range-header">
+        <span className="salary-range-label">Salary Range (per month)</span>
+        <span className="salary-range-value">
+          {formatSalaryTick(currentMin)} – {formatSalaryTick(currentMax)}
+        </span>
+      </div>
+      <div className="salary-range-track-wrap">
+        <div className="salary-range-track" />
+        <div
+          className="salary-range-fill"
+          style={{ left: `${minPct}%`, right: `${100 - maxPct}%` }}
+        />
+        <input
+          type="range"
+          className="salary-range-input salary-range-input--min"
+          min={SALARY_MIN_BOUND}
+          max={SALARY_MAX_BOUND}
+          step={SALARY_STEP}
+          value={currentMin}
+          onChange={handleMinChange}
+          aria-label="Minimum salary"
+        />
+        <input
+          type="range"
+          className="salary-range-input salary-range-input--max"
+          min={SALARY_MIN_BOUND}
+          max={SALARY_MAX_BOUND}
+          step={SALARY_STEP}
+          value={currentMax}
+          onChange={handleMaxChange}
+          aria-label="Maximum salary"
+        />
+      </div>
+    </div>
+  );
+}
 
 /* ─── Flatten PH locations JSON ─── */
 function flattenLocations(rawData) {
@@ -158,19 +219,19 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
           ))}
         </select>
 
-        <select
-          name="salaryGrade"
-          className="filter-select"
-          value={filters.salaryGrade || ''}
-          onChange={(e) => updateFilter('salaryGrade', e.target.value)}
-        >
-          <option value="">Any Salary Grade</option>
-          {SALARY_GRADES.map((sg) => (
-            <option key={sg.value} value={sg.value}>
-              {sg.label}
-            </option>
-          ))}
-        </select>
+        <SalaryRangeSlider
+          min={filters.salaryMin !== undefined && filters.salaryMin !== '' ? Number(filters.salaryMin) : SALARY_MIN_BOUND}
+          max={filters.salaryMax !== undefined && filters.salaryMax !== '' ? Number(filters.salaryMax) : SALARY_MAX_BOUND}
+          onChange={(nextMin, nextMax) => {
+            if (onChange) {
+              onChange({
+                ...filters,
+                salaryMin: nextMin > SALARY_MIN_BOUND ? nextMin : '',
+                salaryMax: nextMax < SALARY_MAX_BOUND ? nextMax : '',
+              });
+            }
+          }}
+        />
 
         <button
           type="button"

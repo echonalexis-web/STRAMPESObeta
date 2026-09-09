@@ -19,7 +19,8 @@ const {
     updateProfile,
     updateAvatar,
     registerEmployer,
-    acceptTerms
+    acceptTerms,
+    changePassword
 } = require("../controllers/authController");
 const { verifyToken: protect, isAdmin } = require("../middleware/auth");
 const {
@@ -116,6 +117,13 @@ router.post(
 router.get("/me", protect, getMe);
 router.get("/profile", protect, getProfile);
 router.post("/accept-terms", protect, sanitizeRequestBody, acceptTerms);
+router.post(
+  "/change-password",
+  protect,
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  changePassword
+);
 
 // Start an email change — requires the current session + password re-auth
 router.post(

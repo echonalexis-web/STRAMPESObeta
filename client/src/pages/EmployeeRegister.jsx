@@ -1,10 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 import "../styles/auth.css";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import pesoLogo from "../assets/images/peso-logo.png";
 import provincialSeal from "../assets/images/provincial-seal.png";
+
+const normalizeRole = (role) => (role === "employee" || role === "jobseeker" ? "resident" : role);
 
 const validatePassword = (password) => {
   const errors = [];
@@ -83,6 +87,7 @@ export default function EmployerRegister() {
   const [touched, setTouched] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
   /* ─── Spotlight mouse tracking ─── */
@@ -200,6 +205,58 @@ export default function EmployerRegister() {
     } catch (err) {
       console.error("Registration error:", err);
       setError(formatApiError(err, "Registration failed. Please try again."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleCredential = async (credential) => {
+    setError("");
+    setSuccess("");
+    setLoading(true);
+    try {
+      const { data } = await authAPI.google(credential, "employer");
+      const token = data.token;
+      const userData = data.user || {};
+      if (!token) throw new Error("Invalid response from server");
+
+      const mergedUser = { ...userData, role: normalizeRole(userData.role) };
+      login(token, mergedUser);
+
+      const onboardingDone =
+        typeof mergedUser.hasCompletedOnboarding === "boolean"
+          ? mergedUser.hasCompletedOnboarding
+          : mergedUser.onboardingComplete;
+
+      // A brand-new Google account (or one that never finished onboarding) goes
+      // to onboarding; the role is already "employer" so it renders the
+      // employer flow. An existing account just lands on its dashboard.
+      if (data.isNewUser || onboardingDone === false) {
+        navigate("/onboarding");
+      } else if (mergedUser.role === "employer") {
+        navigate("/employer-dashboard");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      console.error("Google sign-in error:", err);
+      const d = err?.response?.data;
+      if (err?.response?.status === 403 && d?.code === "ACCOUNT_SUSPENDED") {
+        if (d.appealToken) localStorage.setItem("appealToken", d.appealToken);
+        localStorage.setItem(
+          "suspensionInfo",
+          JSON.stringify({
+            accountStatus: d.accountStatus || "suspended",
+            suspensionReason: d.suspensionReason || null,
+            suspendedAt: d.suspendedAt || null,
+          })
+        );
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        navigate("/account-suspended");
+        return;
+      }
+      setError(formatApiError(err, "Google sign-in failed"));
     } finally {
       setLoading(false);
     }
@@ -330,6 +387,8 @@ export default function EmployerRegister() {
               {loading ? "Creating Account..." : "Create Employer Account"}
             </button>
           </form>
+
+          <GoogleSignInButton onCredential={handleGoogleCredential} text="signup_with" />
 
           <p className="auth-link">
             Already have an account? <Link to="/login">Log in</Link>
