@@ -172,4 +172,32 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+// Legacy headcount ranges ("11-50") were stored by an older build before the
+// companySize enum moved to the NSRP / DOLE MSME bands. Normalise them before
+// validation so an old value on an existing document — or from a stale client —
+// can never block a save.
+const LEGACY_COMPANY_SIZE = {
+  "1-9": "micro",
+  "1-10": "micro",
+  "10-99": "small",
+  "11-50": "small",
+  "51-200": "medium",
+  "100-199": "medium",
+  "200+": "large",
+  "201-500": "large",
+  "500+": "large",
+};
+
+userSchema.pre("validate", function normaliseCompanySize(next) {
+  if (this.companySize && LEGACY_COMPANY_SIZE[this.companySize]) {
+    this.companySize = LEGACY_COMPANY_SIZE[this.companySize];
+  } else if (
+    this.companySize &&
+    !["micro", "small", "medium", "large"].includes(this.companySize)
+  ) {
+    this.companySize = "";
+  }
+  next();
+});
+
 module.exports = mongoose.model("User", userSchema);
