@@ -839,10 +839,14 @@ exports.updateProfile = async (req, res) => {
 
     // For employers, update company fields
     if (currentUser.role === "employer") {
-      const employerCommonFields = ["companyName", "industry", "companySize", "website", "companyDescription", "businessAddress"];
+      const employerCommonFields = ["companyName", "industry", "website", "companyDescription", "businessAddress"];
       employerCommonFields.forEach(field => {
         if (req.body[field] !== undefined) commonUpdates[field] = req.body[field];
       });
+
+      if (req.body.companySize !== undefined) {
+        commonUpdates.companySize = User.normalizeCompanySize(req.body.companySize);
+      }
     }
 
     // ---- 4. File uploads (persisted to storage backend by persistFields middleware) ----

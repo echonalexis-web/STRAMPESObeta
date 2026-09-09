@@ -1,5 +1,6 @@
 const { buildArchivedJobSnapshot } = require("../controllers/jobController");
 const { escapeRegExp, normalizeAdminJobStatus, normalizeMunicipalityLabel } = require("../controllers/adminController");
+const User = require("../models/User");
 
 describe("Server test setup", () => {
   test("Jest is running", () => {
@@ -40,7 +41,7 @@ describe("Server test setup", () => {
     expect(normalizeAdminJobStatus("closed")).toBe("closed");
     expect(normalizeMunicipalityLabel("santa cruz")).toBe("Santa Cruz");
     expect(normalizeMunicipalityLabel("boac city")).toBe("Boac (Capital)");
-    expect(normalizeMunicipalityLabel("other province")).toBe("Other / Outside Marinduque");
+    expect(normalizeMunicipalityLabel("other province")).toBe("Other / Outside Province");
   });
 
   test("municipality regex matching escapes parentheses for Boac (Capital)", () => {
@@ -56,5 +57,13 @@ describe("Server test setup", () => {
     expect(normalizeMunicipalityLabel("Other / Outside Province")).toBe("Other / Outside Province");
     expect(normalizeMunicipalityLabel("Other / Outside Marinduque")).toBe("Other / Outside Province");
     expect(/boac|capital/i.test("Boac, Marinduque")).toBe(true);
+  });
+
+  test("legacy companySize values are normalized before validation or updates", () => {
+    expect(User.normalizeCompanySize("11-50")).toBe("small");
+    expect(User.normalizeCompanySize("1-10")).toBe("micro");
+    expect(User.normalizeCompanySize("200+")).toBe("large");
+    expect(User.normalizeCompanySize("small")).toBe("small");
+    expect(User.normalizeCompanySize("not-a-band")).toBe("");
   });
 });

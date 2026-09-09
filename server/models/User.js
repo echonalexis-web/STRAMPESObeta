@@ -188,15 +188,27 @@ const LEGACY_COMPANY_SIZE = {
   "500+": "large",
 };
 
+const VALID_COMPANY_SIZES = ["micro", "small", "medium", "large"];
+
+userSchema.statics.normalizeCompanySize = function normalizeCompanySize(value) {
+  const cleaned = String(value ?? "").trim();
+  if (!cleaned) return "";
+
+  if (VALID_COMPANY_SIZES.includes(cleaned)) return cleaned;
+
+  const mapped = LEGACY_COMPANY_SIZE[cleaned];
+  if (mapped) return mapped;
+
+  const lower = Number((cleaned.match(/\d+/) || [])[0]);
+  if (!Number.isFinite(lower)) return "";
+  if (lower < 10) return "micro";
+  if (lower < 100) return "small";
+  if (lower < 200) return "medium";
+  return "large";
+};
+
 userSchema.pre("validate", function normaliseCompanySize(next) {
-  if (this.companySize && LEGACY_COMPANY_SIZE[this.companySize]) {
-    this.companySize = LEGACY_COMPANY_SIZE[this.companySize];
-  } else if (
-    this.companySize &&
-    !["micro", "small", "medium", "large"].includes(this.companySize)
-  ) {
-    this.companySize = "";
-  }
+  this.companySize = this.constructor.normalizeCompanySize(this.companySize);
   next();
 });
 

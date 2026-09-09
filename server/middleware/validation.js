@@ -1,4 +1,5 @@
 const xss = require('xss');
+const User = require('../models/User');
 
 // ============ SANITIZATION ============
 const sanitizeInput = (value) => {
@@ -192,11 +193,14 @@ const validateUserUpdate = (req, res, next) => {
         }
       }
     }
-    if (totalWorkforceSize !== undefined && totalWorkforceSize && !["micro", "small", "medium", "large"].includes(totalWorkforceSize)) {
+    const normalizedTotalWorkforceSize = User.normalizeCompanySize(totalWorkforceSize);
+    const normalizedCompanySize = User.normalizeCompanySize(companySize);
+
+    if (totalWorkforceSize !== undefined && totalWorkforceSize && !["micro", "small", "medium", "large"].includes(normalizedTotalWorkforceSize)) {
       errors.push('Invalid workforce size');
     }
     // companySize shares the same NSRP / DOLE MSME bands as totalWorkforceSize.
-    if (companySize !== undefined && companySize && !["micro", "small", "medium", "large"].includes(companySize)) {
+    if (companySize !== undefined && companySize && !["micro", "small", "medium", "large"].includes(normalizedCompanySize)) {
       errors.push('Invalid company size');
     }
     if (ownerName !== undefined && ownerName && ownerName.length > 100) {

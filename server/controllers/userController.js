@@ -113,10 +113,14 @@ exports.completeOnboarding = async (req, res) => {
 
     // For employers, update company fields
     if (user.role === "employer") {
-      const employerFields = ["companyName", "industry", "companySize", "website", "companyDescription", "businessAddress"];
+      const employerFields = ["companyName", "industry", "website", "companyDescription", "businessAddress"];
       employerFields.forEach(field => {
         if (req.body[field] !== undefined) commonUpdates[field] = req.body[field];
       });
+
+      if (req.body.companySize !== undefined) {
+        commonUpdates.companySize = User.normalizeCompanySize(req.body.companySize);
+      }
     }
 
     // Apply common updates
