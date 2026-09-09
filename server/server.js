@@ -148,6 +148,8 @@ app.use(
 
 app.options("*", cors());
 
+app.set("trust proxy", 1);
+
 app.use("/api", globalLimiter);
 app.use("/api/v1/admin", adminLimiter);
 app.use("/api/admin", adminLimiter);
