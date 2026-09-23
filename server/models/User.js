@@ -8,7 +8,12 @@ const userSchema = new mongoose.Schema(
     firstName: { type: String, default: null },
     middleName: { type: String, default: null },
     suffix: { type: String, default: null },
-    email: { type: String, required: true, unique: true },
+    // trim/lowercase are a data-layer backstop: application code (see
+    // server/utils/normalizeEmail.js) is expected to normalize email before
+    // it ever reaches here, but any write path that forgets still can't
+    // persist a non-canonical value that would otherwise slip past the
+    // (case-sensitive) unique index below.
+    email: { type: String, required: true, unique: true, trim: true, lowercase: true },
     // Not required for accounts created through Google sign-in (they have no
     // password until the user sets one via "Forgot password?").
     password: {
@@ -17,6 +22,12 @@ const userSchema = new mongoose.Schema(
         return !this.googleId;
       },
     },
+    // Bumped on every password change/reset; embedded in each issued JWT so a
+    // token signed before the bump fails verification afterward — the
+    // mechanism that invalidates other active sessions when a password
+    // changes. Mongoose applies this default even to documents that predate
+    // the field, so no data migration is needed.
+    tokenVersion: { type: Number, default: 0 },
     // ===== Google sign-in =====
     // Google's stable account id (the ID token `sub`). Uniqueness is enforced
     // in the controller (find-by-googleId) rather than a partial index, to keep
@@ -29,8 +40,8 @@ const userSchema = new mongoose.Schema(
     //               through the app — only by scripts/seedSuperadmin.js.
     role: {
       type: String,
-      enum: ["resident", "employer", "admin", "superadmin"],
-      default: "resident",
+      enum: ["jobseeker", "employer", "admin", "superadmin"],
+      default: "jobseeker",
     },
     phone: { type: String, default: null },
 
@@ -136,20 +147,73 @@ const userSchema = new mongoose.Schema(
     // `isActive` stays the runtime gate every existing check relies on.
     // `accountStatus` records *why* an account is inactive so the login wall
     // and the appeal flow can tell a temporary suspension from a permanent ban.
+    // "deactivated" is a distinct, non-moderation reason: the user turned
+    // their own account off from Settings → Danger Zone. It must never be
+    // treated as "suspended" (no appeal path applies) — login() reactivates
+    // it automatically once the owner's credentials check out again.
     accountStatus: {
       type: String,
-      enum: ["active", "suspended", "banned"],
+      enum: ["active", "suspended", "banned", "deactivated"],
       default: "active",
     },
     suspensionReason: { type: String, default: null },
     suspendedAt: { type: Date, default: null },
     suspendedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    // Set when the user deactivates their own account (see authController.deactivateAccount).
+    deactivatedAt: { type: Date, default: null },
+
+    // ===== Settings: notification preferences =====
+    // Every field defaults to true (opted in), matching the front-end draft
+    // defaults that existed before this was wired to the server. A missing
+    // sub-field on a legacy document reads back as `true` via this default,
+    // so gating logic can safely treat "not explicitly false" as opted in.
+    notificationPreferences: {
+      notifyMessages: { type: Boolean, default: true },
+      notifyJobMatch: { type: Boolean, default: true },
+      notifyApplicationUpdate: { type: Boolean, default: true },
+      notifyNewApplicant: { type: Boolean, default: true },
+      notifyJobExpiring: { type: Boolean, default: true },
+      notifyVerificationRequest: { type: Boolean, default: true },
+      notifyUserReport: { type: Boolean, default: true },
+      notifySpesSubmission: { type: Boolean, default: true },
+    },
+
+    // ===== Settings: privacy (jobseeker) =====
+    privacy: {
+      profileVisibility: {
+        type: String,
+        enum: ["public", "employers", "hidden"],
+        default: "public",
+      },
+      allowMessagesFrom: {
+        type: String,
+        enum: ["anyone", "employers"],
+        default: "anyone",
+      },
+    },
 
     // ===== Password reset =====
     // A SHA-256 hash of the token that was put in the reset link (never the raw
     // token), so a database leak can't be used to reset accounts.
     passwordResetToken: { type: String, default: null },
     passwordResetExpires: { type: Date, default: null },
+
+    // ===== Email verification (registration) =====
+    // True once ownership of `email` has been proven — either by opening the
+    // link sent at registration, or via Google sign-in (Google already
+    // verified it; see authController.googleAuth). Deliberately has NO
+    // schema-level default: authController explicitly sets this at every
+    // account-creation site, so an existing document from before this field
+    // existed reads back as `undefined`, not `false`. If it defaulted to
+    // `false`, Mongoose would apply that default in memory to every legacy
+    // document the moment it's loaded — which would lock every pre-existing
+    // user out of login() the instant this shipped. login() below only
+    // blocks on a literal `false`, so `undefined` (legacy accounts) and
+    // `true` both pass.
+    isEmailVerified: { type: Boolean },
+    emailVerifiedAt: { type: Date, default: null },
+    emailVerificationToken: { type: String, default: null },
+    emailVerificationExpires: { type: Date, default: null },
 
     // ===== Email change (verification) =====
     // The requested new address, held here until the user opens the
@@ -211,5 +275,20 @@ userSchema.pre("validate", function normaliseCompanySize(next) {
   this.companySize = this.constructor.normalizeCompanySize(this.companySize);
   next();
 });
+
+// Case-insensitive uniqueness backstop, on top of the plain unique index the
+// `unique: true` above already creates (kept as-is, so this adds a second,
+// distinctly-named index rather than replacing/dropping anything). Every
+// write path already normalizes email to lowercase (see
+// server/utils/normalizeEmail.js and the trim/lowercase schema options
+// above), so in practice the two indexes agree — this one just makes that
+// guarantee hold at the database level too, for any write that somehow
+// bypasses both of those (e.g. a script using the raw driver). strength: 2
+// compares case-insensitively while still treating accented letters as
+// distinct, which is the standard collation for this kind of check.
+userSchema.index(
+  { email: 1 },
+  { unique: true, collation: { locale: "en", strength: 2 }, name: "email_unique_ci" }
+);
 
 module.exports = mongoose.model("User", userSchema);

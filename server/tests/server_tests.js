@@ -1,6 +1,8 @@
 const { buildArchivedJobSnapshot } = require("../controllers/jobController");
 const { escapeRegExp, normalizeAdminJobStatus, normalizeMunicipalityLabel } = require("../controllers/adminController");
+const { getDocumentFieldRemovals } = require("../controllers/authController");
 const User = require("../models/User");
+const { MAX_FILE_SIZE } = require("../middleware/upload");
 
 describe("Server test setup", () => {
   test("Jest is running", () => {
@@ -57,6 +59,19 @@ describe("Server test setup", () => {
     expect(normalizeMunicipalityLabel("Other / Outside Province")).toBe("Other / Outside Province");
     expect(normalizeMunicipalityLabel("Other / Outside Marinduque")).toBe("Other / Outside Province");
     expect(/boac|capital/i.test("Boac, Marinduque")).toBe(true);
+  });
+
+  test("document uploads allow a 15MB limit for saved cover letters and resumes", () => {
+    expect(MAX_FILE_SIZE).toBe(15 * 1024 * 1024);
+  });
+
+  test("document removal flags clear stored profile file refs instead of leaving stale values behind", () => {
+    expect(getDocumentFieldRemovals({ resumeFile: "", validIdFile: "remove", businessPermit: "clear" })).toEqual({
+      resumeFile: null,
+      validIdFile: null,
+      businessPermit: null,
+    });
+    expect(getDocumentFieldRemovals({ resume: "null" })).toEqual({ resume: null });
   });
 
   test("legacy companySize values are normalized before validation or updates", () => {

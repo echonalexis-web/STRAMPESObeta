@@ -5,6 +5,7 @@ const JobVacancy = require("../models/JobVacancy");
 const JobApplication = require("../models/JobApplication");
 const { logAuditEvent } = require("../services/auditService");
 const { createNotificationForUser } = require("../services/notificationService");
+const { forceLogout } = require("../services/sessionService");
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -125,6 +126,16 @@ exports.setAdminActive = async (req, res) => {
     admin.suspendedBy = active ? null : req.user.id;
     await admin.save();
 
+    if (!active) {
+      // Staff accounts get the "disabled" code, not "suspended" — matching
+      // verifyToken's own distinction, which routes admin/superadmin away
+      // from the jobseeker/employer appeal wall.
+      forceLogout(req.app.get("io"), admin._id, {
+        code: "ACCOUNT_DISABLED",
+        message: "This staff account has been disabled by the system superadmin.",
+      });
+    }
+
     await logAuditEvent({
       req,
       actorId: req.user.id,
@@ -158,6 +169,8 @@ exports.resetAdminPassword = async (req, res) => {
     const tempPassword = generateTempPassword();
     admin.password = await bcrypt.hash(tempPassword, 10);
     admin.mustChangePassword = true;
+    // Invalidates any token this admin already holds.
+    admin.tokenVersion = (admin.tokenVersion || 0) + 1;
     await admin.save();
 
     await logAuditEvent({

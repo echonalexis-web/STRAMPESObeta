@@ -54,6 +54,8 @@ const CATEGORY_CONFIG = {
   registration: { dir: "registration", resourceType: "auto", visibility: "private" },
   applicationResume: { dir: "applications", resourceType: "auto", visibility: "private" },
   applicationCover: { dir: "applications", resourceType: "auto", visibility: "private" },
+  jobseekerResume: { dir: "jobseeker-documents/resumes", resourceType: "auto", visibility: "private" },
+  jobseekerCoverLetter: { dir: "jobseeker-documents/cover-letters", resourceType: "auto", visibility: "private" },
   spes: { dir: "spes", resourceType: "auto", visibility: "private" },
 };
 
@@ -151,6 +153,7 @@ const upload = async (file, opts = {}) => {
     r: result.resource_type,
     t: result.type,
     f: result.format || extFromMime(file.mimetype),
+    n: file.originalname || "",
   });
   return {
     storedValue,

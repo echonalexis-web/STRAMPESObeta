@@ -70,6 +70,50 @@ const avatarUpload = multer({
 const singleFileUpload = (fieldName) => mk(1).single(fieldName);
 
 /* -------------------------------------------------------------------------- */
+/* content sniffing — `file.mimetype` is just a client-supplied header and    */
+/* trivially spoofed (e.g. a script renamed to "resume.pdf"); this checks the */
+/* file's actual leading bytes against what its declared type promises.      */
+/* -------------------------------------------------------------------------- */
+const MAGIC_BYTE_SIGNATURES = {
+  "image/jpeg": [[0xff, 0xd8, 0xff]],
+  "image/jpg": [[0xff, 0xd8, 0xff]],
+  "image/png": [[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
+  "image/gif": [
+    [0x47, 0x49, 0x46, 0x38, 0x37, 0x61], // GIF87a
+    [0x47, 0x49, 0x46, 0x38, 0x39, 0x61], // GIF89a
+  ],
+  "application/pdf": [[0x25, 0x50, 0x44, 0x46]],
+  "application/msword": [[0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]], // legacy OLE/CFB container
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+    [0x50, 0x4b, 0x03, 0x04], // .docx is a ZIP container
+    [0x50, 0x4b, 0x05, 0x06],
+    [0x50, 0x4b, 0x07, 0x08],
+  ],
+};
+
+const bufferStartsWith = (buffer, signature) =>
+  signature.every((byte, index) => buffer[index] === byte);
+
+const matchesDeclaredType = (buffer, mimetype) => {
+  if (!buffer || buffer.length === 0) return false;
+  // WEBP's signature isn't at offset 0 (it's a RIFF container: "RIFF" +
+  // 4-byte size + "WEBP"), so it needs its own check rather than fitting the
+  // simple leading-bytes table above.
+  if (mimetype === "image/webp") {
+    return (
+      buffer.length >= 12 &&
+      bufferStartsWith(buffer, [0x52, 0x49, 0x46, 0x46]) &&
+      bufferStartsWith(buffer.subarray(8, 12), [0x57, 0x45, 0x42, 0x50])
+    );
+  }
+  const signatures = MAGIC_BYTE_SIGNATURES[mimetype];
+  // No signature registered for this (already allow-listed) type — nothing
+  // to compare against, so don't block it here.
+  if (!signatures) return true;
+  return signatures.some((signature) => bufferStartsWith(buffer, signature));
+};
+
+/* -------------------------------------------------------------------------- */
 /* validation                                                                 */
 /* -------------------------------------------------------------------------- */
 const collectFiles = (req) => {
@@ -94,6 +138,9 @@ const validateFile = (req, res, next) => {
     }
     if (dangerous.includes(path.extname(file.originalname || "").toLowerCase())) {
       return res.status(400).json({ message: `File type is not allowed` });
+    }
+    if (!matchesDeclaredType(file.buffer, file.mimetype)) {
+      return res.status(400).json({ message: `File ${file.originalname} does not match its declared file type` });
     }
   }
   return next();

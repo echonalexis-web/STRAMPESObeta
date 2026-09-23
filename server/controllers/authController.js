@@ -8,14 +8,31 @@ const VALID_INDUSTRIES = require("../data/industries");
 const storageService = require("../services/storageService");
 const { logAuditEvent } = require("../services/auditService");
 const { notifyManyUsers } = require("../services/notificationService");
+const { forceLogout } = require("../services/sessionService");
 const {
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
+  sendEmailVerification,
   sendEmailChangeVerification,
   sendEmailChangeAlert,
 } = require("../services/mailService");
 const { OAuth2Client } = require("google-auth-library");
 const { isAdultAge, MIN_ACCOUNT_AGE } = require("../utils/age");
+const { normalizeEmail } = require("../utils/normalizeEmail");
+const SystemSettings = require("../models/SystemSettings");
+
+// Suspension/ban appeal token lifetime, in days — configurable via
+// Settings → System Preferences (superadmin). Falls back to 14 (the
+// front-end draft default) if the settings read fails for any reason.
+const getAppealWindowDays = async () => {
+  try {
+    const settings = await SystemSettings.getSingleton();
+    const days = Number(settings.appealWindowDays);
+    return Number.isFinite(days) && days > 0 ? days : 14;
+  } catch {
+    return 14;
+  }
+};
 
 // Where the reset link should point (the SPA). Falls back to the first allowed
 // client origin, then localhost dev.
@@ -28,11 +45,39 @@ const clientBaseUrl = () =>
 
 const PASSWORD_RESET_TTL_MINUTES = 30;
 const EMAIL_CHANGE_TTL_MINUTES = 30;
+// Longer than the password-reset/email-change links above: verifying a
+// registration email isn't a security-sensitive action the way changing a
+// password or an email address is, so there's no reason to force a quick
+// turnaround.
+const EMAIL_VERIFICATION_TTL_HOURS = 24;
 // SHA-256 of any link token, so a DB leak can't be replayed against the flow.
 const hashToken = (raw) => crypto.createHash("sha256").update(String(raw)).digest("hex");
 const hashResetToken = hashToken; // kept for existing call sites
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Generates a verification token for `user`, saves it, and emails the link.
+// Called right after a password-based registration. Never throws — sendMail
+// itself already falls back to a console log instead of throwing, so a dead
+// SMTP transport can't fail registration.
+// @returns {Promise<string|null>} the dev-mode verify URL (non-production only)
+const issueEmailVerification = async (user) => {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  user.emailVerificationToken = hashToken(rawToken);
+  user.emailVerificationExpires = new Date(Date.now() + EMAIL_VERIFICATION_TTL_HOURS * 60 * 60 * 1000);
+  await user.save();
+
+  const verifyUrl = `${clientBaseUrl()}/confirm-email?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+
+  await sendEmailVerification({
+    to: user.email,
+    name: user.name,
+    verifyUrl,
+    expiresHours: EMAIL_VERIFICATION_TTL_HOURS,
+  });
+
+  return process.env.NODE_ENV !== "production" ? verifyUrl : null;
+};
 
 // Lazily-built Google OAuth client. GOOGLE_CLIENT_ID is the same Web client ID
 // the SPA uses; the ID token's audience is checked against it.
@@ -49,7 +94,7 @@ const CURRENT_TERMS_VERSION = "2026-01";
 
 // Helper to update or create role profile
 const upsertProfile = async (userId, role, data) => {
-  let Model = role === "resident" ? JobseekerProfile : EmployerProfile;
+  let Model = role === "jobseeker" ? JobseekerProfile : EmployerProfile;
   return Model.findOneAndUpdate({ userId }, { $set: data }, { new: true, upsert: true });
 };
 
@@ -64,9 +109,40 @@ const parseJSON = (value, fallback = null) => {
   }
 };
 
+const CLEAR_SENTINELS = new Set(["", "null", "undefined", "remove", "clear"]);
+
+const getDocumentFieldRemovals = (payload = {}) => {
+  const removals = {};
+  const appendRemoval = (field, value) => {
+    if (value === undefined) return;
+    const norm = String(value).trim().toLowerCase();
+    if (CLEAR_SENTINELS.has(norm) || value === null) {
+      removals[field] = null;
+    }
+  };
+
+  const fieldMap = {
+    resumeFile: "resumeFile",
+    validIdFile: "validIdFile",
+    businessPermit: "businessPermitUrl",
+    registrationDoc: "registrationDocUrl",
+    resume: "resumeFile",
+    supportingDocument: "validIdFile",
+  };
+
+  for (const [field, targetField] of Object.entries(fieldMap)) {
+    if (Object.prototype.hasOwnProperty.call(payload, field)) {
+      appendRemoval(targetField, payload[field]);
+    }
+  }
+
+  return removals;
+};
+
 // ---------- Registration ----------
 exports.register = async (req, res) => {
-  const { name, email, password, surname, firstName, middleName, suffix, dateOfBirth } = req.body;
+  const { name, password, surname, firstName, middleName, suffix, dateOfBirth } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ message: "Email already exists" });
@@ -91,13 +167,13 @@ exports.register = async (req, res) => {
       dateOfBirth: dateOfBirth || null,
       email,
       password: hashed,
-      role: "resident",
+      role: "jobseeker",
     });
 
     await logAuditEvent({
       req,
       actorId: user._id,
-      actorRole: "resident",
+      actorRole: "jobseeker",
       action: "auth.user.registered",
       targetUserId: user._id,
       targetType: "user",
@@ -107,31 +183,32 @@ exports.register = async (req, res) => {
 
     await JobseekerProfile.create({ userId: user._id });
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "30d" }
-    );
+    user.isEmailVerified = false;
+    const devVerifyUrl = await issueEmailVerification(user);
 
-    res.json({
-      message: "User registered successfully",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        hasCompletedOnboarding: false,
-        onboardingComplete: false,
-      },
+    // Deliberately no session token here: the account exists but stays
+    // inert (can't sign in — see the isEmailVerified check in login()) until
+    // the verification link is opened. A bogus/typo'd email just never
+    // receives that link, so that account can never reach onboarding at all.
+    res.status(201).json({
+      message: "Account created. Check your email to verify it before signing in.",
+      email: user.email,
+      ...(devVerifyUrl ? { devVerifyUrl } : {}),
     });
   } catch (error) {
+    // A concurrent request can slip past the findOne check above and lose the
+    // race to the unique index on email — surface the same clean message
+    // instead of a raw duplicate-key error.
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
     res.status(500).json({ message: error.message });
   }
 };
 
 exports.registerEmployer = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, password } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ message: "Email already exists" });
@@ -142,7 +219,12 @@ exports.registerEmployer = async (req, res) => {
       email,
       password: hashed,
       role: "employer",
-      verificationStatus: "pending",
+      // Left at the schema default ("unverified") — "pending" is reserved for
+      // once the employer has actually uploaded and submitted their business
+      // permit + DTI/SEC registration for review (see
+      // submitEmployerVerification). Setting it here meant every new
+      // employer landed in the admin verification queue immediately, before
+      // they'd submitted anything to review.
     });
 
     await logAuditEvent({
@@ -158,61 +240,60 @@ exports.registerEmployer = async (req, res) => {
 
     await EmployerProfile.create({ userId: user._id });
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "30d" }
-    );
-
-    await logAuditEvent({
-      req,
-      actorId: user._id,
-      actorRole: user.role,
-      action: "auth.user.login_success",
-      targetUserId: user._id,
-      targetType: "user",
-      targetId: String(user._id),
-      severity: "info",
-    });
+    user.isEmailVerified = false;
+    const devVerifyUrl = await issueEmailVerification(user);
 
     const admins = await User.find({ role: "admin" }).select("_id");
     await notifyManyUsers({
       recipientIds: admins.map((admin) => admin._id),
       actorId: user._id,
       type: "admin_action",
-      title: "New employer pending verification",
-      message: `${user.name} registered as an employer and is awaiting verification.`,
+      title: "New employer registered",
+      message: `${user.name} registered as an employer. They'll appear in the verification queue once they submit their documents.`,
       relatedEntityType: "user",
       relatedEntityId: user._id,
       actionUrl: "/admin/verification",
       io: req.app.get("io"),
+      preferenceKey: "notifyVerificationRequest",
     });
 
+    // Deliberately no session token here — see the matching comment in
+    // register(). The employer must verify, then sign in normally before
+    // they can reach onboarding or the document-upload/verification step.
     res.status(201).json({
-      message: "Employer registered. Please complete your profile.",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        verificationStatus: user.verificationStatus,
-      },
+      message: "Employer registered. Check your email to verify it before signing in.",
+      email: user.email,
+      ...(devVerifyUrl ? { devVerifyUrl } : {}),
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
     res.status(500).json({ message: error.message });
   }
 };
 
+// A precomputed hash of an unguessable, never-used password — compared
+// against whenever the real lookup fails to find a user (or the user has no
+// password set, e.g. a Google-only account). Keeps the login response time
+// for "no such account" indistinguishable from "wrong password", instead of
+// short-circuiting before the bcrypt cost is paid.
+const DUMMY_PASSWORD_HASH = "$2a$10$Lw6.qhsvJZhB3YkGv.m/4uA/edj4yKVYLcOYAkCySmNp6gajYfvdK";
+
 // ---------- Login ----------
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const { password } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "User not found" });
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(400).json({ message: "Invalid password" });
+    // Same generic message and the same bcrypt work either way, so neither
+    // the response text nor the response time discloses whether this email
+    // has an account.
+    const match = await bcrypt.compare(password || "", user?.password || DUMMY_PASSWORD_HASH);
+    if (!user || !match) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
 
     if (user.isActive === false && (user.role === "admin" || user.role === "superadmin")) {
       // Staff accounts are disabled by a superadmin, not moderated — no appeal
@@ -223,14 +304,28 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Self-deactivated from Settings → Danger Zone. Credentials already
+    // checked out above, which is the "self-service relogin" the owner used
+    // to turn the account back on — reactivate it here and fall through to
+    // a normal login, instead of the suspension/appeal wall below.
+    let reactivated = false;
+    if (user.isActive === false && user.accountStatus === "deactivated") {
+      user.isActive = true;
+      user.accountStatus = "active";
+      user.deactivatedAt = null;
+      await user.save();
+      reactivated = true;
+    }
+
     if (user.isActive === false) {
       // Credentials are valid but the account is suspended/banned. Issue a
       // narrow "appeal-only" token so the client can render the suspension
       // wall and let the user file an appeal to LMD Admin — nothing else.
+      const appealWindowDays = await getAppealWindowDays();
       const appealToken = jwt.sign(
-        { id: user._id, scope: "appeal" },
+        { id: user._id, scope: "appeal", tokenVersion: user.tokenVersion },
         process.env.JWT_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: `${appealWindowDays}d` }
       );
 
       return res.status(403).json({
@@ -243,12 +338,24 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Registration email not yet confirmed. Only ever true for a
+    // password-based account explicitly created after this check shipped —
+    // see the "no schema default" note on User.isEmailVerified — so this
+    // never blocks a pre-existing account or a Google-signed-in one (Google
+    // already verified that email; googleAuth() sets this to true).
+    if (user.isEmailVerified === false) {
+      return res.status(403).json({
+        code: "EMAIL_NOT_VERIFIED",
+        message: "Please verify your email address before signing in. Check your inbox for the verification link, or request a new one.",
+      });
+    }
+
     // Record the sign-in so the superadmin console can flag dormant admin
     // accounts. Fire-and-forget — a write hiccup must not fail a valid login.
     User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } }).catch(() => {});
 
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user._id, role: user.role, tokenVersion: user.tokenVersion },
       process.env.JWT_SECRET,
       { expiresIn: "30d" }
     );
@@ -261,6 +368,7 @@ exports.login = async (req, res) => {
         email: user.email,
         role: user.role,
         verificationStatus: user.verificationStatus,
+        isEmailVerified: user.isEmailVerified !== false,
         hasCompletedOnboarding: user.hasCompletedOnboarding,
         onboardingComplete: user.onboardingComplete,
         acceptedTermsAt: user.acceptedTermsAt,
@@ -268,6 +376,7 @@ exports.login = async (req, res) => {
         mustChangePassword: user.mustChangePassword === true,
       },
       termsVersion: CURRENT_TERMS_VERSION,
+      ...(reactivated ? { reactivated: true } : {}),
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -305,6 +414,11 @@ exports.changePassword = async (req, res) => {
 
     user.password = await bcrypt.hash(newPassword, 10);
     user.mustChangePassword = false;
+    // Invalidates every other token issued before this change (other
+    // devices/tabs, or a leaked token). The caller's own current token is
+    // now stale too, so a fresh one is issued below to keep this session
+    // logged in.
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
     sendPasswordChangedEmail({ to: user.email, name: user.name }).catch(() => {});
@@ -313,13 +427,19 @@ exports.changePassword = async (req, res) => {
       req,
       actorId: user._id,
       actorRole: user.role,
-      action: "auth.password_changed",
+      action: "user.password.changed",
       targetType: "user",
       targetId: String(user._id),
       severity: "warning",
     });
 
-    return res.json({ message: "Your password has been updated." });
+    const token = jwt.sign(
+      { id: user._id, role: user.role, tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    return res.json({ message: "Your password has been updated.", token });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Could not change the password" });
   }
@@ -331,7 +451,7 @@ exports.forgotPassword = async (req, res) => {
   // emails have accounts.
   const generic = { message: "If that email is registered, a password reset link has been sent." };
   try {
-    const email = String(req.body.email || "").trim().toLowerCase();
+    const email = normalizeEmail(req.body.email);
     if (!email) return res.status(400).json({ message: "Email is required" });
 
     const user = await User.findOne({ email });
@@ -355,7 +475,7 @@ exports.forgotPassword = async (req, res) => {
       req,
       actorId: user._id,
       actorRole: user.role,
-      action: "auth.password_reset_requested",
+      action: "auth.password.reset_requested",
       targetType: "user",
       targetId: String(user._id),
       severity: "warning",
@@ -375,7 +495,7 @@ exports.forgotPassword = async (req, res) => {
 exports.resetPassword = async (req, res) => {
   try {
     const token = String(req.body.token || "").trim();
-    const email = String(req.body.email || "").trim().toLowerCase();
+    const email = normalizeEmail(req.body.email);
     const password = String(req.body.password || "");
 
     if (!token || !email) {
@@ -399,6 +519,10 @@ exports.resetPassword = async (req, res) => {
     user.password = await bcrypt.hash(password, 10);
     user.passwordResetToken = null;
     user.passwordResetExpires = null;
+    // Invalidates every token issued before this reset — the reset flow
+    // itself sends the user to a fresh login, so there's no "current
+    // session" to keep alive here (unlike the self-service changePassword).
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
     // Security notice to the account's own address (fire-and-forget — a mail
@@ -409,7 +533,7 @@ exports.resetPassword = async (req, res) => {
       req,
       actorId: user._id,
       actorRole: user.role,
-      action: "auth.password_reset_completed",
+      action: "auth.password.reset",
       targetType: "user",
       targetId: String(user._id),
       severity: "warning",
@@ -425,7 +549,7 @@ exports.resetPassword = async (req, res) => {
 exports.requestEmailChange = async (req, res) => {
   try {
     const userId = req.user._id || req.user.id;
-    const newEmail = String(req.body.newEmail || "").trim().toLowerCase();
+    const newEmail = normalizeEmail(req.body.newEmail);
     const currentPassword = String(req.body.currentPassword || "");
 
     if (!newEmail) return res.status(400).json({ message: "Enter the new email address." });
@@ -436,7 +560,7 @@ exports.requestEmailChange = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (newEmail === String(user.email).toLowerCase()) {
+    if (newEmail === normalizeEmail(user.email)) {
       return res.status(400).json({ message: "That is already your email address." });
     }
 
@@ -498,7 +622,7 @@ exports.requestEmailChange = async (req, res) => {
 exports.confirmEmailChange = async (req, res) => {
   try {
     const token = String(req.body.token || "").trim();
-    const email = String(req.body.email || "").trim().toLowerCase(); // the NEW address
+    const email = normalizeEmail(req.body.email); // the NEW address
 
     if (!token || !email) {
       return res.status(400).json({ message: "This confirmation link is incomplete. Start the change again." });
@@ -534,6 +658,12 @@ exports.confirmEmailChange = async (req, res) => {
     user.pendingEmail = null;
     user.emailChangeToken = null;
     user.emailChangeExpires = null;
+    // Confirming this link already proves ownership of the new address, the
+    // same way clicking the registration link would — so it counts as
+    // verification too, independent of whether the original address was
+    // ever confirmed.
+    user.isEmailVerified = true;
+    user.emailVerifiedAt = new Date();
     await user.save();
 
     sendEmailChangeAlert({
@@ -587,14 +717,14 @@ exports.googleAuth = async (req, res) => {
       return res.status(401).json({ message: "Your Google account has no verified email address." });
     }
 
-    const email = String(payload.email).trim().toLowerCase();
+    const email = normalizeEmail(payload.email);
     const googleId = String(payload.sub);
     const displayName = (payload.name || "").trim() || email.split("@")[0];
 
     // Which sign-up flow the button lived on. Only consulted when we're
     // creating a brand-new account; capped to the two self-service roles so a
     // hand-crafted request can't mint an admin/superadmin.
-    const signupRole = String(req.body.intent || "").trim() === "employer" ? "employer" : "resident";
+    const signupRole = String(req.body.intent || "").trim() === "employer" ? "employer" : "jobseeker";
 
     let user = await User.findOne({ $or: [{ googleId }, { email }] });
     let isNewUser = false;
@@ -608,7 +738,14 @@ exports.googleAuth = async (req, res) => {
         googleId,
         authProvider: "google",
         role: signupRole,
-        ...(signupRole === "employer" ? { verificationStatus: "pending" } : {}),
+        // Google already verified this address before issuing the ID token
+        // (checked above via payload.email_verified) — no confirmation link
+        // needed on our side.
+        isEmailVerified: true,
+        emailVerifiedAt: new Date(),
+        // Left at the schema default ("unverified") — see the matching note
+        // in registerEmployer. A Google sign-up hasn't submitted any
+        // verification documents yet either.
       });
       if (signupRole === "employer") {
         await EmployerProfile.create({ userId: user._id });
@@ -634,25 +771,51 @@ exports.googleAuth = async (req, res) => {
           recipientIds: admins.map((admin) => admin._id),
           actorId: user._id,
           type: "admin_action",
-          title: "New employer pending verification",
-          message: `${user.name} registered as an employer and is awaiting verification.`,
+          title: "New employer registered",
+          message: `${user.name} registered as an employer. They'll appear in the verification queue once they submit their documents.`,
           relatedEntityType: "user",
           relatedEntityId: user._id,
           actionUrl: "/admin/verification",
           io: req.app.get("io"),
+          preferenceKey: "notifyVerificationRequest",
         });
       }
-    } else if (!user.googleId) {
-      // Existing password account with the same (Google-verified) email — link it.
-      user.googleId = googleId;
+    } else {
+      let needsSave = false;
+      if (!user.googleId) {
+        // Existing password account with the same (Google-verified) email — link it.
+        user.googleId = googleId;
+        needsSave = true;
+      }
+      // Only vouch for the account's CURRENT email — a user found via a
+      // stale googleId whose email has since changed on our side must not
+      // have the old (Google-verified) address verify the new one.
+      if (user.isEmailVerified !== true && normalizeEmail(user.email) === email) {
+        user.isEmailVerified = true;
+        user.emailVerifiedAt = new Date();
+        needsSave = true;
+      }
+      if (needsSave) await user.save();
+    }
+
+    // Self-deactivated — a successful Google sign-in already proves identity
+    // ownership the same way a correct password would, so it reactivates the
+    // account here too (see the matching comment in login()).
+    let reactivated = false;
+    if (user.isActive === false && user.accountStatus === "deactivated") {
+      user.isActive = true;
+      user.accountStatus = "active";
+      user.deactivatedAt = null;
       await user.save();
+      reactivated = true;
     }
 
     if (user.isActive === false) {
+      const appealWindowDays = await getAppealWindowDays();
       const appealToken = jwt.sign(
-        { id: user._id, scope: "appeal" },
+        { id: user._id, scope: "appeal", tokenVersion: user.tokenVersion },
         process.env.JWT_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: `${appealWindowDays}d` }
       );
       return res.status(403).json({
         code: "ACCOUNT_SUSPENDED",
@@ -665,7 +828,7 @@ exports.googleAuth = async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user._id, role: user.role, tokenVersion: user.tokenVersion },
       process.env.JWT_SECRET,
       { expiresIn: "30d" }
     );
@@ -690,15 +853,90 @@ exports.googleAuth = async (req, res) => {
         email: user.email,
         role: user.role,
         verificationStatus: user.verificationStatus,
+        isEmailVerified: user.isEmailVerified === true,
         hasCompletedOnboarding: user.hasCompletedOnboarding,
         onboardingComplete: user.onboardingComplete,
         acceptedTermsAt: user.acceptedTermsAt,
         termsVersion: user.termsVersion,
       },
       termsVersion: CURRENT_TERMS_VERSION,
+      ...(reactivated ? { reactivated: true } : {}),
     });
   } catch (error) {
+    // Same email-uniqueness race as register/registerEmployer: two concurrent
+    // first-time Google sign-ins (or a Google sign-in racing a plain
+    // register) can both pass the find-or-create check before either
+    // commits. The loser hits the unique index instead of creating a
+    // duplicate — tell the user to just try signing in again.
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "An account with this email was just created. Please try signing in again.",
+      });
+    }
     return res.status(500).json({ message: error.message || "Google sign-in failed" });
+  }
+};
+
+// ---------- Email verification: resend the link ----------
+// Public + email-enumeration-safe, same pattern as forgotPassword: always
+// answer the same way regardless of whether the address exists or is already
+// verified, so this can't be used to probe registered emails.
+exports.resendEmailVerification = async (req, res) => {
+  const generic = { message: "If that email is registered and not yet verified, a verification link has been sent." };
+  try {
+    const email = normalizeEmail(req.body.email);
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
+    const user = await User.findOne({ email });
+    if (!user || user.isEmailVerified === true) return res.json(generic);
+
+    const devVerifyUrl = await issueEmailVerification(user);
+    return res.json(devVerifyUrl ? { ...generic, devVerifyUrl } : generic);
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Could not process the request" });
+  }
+};
+
+// ---------- Email verification: confirm with the token from the link ----------
+exports.confirmEmailVerification = async (req, res) => {
+  try {
+    const token = String(req.body.token || "").trim();
+    const email = normalizeEmail(req.body.email);
+
+    if (!token || !email) {
+      return res.status(400).json({ message: "This verification link is incomplete. Request a new one." });
+    }
+
+    const user = await User.findOne({
+      email,
+      emailVerificationToken: hashToken(token),
+      emailVerificationExpires: { $gt: new Date() },
+    });
+    if (!user) {
+      return res.status(400).json({
+        message: "This verification link is invalid or has expired. Request a new one.",
+      });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerifiedAt = new Date();
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+    await user.save();
+
+    await logAuditEvent({
+      req,
+      actorId: user._id,
+      actorRole: user.role,
+      action: "auth.email.verified",
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "info",
+    });
+
+    return res.json({ message: "Your email has been verified. You can now sign in." });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Could not verify the email" });
   }
 };
 
@@ -747,7 +985,7 @@ exports.getProfile = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     let profile = null;
-    if (user.role === "resident") {
+    if (user.role === "jobseeker") {
       profile = await JobseekerProfile.findOne({ userId: user._id });
     } else if (user.role === "employer") {
       profile = await EmployerProfile.findOne({ userId: user._id });
@@ -763,7 +1001,7 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.user._id || req.user.id;
-    const currentUser = await User.findById(userId).select("role password");
+    const currentUser = await User.findById(userId).select("role password verificationStatus");
     if (!currentUser) return res.status(404).json({ message: "User not found" });
 
     // ---- 1. Email is immutable through this endpoint ----
@@ -781,15 +1019,19 @@ exports.updateProfile = async (req, res) => {
     }
 
     // ---- 3. Prepare common user updates ----
+    // Every field here is included only when actually present in this
+    // request (see the matching note above profileData) — `x || null`
+    // on a field that's simply absent from a partial payload would
+    // otherwise blank it out on every save that doesn't happen to include it.
     const commonUpdates = {
       name: req.body.name,
       email: req.body.email,
       phone: req.body.phone,
       about: req.body.about,
       address: req.body.address,
-      dateOfBirth: req.body.dateOfBirth || null,
-      gender: req.body.gender || null,
     };
+    if (req.body.dateOfBirth !== undefined) commonUpdates.dateOfBirth = req.body.dateOfBirth || null;
+    if (req.body.gender !== undefined) commonUpdates.gender = req.body.gender || null;
 
     if (req.body.surname || req.body.firstName || req.body.middleName || req.body.suffix) {
       commonUpdates.surname = req.body.surname || null;
@@ -803,12 +1045,12 @@ exports.updateProfile = async (req, res) => {
       if (composedName) commonUpdates.name = composedName;
     }
 
-    // For residents, also update career fields (but NOT skills – moved to profile)
-    if (currentUser.role === "resident") {
-      commonUpdates.desiredJobTitle = req.body.desiredJobTitle || null;
-      commonUpdates.workExperience = req.body.workExperience || null;
-      commonUpdates.educationalAttainment = req.body.educationalAttainment || null;
-      commonUpdates.availabilityStatus = req.body.availabilityStatus || null;
+    // For jobseekers, also update career fields (but NOT skills – moved to profile)
+    if (currentUser.role === "jobseeker") {
+      if (req.body.desiredJobTitle !== undefined) commonUpdates.desiredJobTitle = req.body.desiredJobTitle || null;
+      if (req.body.workExperience !== undefined) commonUpdates.workExperience = req.body.workExperience || null;
+      if (req.body.educationalAttainment !== undefined) commonUpdates.educationalAttainment = req.body.educationalAttainment || null;
+      if (req.body.availabilityStatus !== undefined) commonUpdates.availabilityStatus = req.body.availabilityStatus || null;
       // skills are handled in profileData below
 
       // Keep desiredJobTitle (used by the matching algorithm) in sync with the first preferred occupation
@@ -847,16 +1089,46 @@ exports.updateProfile = async (req, res) => {
       if (req.body.companySize !== undefined) {
         commonUpdates.companySize = User.normalizeCompanySize(req.body.companySize);
       }
+
+      // For an employer, `name` IS the business's display identity — used
+      // everywhere from the navbar to notifications to Edit Profile's own
+      // sidebar. Password-based registration already asks for it as
+      // "Business Name" and stores it in `name`, but a Google sign-up has no
+      // business name to offer — it seeds `name` from the personal Google
+      // account's display name instead, and nothing ever corrected it. Keep
+      // `name` mirroring `companyName` here so it's always right by the time
+      // any Save happens, regardless of how the account was created.
+      const trimmedCompanyName = String(req.body.companyName || "").trim();
+      if (trimmedCompanyName) {
+        commonUpdates.name = trimmedCompanyName;
+      }
     }
 
-    // ---- 4. File uploads (persisted to storage backend by persistFields middleware) ----
+    // ---- 4. File uploads + explicit clears (persisted to storage backend by persistFields middleware) ----
     const storedValueOf = (field) => req.files?.[field]?.[0]?.storedValue;
     if (storedValueOf("resumeFile")) commonUpdates.resumeFile = storedValueOf("resumeFile");
     if (storedValueOf("validIdFile")) commonUpdates.validIdFile = storedValueOf("validIdFile");
-    if (storedValueOf("businessPermit")) commonUpdates.businessPermitUrl = storedValueOf("businessPermit");
-    if (storedValueOf("registrationDoc")) commonUpdates.registrationDocUrl = storedValueOf("registrationDoc");
+    // Verification documents can't be silently swapped out through the
+    // generic profile save while a submission is already under review —
+    // submitEmployerVerification(WithDocuments) both refuse to re-submit in
+    // that state ("Your documents are already under review"), so allowing a
+    // swap here would let the files an admin is about to look at change out
+    // from under them with no re-review triggered and nobody notified. Once
+    // verified, the documents are locked for the same reason job posting is.
+    const documentsLocked = ["pending", "verified"].includes(currentUser.verificationStatus);
+    if (!documentsLocked) {
+      if (storedValueOf("businessPermit")) commonUpdates.businessPermitUrl = storedValueOf("businessPermit");
+      if (storedValueOf("registrationDoc")) commonUpdates.registrationDocUrl = storedValueOf("registrationDoc");
+    }
     if (storedValueOf("resume")) commonUpdates.resumeFile = storedValueOf("resume");
     if (storedValueOf("supportingDocument")) commonUpdates.validIdFile = storedValueOf("supportingDocument");
+
+    const fieldRemovals = getDocumentFieldRemovals(req.body || {});
+    if (documentsLocked) {
+      delete fieldRemovals.businessPermitUrl;
+      delete fieldRemovals.registrationDocUrl;
+    }
+    Object.assign(commonUpdates, fieldRemovals);
 
     // Onboarding completion flag
     if (req.body.onboardingComplete === true || req.body.onboardingComplete === "true") {
@@ -876,80 +1148,97 @@ exports.updateProfile = async (req, res) => {
     let profileData = {};
     const allFields = req.body;
 
-    if (currentUser.role === "resident") {
-      profileData = {
-        civilStatus: allFields.civilStatus || null,
-        placeOfBirth: allFields.placeOfBirth || null,
-        citizenship: allFields.citizenship || null,
-        height: allFields.height ? parseFloat(allFields.height) : null,
-        weight: allFields.weight ? parseFloat(allFields.weight) : null,
-        landline: allFields.landline || null,
-        mobileSecondary: allFields.mobileSecondary || null,
-        presentAddress: parseJSON(allFields.presentAddress, { street: "", barangay: "", municipality: "", province: "", region: "" }),
-        permanentAddress: parseJSON(allFields.permanentAddress, { street: "", barangay: "", municipality: "", province: "", region: "" }),
-        disability: parseJSON(allFields.disability, []),
-        is4psBeneficiary: allFields.is4psBeneficiary === "true",
-        _4psHouseholdId: allFields._4psHouseholdId || null,
-        isOfw: allFields.isOfw === "true",
-        isRepatriated: allFields.isRepatriated === "true",
-        repatriationIntent: allFields.repatriationIntent || null,
-        employmentStatus: allFields.employmentStatus || null,
-        employmentType: allFields.employmentType || null,
-        unemploymentReason: allFields.unemploymentReason || null,
-        laidoffCountry: allFields.laidoffCountry || null,
-        passportNo: allFields.passportNo || null,
-        passportExpiryDate: allFields.passportExpiryDate || null,
-        // ==== FIX: skills saved to jobseeker profile ====
-        skills: parseJSON(allFields.skills, []),
-        // Industry preferences
-        preferredIndustries: parseJSON(allFields.preferredIndustries, []),
+    // NOTE: every field below is only added to profileData when it was
+    // actually present in this request. upsertProfile() applies profileData
+    // via Mongo's $set, which only touches the keys it's given — so a field
+    // left out here leaves the jobseeker/employer's previously-saved value
+    // untouched. Earlier this built a fully-populated object unconditionally
+    // (missing fields defaulting to null/[]/{}), which meant any endpoint
+    // hitting this controller with a partial payload — e.g. the Resume
+    // Studio's "Save to Profile", which PATCHes /auth/me with only a resume
+    // file and no other fields — silently wiped every other NSRP profile
+    // field (address, work history, skills, etc.) back to blank.
+    if (currentUser.role === "jobseeker") {
+      profileData = {};
+      if (allFields.civilStatus !== undefined) profileData.civilStatus = allFields.civilStatus || null;
+      if (allFields.placeOfBirth !== undefined) profileData.placeOfBirth = allFields.placeOfBirth || null;
+      if (allFields.citizenship !== undefined) profileData.citizenship = allFields.citizenship || null;
+      if (allFields.height !== undefined) profileData.height = allFields.height ? parseFloat(allFields.height) : null;
+      if (allFields.weight !== undefined) profileData.weight = allFields.weight ? parseFloat(allFields.weight) : null;
+      if (allFields.landline !== undefined) profileData.landline = allFields.landline || null;
+      if (allFields.mobileSecondary !== undefined) profileData.mobileSecondary = allFields.mobileSecondary || null;
+      if (allFields.presentAddress !== undefined) {
+        profileData.presentAddress = parseJSON(allFields.presentAddress, { street: "", barangay: "", municipality: "", province: "", region: "" });
+      }
+      if (allFields.permanentAddress !== undefined) {
+        profileData.permanentAddress = parseJSON(allFields.permanentAddress, { street: "", barangay: "", municipality: "", province: "", region: "" });
+      }
+      if (allFields.disability !== undefined) profileData.disability = parseJSON(allFields.disability, []);
+      if (allFields.is4psBeneficiary !== undefined) profileData.is4psBeneficiary = allFields.is4psBeneficiary === "true";
+      if (allFields._4psHouseholdId !== undefined) profileData._4psHouseholdId = allFields._4psHouseholdId || null;
+      if (allFields.isOfw !== undefined) profileData.isOfw = allFields.isOfw === "true";
+      if (allFields.isRepatriated !== undefined) profileData.isRepatriated = allFields.isRepatriated === "true";
+      if (allFields.repatriationIntent !== undefined) profileData.repatriationIntent = allFields.repatriationIntent || null;
+      if (allFields.employmentStatus !== undefined) profileData.employmentStatus = allFields.employmentStatus || null;
+      if (allFields.employmentType !== undefined) profileData.employmentType = allFields.employmentType || null;
+      if (allFields.unemploymentReason !== undefined) profileData.unemploymentReason = allFields.unemploymentReason || null;
+      if (allFields.laidoffCountry !== undefined) profileData.laidoffCountry = allFields.laidoffCountry || null;
+      if (allFields.passportNo !== undefined) profileData.passportNo = allFields.passportNo || null;
+      if (allFields.passportExpiryDate !== undefined) profileData.passportExpiryDate = allFields.passportExpiryDate || null;
+      // ==== FIX: skills saved to jobseeker profile ====
+      if (allFields.skills !== undefined) profileData.skills = parseJSON(allFields.skills, []);
+      // Industry preferences
+      if (allFields.preferredIndustries !== undefined) profileData.preferredIndustries = parseJSON(allFields.preferredIndustries, []);
 
-        // Religion & government IDs (optional)
-        religion: allFields.religion || null,
-        tin: allFields.tin || null,
-        sssGsisNo: allFields.sssGsisNo || null,
-        pagibigNo: allFields.pagibigNo || null,
-        philhealthNo: allFields.philhealthNo || null,
+      // Religion & government IDs (optional)
+      if (allFields.religion !== undefined) profileData.religion = allFields.religion || null;
+      if (allFields.tin !== undefined) profileData.tin = allFields.tin || null;
+      if (allFields.sssGsisNo !== undefined) profileData.sssGsisNo = allFields.sssGsisNo || null;
+      if (allFields.pagibigNo !== undefined) profileData.pagibigNo = allFields.pagibigNo || null;
+      if (allFields.philhealthNo !== undefined) profileData.philhealthNo = allFields.philhealthNo || null;
 
-        // Job preference
-        preferredOccupations: parseJSON(allFields.preferredOccupations, []),
-        preferredWorkLocationLocal: parseJSON(allFields.preferredWorkLocationLocal, []),
-        preferredWorkLocationOverseas: parseJSON(allFields.preferredWorkLocationOverseas, []),
-        expectedSalaryMin: allFields.expectedSalaryMin ? parseFloat(allFields.expectedSalaryMin) : null,
-        expectedSalaryMax: allFields.expectedSalaryMax ? parseFloat(allFields.expectedSalaryMax) : null,
+      // Job preference
+      if (allFields.preferredOccupations !== undefined) profileData.preferredOccupations = parseJSON(allFields.preferredOccupations, []);
+      if (allFields.preferredWorkLocationLocal !== undefined) profileData.preferredWorkLocationLocal = parseJSON(allFields.preferredWorkLocationLocal, []);
+      if (allFields.preferredWorkLocationOverseas !== undefined) profileData.preferredWorkLocationOverseas = parseJSON(allFields.preferredWorkLocationOverseas, []);
+      if (allFields.expectedSalaryMin !== undefined) profileData.expectedSalaryMin = allFields.expectedSalaryMin ? parseFloat(allFields.expectedSalaryMin) : null;
+      if (allFields.expectedSalaryMax !== undefined) profileData.expectedSalaryMax = allFields.expectedSalaryMax ? parseFloat(allFields.expectedSalaryMax) : null;
 
-        // Educational background detail
-        schoolAttended: allFields.schoolAttended || null,
-        schoolAttendedOther: allFields.schoolAttendedOther || null,
-        course: allFields.course || null,
-        yearGraduated: allFields.yearGraduated || null,
+      // Educational background detail
+      if (allFields.schoolAttended !== undefined) profileData.schoolAttended = allFields.schoolAttended || null;
+      if (allFields.schoolAttendedOther !== undefined) profileData.schoolAttendedOther = allFields.schoolAttendedOther || null;
+      if (allFields.course !== undefined) profileData.course = allFields.course || null;
+      if (allFields.yearGraduated !== undefined) profileData.yearGraduated = allFields.yearGraduated || null;
 
-        // Language proficiency
-        languageProficiency: parseJSON(allFields.languageProficiency, undefined),
-        languageOthersLabel: allFields.languageOthersLabel || null,
+      // Language proficiency
+      if (allFields.languageProficiency !== undefined) {
+        const parsedLanguageProficiency = parseJSON(allFields.languageProficiency, undefined);
+        if (parsedLanguageProficiency !== undefined) profileData.languageProficiency = parsedLanguageProficiency;
+      }
+      if (allFields.languageOthersLabel !== undefined) profileData.languageOthersLabel = allFields.languageOthersLabel || null;
 
-        // Work history / training / eligibility / licenses
-        workHistory: parseJSON(allFields.workHistory, []),
-        vocationalTrainings: parseJSON(allFields.vocationalTrainings, []),
-        eligibilities: parseJSON(allFields.eligibilities, []),
-        professionalLicenses: parseJSON(allFields.professionalLicenses, []),
-      };
-
-      if (profileData.languageProficiency === undefined) delete profileData.languageProficiency;
+      // Work history / training / eligibility / licenses
+      if (allFields.workHistory !== undefined) profileData.workHistory = parseJSON(allFields.workHistory, []);
+      if (allFields.vocationalTrainings !== undefined) profileData.vocationalTrainings = parseJSON(allFields.vocationalTrainings, []);
+      if (allFields.eligibilities !== undefined) profileData.eligibilities = parseJSON(allFields.eligibilities, []);
+      if (allFields.professionalLicenses !== undefined) profileData.professionalLicenses = parseJSON(allFields.professionalLicenses, []);
     } else if (currentUser.role === "employer") {
-      profileData = {
-        tradeName: allFields.tradeName || null,
-        acronym: allFields.acronym || null,
-        tin: allFields.tin || null,
-        officeType: allFields.officeType || null,
-        employerClassification: parseJSON(allFields.employerClassification, { type: null, subtype: null }),
-        totalWorkforceSize: allFields.totalWorkforceSize || null,
-        businessAddress: parseJSON(allFields.businessAddressStructured, { street: "", barangay: "", municipality: "", province: "", region: "" }),
-        ownerName: allFields.ownerName || null,
-        contactPersonName: allFields.contactPersonName || null,
-        contactPersonPosition: allFields.contactPersonPosition || null,
-        fax: allFields.fax || null,
-      };
+      profileData = {};
+      if (allFields.tradeName !== undefined) profileData.tradeName = allFields.tradeName || null;
+      if (allFields.acronym !== undefined) profileData.acronym = allFields.acronym || null;
+      if (allFields.tin !== undefined) profileData.tin = allFields.tin || null;
+      if (allFields.officeType !== undefined) profileData.officeType = allFields.officeType || null;
+      if (allFields.employerClassification !== undefined) {
+        profileData.employerClassification = parseJSON(allFields.employerClassification, { type: null, subtype: null });
+      }
+      if (allFields.totalWorkforceSize !== undefined) profileData.totalWorkforceSize = allFields.totalWorkforceSize || null;
+      if (allFields.businessAddressStructured !== undefined) {
+        profileData.businessAddress = parseJSON(allFields.businessAddressStructured, { street: "", barangay: "", municipality: "", province: "", region: "" });
+      }
+      if (allFields.ownerName !== undefined) profileData.ownerName = allFields.ownerName || null;
+      if (allFields.contactPersonName !== undefined) profileData.contactPersonName = allFields.contactPersonName || null;
+      if (allFields.contactPersonPosition !== undefined) profileData.contactPersonPosition = allFields.contactPersonPosition || null;
+      if (allFields.fax !== undefined) profileData.fax = allFields.fax || null;
     }
 
     // ---- 7. Upsert profile ----
@@ -966,6 +1255,16 @@ exports.updateProfile = async (req, res) => {
 
     // ---- 9. Fetch updated user ----
     const updatedUser = await User.findById(userId).select("-password");
+
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: currentUser.role,
+      action: "user.profile.updated",
+      targetType: "user",
+      targetId: String(userId),
+      severity: "info",
+    });
 
     res.json({
       message: "Profile updated successfully",
@@ -999,9 +1298,154 @@ exports.updateAvatar = async (req, res) => {
     // Best-effort cleanup of the replaced image (never throws).
     if (previous && previous !== storedValue) storageService.remove(previous);
 
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: req.user.role,
+      action: "user.profile_image.uploaded",
+      targetType: "user",
+      targetId: String(userId),
+      severity: "info",
+    });
+
     res.json({ message: "Profile picture updated", profileImage: storedValue });
   } catch (error) {
     console.error("Update avatar error:", error);
     res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getDocumentFieldRemovals = getDocumentFieldRemovals;
+
+// ---------- Settings: notification preferences + privacy ----------
+const NOTIFICATION_PREFERENCE_KEYS = [
+  "notifyMessages",
+  "notifyJobMatch",
+  "notifyApplicationUpdate",
+  "notifyNewApplicant",
+  "notifyJobExpiring",
+  "notifyVerificationRequest",
+  "notifyUserReport",
+  "notifySpesSubmission",
+];
+const PROFILE_VISIBILITY_VALUES = ["public", "employers", "hidden"];
+const ALLOW_MESSAGES_FROM_VALUES = ["anyone", "employers"];
+
+exports.getSettings = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const user = await User.findById(userId).select("notificationPreferences privacy");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json({
+      notificationPreferences: user.notificationPreferences,
+      privacy: user.privacy,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message || "Could not load settings" });
+  }
+};
+
+exports.updateSettings = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { notificationPreferences, privacy } = req.body || {};
+
+    const $set = {};
+
+    if (notificationPreferences && typeof notificationPreferences === "object") {
+      for (const key of NOTIFICATION_PREFERENCE_KEYS) {
+        if (typeof notificationPreferences[key] === "boolean") {
+          $set[`notificationPreferences.${key}`] = notificationPreferences[key];
+        }
+      }
+    }
+
+    if (privacy && typeof privacy === "object") {
+      if (PROFILE_VISIBILITY_VALUES.includes(privacy.profileVisibility)) {
+        $set["privacy.profileVisibility"] = privacy.profileVisibility;
+      }
+      if (ALLOW_MESSAGES_FROM_VALUES.includes(privacy.allowMessagesFrom)) {
+        $set["privacy.allowMessagesFrom"] = privacy.allowMessagesFrom;
+      }
+    }
+
+    if (Object.keys($set).length === 0) {
+      return res.status(400).json({ message: "No valid settings fields were provided." });
+    }
+
+    const user = await User.findByIdAndUpdate(userId, { $set }, { new: true }).select(
+      "notificationPreferences privacy"
+    );
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json({
+      message: "Settings saved.",
+      notificationPreferences: user.notificationPreferences,
+      privacy: user.privacy,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message || "Could not save settings" });
+  }
+};
+
+// ---------- Settings: self-service account deactivation ----------
+// Distinct from adminController.deactivateUser (a superadmin suspending
+// someone else's account for moderation). Requires the current password as
+// re-authentication for a destructive, session-ending action. Reactivation
+// is self-service too — see the matching branch in login()/googleAuth().
+exports.deactivateAccount = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const password = String(req.body.password || "");
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.role === "admin" || user.role === "superadmin") {
+      return res.status(403).json({ message: "Staff accounts cannot be self-deactivated from here." });
+    }
+
+    if (!user.password) {
+      return res.status(400).json({
+        message: 'Set a password first (use "Forgot password?" on the login page) before deactivating your account.',
+      });
+    }
+    const passwordOk = await bcrypt.compare(password, user.password);
+    if (!passwordOk) {
+      return res.status(400).json({ message: "Your password is incorrect." });
+    }
+
+    if (user.isActive === false) {
+      return res.status(400).json({ message: "This account is already deactivated." });
+    }
+
+    user.isActive = false;
+    user.accountStatus = "deactivated";
+    user.deactivatedAt = new Date();
+    await user.save();
+
+    // Ends this session immediately, and any other device/tab this account
+    // is signed into right now — not just the one that clicked Deactivate.
+    forceLogout(req.app.get("io"), user._id, {
+      code: "ACCOUNT_DEACTIVATED",
+      message: "This account has been deactivated. Sign in again to reactivate it.",
+    });
+
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: user.role,
+      action: "user.account.self_deactivated",
+      targetType: "user",
+      targetId: String(userId),
+      severity: "warning",
+    });
+
+    return res.json({
+      message: "Your account has been deactivated. Sign in again at any time to reactivate it.",
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Could not deactivate the account" });
   }
 };

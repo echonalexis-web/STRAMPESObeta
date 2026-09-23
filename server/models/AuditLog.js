@@ -10,7 +10,7 @@ const auditLogSchema = new mongoose.Schema(
     },
     actorRole: {
       type: String,
-      enum: ["resident", "employer", "admin", "system", "anonymous"],
+      enum: ["jobseeker", "employer", "admin", "superadmin", "system", "anonymous"],
       default: "anonymous",
     },
     action: {

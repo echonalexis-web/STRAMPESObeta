@@ -71,9 +71,13 @@ export default function NewsFeed() {
       }
     };
 
-    loadNews();
+    // Debounced so typing a full search term doesn't fire a request per
+    // keystroke (matches the pattern already used for search in Messages.jsx)
+    // — category changes (not typed) still take effect immediately.
+    const timer = window.setTimeout(loadNews, search ? 300 : 0);
     return () => {
       active = false;
+      window.clearTimeout(timer);
     };
   }, [category, search]);
 
@@ -183,6 +187,21 @@ export default function NewsFeed() {
                 {option.label}
               </button>
             ))}
+          </div>
+
+          <div className="news-filter-select-wrap">
+            <select
+              className="news-filter-select"
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              aria-label="Filter announcements by category"
+            >
+              {CATEGORIES.map((option) => (
+                <option key={option.label} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="news-search">

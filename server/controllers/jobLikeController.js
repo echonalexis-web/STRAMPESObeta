@@ -2,6 +2,7 @@ const JobLike = require("../models/JobLike");
 const JobVacancy = require("../models/JobVacancy");
 const User = require("../models/User");
 const { notifyLike } = require("../services/notificationService");
+const { logAuditEvent } = require("../services/auditService");
 
 // Like a job
 exports.likeJob = async (req, res) => {
@@ -39,6 +40,16 @@ exports.likeJob = async (req, res) => {
       io: req.app.get("io"),
     });
 
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: req.user.role,
+      action: "social.job.liked",
+      targetType: "job",
+      targetId: String(jobId),
+      severity: "info",
+    });
+
     res.status(201).json({
       success: true,
       message: "Job liked successfully",
@@ -68,6 +79,16 @@ exports.unlikeJob = async (req, res) => {
     // Get updated like count
     const likeCount = await JobLike.countDocuments({ jobId });
 
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: req.user.role,
+      action: "social.job.unliked",
+      targetType: "job",
+      targetId: String(jobId),
+      severity: "info",
+    });
+
     res.json({
       success: true,
       message: "Job unliked successfully",
@@ -87,7 +108,7 @@ exports.getLikedJobs = async (req, res) => {
   try {
     const userId = req.user.id;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = Math.min(parseInt(req.query.limit) || 10, 100);
     const skip = (page - 1) * limit;
 
     // Get total liked jobs count
@@ -97,7 +118,11 @@ exports.getLikedJobs = async (req, res) => {
     const likedJobs = await JobLike.find({ userId })
       .populate({
         path: "jobId",
-        select: "title description company location salary workNature industry qualifications postedAt"
+        select: "title description company location salary workNature industry qualifications postedAt employer",
+        populate: {
+          path: "employer",
+          select: "name email companyName industry companySize website businessAddress companyDescription verificationStatus phone isActive profileImage"
+        }
       })
       .skip(skip)
       .limit(limit)

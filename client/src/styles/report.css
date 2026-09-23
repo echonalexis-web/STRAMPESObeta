@@ -165,7 +165,7 @@
   margin: 1.5rem auto 0;
   padding: 0 1.5rem 3rem;
   display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  grid-template-columns: minmax(0, 6fr) minmax(0, 4fr);
   gap: 1.4rem;
   align-items: start;
 }
@@ -218,7 +218,7 @@
 
 .job-details-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.75rem;
 }
 
@@ -302,11 +302,22 @@
 
 .job-apply-column {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.job-apply-column .employer-dl {
+  grid-template-columns: 1fr;
+  gap: 0.15rem 0;
+}
+
+.job-apply-column .employer-dl dd {
+  margin-bottom: 0.5rem;
 }
 
 .apply-card {
-  position: sticky;
-  top: 92px;
+  position: static;
   background: #fff;
   border: 1px solid #e4e9e4;
   border-radius: 16px;
@@ -510,11 +521,6 @@ textarea.form-control {
 @media (max-width: 900px) {
   .job-detail-layout {
     grid-template-columns: 1fr;
-  }
-
-  .apply-card {
-    position: static;
-    top: auto;
   }
 }
 
@@ -987,5 +993,213 @@ textarea.form-control {
   
   .cover-letter-builder .form-group label {
     font-size: 0.8rem;
+  }
+}
+
+/* ============================================================ */
+/* JOB UNAVAILABLE PAGE                                          */
+/* ============================================================ */
+
+.job-unavailable-wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem 3rem;
+}
+
+/* Below 900px the shared nav collapses into a fixed 76px top bar (see
+   navbar.css), so every page needs its own clearance to avoid sitting
+   underneath it — matches the padding-top used for the same reason on the
+   superadmin console page. */
+@media (max-width: 900px) {
+  .job-unavailable-wrap {
+    padding-top: 4.5rem;
+  }
+}
+
+.job-unavailable-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+  font-size: 0.9rem;
+}
+
+.job-unavailable-crumb-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #1a5c2a;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.job-unavailable-crumb-link:hover {
+  text-decoration: underline;
+}
+
+.job-unavailable-crumb-sep {
+  color: #9ca3af;
+}
+
+.job-unavailable-crumb-current {
+  color: #4b5563;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 420px;
+}
+
+.job-unavailable-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 14px;
+  padding: 1.25rem 1.4rem;
+  margin-bottom: 2.25rem;
+}
+
+.job-unavailable-banner-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 1.05rem;
+}
+
+.job-unavailable-banner-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.job-unavailable-banner-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.job-unavailable-banner-head h2 {
+  margin: 0;
+  font-family: var(--heading, 'Poppins', sans-serif);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #7f1d1d;
+}
+
+.job-unavailable-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: #fecaca;
+  color: #991b1b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.job-unavailable-banner-body p {
+  margin: 0.4rem 0 0;
+  color: #b91c1c;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.job-unavailable-back-btn {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  background: #dc2626;
+  color: #fff;
+  padding: 0.6rem 1.1rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.job-unavailable-back-btn:hover {
+  background: #b91c1c;
+}
+
+.job-unavailable-recs-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.1rem;
+}
+
+.job-unavailable-recs-head h3 {
+  margin: 0;
+  font-family: var(--heading, 'Poppins', sans-serif);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #16321f;
+}
+
+.job-unavailable-recs-head p {
+  margin: 0.25rem 0 0;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.job-unavailable-recs-viewall {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #1a5c2a;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.job-unavailable-recs-viewall:hover {
+  text-decoration: underline;
+}
+
+.job-unavailable-recs-status {
+  color: #6b7280;
+  font-size: 0.9rem;
+  background: #fff;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.job-unavailable-recs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .job-unavailable-wrap {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .job-unavailable-banner {
+    flex-direction: column;
+  }
+
+  .job-unavailable-back-btn {
+    width: 100%;
   }
 }

@@ -3,6 +3,7 @@ const JobseekerProfile = require('../models/JobseekerProfile');
 const Follow = require('../models/Follow');
 const { rankJobsBySkills } = require('../services/semanticService');
 const { getApplicationCountMap } = require('../utils/jobDisplay');
+const { escapeRegex } = require('../utils/sanitize');
 
 exports.hybridSearch = async (req, res) => {
   try {
@@ -51,7 +52,7 @@ exports.hybridSearch = async (req, res) => {
     if (industry) filter.industry = industry;
     if (workNature) filter.workNature = workNature;
     if (jobType) filter.jobType = jobType;
-    if (location) filter.location = { $regex: location, $options: 'i' };
+    if (location) filter.location = { $regex: escapeRegex(location), $options: 'i' };
 
     // Match jobs whose salary range overlaps the requested range, rather than
     // requiring the job's entire range to sit inside it (which would wrongly
@@ -64,9 +65,10 @@ exports.hybridSearch = async (req, res) => {
     }
 
     if (q) {
+      const qRegex = escapeRegex(q);
       filter.$or = [
-        { title: { $regex: q, $options: 'i' } },
-        { description: { $regex: q, $options: 'i' } },
+        { title: { $regex: qRegex, $options: 'i' } },
+        { description: { $regex: qRegex, $options: 'i' } },
       ];
     }
 

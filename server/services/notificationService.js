@@ -1,8 +1,28 @@
 const Notification = require("../models/Notification");
+const User = require("../models/User");
 
 const toSafeString = (value, fallback = "") => {
   if (value === undefined || value === null) return fallback;
   return String(value).trim();
+};
+
+const MESSAGE_TOGGLE_ROLES = new Set(["jobseeker", "employee", "resident"]);
+
+// True when this recipient has explicitly opted out of `preferenceKey`.
+// Missing/undefined (legacy documents, or a role with no matching Settings
+// toggle) is treated as opted in — only a literal `false` suppresses the
+// notification. Never throws: a lookup failure must not block a real event
+// from notifying its recipient.
+const isOptedOut = async (recipientId, preferenceKey) => {
+  if (!preferenceKey || !recipientId) return false;
+  try {
+    const recipient = await User.findById(recipientId).select(
+      `notificationPreferences.${preferenceKey}`
+    );
+    return recipient?.notificationPreferences?.[preferenceKey] === false;
+  } catch {
+    return false;
+  }
 };
 
 const buildRealtimePayload = (notificationDoc) => ({
@@ -33,8 +53,17 @@ const createNotificationForUser = async ({
   actionUrl = "",
   metadata = {},
   io = null,
+  // Optional key into User.notificationPreferences (e.g. "notifyUserReport").
+  // When given, the recipient's saved preference is consulted first; a
+  // literal `false` skips creating the notification entirely. Omit for
+  // notification types that have no matching Settings toggle.
+  preferenceKey = null,
 }) => {
   if (!recipientId) {
+    return null;
+  }
+
+  if (await isOptedOut(recipientId, preferenceKey)) {
     return null;
   }
 
@@ -71,10 +100,23 @@ const notifyManyUsers = async ({
   actionUrl = "",
   metadata = {},
   io = null,
+  // See createNotificationForUser — same opt-out semantics, applied per
+  // recipient before the fan-out.
+  preferenceKey = null,
 }) => {
-  const uniqueRecipientIds = [...new Set(recipientIds.map(String))].filter(Boolean);
+  let uniqueRecipientIds = [...new Set(recipientIds.map(String))].filter(Boolean);
   if (uniqueRecipientIds.length === 0) {
     return [];
+  }
+
+  if (preferenceKey) {
+    const optedIn = await User.find({
+      _id: { $in: uniqueRecipientIds },
+      [`notificationPreferences.${preferenceKey}`]: { $ne: false },
+    }).select("_id");
+    const optedInIds = new Set(optedIn.map((u) => String(u._id)));
+    uniqueRecipientIds = uniqueRecipientIds.filter((id) => optedInIds.has(id));
+    if (uniqueRecipientIds.length === 0) return [];
   }
 
   const docs = uniqueRecipientIds.map((recipientId) => ({
@@ -116,6 +158,21 @@ const notifyNewMessage = async ({
 }) => {
   if (!recipientId || !conversationId) {
     return null;
+  }
+
+  // Only jobseekers have a "new messages" toggle in Settings; employers,
+  // admins and superadmins have no matching control, so they're never gated.
+  try {
+    const recipient = await User.findById(recipientId).select("role notificationPreferences.notifyMessages");
+    if (
+      recipient &&
+      MESSAGE_TOGGLE_ROLES.has(recipient.role) &&
+      recipient.notificationPreferences?.notifyMessages === false
+    ) {
+      return null;
+    }
+  } catch {
+    /* a lookup failure must not block the notification */
   }
 
   const preview = toSafeString(messagePreview, "").slice(0, 120);

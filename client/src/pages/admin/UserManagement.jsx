@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminAPI } from "../../services/api";
 import "../../styles/admin.css";
@@ -150,11 +150,18 @@ function JobseekersDirectory({ data, onToggleStatus, onViewProfile }) {
   );
 }
 
+const PAGE_SIZE = 20;
+
 export default function UserManagement() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("employers");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  // Independent of the current page/tab — the tab badges need the TRUE total
+  // per role, not just how many rows happen to be on the current page.
+  const [counts, setCounts] = useState({ employerCount: 0, jobseekerCount: 0 });
   const [selectedUser, setSelectedUser] = useState(null);
   const [actionToast, setActionToast] = useState(null);
   const [suspendReason, setSuspendReason] = useState("");
@@ -170,17 +177,27 @@ export default function UserManagement() {
     return () => window.clearTimeout(timer);
   }, [actionToast]);
 
+  // Resets back to page 1 whenever the tab changes, so switching from a deep
+  // page on one tab doesn't leave the other tab stranded on an out-of-range page.
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
+
   useEffect(() => {
     let isMounted = true;
 
     const loadUsers = async () => {
+      setLoading(true);
       try {
-        const { data } = await adminAPI.getUsers({ page: 1, limit: 250 });
+        const role = activeTab === "jobseekers" ? "jobseeker" : "employer";
+        const { data } = await adminAPI.getUsers({ role, page, limit: PAGE_SIZE });
         if (!isMounted) return;
         setUsers(Array.isArray(data?.users) ? data.users : []);
-      } catch (error) {
+        setTotalPages(Math.max(Number(data?.totalPages) || 1, 1));
+      } catch {
         if (isMounted) {
           setUsers([]);
+          setTotalPages(1);
         }
       } finally {
         if (isMounted) {
@@ -193,17 +210,37 @@ export default function UserManagement() {
     return () => {
       isMounted = false;
     };
+  }, [activeTab, page]);
+
+  // Total counts for the tab badges — fetched once (role never changes from
+  // this page's own actions, so these never go stale during a session).
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCounts = async () => {
+      try {
+        const [employerRes, jobseekerRes] = await Promise.all([
+          adminAPI.getUsers({ role: "employer", page: 1, limit: 1 }),
+          adminAPI.getUsers({ role: "jobseeker", page: 1, limit: 1 }),
+        ]);
+        if (!isMounted) return;
+        setCounts({
+          employerCount: Number(employerRes.data?.total) || 0,
+          jobseekerCount: Number(jobseekerRes.data?.total) || 0,
+        });
+      } catch {
+        // Badge counts are a nice-to-have; leave them at 0 on failure rather
+        // than blocking the directory table itself.
+      }
+    };
+
+    loadCounts();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const counts = useMemo(() => {
-    const employerCount = users.filter((user) => user.role === "employer").length;
-    const jobseekerCount = users.filter((user) => user.role === "resident" || user.role === "jobseeker").length;
-
-    return { employerCount, jobseekerCount };
-  }, [users]);
-
-  const employerDirectory = users.filter((user) => user.role === "employer");
-  const jobSeekerDirectory = users.filter((user) => user.role === "resident" || user.role === "jobseeker");
+  const directoryLabel = activeTab === "jobseekers" ? "Jobseekers" : "Employers";
 
   const performToggleUserStatus = async (user) => {
     const nextStatus = user.isActive === false;
@@ -258,8 +295,8 @@ export default function UserManagement() {
       return <div className="admin-panel-card"><p className="admin-loading">Loading users...</p></div>;
     }
 
-    if (activeTab === "jobseekers") return <JobseekersDirectory data={jobSeekerDirectory} onToggleStatus={handleToggleUserStatus} onViewProfile={handleViewProfile} />;
-    return <EmployersDirectory data={employerDirectory} onToggleStatus={handleToggleUserStatus} onViewProfile={handleViewProfile} />;
+    if (activeTab === "jobseekers") return <JobseekersDirectory data={users} onToggleStatus={handleToggleUserStatus} onViewProfile={handleViewProfile} />;
+    return <EmployersDirectory data={users} onToggleStatus={handleToggleUserStatus} onViewProfile={handleViewProfile} />;
   };
 
   return (
@@ -291,6 +328,28 @@ export default function UserManagement() {
       </div>
 
       <div className="tab-content">{renderTabContent()}</div>
+
+      {!loading && totalPages > 1 && (
+        <div className="admin-pagination">
+          <button
+            type="button"
+            disabled={page === 1}
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          >
+            Previous
+          </button>
+          <span>
+            Page <strong>{page}</strong> of {totalPages} — {directoryLabel}
+          </span>
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {selectedUser ? (
         <div className="admin-warning-modal-backdrop" onClick={() => setSelectedUser(null)}>

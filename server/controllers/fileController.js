@@ -4,6 +4,8 @@ const User = require("../models/User");
 const JobApplication = require("../models/JobApplication");
 const JobseekerProfile = require("../models/JobseekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
+const JobVacancy = require("../models/JobVacancy");
+const JobseekerDocument = require("../models/JobseekerDocument");
 
 // Does `ref` belong to this user (or is the user an admin)?
 const canAccessRef = async (ref, user) => {
@@ -12,7 +14,7 @@ const canAccessRef = async (ref, user) => {
 
   const userId = user.id;
 
-  const [ownUser, ownJobseeker, ownEmployer, ownApplication] = await Promise.all([
+  const checks = [
     User.exists({
       _id: userId,
       $or: [
@@ -35,9 +37,34 @@ const canAccessRef = async (ref, user) => {
       applicant: userId,
       $or: [{ resume: ref }, { coverLetterFile: ref }],
     }),
-  ]);
+    // The "Resumes & Cover Letters" library (JobseekerDocument) is its own
+    // storage location, separate from the single resumeFile/validIdFile
+    // slots above — a document that only lives there was previously
+    // unopenable by its own owner because nothing here checked it.
+    JobseekerDocument.exists({ owner: userId, storedValue: ref }),
+  ];
 
-  return Boolean(ownUser || ownJobseeker || ownEmployer || ownApplication);
+  // An employer may open an applicant's résumé/cover letter only once that
+  // applicant has formally applied to one of this employer's own vacancies —
+  // never a jobseeker's wider saved document library, and never before a
+  // formal application exists for that specific job.
+  if (user.role === "employer") {
+    checks.push(
+      JobVacancy.find({ employer: userId })
+        .distinct("_id")
+        .then((jobIds) =>
+          jobIds.length
+            ? JobApplication.exists({
+                vacancy: { $in: jobIds },
+                $or: [{ resume: ref }, { coverLetterFile: ref }],
+              })
+            : false
+        )
+    );
+  }
+
+  const results = await Promise.all(checks);
+  return results.some(Boolean);
 };
 
 exports.getSignedUrl = async (req, res) => {

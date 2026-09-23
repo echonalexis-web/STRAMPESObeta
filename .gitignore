@@ -33,6 +33,10 @@ coverage/
 server/uploads/*
 !server/uploads/.gitkeep
 
+# NSRP coordinate calibration output (see server/scripts/debugNsrpCoordinates.js)
+server/scripts/debug-output/
+server/assets/test-output-nsrp1.pdf
+
 # Editor / OS
 .vscode/*
 !.vscode/extensions.json

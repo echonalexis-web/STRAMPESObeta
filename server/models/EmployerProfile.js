@@ -45,12 +45,23 @@ const employerProfileSchema = new mongoose.Schema(
       enum: ["micro", "small", "medium", "large"],
       default: null,
     },
-    // Business Address (structured)
+    // Business Address (structured). Every field the frontend's
+    // businessAddressStructured sends must be declared here — Mongoose
+    // silently drops any key not in the schema on save (both on
+    // `.save()` and on `findOneAndUpdate` with `$set`), so a field missing
+    // here doesn't error, it just quietly never persists. `region` was
+    // missing for a long time: the LocationSelect cascade needs it to
+    // resolve which provinces/cities/barangays are even valid options, so
+    // losing it on save made province/city/barangay look wiped too, even
+    // though (for barangay/city/province) they may have still round-tripped
+    // correctly underneath — nothing in the UI had a region to rebuild the
+    // rest of the cascade from.
     businessAddress: {
       street: { type: String, default: "" },
       barangay: { type: String, default: "" },
       municipality: { type: String, default: "" },
       province: { type: String, default: "" },
+      region: { type: String, default: "" },
     },
     // Corporate Contacts
     ownerName: { type: String, default: "" },

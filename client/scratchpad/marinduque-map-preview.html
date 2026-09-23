@@ -1,0 +1,414 @@
+<title>Marinduque Boundary Trace</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root {
+    --bg: #0c2a1e;
+    --panel: #123726;
+    --panel-line: rgba(255,255,255,0.12);
+    --dot: rgba(255,255,255,0.10);
+    --region: #1c4a33;
+    --region-line: rgba(244,241,232,0.38);
+    --accent: #f0c04a;
+    --accent-ink: #40290a;
+    --paper: #f7f5ee;
+    --ink: #12271c;
+    --muted-ink: #5c7166;
+    --card-line: #dfe3d6;
+    --eyebrow: #9fd6b6;
+    --mono-chip: #eef1e6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #16241c;
+      --ink: #eef1e6;
+      --muted-ink: #a7bcae;
+      --card-line: #2b3f33;
+      --mono-chip: #1d2f24;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #16241c;
+    --ink: #eef1e6;
+    --muted-ink: #a7bcae;
+    --card-line: #2b3f33;
+    --mono-chip: #1d2f24;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 28px 56px;
+  }
+  header.page-head {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 28px;
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--eyebrow);
+  }
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 40px);
+    line-height: 1.08;
+    margin: 0;
+    color: #f7f5ee;
+    text-wrap: balance;
+  }
+  .page-head p {
+    margin: 4px 0 0;
+    max-width: 62ch;
+    color: #c9d8cd;
+    font-size: 14.5px;
+    line-height: 1.55;
+  }
+  .note {
+    margin-top: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(240,192,74,0.14);
+    border: 1px solid rgba(240,192,74,0.35);
+    color: var(--accent);
+    font-size: 12.5px;
+    font-weight: 600;
+    width: fit-content;
+  }
+  .note svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+    gap: 22px;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .map-card {
+    background:
+      radial-gradient(circle at 1px 1px, var(--dot) 1.4px, transparent 1.4px) 0 0 / 22px 22px,
+      var(--panel);
+    border: 1px solid var(--panel-line);
+    border-radius: 20px;
+    padding: 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .map-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .map-card-head .label {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #9fd6b6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .map-card-head .label .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+  }
+  .compass {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--panel-line);
+    display: grid;
+    place-items: center;
+    color: #d8e6dc;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+  }
+
+  svg.island { width: 100%; height: auto; display: block; }
+  .region {
+    fill: var(--region);
+    stroke: var(--region-line);
+    stroke-width: 1;
+    stroke-linejoin: round;
+    cursor: pointer;
+    transition: fill 0.16s ease, transform 0.16s ease, filter 0.16s ease;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .region:hover, .region.is-active {
+    fill: var(--accent);
+  }
+  .region.is-active {
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,0.35));
+  }
+  .region-label {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 600;
+    font-size: 10.5px;
+    fill: #eef4ee;
+    text-anchor: middle;
+    pointer-events: none;
+    paint-order: stroke;
+    stroke: rgba(10,26,18,0.55);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+  .region-label.is-active { fill: var(--accent-ink); stroke: none; }
+
+  .islet { fill: rgba(244,241,232,0.5); stroke: none; }
+
+  .info-card {
+    background: var(--paper);
+    border: 1px solid var(--card-line);
+    border-radius: 20px;
+    padding: 26px;
+    min-height: 100%;
+  }
+  .info-card .tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted-ink);
+  }
+  .info-card h2 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 30px;
+    margin: 4px 0 10px;
+    color: var(--ink);
+  }
+  .info-card .blurb {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--muted-ink);
+    margin: 0 0 18px;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .stat {
+    border: 1px solid var(--card-line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: var(--mono-chip);
+  }
+  .stat .k {
+    font-size: 11px;
+    color: var(--muted-ink);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .stat .v {
+    font-family: "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-top: 2px;
+  }
+  .stat .v.small { font-size: 13px; font-weight: 500; }
+
+  .province-strip {
+    display: flex;
+    gap: 16px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--card-line);
+    flex-wrap: wrap;
+  }
+  .province-strip div { font-size: 12px; color: var(--muted-ink); }
+  .province-strip strong {
+    display: block;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 15px;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  footer.credit {
+    margin-top: 18px;
+    font-size: 12px;
+    color: #8fae9c;
+    max-width: 70ch;
+    line-height: 1.6;
+  }
+  footer.credit a { color: #cfe9d9; }
+</style>
+
+<div class="wrap">
+  <header class="page-head">
+    <span class="eyebrow">Boundary trace · QA preview</span>
+    <h1>Marinduque, traced from real municipal geometry</h1>
+    <p>Six regions projected from an actual GeoJSON boundary file (PSA-style municipal polygons, including each town's offshore islets) — not the hand-drawn blob currently on the About page. Hover or tap a region to compare its shape and its real civic data.</p>
+    <span class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
+      Preview only — not yet wired into the live site
+    </span>
+  </header>
+
+  <div class="layout">
+    <div class="map-card">
+      <div class="map-card-head">
+        <span class="label"><span class="dot"></span> Geographic Marinduque · Traced Vector</span>
+        <div class="compass">N ↑</div>
+      </div>
+      <svg id="islandSvg" class="island" viewBox="0 0 420 420" xmlns="http://www.w3.org/2000/svg" aria-label="Map of Marinduque by municipality"></svg>
+    </div>
+
+    <div class="info-card">
+      <span class="tag" id="infoTag">Municipality</span>
+      <h2 id="infoName">Marinduque</h2>
+      <p class="blurb" id="infoBlurb">Six municipalities make up the province. Hover or tap a region on the trace to see its real boundary-file data.</p>
+
+      <div class="stat-grid" id="statGrid">
+        <div class="stat"><div class="k">Zip code</div><div class="v" id="statZip">—</div></div>
+        <div class="stat"><div class="k">Barangays</div><div class="v" id="statBrgy">—</div></div>
+        <div class="stat"><div class="k">Registered voters</div><div class="v" id="statVoters">—</div></div>
+        <div class="stat"><div class="k">Land area</div><div class="v small" id="statArea">—</div></div>
+        <div class="stat"><div class="k">Income class</div><div class="v small" id="statIncome">—</div></div>
+        <div class="stat"><div class="k">Classification</div><div class="v small" id="statUrban">—</div></div>
+      </div>
+
+      <div class="province-strip" id="provinceStrip"></div>
+    </div>
+  </div>
+
+  <footer class="credit">
+    Geometry projected with an equirectangular flip + longitude cosine correction at Marinduque's mean latitude (≈13.42°N) — accurate enough at this scale without a full map-projection library. Path data generated once from <code>MARINDUQUE.geojson</code>; this page fetches the pre-computed result, it does not parse GeoJSON at runtime.
+  </footer>
+</div>
+
+<script>
+  const TOWN_META = {
+    "BOAC": {
+      display: "Boac",
+      tag: "Provincial Capital",
+      blurb: "The provincial capital — home to the main government offices, PESO Marinduque's main office, and a growing base of retail and service-sector jobs.",
+    },
+    "MOGPOG": {
+      display: "Mogpog",
+      tag: "Municipality",
+      blurb: "A farming and inland-fishing community on the island's north side, with a workforce centered on agriculture and small-scale trade.",
+    },
+    "SANTA CRUZ": {
+      display: "Santa Cruz",
+      tag: "Municipality",
+      blurb: "The province's largest municipality by land area, with a workforce spread across agriculture, trade, and local industry.",
+    },
+    "GASAN": {
+      display: "Gasan",
+      tag: "Municipality",
+      blurb: "A coastal municipality and port town, where fishing and small enterprise make up a large share of local livelihoods.",
+    },
+    "BUENAVISTA": {
+      display: "Buenavista",
+      tag: "Municipality",
+      blurb: "The smallest municipality on the island, largely agricultural, with farming households forming the core of the local workforce.",
+    },
+    "TORRIJOS": {
+      display: "Torrijos",
+      tag: "Municipality",
+      blurb: "Known for its coastline and marine tourism spots, with livelihoods split between fishing, tourism-linked work, and agriculture.",
+    },
+  };
+
+  const fmt = (n) => Number(n).toLocaleString("en-US");
+  const haToKm2 = (ha) => (Number(ha) / 100).toFixed(1);
+
+  let DATA = null;
+  let activeKey = null;
+
+  const svg = document.getElementById("islandSvg");
+
+  function renderMap() {
+    const parts = [];
+    for (const [key, entry] of Object.entries(DATA.municipalities)) {
+      parts.push(
+        `<path class="region" data-key="${key}" d="${entry.d}"></path>`
+      );
+    }
+    for (const [key, entry] of Object.entries(DATA.municipalities)) {
+      const [x, y] = entry.labelPos;
+      const label = TOWN_META[key]?.display ?? key;
+      parts.push(
+        `<text class="region-label" data-key="${key}" x="${x}" y="${y}">${label}</text>`
+      );
+    }
+    svg.innerHTML = parts.join("\n");
+    svg.setAttribute("viewBox", DATA.viewBox);
+
+    svg.querySelectorAll(".region, .region-label").forEach((el) => {
+      el.addEventListener("mouseenter", () => setActive(el.dataset.key));
+      el.addEventListener("click", () => setActive(el.dataset.key));
+    });
+  }
+
+  function setActive(key) {
+    activeKey = key;
+    svg.querySelectorAll(".region, .region-label").forEach((el) => {
+      el.classList.toggle("is-active", el.dataset.key === key);
+    });
+
+    const entry = DATA.municipalities[key];
+    const meta = TOWN_META[key] ?? { display: key, tag: "Municipality", blurb: "" };
+
+    document.getElementById("infoTag").textContent = meta.tag;
+    document.getElementById("infoName").textContent = meta.display;
+    document.getElementById("infoBlurb").textContent = meta.blurb;
+    document.getElementById("statZip").textContent = entry.zipcode;
+    document.getElementById("statBrgy").textContent = entry.barangays;
+    document.getElementById("statVoters").textContent = fmt(entry.registeredVoters);
+    document.getElementById("statArea").textContent = `${fmt(entry.landAreaHectares)} ha (~${haToKm2(entry.landAreaHectares)} km²)`;
+    document.getElementById("statIncome").textContent = entry.incomeClass;
+    document.getElementById("statUrban").textContent = entry.ruralUrban;
+  }
+
+  function renderProvinceStrip() {
+    const towns = Object.values(DATA.municipalities);
+    const totalVoters = towns.reduce((s, t) => s + Number(t.registeredVoters || 0), 0);
+    const totalBrgy = towns.reduce((s, t) => s + Number(t.barangays || 0), 0);
+    const totalArea = towns.reduce((s, t) => s + Number(t.landAreaHectares || 0), 0);
+
+    document.getElementById("provinceStrip").innerHTML = `
+      <div>Province total<strong>${fmt(totalVoters)} voters</strong></div>
+      <div>Barangays<strong>${totalBrgy}</strong></div>
+      <div>Land area<strong>~${haToKm2(totalArea)} km²</strong></div>
+      <div>Municipalities<strong>6</strong></div>
+    `;
+  }
+
+  fetch("marinduque-data.json")
+    .then((r) => r.json())
+    .then((json) => {
+      DATA = json;
+      renderMap();
+      renderProvinceStrip();
+      setActive("BOAC");
+    })
+    .catch((err) => {
+      document.getElementById("infoBlurb").textContent = "Could not load marinduque-data.json — " + err.message;
+    });
+</script>

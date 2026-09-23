@@ -3,9 +3,13 @@ const Message = require("../models/Message");
 const User = require("../models/User");
 const { notifyNewMessage } = require("../services/notificationService");
 const presenceService = require("../services/presenceService");
+const { logAuditEvent } = require("../services/auditService");
+const { escapeRegex } = require("../utils/sanitize");
 
 const getUserId = (req) => req.user._id || req.user.id;
 const ACTIVE_USER_FILTER = { $ne: false };
+const UNSEND_WINDOW_MS = 15 * 60 * 1000; // 15 minutes, matching Messenger/WhatsApp norms
+const UNSENT_PLACEHOLDER = "Message unsent";
 
 const getEntityId = (value) => {
   if (!value) return null;
@@ -31,7 +35,7 @@ const hasOtherParticipant = (conversation, userId) => {
 
 const normalizeRole = (role) => {
   const value = String(role || "").toLowerCase();
-  if (value === "employee") return "resident";
+  if (value === "employee" || value === "resident") return "jobseeker";
   return value;
 };
 
@@ -40,9 +44,9 @@ const getAllowedSearchRoles = (role) => {
   // The superadmin is intentionally isolated: it may only converse with PESO
   // admins, and admins may reach it in turn.
   if (normalized === "superadmin") return ["admin"];
-  if (normalized === "admin") return ["resident", "employee", "employer", "admin", "superadmin"];
-  if (normalized === "employer") return ["resident", "employee"];
-  if (normalized === "resident") return ["employer"];
+  if (normalized === "admin") return ["jobseeker", "employee", "resident", "employer", "admin", "superadmin"];
+  if (normalized === "employer") return ["jobseeker", "employee", "resident"];
+  if (normalized === "jobseeker") return ["employer"];
   return [];
 };
 
@@ -51,9 +55,9 @@ const canMessageTarget = (sourceRole, targetRole) => {
   const target = normalizeRole(targetRole);
 
   if (source === "superadmin") return target === "admin";
-  if (source === "admin") return ["resident", "employer", "admin", "superadmin"].includes(target);
-  if (source === "resident") return target === "employer";
-  if (source === "employer") return target === "resident";
+  if (source === "admin") return ["jobseeker", "employer", "admin", "superadmin"].includes(target);
+  if (source === "jobseeker") return target === "employer";
+  if (source === "employer") return target === "jobseeker";
   return false;
 };
 
@@ -134,7 +138,7 @@ exports.createConversation = async (req, res) => {
 
     const [currentUser, targetUser] = await Promise.all([
       User.findById(userId).select("role isActive"),
-      User.findById(participantId).select("role isActive name"),
+      User.findById(participantId).select("role isActive name privacy"),
     ]);
 
     if (!currentUser || currentUser.isActive === false) {
@@ -145,7 +149,16 @@ exports.createConversation = async (req, res) => {
       return res.status(404).json({ message: "Target user not found" });
     }
 
-    if (!canMessageTarget(currentUser.role, targetUser.role)) {
+    // Settings → Privacy → "Who can message me" widens the default role
+    // rules for a jobseeker who opts into "Anyone signed in": another
+    // jobseeker may then start a conversation too. It never narrows
+    // canMessageTarget's existing rules (e.g. admin access is unaffected).
+    const targetAllowsAnyone =
+      normalizeRole(targetUser.role) === "jobseeker" &&
+      normalizeRole(currentUser.role) === "jobseeker" &&
+      (targetUser.privacy?.allowMessagesFrom || "anyone") === "anyone";
+
+    if (!canMessageTarget(currentUser.role, targetUser.role) && !targetAllowsAnyone) {
       return res.status(403).json({ message: "Messaging this user is not allowed" });
     }
 
@@ -153,6 +166,16 @@ exports.createConversation = async (req, res) => {
     const populated = await Conversation.findById(conversation._id).populate({
       path: "participants",
       select: "name role desiredJobTitle profileImage",
+    });
+
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: currentUser.role,
+      action: "message.conversation.created",
+      targetType: "conversation",
+      targetId: String(conversation._id),
+      severity: "info",
     });
 
     return res.status(201).json(populated);
@@ -176,13 +199,14 @@ exports.searchUsers = async (req, res) => {
       return res.json([]);
     }
 
+    const queryRegex = escapeRegex(query);
     const candidates = await User.find({
       _id: { $ne: userId },
       isActive: ACTIVE_USER_FILTER,
       $or: [
-        { name: { $regex: query, $options: "i" } },
-        { email: { $regex: query, $options: "i" } },
-        { companyName: { $regex: query, $options: "i" } },
+        { name: { $regex: queryRegex, $options: "i" } },
+        { email: { $regex: queryRegex, $options: "i" } },
+        { companyName: { $regex: queryRegex, $options: "i" } },
       ],
     })
       .select("name email role desiredJobTitle companyName profileImage")
@@ -204,7 +228,7 @@ exports.getConversations = async (req, res) => {
   try {
     const userId = getUserId(req);
 
-    const conversations = await Conversation.find({ participants: userId })
+    const conversations = await Conversation.find({ participants: userId, hiddenFor: { $ne: userId } })
       .populate({
         path: "participants",
         select: "name role desiredJobTitle isActive profileImage",
@@ -350,10 +374,25 @@ exports.sendMessage = async (req, res) => {
       $set: {
         lastMessage: message.content,
         lastMessageAt: message.createdAt,
+        // A fresh message makes the thread active again — un-hide it for
+        // whichever participant(s) had previously deleted it from their
+        // inbox (mirrors WhatsApp/Messenger: a deleted chat reappears when a
+        // new message arrives).
+        hiddenFor: [],
       },
     });
 
     const populatedMessage = await Message.findById(message._id).populate("sender", "name role");
+
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: req.user.role,
+      action: "message.sent",
+      targetType: "conversation",
+      targetId: String(conversationId),
+      severity: "info",
+    });
 
     // Broadcast only to the other participant (not the sender)
     const io = req.app.get("io");
@@ -388,6 +427,79 @@ exports.sendMessage = async (req, res) => {
   }
 };
 
+// Replaces a message's content with a shared "Message unsent" placeholder —
+// visible to both participants, like Messenger/WhatsApp — rather than
+// deleting the row outright, so the conversation keeps its shape. Only the
+// original sender may unsend, and only within a short window after sending.
+exports.unsendMessage = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { messageId } = req.params;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    if (String(message.sender) !== String(userId)) {
+      return res.status(403).json({ message: "You can only unsend your own messages" });
+    }
+
+    if (message.isUnsent) {
+      return res.status(400).json({ message: "This message has already been unsent" });
+    }
+
+    const ageMs = Date.now() - new Date(message.createdAt).getTime();
+    if (ageMs > UNSEND_WINDOW_MS) {
+      return res.status(400).json({ message: "You can only unsend a message within 15 minutes of sending it" });
+    }
+
+    message.content = "";
+    message.isUnsent = true;
+    message.unsentAt = new Date();
+    await message.save();
+
+    // If this was the conversation's most recent message, refresh its
+    // preview text so the conversation list doesn't keep showing the
+    // now-removed content.
+    const latest = await Message.findOne({ conversationId: message.conversationId }).sort({ createdAt: -1 });
+    if (latest && String(latest._id) === String(message._id)) {
+      await Conversation.findByIdAndUpdate(message.conversationId, {
+        $set: { lastMessage: UNSENT_PLACEHOLDER },
+      });
+    }
+
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: req.user.role,
+      action: "message.unsent",
+      targetType: "conversation",
+      targetId: String(message.conversationId),
+      severity: "info",
+    });
+
+    const io = req.app.get("io");
+    if (io) {
+      const conversation = await Conversation.findById(message.conversationId).select("participants");
+      const otherParticipant = conversation?.participants?.find(
+        (participant) => String(participant) !== String(userId)
+      );
+      if (otherParticipant) {
+        io.to(`user:${String(otherParticipant)}`).emit("message_unsent", {
+          messageId: String(message._id),
+          conversationId: String(message.conversationId),
+        });
+      }
+    }
+
+    return res.json({ messageId: String(message._id), conversationId: String(message.conversationId) });
+  } catch (error) {
+    console.error("❌ Unsend message error:", error);
+    return res.status(500).json({ message: error.message || "Failed to unsend message" });
+  }
+};
+
 exports.deleteConversation = async (req, res) => {
   try {
     const userId = getUserId(req);
@@ -406,8 +518,36 @@ exports.deleteConversation = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    await Conversation.findByIdAndDelete(conversationId);
-    await Message.deleteMany({ conversationId });
+    // Per-participant soft delete: hides the thread from this participant's
+    // own inbox only — it must not destroy the other participant's copy of
+    // shared history (e.g. interview-scheduling messages) without their
+    // consent. Only once every participant has independently deleted it is
+    // there no one left who could still need it, so it's safe to actually
+    // remove the data at that point.
+    await Conversation.findByIdAndUpdate(conversationId, {
+      $addToSet: { hiddenFor: userId },
+    });
+
+    const participantIds = getDistinctParticipantIds(conversation.participants);
+    const hiddenForIds = getDistinctParticipantIds(conversation.hiddenFor).concat(String(userId));
+    const allParticipantsHaveDeleted = participantIds.every((participantId) =>
+      hiddenForIds.includes(participantId)
+    );
+
+    if (allParticipantsHaveDeleted) {
+      await Conversation.findByIdAndDelete(conversationId);
+      await Message.deleteMany({ conversationId });
+    }
+
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: req.user.role,
+      action: "message.conversation.deleted",
+      targetType: "conversation",
+      targetId: String(conversationId),
+      severity: "info",
+    });
 
     return res.json({ message: "Conversation deleted" });
   } catch (error) {

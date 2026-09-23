@@ -1,6 +1,7 @@
 const Follow = require("../models/Follow");
 const User = require("../models/User");
 const { createNotificationForUser } = require("../services/notificationService");
+const { logAuditEvent } = require("../services/auditService");
 
 // Follow a user
 exports.followUser = async (req, res) => {
@@ -20,7 +21,7 @@ exports.followUser = async (req, res) => {
     }
 
     // Only employers can be followed (e.g. by jobseekers tracking companies
-    // they're interested in) — residents/admins are never followable.
+    // they're interested in) — jobseekers/admins are never followable.
     if (targetUser.role !== "employer") {
       return res.status(403).json({ error: "Only employers can be followed" });
     }
@@ -55,6 +56,17 @@ exports.followUser = async (req, res) => {
       io,
     });
 
+    await logAuditEvent({
+      req,
+      actorId: followerId,
+      actorRole: req.user.role,
+      action: "social.user.followed",
+      targetUserId: userId,
+      targetType: "user",
+      targetId: String(userId),
+      severity: "info",
+    });
+
     res.status(201).json({
       success: true,
       message: "User followed successfully",
@@ -78,6 +90,17 @@ exports.unfollowUser = async (req, res) => {
       return res.status(404).json({ error: "Not following this user" });
     }
 
+    await logAuditEvent({
+      req,
+      actorId: followerId,
+      actorRole: req.user.role,
+      action: "social.user.unfollowed",
+      targetUserId: userId,
+      targetType: "user",
+      targetId: String(userId),
+      severity: "info",
+    });
+
     res.json({
       success: true,
       message: "User unfollowed successfully"
@@ -93,7 +116,7 @@ exports.getFollowers = async (req, res) => {
   try {
     const { userId } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = Math.min(parseInt(req.query.limit) || 10, 100);
     const skip = (page - 1) * limit;
 
     // Check if user exists
@@ -109,7 +132,7 @@ exports.getFollowers = async (req, res) => {
     const followers = await Follow.find({ following: userId })
       .populate({
         path: "follower",
-        select: "name email role profileImage"
+        select: "name role profileImage"
       })
       .skip(skip)
       .limit(limit)
@@ -138,7 +161,7 @@ exports.getFollowing = async (req, res) => {
   try {
     const { userId } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = Math.min(parseInt(req.query.limit) || 10, 100);
     const skip = (page - 1) * limit;
 
     // Check if user exists
@@ -154,7 +177,7 @@ exports.getFollowing = async (req, res) => {
     const following = await Follow.find({ follower: userId })
       .populate({
         path: "following",
-        select: "name email role profileImage"
+        select: "name role profileImage"
       })
       .skip(skip)
       .limit(limit)

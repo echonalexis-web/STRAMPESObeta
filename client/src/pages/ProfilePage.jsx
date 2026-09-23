@@ -35,9 +35,13 @@ import {
 } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { adminAPI, authAPI, employerAPI, jobLikeAPI, messageAPI, followAPI, newsLikeAPI, resolveAssetUrl } from "../services/api";
+import { useToast } from "../components/feedback/context";
 import { workforceSizeLabel } from "../data/employerProfile";
 import SecureFileLink from "../components/SecureFileLink";
 import ImageEditorModal from "../components/ImageEditorModal";
+import JobseekerDocumentsPanel from "../components/JobseekerDocumentsPanel";
+import VerificationTab from "../components/VerificationTab";
+import { downloadBlob } from "../utils/exportUtils";
 import "../styles/profile-redesign.css";
 
 const formatStructuredAddress = (addr) => {
@@ -119,7 +123,7 @@ const hasAnyGovId = (profile) =>
 
 const completionForRole = (profile, role) => {
   const checksByRole = {
-    resident: [
+    jobseeker: [
       Boolean(profile?.name),
       Boolean(profile?.email),
       Boolean(profile?.phone),
@@ -167,12 +171,12 @@ const completionForRole = (profile, role) => {
     admin: [Boolean(profile?.name), Boolean(profile?.email), Boolean(profile?.phone)],
   };
 
-  const checks = checksByRole[role] || checksByRole.resident;
+  const checks = checksByRole[role] || checksByRole.jobseeker;
   const completed = checks.filter(Boolean).length;
   return Math.round((completed / checks.length) * 100);
 };
 
-const RESIDENT_TABS = [
+const JOBSEEKER_TABS = [
   ["sec-about", "About"],
   ["sec-contact", "Contact & identity"],
   ["sec-personal", "Personal details"],
@@ -189,6 +193,7 @@ const EMPLOYER_TABS = [
   ["sec-address", "Business address"],
   ["sec-contacts", "Corporate contacts"],
   ["sec-documents", "Documents"],
+  ["sec-verification", "Verification"],
   ["sec-activity", "Activity"],
 ];
 
@@ -251,6 +256,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
   const { userId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [profile, setProfile] = useState(isAdminView || isEmployerView ? null : user);
   const [loading, setLoading] = useState(true);
@@ -274,6 +280,20 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
   const [avatarEditSrc, setAvatarEditSrc] = useState("");
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState("");
+  const [exportingNsrpForm, setExportingNsrpForm] = useState(false);
+
+  const handleExportNsrpForm = async () => {
+    try {
+      setExportingNsrpForm(true);
+      const isEmployerRole = normalizedRole === "employer";
+      const { data } = isEmployerRole ? await authAPI.exportNsrpForm2() : await authAPI.exportNsrpForm1();
+      downloadBlob(isEmployerRole ? "NSRP-Form-2.pdf" : "NSRP-Form-1.pdf", data);
+    } catch (error) {
+      console.error("Failed to export NSRP form", error);
+    } finally {
+      setExportingNsrpForm(false);
+    }
+  };
 
   const closeAvatarEditor = () => {
     if (avatarEditUrlRef.current) {
@@ -322,6 +342,13 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
     if (avatarEditUrlRef.current) URL.revokeObjectURL(avatarEditUrlRef.current);
   }, []);
 
+  const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
+
+  const handleVerificationUpdated = (patch) => {
+    setProfile((prev) => ({ ...(prev || {}), ...patch }));
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+  };
+
   useEffect(() => {
     if (!avatarModalOpen) return undefined;
     const onKey = (e) => {
@@ -337,8 +364,10 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
       ? "favorites"
       : location.pathname.includes("/profile/likes")
         ? "likes"
-        : "overview";
-  const normalizedRole = profile?.role === "employee" || profile?.role === "jobseeker" ? "resident" : profile?.role;
+        : location.pathname.includes("/profile/documents")
+          ? "documents"
+          : "overview";
+  const normalizedRole = profile?.role === "employee" || profile?.role === "resident" ? "jobseeker" : profile?.role;
   const isEmployer = normalizedRole === "employer";
   const isSuperadmin = normalizedRole === "superadmin";
   // The superadmin shares the admin's minimal profile layout.
@@ -454,10 +483,12 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
   }, [activeTab, isAdmin, isReadOnly]);
 
   // ===== IMPROVED fetchConnections with validation and fallback =====
+  // Fetched eagerly (not gated on activeTab) because followerCount/
+  // followingCount also drive the header stat line shown on every tab, not
+  // just the Following/Followers tab body — gating this fetch on activeTab
+  // meant the header showed a stale "0" until the user visited that tab.
   useEffect(() => {
     const fetchConnections = async () => {
-      if (activeTab !== "followers") return;
-
       try {
         setConnectionsLoading(true);
         // Get the correct user ID - prioritize profile ID first since it's already loaded
@@ -479,8 +510,8 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
           }
         }
 
-        // Residents can never be followed, so there's nothing meaningful to
-        // fetch for "Followers" on a resident's own profile — only employers
+        // Jobseekers can never be followed, so there's nothing meaningful to
+        // fetch for "Followers" on a jobseeker's own profile — only employers
         // have a real followers list.
         const [followersRes, followingRes] = await Promise.all([
           isEmployer ? followAPI.getFollowers(targetUserId, { page: 1, limit: 100 }) : Promise.resolve(null),
@@ -502,12 +533,12 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
     };
 
     fetchConnections();
-  }, [activeTab, profile, user, userId]);
+  }, [profile, user, userId, isEmployer]);
 
   // Scroll-spy: keep the sticky tab bar in sync with the section in view.
   useEffect(() => {
     if (activeTab !== "overview" || isAdmin) return undefined;
-    const tabs = isEmployer ? EMPLOYER_TABS : RESIDENT_TABS;
+    const tabs = isEmployer ? EMPLOYER_TABS : JOBSEEKER_TABS;
     const els = tabs.map(([id]) => document.getElementById(id)).filter(Boolean);
     if (!els.length) return undefined;
 
@@ -524,6 +555,12 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
     return () => observer.disconnect();
   }, [activeTab, isAdmin, isEmployer, profile]);
 
+  const isEmployerUnavailable = (job) => {
+    const employer = job?.employer;
+    if (!employer || typeof employer !== "object") return !employer;
+    return employer.isActive === false;
+  };
+
   const handleMessageEmployer = async (job) => {
     let employerId = null;
     if (job.employer && typeof job.employer === 'object') {
@@ -533,7 +570,10 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
     }
     if (!employerId && job.employerId) employerId = job.employerId;
     const currentUserId = user?._id || user?.id;
-    if (!employerId) return;
+    if (!employerId || isEmployerUnavailable(job)) {
+      toast.error("User not found");
+      return;
+    }
     if (String(employerId) === String(currentUserId)) return;
     try {
       const { data } = await messageAPI.createConversation({ participantId: employerId });
@@ -541,7 +581,11 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
       if (!conversationId) throw new Error("Conversation was not created");
       navigate("/messages", { state: { conversationId } });
     } catch (err) {
-      console.error("Failed to start conversation:", err);
+      if (err?.response?.status === 404) {
+        toast.error("User not found");
+      } else {
+        console.error("Failed to start conversation:", err);
+      }
     }
   };
 
@@ -550,7 +594,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const completion = useMemo(() => completionForRole(profile, normalizedRole || "resident"), [profile, normalizedRole]);
+  const completion = useMemo(() => completionForRole(profile, normalizedRole || "jobseeker"), [profile, normalizedRole]);
   const skills = Array.isArray(profile?.skills) ? profile.skills : [];
 
   const resumeRef = profile?.resumeFile || null;
@@ -654,7 +698,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
   };
   const followerCount = followers.length;
   const followingCount = following.length;
-  const sectionTabs = isAdmin ? [] : isEmployer ? EMPLOYER_TABS : RESIDENT_TABS;
+  const sectionTabs = isAdmin ? [] : isEmployer ? EMPLOYER_TABS : JOBSEEKER_TABS;
 
   if (!profile && loading) return null;
 
@@ -753,9 +797,15 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                   <FaEdit aria-hidden="true" /> Edit profile
                 </button>
               ) : null}
-              {!isAdmin ? (
-                <button className="rd2-btn rd2-btn--ghost" type="button" onClick={() => window.print()}>
-                  <FaFilePdf aria-hidden="true" /> Export NSRP Form 1
+              {!isAdmin && !isReadOnly ? (
+                <button
+                  className="rd2-btn rd2-btn--ghost"
+                  type="button"
+                  onClick={handleExportNsrpForm}
+                  disabled={exportingNsrpForm}
+                >
+                  <FaFilePdf aria-hidden="true" />
+                  {exportingNsrpForm ? "Preparing…" : isEmployer ? "Export NSRP Form 2" : "Export NSRP Form 1"}
                 </button>
               ) : null}
             </div>
@@ -782,9 +832,44 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
               <Link to="/profile/followers" className={activeTab === "followers" ? "is-active" : ""}>
                 {isEmployer ? `Followers (${followerCount})` : `Following (${followingCount})`}
               </Link>
+              {!isEmployer ? (
+                <Link to="/profile/documents" className={activeTab === "documents" ? "is-active" : ""}>
+                  Resumes &amp; Cover Letters
+                </Link>
+              ) : null}
             </nav>
           ) : null}
         </header>
+
+        {isEmployer && !isReadOnly && profile?.verificationStatus === "unverified" && !verifyBannerDismissed ? (
+          <div className="rd-unverified-banner" role="alert">
+            <span>Your account is unverified — submit verification documents now.</span>
+            <div className="rd-unverified-banner-actions">
+              <button
+                type="button"
+                className="rd-unverified-banner-cta"
+                onClick={() => {
+                  if (activeTab !== "overview") {
+                    navigate("/profile");
+                    setTimeout(() => scrollToSection("sec-verification"), 50);
+                  } else {
+                    scrollToSection("sec-verification");
+                  }
+                }}
+              >
+                Go to Verification
+              </button>
+              <button
+                type="button"
+                className="rd-unverified-banner-dismiss"
+                aria-label="Dismiss"
+                onClick={() => setVerifyBannerDismissed(true)}
+              >
+                &times;
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {activeTab === "overview" && sectionTabs.length > 0 ? (
           <nav className="rd2-tabs" aria-label="Jump to section">
@@ -835,20 +920,26 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
               <EmptyNote>No saved jobs yet. Use the heart icon in Browse Jobs to add favorites.</EmptyNote>
             ) : (
               <div className="rd-favorites-grid">
-                {likedJobs.map((job) => (
-                  <article key={job._id} className="rd-favorite-item">
-                    <div className="rd-favorite-head">
-                      <h3>{job.title || "Untitled Job"}</h3>
-                      <span className="rd-ribbon"><FaBookmark /> Saved</span>
-                    </div>
-                    <p><FaBriefcase /> {job.employer?.companyName || "Employer"}</p>
-                    <p><FaMapMarkerAlt /> {formatAddress(job.location) || "Not provided"}</p>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                      <button type="button" onClick={() => navigate(`/jobs/${job._id}`)} style={{ flex: 1 }}>View / Apply</button>
-                      <button type="button" className="btn-employer-icon" onClick={() => handleMessageEmployer(job)} title="Message employer" aria-label="Message employer"><FaEnvelope /></button>
-                    </div>
-                  </article>
-                ))}
+                {likedJobs.map((job) => {
+                  const employerUnavailable = isEmployerUnavailable(job);
+                  return (
+                    <article key={job._id} className={`rd-favorite-item${employerUnavailable ? " rd-favorite-item--inactive" : ""}`}>
+                      <div className="rd-favorite-head">
+                        <h3>{job.title || "Untitled Job"}</h3>
+                        <span className="rd-ribbon"><FaBookmark /> Saved</span>
+                      </div>
+                      <p><FaBriefcase /> {job.employer?.companyName || "Employer"}</p>
+                      <p><FaMapMarkerAlt /> {formatAddress(job.location) || "Not provided"}</p>
+                      {employerUnavailable ? (
+                        <p className="rd-favorite-employer-note">This employer's account is no longer available.</p>
+                      ) : null}
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <button type="button" onClick={() => navigate(`/jobs/${job._id}`)} style={{ flex: 1 }}>View / Apply</button>
+                        <button type="button" className="btn-employer-icon" onClick={() => handleMessageEmployer(job)} title="Message employer" aria-label="Message employer"><FaEnvelope /></button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -867,8 +958,8 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                     ) : (
                       <div className="rd-connections-list">
                         {followers.map((follower) => {
-                          const followerRole = follower.role === "employee" || follower.role === "jobseeker" ? "resident" : follower.role;
-                          const canViewProfile = !isReadOnly && followerRole === "resident";
+                          const followerRole = follower.role === "employee" || follower.role === "resident" ? "jobseeker" : follower.role;
+                          const canViewProfile = !isReadOnly && followerRole === "jobseeker";
                           return (
                             <div
                               key={follower._id}
@@ -888,7 +979,6 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                               </div>
                               <div className="rd-connection-info">
                                 <p>{follower.name || "User"}</p>
-                                <span>{follower.email}</span>
                               </div>
                               {canViewProfile ? <span className="rd-connection-view-hint">View profile ›</span> : null}
                             </div>
@@ -911,7 +1001,6 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                           </div>
                           <div className="rd-connection-info">
                             <p>{followedUser.name || "User"}</p>
-                            <span>{followedUser.email}</span>
                           </div>
                         </div>
                       ))}
@@ -921,6 +1010,8 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
               </div>
             )}
           </section>
+        ) : activeTab === "documents" && !isEmployer && !isAdmin ? (
+          <JobseekerDocumentsPanel />
         ) : isAdmin ? (
           <main className="rd2-body">
             <Section id="sec-account" icon={<FaUser />} title="Account">
@@ -991,6 +1082,14 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                   )}
                 </div>
               </div>
+            </Section>
+
+            <Section id="sec-verification" icon={<FaCheckCircle />} title="Verification">
+              {!isReadOnly ? (
+                <VerificationTab user={profile} onUpdated={handleVerificationUpdated} />
+              ) : (
+                <EmptyNote>Only the account owner can manage verification documents.</EmptyNote>
+              )}
             </Section>
 
             <Section id="sec-activity" icon={<FaBriefcase />} title="Activity">
@@ -1140,7 +1239,12 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                     <div className="rd2-langrow" key={row.label}>
                       <span className="rd2-lang-name">{row.label}</span>
                       {LANGUAGE_SKILLS.map((skill) => (
-                        <span key={skill.key} className="rd2-lang-cell">
+                        <span
+                          key={skill.key}
+                          className="rd2-lang-cell"
+                          data-label={skill.label}
+                          aria-label={`${row.label} ${skill.label}: ${row.data[skill.key] ? "Yes" : "No"}`}
+                        >
                           {row.data[skill.key] ? <span className="rd2-check"><FaCheck aria-hidden="true" /></span> : <span className="rd2-dash">—</span>}
                         </span>
                       ))}

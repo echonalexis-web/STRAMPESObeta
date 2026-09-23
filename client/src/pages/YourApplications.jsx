@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { jobAPI } from "../services/api";
+import { jobAPI, displayFileName } from "../services/api";
 import EmployerAvatar from "../components/EmployerAvatar";
 import "../styles/jobboard.css";
-import { FaExclamationTriangle, FaRegEye, FaPen, FaTrashAlt } from "react-icons/fa";
+import { FaExclamationTriangle, FaRegEye, FaPen, FaTrashAlt, FaCalendarAlt, FaVideo, FaMapMarkerAlt } from "react-icons/fa";
 
 const PER_PAGE = 5;
 
@@ -16,7 +16,16 @@ const formatDate = (date) => {
   });
 };
 
-const baseName = (path) => (path ? String(path).replace(/\\/g, "/").split("/").pop() : "");
+const formatDateTime = (date) => {
+  if (!date) return "N/A";
+  return new Date(date).toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
 
 const locationLine = (address) => {
   if (!address) return "Location not specified";
@@ -49,32 +58,51 @@ const TABS = [
 export default function YourApplications() {
   const navigate = useNavigate();
 
-  const [applications, setApplications] = useState([]);
+  const [visible, setVisible] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [counts, setCounts] = useState({});
+  const [hasAnyApplications, setHasAnyApplications] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
-
-  const fetchApplications = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const { data } = await jobAPI.getMyApplications();
-      setApplications(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to load your applications");
-      setApplications([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
+    let isCurrent = true;
+
+    const fetchApplications = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const { data } = await jobAPI.getMyApplications({
+          page,
+          limit: PER_PAGE,
+          status: activeTab,
+        });
+        if (!isCurrent) return;
+        setVisible(Array.isArray(data?.items) ? data.items : []);
+        setTotalPages(Math.max(Number(data?.totalPages) || 1, 1));
+        setCounts(data?.counts || {});
+        setHasAnyApplications((Number(data?.counts?.all) || 0) > 0);
+      } catch (err) {
+        if (!isCurrent) return;
+        setError(err.response?.data?.message || "Failed to load your applications");
+        setVisible([]);
+        setTotalPages(1);
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
     fetchApplications();
-  }, []);
+    return () => {
+      isCurrent = false;
+    };
+  }, [page, activeTab, refreshToken]);
 
   useEffect(() => {
     if (!toastMessage) return;
@@ -83,25 +111,12 @@ export default function YourApplications() {
   }, [toastMessage]);
 
   useEffect(() => {
-    setPage(1);
-  }, [activeTab]);
-
-  const counts = useMemo(() => {
-    const c = {};
-    for (const tab of TABS) {
-      c[tab.key] = applications.filter((a) => tab.match(String(a.status || "").toLowerCase())).length;
+    if (page > totalPages) {
+      setPage(totalPages);
     }
-    return c;
-  }, [applications]);
+  }, [page, totalPages]);
 
-  const filtered = useMemo(() => {
-    const tab = TABS.find((t) => t.key === activeTab) || TABS[0];
-    return applications.filter((a) => tab.match(String(a.status || "").toLowerCase()));
-  }, [applications, activeTab]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const safePage = Math.min(page, totalPages);
-  const visible = filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
 
   const handleConfirmWithdraw = async () => {
     if (!confirmDeleteId) return;
@@ -110,7 +125,7 @@ export default function YourApplications() {
       await jobAPI.deleteApplication(confirmDeleteId);
       setToastMessage("Application withdrawn.");
       setConfirmDeleteId(null);
-      await fetchApplications();
+      setRefreshToken((token) => token + 1);
     } catch (err) {
       setToastMessage(err.response?.data?.message || "Failed to withdraw application.");
     } finally {
@@ -136,18 +151,39 @@ export default function YourApplications() {
               role="tab"
               aria-selected={activeTab === tab.key}
               className={`app-tab ${activeTab === tab.key ? "is-active" : ""}`}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => {
+                setActiveTab(tab.key);
+                setPage(1);
+              }}
             >
               {tab.label}<span className="app-tab-n">{counts[tab.key] ?? 0}</span>
             </button>
           ))}
         </div>
 
+        <div className="app-status-select-wrap">
+          <select
+            className="app-status-select"
+            value={activeTab}
+            onChange={(event) => {
+              setActiveTab(event.target.value);
+              setPage(1);
+            }}
+            aria-label="Filter applications by status"
+          >
+            {TABS.map((tab) => (
+              <option key={tab.key} value={tab.key}>
+                {tab.label} ({counts[tab.key] ?? 0})
+              </option>
+            ))}
+          </select>
+        </div>
+
         {error && <div className="error-message" style={{ marginBottom: "1.5rem" }}>{error}</div>}
 
         {loading ? (
           <p className="app-list-empty">Loading your applications…</p>
-        ) : applications.length === 0 ? (
+        ) : !hasAnyApplications ? (
           <p className="app-list-empty">
             You haven’t applied to any jobs yet. <button className="link-btn" onClick={() => navigate("/jobs")}>Browse jobs</button>
           </p>
@@ -186,8 +222,32 @@ export default function YourApplications() {
                         </div>
                         <div className="app-row-metaline">
                           Applied {formatDate(application.appliedAt)}
-                          {application.resume ? ` · résumé ${baseName(application.resume)}` : ""}
+                          {application.resume ? ` · résumé ${displayFileName(application.resume)}` : ""}
                         </div>
+
+                        {application.interview?.scheduledAt && (
+                          <div className="app-interview-card">
+                            <div className="app-interview-card-title">
+                              <FaCalendarAlt /> Interview {application.interview.mode === "online" ? "(Online)" : "(Onsite)"}
+                            </div>
+                            <div className="app-interview-card-row">
+                              {formatDateTime(application.interview.scheduledAt)}
+                            </div>
+                            <div className="app-interview-card-row">
+                              {application.interview.mode === "online" ? <FaVideo /> : <FaMapMarkerAlt />}
+                              {application.interview.mode === "online" ? (
+                                <a href={application.interview.location} target="_blank" rel="noreferrer">
+                                  {application.interview.location}
+                                </a>
+                              ) : (
+                                <span>{application.interview.location}</span>
+                              )}
+                            </div>
+                            {application.interview.notes && (
+                              <div className="app-interview-card-notes">{application.interview.notes}</div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div className="app-row-actions">

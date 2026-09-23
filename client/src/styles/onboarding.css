@@ -129,6 +129,13 @@
   padding: 0;
   display: flex;
   flex-direction: column;
+  position: relative;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.onboarding-steps::before {
+  content: none;
 }
 
 .onboarding-step-item {
@@ -136,17 +143,41 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 8px 10px;
+  width: 100%;
+  padding: 0;
   border-radius: var(--ob-radius-sm);
   font-size: var(--ob-font-sm);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.5);
   transition: color 0.2s var(--ob-ease), background 0.2s var(--ob-ease);
+  z-index: 1;
+}
+
+.onboarding-step-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  padding: 8px 12px 8px 8px;
+  margin-left: -4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.onboarding-step-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .onboarding-step-index {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   flex: 0 0 28px;
   width: 28px;
   height: 28px;
@@ -163,26 +194,11 @@
   animation: none;
 }
 
-/* connecting line between step circles */
-.onboarding-step-item:not(:last-child) .onboarding-step-index::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 2px;
-  height: 16px;
-  background: rgba(255, 255, 255, 0.16);
-  transition: background 0.3s var(--ob-ease);
-}
-
-.onboarding-step-item.done:not(:last-child) .onboarding-step-index::after {
-  background: var(--ob-green-300);
-}
-
 .onboarding-step-item.current {
   color: #fff;
   background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  margin-left: -4px;
 }
 
 .onboarding-step-item.current .onboarding-step-index {
@@ -255,6 +271,58 @@
 /* Compact progress indicator shown only when the rail is hidden (mobile) */
 .onboarding-progress-mobile {
   display: none;
+}
+
+.onboarding-mobile-step-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  white-space: nowrap;
+  margin-top: 0.85rem;
+  padding-bottom: 0.15rem;
+  scrollbar-width: none;
+}
+
+.onboarding-mobile-step-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.onboarding-mobile-step-pill {
+  flex: 0 0 2.15rem;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 999px;
+  border: 1px solid var(--ob-neutral-300);
+  background: var(--ob-neutral-0);
+  color: var(--ob-neutral-700);
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s var(--ob-ease);
+  padding: 0;
+}
+
+.onboarding-mobile-step-pill.done {
+  background: var(--ob-green-100);
+  border-color: var(--ob-green-300);
+  color: var(--ob-green-800);
+}
+
+.onboarding-mobile-step-pill.current {
+  background: var(--ob-green-700);
+  border-color: var(--ob-green-700);
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.12);
+}
+
+.onboarding-mobile-step-pill:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .onboarding-progress-meta {
@@ -455,6 +523,7 @@
 .pill-row {
   margin-top: 0.5rem;
   display: flex;
+  justify-content: start;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
@@ -709,27 +778,35 @@
    Nav / buttons
    ============================================================= */
 .onboarding-nav {
-  margin: var(--ob-space-6) calc(var(--ob-space-8) * -1) calc(var(--ob-space-8) * -1);
-  padding: var(--ob-space-4) var(--ob-space-8);
+  /* Was `position: sticky; bottom: 16px`, anchored to .onboarding-panel (the
+     actual overflow-y:auto scroll container) rather than the visible
+     .onboarding-card (height: fit-content, no overflow of its own). On any
+     step short enough that the card doesn't fill the panel's full 100vh —
+     e.g. Company Information — the panel has nothing to scroll, so the
+     "stuck" 16px-from-bottom position was computed against the full
+     viewport instead of the card's actual bottom edge, pulling this bar
+     down to overlap the last field row instead of sitting after it. Normal
+     flow avoids the mismatch entirely, on every step and screen size. */
+  margin-top: var(--ob-space-6);
   display: flex;
   justify-content: space-between;
-  gap: 0.6rem;
-  position: sticky;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(6px);
-  border-top: 1px solid var(--ob-neutral-200);
-  border-radius: 0 0 var(--ob-radius-lg) var(--ob-radius-lg);
+  align-items: center;
+  gap: 0.8rem;
+  background: var(--ob-neutral-0);
+  border: 1px solid var(--ob-neutral-200);
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(20, 32, 28, 0.08);
+  padding: 0.85rem 0.9rem;
 }
 
 .onboarding-primary,
 .onboarding-secondary {
-  border-radius: var(--ob-radius-sm);
-  padding: 0.75rem 1.2rem;
+  border-radius: 14px;
+  padding: 0.75rem 1.35rem;
   font-weight: 700;
   font-size: var(--ob-font-base);
   cursor: pointer;
-  min-height: 44px;
+  min-height: 46px;
   transition: background 0.2s var(--ob-ease), transform 0.15s var(--ob-ease), box-shadow 0.2s var(--ob-ease);
 }
 
@@ -737,7 +814,8 @@
   border: none;
   background: var(--ob-green-600);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3);
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.28);
+  min-width: 128px;
 }
 
 .onboarding-primary:hover {
@@ -784,6 +862,7 @@
   border: 1.5px solid var(--ob-neutral-300);
   background: var(--ob-neutral-0);
   color: var(--ob-neutral-900);
+  min-width: 112px;
 }
 
 .onboarding-secondary:hover {
@@ -1060,6 +1139,104 @@
 }
 
 /* =============================================================
+   Searchable dropdown (text input + dropdown toggle)
+   ============================================================= */
+.searchable-dropdown {
+  position: relative;
+}
+
+.searchable-dropdown-input-wrapper {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  margin-top: 0.4rem;
+}
+
+.searchable-dropdown-input-wrapper input {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+  height: 44px;
+  box-sizing: border-box;
+  border-radius: var(--ob-radius-sm) 0 0 var(--ob-radius-sm);
+}
+
+.searchable-dropdown-input {
+  border-right: none;
+}
+
+.searchable-dropdown-toggle {
+  background: none;
+  border: 1px solid var(--ob-neutral-300);
+  border-left: none;
+  border-radius: 0 var(--ob-radius-sm) var(--ob-radius-sm) 0;
+  color: var(--ob-neutral-600);
+  cursor: pointer;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  height: 44px;
+  box-sizing: border-box;
+}
+
+.searchable-dropdown-toggle svg {
+  width: 11px;
+  height: 11px;
+}
+
+.searchable-dropdown-toggle:hover:not(:disabled) {
+  color: var(--ob-green-600);
+}
+
+.searchable-dropdown-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.searchable-dropdown-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--ob-neutral-0);
+  border: 1px solid var(--ob-neutral-200);
+  border-radius: var(--ob-radius-sm);
+  box-shadow: var(--ob-shadow-md);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.searchable-dropdown-list li {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--ob-neutral-900);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.searchable-dropdown-list li:hover,
+.searchable-dropdown-list li.is-highlighted {
+  background: var(--ob-green-50);
+  color: var(--ob-green-700);
+}
+
+.searchable-dropdown-empty {
+  padding: 12px 10px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--ob-neutral-500);
+}
+
+/* =============================================================
    Repeatable entry cards (work history, training, eligibility...)
    ============================================================= */
 .onboarding-repeat-card {
@@ -1178,6 +1355,7 @@
 
   .onboarding-progress-mobile {
     display: block;
+    margin-bottom: 1rem;
   }
 
   .onboarding-panel {

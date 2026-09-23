@@ -1,9 +1,10 @@
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useRef, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { jobAPI } from "../services/api";
 import "../styles/jobboard.css";
 import VacancyCard from "../components/VacancyCard";
 import JobSearchFilters from "../components/JobSearchFilters";
+import ApplyModal from "../components/ApplyModal";
 import { AuthContext } from "../context/AuthContext";
 import phLocationsRaw from "../data/philippine_provinces_cities_municipalities_and_barangays_2019v2.json";
 import { FaBriefcase } from "react-icons/fa";
@@ -23,8 +24,17 @@ export default function JobBoard() {
   const [totalPages, setTotalPages] = useState(1);
   const [jobsPerPage] = useState(6);
   const [activeFilters, setActiveFilters] = useState({});
+  const [applyModalJobId, setApplyModalJobId] = useState(null);
+  // Tracks the in-flight request so a slower, superseded search (e.g. an
+  // earlier keystroke/click) can never overwrite state with stale results
+  // after a newer one has already started.
+  const abortControllerRef = useRef(null);
 
   const fetchJobs = async (filters = activeFilters, page = 1) => {
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLoading(true);
     setError("");
     try {
@@ -44,9 +54,13 @@ export default function JobBoard() {
       setActiveFilters(sanitizedFilters);
 
       const [jobsResponse, applicationsResponse] = await Promise.all([
-        jobAPI.searchJobsWithSemantic(params),
-        jobAPI.getMyApplications(),
+        jobAPI.searchJobsWithSemantic(params, { signal: controller.signal }),
+        jobAPI.getMyApplications({}, { signal: controller.signal }),
       ]);
+
+      // A newer fetchJobs call already started after this one — its own
+      // response (or its own catch/finally) owns state from here on.
+      if (abortControllerRef.current !== controller) return;
 
       const responseJobs = Array.isArray(jobsResponse.data.jobs) ? jobsResponse.data.jobs : [];
       const responsePagination = jobsResponse.data.pagination;
@@ -83,10 +97,11 @@ export default function JobBoard() {
         }
       }
     } catch (err) {
+      if (err.code === "ERR_CANCELED") return;
       console.error("Error fetching jobs:", err);
       setError(err.response?.data?.message || "Failed to load jobs");
     } finally {
-      setLoading(false);
+      if (abortControllerRef.current === controller) setLoading(false);
     }
   };
 
@@ -168,10 +183,20 @@ export default function JobBoard() {
                   preferred={preferredIndustries.includes(job.industry)}
                   matchAvailable={hasSkills}
                   onOpen={() => navigate(`/jobs/${job._id}`)}
-                  onApply={() => navigate(`/jobs/${job._id}/apply`)}
+                  onApply={() => setApplyModalJobId(job._id)}
                 />
               ))}
             </div>
+
+            <ApplyModal
+              isOpen={Boolean(applyModalJobId)}
+              onClose={() => setApplyModalJobId(null)}
+              jobId={applyModalJobId}
+              onSuccess={() => {
+                setApplyModalJobId(null);
+                fetchJobs(activeFilters, currentPage);
+              }}
+            />
 
             <div className="pagination-controls">
               <button

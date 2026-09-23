@@ -404,4 +404,9 @@
   .br-quick-btn {
     align-self: flex-start;
   }
+  /* Prevent iOS Safari auto-zoom-on-focus */
+  .br-num,
+  .br-select {
+    font-size: 16px;
+  }
 }

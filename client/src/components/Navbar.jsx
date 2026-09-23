@@ -1,46 +1,54 @@
 ﻿import { useContext, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FaEnvelope, FaUserCircle, FaChevronDown, FaBars, FaTimes, FaBell } from "react-icons/fa";
+import { useTranslation } from "react-i18next";
+import { FaEnvelope, FaUserCircle, FaBars, FaTimes, FaBell, FaCog } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { messageAPI, notificationAPI, resolveAssetUrl } from "../services/api";
 import { useSocket } from "../context/SocketContext";
 import "../styles/navbar.css";
 import pesoLogo from "../assets/images/peso-logo.png";
 
-const normalizeRole = (role) => (role === "employee" || role === "jobseeker" ? "resident" : role);
+const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
 // Routes whose page renders its own dedicated setup rail (e.g. the applicant /
 // employer detail onboarding). The app sidebar is suppressed on these so it
 // doesn't compete with the flow's own step navigator.
 const SETUP_PATHS = new Set(["/onboarding"]);
 
-const getLoggedInMenuItems = (userRole) => {
+const getLoggedInMenuItems = (userRole, t) => {
   // The superadmin handles the technical surface only: account provisioning,
   // user management, audit trail, job monitoring, a read-only view of the
   // employer verification queue, and read-only oversight of the admin
   // dashboard. News / announcements / SPES stay with PESO admins.
   if (userRole === "superadmin") {
     return [
-      { label: "Superadmin Console", to: "/superadmin" },
       {
-        label: "Admin Dashboard",
+        label: t("navbar.adminDashboard"),
         submenu: [
-          { label: "Dashboard", to: "/admin" },
-          { label: "Reports & Statistics", to: "/admin/reports" },
+          { label: t("navbar.dashboard"), to: "/admin" },
+          { label: t("navbar.reportsStatistics"), to: "/admin/reports" },
         ],
       },
       {
-        label: "User Management",
+        label: t("navbar.userManagement"),
         submenu: [
-          { label: "User Management", to: "/admin/users" },
-          { label: "Reports & Appeals", to: "/admin/users/moderation" },
+          { label: t("navbar.userManagement"), to: "/admin/users" },
+          { label: t("navbar.reportsAppeals"), to: "/admin/users/moderation" },
         ],
       },
-      { label: "Employer Verification", to: "/admin/verification" },
-      { label: "Job Monitoring", to: "/admin/job-monitoring" },
-      { label: "Audit Trail", to: "/admin/audit-logs" },
-      { label: "My Profile", to: "/profile" },
-      { label: "Settings", to: "/settings" },
+      {
+        label: t("navbar.employmentJobs"),
+        submenu: [
+          { label: t("navbar.employerVerification"), to: "/admin/verification" },
+          { label: t("navbar.jobMonitoring"), to: "/admin/job-monitoring" },
+        ],
+      },
+      {
+        label: t("navbar.systemLogs"),
+        submenu: [{ label: t("navbar.auditTrail"), to: "/admin/audit-logs" }],
+      },
+      { label: t("navbar.myProfile"), to: "/profile" },
+      { label: t("navbar.settings"), to: "/settings" },
     ];
   }
 
@@ -49,50 +57,54 @@ const getLoggedInMenuItems = (userRole) => {
     // Audit Trail are superadmin-only surfaces — PESO admins no longer see them.
     return [
       {
-        label: "Admin Dashboard",
+        label: t("navbar.adminDashboard"),
         submenu: [
-          { label: "Dashboard", to: "/admin" },
-          { label: "Reports & Statistics", to: "/admin/reports" },
+          { label: t("navbar.dashboard"), to: "/admin" },
+          { label: t("navbar.reportsStatistics"), to: "/admin/reports" },
         ],
       },
       {
-        label: "News Management",
+        label: t("navbar.newsManagement"),
         submenu: [
-          { label: "News Feed", to: "/admin/news" },
-          { label: "Post Announcement", to: "/admin/news/create" },
-          { label: "SPES Applications", to: "/admin/spes" },
+          { label: t("navbar.newsFeed"), to: "/admin/news" },
+          { label: t("navbar.postAnnouncement"), to: "/admin/news/create" },
+          { label: t("navbar.spesApplications"), to: "/admin/spes" },
         ],
       },
-      { label: "Employer Verification", to: "/admin/verification" },
-      { label: "Job Monitoring", to: "/admin/job-monitoring" },
-      { label: "My Profile", to: "/profile" },
-      { label: "Settings", to: "/settings" },
+      { label: t("navbar.employerVerification"), to: "/admin/verification" },
+      { label: t("navbar.jobMonitoring"), to: "/admin/job-monitoring" },
+      // No Audit Trail here (superadmin-only) — this group exists so
+      // Notifications/Messages have a "System & Logs" home to pin to, same
+      // as the superadmin menu above.
+      { label: t("navbar.systemLogs"), submenu: [] },
+      { label: t("navbar.myProfile"), to: "/profile" },
+      { label: t("navbar.settings"), to: "/settings" },
     ];
   }
 
   if (userRole === "employer") {
     return [
-      { label: "Employer Dashboard", to: "/employer" },
-      { label: "Post Vacancy", to: "/post-job" },
-      { label: "News Feed", to: "/news" },
-      { label: "My Profile", to: "/profile" },
-      { label: "Settings", to: "/settings" },
+      { label: t("navbar.employerDashboard"), to: "/employer" },
+      { label: t("navbar.postVacancy"), to: "/post-job" },
+      { label: t("navbar.newsFeed"), to: "/news" },
+      { label: t("navbar.myProfile"), to: "/profile" },
+      { label: t("navbar.settings"), to: "/settings" },
     ];
   }
 
   return [
     {
-      label: "My Dashboard",
+      label: t("navbar.myDashboard"),
       submenu: [
-        { label: "Dashboard", to: "/dashboard" },
-        { label: "Your Applications", to: "/applications" },
-        { label: "My SPES", to: "/spes/applications" },
+        { label: t("navbar.dashboard"), to: "/dashboard" },
+        { label: t("navbar.yourApplications"), to: "/applications" },
+        { label: t("navbar.mySpes"), to: "/spes/applications" },
       ],
     },
-    { label: "Browse Jobs", to: "/jobs" },
-    { label: "News Feed", to: "/news" },
-    { label: "My Profile", to: "/profile" },
-    { label: "Settings", to: "/settings" },
+    { label: t("navbar.browseJobs"), to: "/jobs" },
+    { label: t("navbar.newsFeed"), to: "/news" },
+    { label: t("navbar.myProfile"), to: "/profile" },
+    { label: t("navbar.settings"), to: "/settings" },
   ];
 };
 
@@ -102,6 +114,32 @@ const getDefaultRouteByRole = (role) => {
   if (role === "employer") return "/employer";
   return "/dashboard";
 };
+
+const getJobseekerMenuGroups = (t) => [
+  {
+    label: t("navbar.overview"),
+    items: [{ label: t("navbar.dashboard"), to: "/dashboard" }],
+  },
+  {
+    label: t("navbar.career"),
+    items: [
+      { label: t("navbar.yourApplications"), to: "/applications" },
+      { label: t("navbar.mySpes"), to: "/spes/applications" },
+      { label: t("navbar.browseJobs"), to: "/jobs" },
+    ],
+  },
+  {
+    label: t("navbar.updates"),
+    items: [{ label: t("navbar.newsFeed"), to: "/news" }],
+  },
+];
+
+const getJobseekerMobileMenuSections = (t) =>
+  getJobseekerMenuGroups(t).map((group) =>
+    group.label === t("navbar.overview")
+      ? { ...group, items: [...group.items, { label: t("navbar.myProfile"), to: "/profile" }] }
+      : group
+  );
 
 const getInitials = (name) => {
   if (!name) return "U";
@@ -122,24 +160,83 @@ const UserAvatar = ({ user }) => {
   );
 };
 
+// Notifications + Messages, pinned to the top of admin/superadmin's "System
+// & Logs" group so they're always visible instead of buried at the bottom of
+// a long grouped menu. `variant: "desktop"` matches the styling of the
+// bottom-of-list links other roles get; `variant: "mobile"` matches the
+// plain-link styling the mobile panel's other submenu items already use
+// (the panel applies box styling via a parent descendant selector).
+const SystemLogsQuickLinks = ({ t, isActiveLink, unreadCount, unreadNotifications, variant, onLinkClick }) => {
+  const linkClassName = (active) => {
+    if (variant === "mobile") return active ? "is-active" : "";
+    return active ? "messages-link is-active" : "messages-link";
+  };
+
+  return (
+    <>
+      <Link
+        to="/messages"
+        className={linkClassName(isActiveLink("/messages"))}
+        onClick={onLinkClick}
+      >
+        <FaEnvelope className="nav-link-icon" aria-hidden="true" />
+        <span>{t("navbar.messages")}</span>
+        {unreadCount > 0 && (
+          <span className="user-unread-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+        )}
+      </Link>
+      <Link
+        to="/notifications"
+        className={linkClassName(isActiveLink("/notifications"))}
+        onClick={onLinkClick}
+      >
+        <FaBell className="nav-link-icon" aria-hidden="true" />
+        <span>{t("navbar.notifications")}</span>
+        {unreadNotifications > 0 && (
+          <span className="user-unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
+        )}
+      </Link>
+    </>
+  );
+};
+
 export default function Navbar() {
+  const { t } = useTranslation();
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
   const { socket, isConnected } = useSocket();
   const userRole = normalizeRole(user?.role);
   const isLoggedIn = Boolean(user);
-  const loggedInMenuItems = getLoggedInMenuItems(userRole);
-  // The superadmin is isolated from the general notification feed.
-  const showNotifications = userRole !== "superadmin";
+  const loggedInMenuItems = getLoggedInMenuItems(userRole, t);
+  const isAdminRole = userRole === "admin" || userRole === "superadmin";
+  const showNotificationsTopAction = true;
+  // Job seeker / employer keep the plain bottom-of-list links. Admin /
+  // superadmin instead get Notifications + Messages pinned to the top of
+  // their "System & Logs" group (see SYSTEM_LOGS_LABEL below) — those two
+  // pages need to always be reachable, and burying them at the very bottom
+  // of a long, grouped menu undersold that. Previously they were excluded
+  // here entirely on the assumption the icon row (above) covered them, but
+  // that row is hidden by CSS above 900px width, so on desktop they had no
+  // way to reach either page at all.
+  const showNotificationsSidebarLink = !isAdminRole;
+  const showMessagesSidebarLink = !isAdminRole;
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [isRegisterDropdownOpen, setIsRegisterDropdownOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState(null);
-  const [hoveredSubmenu, setHoveredSubmenu] = useState(null);
+
+  const jobseekerMenuGroups = getJobseekerMenuGroups(t);
+  const jobseekerMobileMenuSections = getJobseekerMobileMenuSections(t);
+  // Settings is dropped from the mobile list because the top bar already has a
+  // gear-icon shortcut to it for every role. Profile has no such shortcut on
+  // mobile (the sidebar's profile pill is desktop-only), so it must stay here
+  // or employer/admin/superadmin users have no way at all to reach it on mobile.
+  const mobileMenuItems = userRole === "jobseeker"
+    ? jobseekerMobileMenuSections
+    : loggedInMenuItems.filter((item) => item.to !== "/settings");
 
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
@@ -158,7 +255,7 @@ export default function Navbar() {
       try {
         const { data } = await messageAPI.getUnreadCount();
         setUnreadCount(Number(data?.count || 0));
-      } catch (error) {
+      } catch {
         setUnreadCount(0);
       }
     };
@@ -176,7 +273,7 @@ export default function Navbar() {
       try {
         const { data } = await notificationAPI.getUnreadCount();
         setUnreadNotifications(Number(data?.count || 0));
-      } catch (error) {
+      } catch {
         setUnreadNotifications(0);
       }
     };
@@ -214,7 +311,7 @@ export default function Navbar() {
       try {
         const { data } = await notificationAPI.getUnreadCount();
         setUnreadNotifications(Number(data?.count || 0));
-      } catch (error) {
+      } catch {
         // ignore
       }
     };
@@ -240,46 +337,7 @@ export default function Navbar() {
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
-    setIsRegisterDropdownOpen(false);
   }, [location.pathname]);
-
-  useEffect(() => {
-    const activeSubmenuItem = loggedInMenuItems.find(
-      (item) =>
-        item.submenu &&
-        item.submenu.some((subitem) => isActiveLink(subitem.to))
-    );
-
-    if (activeSubmenuItem) {
-      setOpenSubmenu(activeSubmenuItem.label);
-      return;
-    }
-
-    if (!hoveredSubmenu) {
-      setOpenSubmenu(null);
-    }
-  }, [location.pathname, hoveredSubmenu, loggedInMenuItems]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth > 768 && !user) {
-        setIsMobileMenuOpen(false);
-        setIsRegisterDropdownOpen(false);
-      }
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [user]);
-
-  const openLogoutModal = () => {
-    setIsMobileMenuOpen(false);
-    setShowLogoutModal(true);
-  };
-
-  const closeMobileMenu = () => setIsMobileMenuOpen(false);
-  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
-  const handleRegisterClick = () => setIsRegisterDropdownOpen(!isRegisterDropdownOpen);
-  const closeRegisterDropdown = () => setIsRegisterDropdownOpen(false);
 
   const isActiveLink = (to) => {
     const path = to.split("#")[0];
@@ -295,7 +353,62 @@ export default function Navbar() {
     return location.pathname === path;
   };
 
-  const isSubmenuOpen = (label) => openSubmenu === label || hoveredSubmenu === label;
+  useEffect(() => {
+    const activeSubmenuItem = loggedInMenuItems.find(
+      (item) =>
+        item.submenu &&
+        item.submenu.some((subitem) => isActiveLink(subitem.to))
+    );
+
+    if (activeSubmenuItem) {
+      setOpenSubmenu(activeSubmenuItem.label);
+      return;
+    }
+
+    setOpenSubmenu(null);
+  }, [location.pathname, loggedInMenuItems, isActiveLink]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768 && !user) {
+        setIsMobileMenuOpen(false);
+        setOpenSubmenu(null);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [user]);
+
+  const openLogoutModal = () => {
+    setIsMobileMenuOpen(false);
+    setOpenSubmenu(null);
+    setShowLogoutModal(true);
+  };
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+    setOpenSubmenu(null);
+  };
+
+  const toggleMobileMenu = () => {
+    if (isMobileMenuOpen) {
+      closeMobileMenu();
+      return;
+    }
+
+    const activeGroup = loggedInMenuItems.find(
+      (item) => item.submenu && item.submenu.some((subitem) => isActiveLink(subitem.to))
+    );
+
+    setOpenSubmenu(activeGroup?.label ?? null);
+    setIsMobileMenuOpen(true);
+  };
+
+  // Props for <SystemLogsQuickLinks> — pinned to the top of admin/superadmin's
+  // "System & Logs" group (see getLoggedInMenuItems) instead of the plain
+  // bottom-of-list placement job seekers/employers get.
+  const quickLinkProps = { t, isActiveLink, unreadCount, unreadNotifications, variant: "desktop" };
+  const mobileQuickLinkProps = { ...quickLinkProps, variant: "mobile", onLinkClick: closeMobileMenu };
 
   const isSetupRoute = SETUP_PATHS.has(location.pathname);
 
@@ -305,6 +418,18 @@ export default function Navbar() {
     else document.body.classList.remove(bodyClass);
     return () => document.body.classList.remove(bodyClass);
   }, [isLoggedIn, isSetupRoute]);
+
+  // Prevents the page behind the mobile menu overlay from scrolling while
+  // it's open (matches the lock ImageEditorModal.jsx/FeedbackProvider.jsx
+  // already use for their own overlays).
+  useEffect(() => {
+    if (!isMobileMenuOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobileMenuOpen]);
 
   // On setup / onboarding flows the page supplies its own step rail, so the
   // app sidebar is collapsed away entirely (same behaviour as the applicant
@@ -319,84 +444,124 @@ export default function Navbar() {
             <div className="nav-logo-icon">
               <img src={pesoLogo} alt="PESO Marinduque Logo" />
             </div>
-            <span className="nav-logo-text">STRAM PESO</span>
+            <span className="nav-logo-text">{t("common.appName")}</span>
           </Link>
 
-          <button
-            type="button"
-            className="mobile-menu-toggle mobile-menu-toggle--auth"
-            onClick={toggleMobileMenu}
-            aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-            aria-expanded={isMobileMenuOpen}
-            aria-controls="mobile-nav-panel"
-          >
-            {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
-          </button>
+          <div className="auth-sidebar-actions">
+            <Link to="/messages" className="auth-sidebar-action" aria-label={t("navbar.messages")}>
+              <FaEnvelope />
+            </Link>
+            {showNotificationsTopAction && (
+              <Link to="/notifications" className="auth-sidebar-action" aria-label={t("navbar.notifications")}>
+                <FaBell />
+                {unreadNotifications > 0 && (
+                  <span className="user-unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
+                )}
+              </Link>
+            )}
+            <Link to="/settings" className="auth-sidebar-action" aria-label={t("navbar.settings")}>
+              <FaCog />
+            </Link>
+            <button
+              type="button"
+              className="mobile-menu-toggle mobile-menu-toggle--auth"
+              onClick={toggleMobileMenu}
+              aria-label={isMobileMenuOpen ? t("navbar.closeNav") : t("navbar.openNav")}
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="mobile-nav-panel"
+            >
+              {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
+            </button>
+          </div>
         </div>
 
-        <div className="auth-sidebar-profile">
-          <button type="button" className="user-pill-button" onClick={() => navigate("/profile")}>
-            <span className="user-name">
-              <UserAvatar user={user} />
-              {user?.name}
-            </span>
-          </button>
-        </div>
+        {userRole === "superadmin" ? (
+          <div className="auth-sidebar-role">
+            <span className="auth-sidebar-role-badge">{t("navbar.saSystemAdmin")}</span>
+          </div>
+        ) : (
+          <div className="auth-sidebar-profile">
+            <button type="button" className="user-pill-button" onClick={() => navigate("/profile")}>
+              <span className="user-name">
+                <UserAvatar user={user} />
+                {user?.name}
+              </span>
+            </button>
+          </div>
+        )}
 
         <div className="auth-sidebar-nav" aria-label="Authenticated navigation">
-          {loggedInMenuItems.map((item) => (
-            item.submenu ? (
-              <div
-                key={item.label}
-                className="nav-submenu-group"
-                onMouseEnter={() => setHoveredSubmenu(item.label)}
-                onMouseLeave={() => setHoveredSubmenu(null)}
-              >
-                <button
-                  type="button"
-                  className="nav-submenu-toggle"
-                  onClick={() => setOpenSubmenu(openSubmenu === item.label ? null : item.label)}
-                  onFocus={() => setHoveredSubmenu(item.label)}
-                  onBlur={() => setHoveredSubmenu(null)}
-                  aria-expanded={isSubmenuOpen(item.label)}
-                >
-                  {item.label}
-                </button>
-                <div className={`nav-submenu ${isSubmenuOpen(item.label) ? "is-open" : ""}`}>
-                  {item.submenu.map((subitem) => (
+          {userRole === "jobseeker" ? (
+            <>
+              {jobseekerMenuGroups.map((group) => (
+                <div key={group.label} className="nav-section-group">
+                  <div className="nav-section-label">{group.label}</div>
+                  {group.items.map((item) => (
                     <Link
-                      key={subitem.to}
-                      to={subitem.to}
-                      className={isActiveLink(subitem.to) ? "is-active" : ""}
-                      onClick={() => {
-                        setOpenSubmenu(null);
-                        setHoveredSubmenu(null);
-                      }}
+                      key={`${group.label}-${item.to}`}
+                      to={item.to}
+                      className={isActiveLink(item.to) ? "nav-section-link is-active" : "nav-section-link"}
                     >
-                      {subitem.label}
+                      {item.label}
                     </Link>
                   ))}
                 </div>
-              </div>
-            ) : (
-              <Link key={item.to} to={item.to} className={isActiveLink(item.to) ? "is-active" : ""}>
-                {item.label}
+              ))}
+
+              <Link to="/profile" className={isActiveLink("/profile") ? "nav-standalone-link is-active" : "nav-standalone-link"}>
+                {t("navbar.myProfile")}
               </Link>
-            )
-          ))}
+              <Link to="/settings" className={isActiveLink("/settings") ? "nav-standalone-link is-active" : "nav-standalone-link"}>
+                {t("navbar.settings")}
+              </Link>
+            </>
+          ) : (
+            loggedInMenuItems.map((item) => {
+              if (item.submenu) {
+                const isSystemLogsGroup = isAdminRole && item.label === t("navbar.systemLogs");
+                return (
+                  <div key={item.label} className="nav-section-group">
+                    <div className="nav-section-label">{item.label}</div>
+                    {isSystemLogsGroup && <SystemLogsQuickLinks {...quickLinkProps} />}
+                    {item.submenu.map((subitem) => (
+                      <Link
+                        key={`${item.label}-${subitem.to}`}
+                        to={subitem.to}
+                        className={isActiveLink(subitem.to) ? "nav-section-link is-active" : "nav-section-link"}
+                      >
+                        {subitem.label}
+                      </Link>
+                    ))}
+                  </div>
+                );
+              }
 
-          <Link to="/messages" className={isActiveLink("/messages") ? "messages-link is-active" : "messages-link"}>
-            <FaEnvelope className="nav-link-icon" aria-hidden="true" />
-            <span>Messages</span>
-            {unreadCount > 0 && (
-              <span className="user-unread-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
-            )}
-          </Link>
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={isActiveLink(item.to) ? "nav-standalone-link is-active" : "nav-standalone-link"}
+                >
+                  {item.label}
+                </Link>
+              );
+            })
+          )}
 
-          {showNotifications && (
+          {showMessagesSidebarLink && (
+            <Link to="/messages" className={isActiveLink("/messages") ? "messages-link is-active" : "messages-link"}>
+              <FaEnvelope className="nav-link-icon" aria-hidden="true" />
+              <span>{t("navbar.messages")}</span>
+              {unreadCount > 0 && (
+                <span className="user-unread-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+              )}
+            </Link>
+          )}
+
+          {showNotificationsSidebarLink && (
             <Link to="/notifications" className={isActiveLink("/notifications") ? "messages-link is-active" : "messages-link"}>
               <FaBell className="nav-link-icon" aria-hidden="true" />
-              <span>Notifications</span>
+              <span>{t("navbar.notifications")}</span>
               {unreadNotifications > 0 && (
                 <span className="user-unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
               )}
@@ -405,7 +570,7 @@ export default function Navbar() {
         </div>
 
         <button className="logout-btn auth-sidebar-logout" onClick={openLogoutModal}>
-          Logout
+          {t("common.logout")}
         </button>
 
         {/* Mobile menu panel */}
@@ -420,40 +585,36 @@ export default function Navbar() {
                 <span className="mobile-menu-brand-icon">
                   <img src={pesoLogo} alt="PESO Marinduque Logo" />
                 </span>
-                <span className="mobile-menu-brand-text">STRAM PESO</span>
+                <span className="mobile-menu-brand-text">{t("common.appName")}</span>
               </Link>
 
               <div className="mobile-menu-links">
-                <button
-                  type="button"
-                  className="user-pill-button"
-                  onClick={() => {
-                    navigate("/profile");
-                    closeMobileMenu();
-                  }}
-                >
-                  <span className="user-name">
-                    <UserAvatar user={user} />
-                    {user?.name}
-                  </span>
-                </button>
-
-                {loggedInMenuItems.map((item) => (
-                  item.submenu ? (
-                    <div key={item.label} className="mobile-nav-submenu-group">
-                      <button
-                        type="button"
-                        className="mobile-nav-submenu-toggle"
-                        onClick={() => setOpenSubmenu(openSubmenu === item.label ? null : item.label)}
-                        aria-expanded={isSubmenuOpen(item.label)}
-                      >
-                        {item.label}
-                      </button>
-                      {isSubmenuOpen(item.label) && (
-                        <div className="mobile-nav-submenu">
+                {userRole === "jobseeker"
+                  ? mobileMenuItems.map((section) => (
+                    <div key={section.label} className="mobile-nav-section-group">
+                      <div className="mobile-nav-section-label">{section.label}</div>
+                      {section.items.map((item) => (
+                        <Link
+                          key={`${section.label}-${item.to}`}
+                          to={item.to}
+                          className={isActiveLink(item.to) ? "is-active" : ""}
+                          onClick={closeMobileMenu}
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
+                  ))
+                  : mobileMenuItems.map((item) => {
+                    if (item.submenu) {
+                      const isSystemLogsGroup = isAdminRole && item.label === t("navbar.systemLogs");
+                      return (
+                        <div key={item.label} className="mobile-nav-section-group">
+                          <div className="mobile-nav-section-label">{item.label}</div>
+                          {isSystemLogsGroup && <SystemLogsQuickLinks {...mobileQuickLinkProps} />}
                           {item.submenu.map((subitem) => (
                             <Link
-                              key={subitem.to}
+                              key={`${item.label}-${subitem.to}`}
                               to={subitem.to}
                               className={isActiveLink(subitem.to) ? "is-active" : ""}
                               onClick={closeMobileMenu}
@@ -462,35 +623,38 @@ export default function Navbar() {
                             </Link>
                           ))}
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <Link key={item.to} to={item.to} className={isActiveLink(item.to) ? "is-active" : ""} onClick={closeMobileMenu}>
-                      {item.label}
-                    </Link>
-                  )
-                ))}
+                      );
+                    }
 
-                <Link to="/messages" className={isActiveLink("/messages") ? "messages-link is-active" : "messages-link"} onClick={closeMobileMenu}>
-                  <FaEnvelope className="nav-link-icon" aria-hidden="true" />
-                  <span>Messages</span>
-                  {unreadCount > 0 && (
-                    <span className="user-unread-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
-                  )}
-                </Link>
+                    return (
+                      <Link key={item.to} to={item.to} className={isActiveLink(item.to) ? "is-active" : ""} onClick={closeMobileMenu}>
+                        {item.label}
+                      </Link>
+                    );
+                  })}
 
-                {showNotifications && (
+                {showNotificationsSidebarLink && (
                   <Link to="/notifications" className={isActiveLink("/notifications") ? "messages-link is-active" : "messages-link"} onClick={closeMobileMenu}>
                     <FaBell className="nav-link-icon" aria-hidden="true" />
-                    <span>Notifications</span>
+                    <span>{t("navbar.notifications")}</span>
                     {unreadNotifications > 0 && (
                       <span className="user-unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
                     )}
                   </Link>
                 )}
 
+                {showMessagesSidebarLink && (
+                  <Link to="/messages" className={isActiveLink("/messages") ? "messages-link is-active" : "messages-link"} onClick={closeMobileMenu}>
+                    <FaEnvelope className="nav-link-icon" aria-hidden="true" />
+                    <span>{t("navbar.messages")}</span>
+                    {unreadCount > 0 && (
+                      <span className="user-unread-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                    )}
+                  </Link>
+                )}
+
                 <button className="logout-btn" onClick={openLogoutModal}>
-                  Logout
+                  {t("common.logout")}
                 </button>
               </div>
             </aside>
@@ -500,14 +664,14 @@ export default function Navbar() {
         {showLogoutModal && (
           <div className="logout-modal-overlay" onClick={() => setShowLogoutModal(false)}>
             <div className="logout-modal" onClick={(event) => event.stopPropagation()}>
-              <h3>Log out of STRAM PESO?</h3>
-              <p>You will need to sign in again to access your account.</p>
+              <h3>{t("common.logoutConfirmTitle")}</h3>
+              <p>{t("common.logoutConfirmMessage")}</p>
               <div className="logout-modal-actions">
                 <button type="button" className="logout-cancel-btn" onClick={() => setShowLogoutModal(false)}>
-                  Cancel
+                  {t("common.cancel")}
                 </button>
                 <button type="button" className="logout-confirm-btn" onClick={handleConfirmLogout}>
-                  Log Out
+                  {t("common.logout")}
                 </button>
               </div>
             </div>
@@ -525,14 +689,14 @@ export default function Navbar() {
           <div className="nav-logo-icon">
             <img src={pesoLogo} alt="PESO Marinduque Logo" />
           </div>
-          <span className="nav-logo-text">STRAM PESO</span>
+          <span className="nav-logo-text">{t("common.appName")}</span>
         </Link>
 
         <button
           type="button"
           className="mobile-menu-toggle mobile-menu-toggle--public"
           onClick={toggleMobileMenu}
-          aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-label={isMobileMenuOpen ? t("navbar.closeNav") : t("navbar.openNav")}
           aria-expanded={isMobileMenuOpen}
           aria-controls="mobile-nav-panel"
         >
@@ -540,36 +704,21 @@ export default function Navbar() {
         </button>
 
         <div className="nav-links nav-links--public">
-          <Link to="/">Home</Link>
-          <Link to="/about">About</Link>
-          <Link to="/news">News</Link>
-          <Link to="/#available-jobs">Available Jobs</Link>
-          <Link to="/login">Login</Link>
+          <Link to="/">{t("common.home")}</Link>
+          <Link to="/about">{t("common.about")}</Link>
+          <Link to="/news">{t("common.news")}</Link>
+          <Link to="/#available-jobs">{t("common.availableJobs")}</Link>
 
-          <div className="register-dropdown">
-            <button
-              type="button"
-              className="register-dropdown-btn"
-              onClick={handleRegisterClick}
-              onMouseEnter={() => setIsRegisterDropdownOpen(true)}
-              onMouseLeave={closeRegisterDropdown}
-            >
-              Register <FaChevronDown className={`dropdown-arrow ${isRegisterDropdownOpen ? "rotate" : ""}`} />
-            </button>
-            {isRegisterDropdownOpen && (
-              <div
-                className="register-dropdown-menu"
-                onMouseEnter={() => setIsRegisterDropdownOpen(true)}
-                onMouseLeave={closeRegisterDropdown}
-              >
-                <Link to="/register" onClick={closeMobileMenu}>
-                  Register as Applicant
-                </Link>
-                <Link to="/register-employer" onClick={closeMobileMenu}>
-                  Register as Employer
-                </Link>
-              </div>
-            )}
+          <div className="nav-cta-group">
+            <Link to="/register" className="nav-cta-btn nav-cta-btn--secondary" onClick={closeMobileMenu}>
+              {t("common.applicant")}
+            </Link>
+            <Link to="/register-employer" className="nav-cta-btn nav-cta-btn--primary" onClick={closeMobileMenu}>
+              {t("common.employer")}
+            </Link>
+            <Link to="/login" className="nav-cta-btn nav-cta-btn--login" onClick={closeMobileMenu}>
+              {t("common.login")}
+            </Link>
           </div>
         </div>
       </div>
@@ -578,30 +727,34 @@ export default function Navbar() {
         <div className="mobile-menu-overlay" onClick={closeMobileMenu}>
           <aside
             id="mobile-nav-panel"
-            className="mobile-menu-panel"
+            className="mobile-menu-panel mobile-menu-panel--bottom"
             onClick={(event) => event.stopPropagation()}
           >
             <Link to="/" className="mobile-menu-brand" onClick={closeMobileMenu}>
               <span className="mobile-menu-brand-icon">
                 <img src={pesoLogo} alt="PESO Marinduque Logo" />
               </span>
-              <span className="mobile-menu-brand-text">STRAM PESO</span>
+              <span className="mobile-menu-brand-text">{t("common.appName")}</span>
             </Link>
 
             <div className="mobile-menu-links">
-              <Link to="/" onClick={closeMobileMenu}>Home</Link>
-              <Link to="/about" onClick={closeMobileMenu}>About</Link>
-              <Link to="/news" onClick={closeMobileMenu}>News</Link>
-              <Link to="/#available-jobs" onClick={closeMobileMenu}>Available Jobs</Link>
-              <Link to="/login" onClick={closeMobileMenu}>Login</Link>
+              <Link to="/" onClick={closeMobileMenu}>{t("common.home")}</Link>
+              <Link to="/about" onClick={closeMobileMenu}>{t("common.about")}</Link>
+              <Link to="/news" onClick={closeMobileMenu}>{t("common.news")}</Link>
+              <Link to="/#available-jobs" onClick={closeMobileMenu}>{t("common.availableJobs")}</Link>
+            </div>
 
-              <div className="mobile-register-section">
-                <div className="mobile-register-label">Register as:</div>
+            <div className="mobile-register-section">
+              <div className="mobile-register-label">{t("common.joinAs")}</div>
+              <div className="mobile-register-buttons">
                 <Link to="/register" onClick={closeMobileMenu} className="mobile-register-link">
-                  Applicant
+                  {t("common.applicant")}
                 </Link>
-                <Link to="/register-employer" onClick={closeMobileMenu} className="mobile-register-link">
-                  Employer
+                <Link to="/register-employer" onClick={closeMobileMenu} className="mobile-register-link mobile-register-link--employer">
+                  {t("common.employer")}
+                </Link>
+                <Link to="/login" onClick={closeMobileMenu} className="mobile-register-link mobile-register-link--login">
+                  {t("common.login")}
                 </Link>
               </div>
             </div>

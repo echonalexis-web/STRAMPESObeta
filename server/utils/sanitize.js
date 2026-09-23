@@ -27,6 +27,11 @@ const sanitizeObject = (obj) => {
   return sanitized;
 };
 
+// Escapes regex metacharacters so a value can be safely interpolated into a
+// MongoDB $regex without letting a caller-supplied pattern like `(a+)+$`
+// cause catastrophic backtracking (ReDoS) on the query.
+const escapeRegex = (value = "") => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 // Sanitize email
 const sanitizeEmail = (email) => {
   if (!email) return '';
@@ -107,5 +112,6 @@ module.exports = {
   sanitizeUrl,
   hasDangerousContent,
   sanitizeFilename,
-  sanitizeHtml
+  sanitizeHtml,
+  escapeRegex
 };

@@ -16,11 +16,13 @@
 .jobboard-hero {
   max-width: 1200px;
   margin: 0 auto 32px;
-  background: linear-gradient(135deg, #1a5c2a 0%, #2e7d42 50%, #43a047 100%);
+  background:
+    linear-gradient(90deg, rgba(8, 53, 27, 0.72) 0%, rgba(18, 93, 53, 0.55) 42%, rgba(18, 93, 53, 0.3) 100%),
+    url('../assets/images/available-jobs.jpg') center center / cover no-repeat;
   border-radius: 16px;
   padding: 48px 40px;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   box-shadow: 0 8px 32px rgba(26, 92, 42, 0.25);
 }
 
@@ -1613,22 +1615,31 @@
   text-align: center;
 }
 
-/* Mobile responsiveness */
+/* Mobile responsiveness — a compact single row (‹ Previous | Page X of Y |
+   Next ›), matching the common web pagination pattern, instead of two
+   full-width stacked buttons. Scoped off the employer dashboard's own
+   pagination variant, which already handles its layout separately. */
 @media (max-width: 600px) {
-  .pagination-controls {
-    flex-direction: column;
-    gap: 12px;
-    padding: 16px;
+  .pagination-controls:not(.employer-pagination-controls) {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 14px;
   }
 
-  .pagination-btn {
-    width: 100%;
-    justify-content: center;
+  .pagination-controls:not(.employer-pagination-controls) .pagination-btn {
+    width: auto;
+    flex: 0 0 auto;
+    padding: 8px 14px;
+    font-size: 13px;
   }
 
-  .pagination-info {
-    order: -1;
-    width: 100%;
+  .pagination-controls:not(.employer-pagination-controls) .pagination-info {
+    order: 0;
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
   }
 }
 
@@ -1937,9 +1948,14 @@
 /* GLOBAL BUTTON SYSTEM */
 /* ============================================ */
 
-/* Base Button Styles */
+/* Base Button Styles
+   Deliberately scoped to real <button> elements and the opt-in .btn class —
+   NOT [role="button"]. That role is used across the app on custom
+   interactive elements (cards, dropzones, rows) that already own their own
+   layout; forcing this reset onto them collapsed their flex containers to
+   content width and re-centered everything inside (see the Home page job
+   cards, where it fought the card's own flex layout). */
 button,
-[role="button"],
 .btn {
   font-family: inherit;
   font-weight: 600;
@@ -1957,7 +1973,6 @@ button,
 }
 
 button:disabled,
-[role="button"]:disabled,
 .btn:disabled {
   cursor: not-allowed;
   opacity: 0.6;
@@ -2444,6 +2459,21 @@ button:disabled,
   opacity: 0.7;
 }
 
+.app-status-select-wrap {
+  display: none;
+}
+
+.app-status-select {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid #d5dbe0;
+  background: #ffffff;
+  color: #2e7d32;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .app-list-empty {
   margin: 24px 2px;
   color: #6b7280;
@@ -2510,6 +2540,10 @@ button:disabled,
 
 .app-row-title {
   flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
   border: none;
   background: none;
   padding: 0;
@@ -2540,6 +2574,46 @@ button:disabled,
   margin-top: 4px;
   font-size: 11.5px;
   color: #7a8a7d;
+}
+
+.app-interview-card {
+  margin-top: 10px;
+  padding: 10px 12px;
+  width: 100%;
+  border: 1px solid #ede9fe;
+  border-radius: 10px;
+  background: #f5f3ff;
+}
+
+.app-interview-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #6d28d9;
+}
+
+.app-interview-card-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: #3f4a56;
+}
+
+.app-interview-card-row a {
+  color: #6d28d9;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.app-interview-card-notes {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #5a6672;
+  font-style: italic;
 }
 
 .app-row-actions {
@@ -2635,6 +2709,15 @@ button:disabled,
 }
 
 @media (max-width: 640px) {
+  .app-status-tabs {
+    display: none;
+  }
+
+  .app-status-select-wrap {
+    display: block;
+    margin: 4px 2px 20px;
+  }
+
   .app-row {
     grid-template-columns: 36px 1fr;
   }

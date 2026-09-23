@@ -1,44 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import { useModalA11y } from "../hooks/useModalA11y";
 
 export default function AppModal({ isOpen, onClose, title, children }) {
   const dialogRef = useRef(null);
-
-  useEffect(() => {
-    if (!isOpen || !dialogRef.current) return;
-
-    const root = dialogRef.current;
-    const focusable = root.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-
-    if (focusable.length > 0) {
-      focusable[0].focus();
-    }
-
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        onClose();
-        return;
-      }
-
-      if (event.key !== "Tab") return;
-      if (focusable.length === 0) return;
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  useModalA11y(isOpen, onClose, dialogRef);
 
   if (!isOpen) return null;
 

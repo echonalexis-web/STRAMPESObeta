@@ -6,6 +6,10 @@ const {
   resetAdminPassword,
   deleteJob,
 } = require("../controllers/superadminController");
+const {
+  getSystemSettings,
+  updateSystemSettings,
+} = require("../controllers/systemSettingsController");
 const { verifyToken: protect, isSuperadmin } = require("../middleware/auth");
 const {
   sanitizeRequestBody,
@@ -49,6 +53,15 @@ router.delete(
   sanitizeRequestBody,
   detectMaliciousPayload,
   deleteJob
+);
+
+// Settings → System Preferences
+router.get("/system-settings", getSystemSettings);
+router.put(
+  "/system-settings",
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  updateSystemSettings
 );
 
 module.exports = router;

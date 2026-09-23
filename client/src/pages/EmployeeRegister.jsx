@@ -3,12 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
 import GoogleSignInButton from "../components/GoogleSignInButton";
+import { useToast } from "../components/feedback/context";
 import "../styles/auth.css";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import pesoLogo from "../assets/images/peso-logo.png";
 import provincialSeal from "../assets/images/provincial-seal.png";
 
-const normalizeRole = (role) => (role === "employee" || role === "jobseeker" ? "resident" : role);
+const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
 const validatePassword = (password) => {
   const errors = [];
@@ -82,6 +83,7 @@ export default function EmployerRegister() {
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [devVerifyUrl, setDevVerifyUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState([]);
   const [touched, setTouched] = useState({});
@@ -89,6 +91,14 @@ export default function EmployerRegister() {
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const toast = useToast();
+
+  // A toast alongside the inline banner so the error is seen immediately,
+  // regardless of scroll position.
+  const showError = (message) => {
+    setError(message);
+    if (message) toast.error(message);
+  };
 
   /* ─── Spotlight mouse tracking ─── */
   useEffect(() => {
@@ -115,7 +125,7 @@ export default function EmployerRegister() {
       const errors = validatePassword(value);
       setPasswordErrors(errors);
       if (error && error.includes("email")) {
-        setError("");
+        showError("");
       }
     }
   };
@@ -136,27 +146,28 @@ export default function EmployerRegister() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    showError("");
     setSuccess("");
+    setDevVerifyUrl("");
 
     // ─── Empty-field validation ───
     const newTouched = { name: true, email: true, password: true };
     setTouched(newTouched);
 
     if (!formData.name.trim() && !formData.email.trim() && !formData.password) {
-      setError("Please fill in all required fields.");
+      showError("Please fill in all required fields.");
       return;
     }
     if (!formData.name.trim()) {
-      setError("Please enter the business name.");
+      showError("Please enter the business name.");
       return;
     }
     if (!formData.email.trim()) {
-      setError("Please enter the business email.");
+      showError("Please enter the business email.");
       return;
     }
     if (!formData.password) {
-      setError("Please enter a password.");
+      showError("Please enter a password.");
       return;
     }
 
@@ -169,13 +180,13 @@ export default function EmployerRegister() {
 
     // Basic email validation
     if (!formData.email.includes("@") || !formData.email.includes(".")) {
-      setError("Please enter a valid email address.");
+      showError("Please enter a valid email address.");
       return;
     }
 
     // Name validation
     if (formData.name.trim().length < 2) {
-      setError("Please enter the business name.");
+      showError("Please enter the business name.");
       return;
     }
 
@@ -191,7 +202,8 @@ export default function EmployerRegister() {
       const response = await authAPI.registerEmployer(trimmedData);
       
       if (response.data?.message || response.status === 201 || response.status === 200) {
-        setSuccess("Account created! Please log in and upload your business documents for verification.");
+        setSuccess("Account created! We've sent a verification link to your email — verify it, then log in to upload your business documents for verification.");
+        setDevVerifyUrl(response.data?.devVerifyUrl || "");
         setFormData({
           name: "",
           email: "",
@@ -204,14 +216,14 @@ export default function EmployerRegister() {
       }
     } catch (err) {
       console.error("Registration error:", err);
-      setError(formatApiError(err, "Registration failed. Please try again."));
+      showError(formatApiError(err, "Registration failed. Please try again."));
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleCredential = async (credential) => {
-    setError("");
+    showError("");
     setSuccess("");
     setLoading(true);
     try {
@@ -256,7 +268,7 @@ export default function EmployerRegister() {
         navigate("/account-suspended");
         return;
       }
-      setError(formatApiError(err, "Google sign-in failed"));
+      showError(formatApiError(err, "Google sign-in failed"));
     } finally {
       setLoading(false);
     }
@@ -300,6 +312,13 @@ export default function EmployerRegister() {
           {success && (
             <div className="success-message" role="alert">
               {success}
+              {devVerifyUrl && (
+                <>
+                  <br />
+                  <strong>Dev:</strong> email isn&rsquo;t wired up yet &mdash;{" "}
+                  <a href={devVerifyUrl}>open the verification link</a>.
+                </>
+              )}
             </div>
           )}
 

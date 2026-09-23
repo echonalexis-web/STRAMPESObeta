@@ -1,7 +1,7 @@
-import { useContext, useEffect, useState, useRef } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { adminAPI, jobAPI } from "../services/api";
+import { adminAPI, jobAPI, displayFileName } from "../services/api";
 import { useToast, useConfirm } from "../components/feedback/context";
 import "../styles/report.css";
 import AppModal from "../components/AppModal";
@@ -10,8 +10,10 @@ import EmployerModal from "../components/EmployerModal";
 import ReportButton from "../components/ReportButton";
 import QualificationsDisplay from "../components/QualificationsDisplay";
 import SecureFileLink from "../components/SecureFileLink";
+import ApplyModal from "../components/ApplyModal";
+import VacancyCard from "../components/VacancyCard";
 import { useFollow } from "../hooks/useFollow";
-import { FaPlus, FaCheck } from "react-icons/fa";
+import { FaPlus, FaCheck, FaExclamationTriangle } from "react-icons/fa";
 import "../styles/qualifications-editor.css";
 
 const STATUS_META = {
@@ -27,8 +29,6 @@ const STATUS_META = {
 const statusMeta = (status) =>
   STATUS_META[String(status || "").toLowerCase()] || { label: status || "Pending review", tone: "pending" };
 
-const baseName = (path) => (path ? String(path).replace(/\\/g, "/").split("/").pop() : "");
-
 export default function JobDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -41,18 +41,18 @@ export default function JobDetail() {
   const [myApplication, setMyApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [resumeFile, setResumeFile] = useState(null);
-  const [coverLetterFile, setCoverLetterFile] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [unavailableTitle, setUnavailableTitle] = useState("");
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [employerModalOpen, setEmployerModalOpen] = useState(false);
-  const resumeInputRef = useRef(null);
-  const coverLetterInputRef = useRef(null);
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const [applyModalOpen, setApplyModalOpen] = useState(false);
+  const [recommendedJobs, setRecommendedJobs] = useState([]);
+  const [recLoading, setRecLoading] = useState(false);
+  const [recHasSkills, setRecHasSkills] = useState(true);
+  const [recApplications, setRecApplications] = useState([]);
+  const [recApplyJobId, setRecApplyJobId] = useState(null);
 
   const isAdminUser = user?.role === "admin";
-  const isResident = user?.role === "resident";
+  const isJobseeker = user?.role === "jobseeker";
   const editMode = searchParams.get("mode") === "edit";
   const userId = user?._id || user?.id;
 
@@ -66,9 +66,10 @@ export default function JobDetail() {
     const load = async () => {
       setLoading(true);
       setError("");
+      setUnavailableTitle("");
       try {
         const jobReq = jobAPI.getJobById(id);
-        const appsReq = isResident ? jobAPI.getMyApplications() : Promise.resolve(null);
+        const appsReq = isJobseeker ? jobAPI.getMyApplications() : Promise.resolve(null);
         const [jobRes, appsRes] = await Promise.all([jobReq, appsReq]);
         if (cancelled) return;
         setJob(jobRes.data);
@@ -80,14 +81,45 @@ export default function JobDetail() {
           setMyApplication(null);
         }
       } catch (err) {
-        if (!cancelled) setError(err.response?.data?.message || "Failed to load job details");
+        if (!cancelled) {
+          setError(err.response?.data?.message || "Failed to load job details");
+          setUnavailableTitle(err.response?.data?.title || "");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     load();
     return () => { cancelled = true; };
-  }, [id, isResident, userId]);
+  }, [id, isJobseeker, userId]);
+
+  // When the job turns out to be unavailable, back the replacement page with
+  // a short list of matching openings so the dead end still leads somewhere.
+  useEffect(() => {
+    if (loading || job || !error) return;
+    let cancelled = false;
+    const loadRecommendations = async () => {
+      setRecLoading(true);
+      try {
+        const recReq = jobAPI.searchJobsWithSemantic({ limit: 4 });
+        const appsReq = isJobseeker ? jobAPI.getMyApplications() : Promise.resolve(null);
+        const [recRes, appsRes] = await Promise.all([recReq, appsReq]);
+        if (cancelled) return;
+        setRecommendedJobs(Array.isArray(recRes.data?.jobs) ? recRes.data.jobs : []);
+        setRecHasSkills(recRes.data?.hasSkills !== undefined ? recRes.data.hasSkills : true);
+        setRecApplications(appsRes && Array.isArray(appsRes.data) ? appsRes.data : []);
+      } catch {
+        if (!cancelled) {
+          setRecommendedJobs([]);
+          setRecApplications([]);
+        }
+      } finally {
+        if (!cancelled) setRecLoading(false);
+      }
+    };
+    loadRecommendations();
+    return () => { cancelled = true; };
+  }, [loading, error, job, isJobseeker]);
 
   const formatDate = (value) => {
     if (!value) return "Not specified";
@@ -98,110 +130,22 @@ export default function JobDetail() {
     });
   };
 
-  const validateFile = (file, label) => {
-    if (file.size > MAX_FILE_SIZE) {
-      return `${label} file size exceeds 5MB limit. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`;
-    }
-    const allowedTypes = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
-    if (!allowedTypes.includes(file.type)) {
-      return `Invalid ${label.toLowerCase()} file type. Please upload PDF, DOC, or DOCX files.`;
-    }
-    return null;
-  };
-
-  const handleResumeChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const fileError = validateFile(file, "Resume");
-    if (fileError) {
-      setError(fileError);
-      e.target.value = "";
-      setResumeFile(null);
-      return;
-    }
-    setResumeFile(file);
-    setError("");
-  };
-
-  const handleCoverLetterFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) {
-      setCoverLetterFile(null);
-      return;
-    }
-    const fileError = validateFile(file, "Cover letter");
-    if (fileError) {
-      setError(fileError);
-      e.target.value = "";
-      setCoverLetterFile(null);
-      return;
-    }
-    setCoverLetterFile(file);
-    setError("");
-  };
-
-  const resetFileInputs = () => {
-    setResumeFile(null);
-    setCoverLetterFile(null);
-    if (resumeInputRef.current) resumeInputRef.current.value = "";
-    if (coverLetterInputRef.current) coverLetterInputRef.current.value = "";
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (submitting) return;
-
+  const handleApplyClick = () => {
     if (!user) {
       setShowAuthPrompt(true);
       return;
     }
+    setApplyModalOpen(true);
+  };
 
-    setError("");
-    setSuccessMessage("");
-
-    const formData = new FormData();
-
+  const handleApplySuccess = () => {
     if (editMode && myApplication) {
-      // Editing an existing application — files are optional; anything left
-      // blank keeps what was submitted before.
-      if (resumeFile) formData.append("resume", resumeFile);
-      if (coverLetterFile) formData.append("coverLetterFile", coverLetterFile);
-      setSubmitting(true);
-      try {
-        await jobAPI.updateApplication(myApplication._id, formData);
-        toast.success("Application updated.");
-        resetFileInputs();
-        navigate(`/jobs/${id}`, { replace: true });
-      } catch (err) {
-        setError(err.response?.data?.message || "Failed to update application.");
-      } finally {
-        setSubmitting(false);
-      }
+      toast.success("Application updated.");
+      navigate(`/jobs/${id}`, { replace: true });
       return;
     }
-
-    // New application — résumé is required.
-    if (!resumeFile) {
-      setError("Please upload your resume before applying.");
-      return;
-    }
-    formData.append("resume", resumeFile);
-    if (coverLetterFile) formData.append("coverLetterFile", coverLetterFile);
-
-    setSubmitting(true);
-    try {
-      await jobAPI.applyToJob(id, formData);
-      setSuccessMessage("Application submitted.");
-      resetFileInputs();
-      setTimeout(() => navigate(`/jobs/${id}`, { replace: true }), 1200);
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to submit application");
-      setSubmitting(false);
-    }
+    toast.success("Application submitted!");
+    navigate("/applications");
   };
 
   const handleWithdraw = async () => {
@@ -248,14 +192,96 @@ export default function JobDetail() {
   const employerDescription = job?.employer?.companyDescription || "No employer description provided.";
 
   if (loading) return <div className="report-container"><p>Loading job details...</p></div>;
-  if (error && !job) return <div className="report-container"><div className="error-message">{error}</div></div>;
+
+  if (error && !job) {
+    const isRecJobApplied = (jobId) =>
+      recApplications.some((app) => String(app.vacancy?._id) === String(jobId));
+
+    return (
+      <div className="job-detail-page">
+        <div className="job-unavailable-wrap">
+          <nav className="job-unavailable-crumbs" aria-label="Breadcrumb">
+            <button type="button" className="job-unavailable-crumb-link" onClick={() => navigate("/jobs")}>
+              Browse Jobs
+            </button>
+            {unavailableTitle ? (
+              <>
+                <span className="job-unavailable-crumb-sep" aria-hidden="true">›</span>
+                <span className="job-unavailable-crumb-current">{unavailableTitle}</span>
+              </>
+            ) : null}
+          </nav>
+
+          <div className="job-unavailable-banner">
+            <span className="job-unavailable-banner-icon" aria-hidden="true">
+              <FaExclamationTriangle />
+            </span>
+            <div className="job-unavailable-banner-body">
+              <div className="job-unavailable-banner-head">
+                <h2>This Job Posting is No Longer Available</h2>
+                <span className="job-unavailable-badge">Closed</span>
+              </div>
+              <p>{error}</p>
+            </div>
+            <button type="button" className="job-unavailable-back-btn" onClick={() => navigate("/jobs")}>
+              ← Back to Jobs
+            </button>
+          </div>
+
+          <section className="job-unavailable-recs">
+            <div className="job-unavailable-recs-head">
+              <div>
+                <h3>Recommended Openings For You</h3>
+                <p>Based on your saved profile preferences in STRAM PESO</p>
+              </div>
+              <button type="button" className="job-unavailable-recs-viewall" onClick={() => navigate("/jobs")}>
+                View all matching →
+              </button>
+            </div>
+
+            {recLoading ? (
+              <p className="job-unavailable-recs-status">Loading recommendations…</p>
+            ) : recommendedJobs.length === 0 ? (
+              <p className="job-unavailable-recs-status">No matching openings right now. Check back soon.</p>
+            ) : (
+              <div className="job-unavailable-recs-grid">
+                {recommendedJobs.map((recJob) => (
+                  <VacancyCard
+                    key={recJob._id}
+                    job={recJob}
+                    applied={isRecJobApplied(recJob._id)}
+                    followed={Boolean(recJob.isFollowedEmployer)}
+                    matchAvailable={recHasSkills}
+                    onOpen={() => navigate(`/jobs/${recJob._id}`)}
+                    onApply={() => setRecApplyJobId(recJob._id)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+
+        <ApplyModal
+          isOpen={Boolean(recApplyJobId)}
+          onClose={() => setRecApplyJobId(null)}
+          jobId={recApplyJobId}
+          onSuccess={() => {
+            toast.success("Application submitted!");
+            setRecApplyJobId(null);
+            navigate("/applications");
+          }}
+        />
+      </div>
+    );
+  }
+
   if (!job) return <div className="report-container"><p>Job not found.</p></div>;
 
   const openings = Number(job.slots || 1);
   const hasApplied = Boolean(myApplication);
-  const showEditForm = isResident && editMode && hasApplied;
-  const showApplyForm = isResident && !hasApplied && !editMode;
-  const showStatusCard = isResident && hasApplied && !editMode;
+  const showEditForm = isJobseeker && editMode && hasApplied;
+  const showApplyForm = isJobseeker && !hasApplied && !editMode;
+  const showStatusCard = isJobseeker && hasApplied && !editMode;
   const status = hasApplied ? statusMeta(myApplication.status) : null;
 
   return (
@@ -315,8 +341,96 @@ export default function JobDetail() {
             <h3>Qualifications / Requirements</h3>
             <QualificationsDisplay qualifications={job.qualifications || []} />
           </section>
+        </main>
 
-          <section className="job-section">
+        <aside className="job-apply-column">
+          {isAdminUser ? (
+            <div className="apply-card admin-actions-card">
+              <h3>Admin Actions</h3>
+              <p className="apply-card-note">Admin accounts can review and manage this job posting but cannot apply.</p>
+              <div className="admin-job-actions">
+                <button type="button" className="btn-admin-action" onClick={handleAdminToggleJobStatus}>
+                  {job?.status === "closed" ? "Reopen Job" : "Close Job"}
+                </button>
+              </div>
+            </div>
+          ) : !user ? (
+            <div className="apply-card">
+              <h3>Apply for this position</h3>
+              <p className="apply-card-note">Log in or create an account to apply for this job.</p>
+              <div className="admin-job-actions">
+                <button type="button" className="btn-admin-action" onClick={() => navigate("/login")}>Log in</button>
+                <button type="button" className="btn-admin-action" style={{ background: "#fff", color: "#1a5c2a" }} onClick={() => navigate("/register")}>Register</button>
+              </div>
+            </div>
+          ) : showStatusCard ? (
+            <div className="apply-card">
+              <h3>Your application</h3>
+              <span className={`status-pill tone-${status.tone}`}>{status.label}</span>
+              <dl className="app-rail-dl">
+                <dt>Applied</dt>
+                <dd>{formatDate(myApplication.appliedAt)}</dd>
+                {myApplication.statusUpdatedAt && (
+                  <>
+                    <dt>Last update</dt>
+                    <dd>{formatDate(myApplication.statusUpdatedAt)}</dd>
+                  </>
+                )}
+                <dt>Résumé</dt>
+                <dd>
+                  {myApplication.resume ? (
+                    <SecureFileLink value={myApplication.resume} className="resume-link">
+                      {displayFileName(myApplication.resume) || "View résumé"}
+                    </SecureFileLink>
+                  ) : "Not provided"}
+                </dd>
+                <dt>Cover letter</dt>
+                <dd>
+                  {myApplication.coverLetterFile ? (
+                    <SecureFileLink value={myApplication.coverLetterFile} className="resume-link">
+                      {displayFileName(myApplication.coverLetterFile) || "View cover letter"}
+                    </SecureFileLink>
+                  ) : "None"}
+                </dd>
+              </dl>
+              {myApplication.employerNote && (
+                <p className="app-employer-note"><strong>Note from employer:</strong> {myApplication.employerNote}</p>
+              )}
+              <div className="app-rail-actions">
+                <button type="button" className="btn-rail" onClick={() => navigate(`/jobs/${id}/apply?mode=edit`)}>
+                  Edit application
+                </button>
+                <button type="button" className="btn-rail btn-rail-danger" onClick={handleWithdraw}>
+                  Withdraw
+                </button>
+              </div>
+            </div>
+          ) : (showApplyForm || showEditForm) ? (
+            <div className="apply-card">
+              <h3>{showEditForm ? "Update your application" : "Apply for this position"}</h3>
+              {showEditForm && (
+                <p className="apply-card-note">Attach a new file only for what you want to change.</p>
+              )}
+              <div className="form-group">
+                <button type="button" className="btn-apply" onClick={handleApplyClick}>
+                  {showEditForm ? "Edit application" : "Apply now"}
+                </button>
+                {showEditForm && (
+                  <button
+                    type="button"
+                    className="btn-rail"
+                    style={{ marginTop: "0.6rem" }}
+                    onClick={() => navigate(`/jobs/${id}`)}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+              {error && <p className="feedback-error">{error}</p>}
+            </div>
+          ) : null}
+
+          <section className="job-section job-details-section">
             <h3>Job Details</h3>
             <div className="job-details-grid">
               <div className="job-detail-item">
@@ -374,144 +488,6 @@ export default function JobDetail() {
               </div>
             ) : null}
           </section>
-        </main>
-
-        <aside className="job-apply-column">
-          {isAdminUser ? (
-            <div className="apply-card admin-actions-card">
-              <h3>Admin Actions</h3>
-              <p className="apply-card-note">Admin accounts can review and manage this job posting but cannot apply.</p>
-              <div className="admin-job-actions">
-                <button type="button" className="btn-admin-action" onClick={handleAdminToggleJobStatus}>
-                  {job?.status === "closed" ? "Reopen Job" : "Close Job"}
-                </button>
-              </div>
-            </div>
-          ) : !user ? (
-            <div className="apply-card">
-              <h3>Apply for this position</h3>
-              <p className="apply-card-note">Log in or create an account to apply for this job.</p>
-              <div className="admin-job-actions">
-                <button type="button" className="btn-admin-action" onClick={() => navigate("/login")}>Log in</button>
-                <button type="button" className="btn-admin-action" style={{ background: "#fff", color: "#1a5c2a" }} onClick={() => navigate("/register")}>Register</button>
-              </div>
-            </div>
-          ) : showStatusCard ? (
-            <div className="apply-card">
-              <h3>Your application</h3>
-              <span className={`status-pill tone-${status.tone}`}>{status.label}</span>
-              <dl className="app-rail-dl">
-                <dt>Applied</dt>
-                <dd>{formatDate(myApplication.appliedAt)}</dd>
-                {myApplication.statusUpdatedAt && (
-                  <>
-                    <dt>Last update</dt>
-                    <dd>{formatDate(myApplication.statusUpdatedAt)}</dd>
-                  </>
-                )}
-                <dt>Résumé</dt>
-                <dd>
-                  {myApplication.resume ? (
-                    <SecureFileLink value={myApplication.resume} className="resume-link">
-                      {baseName(myApplication.resume) || "View résumé"}
-                    </SecureFileLink>
-                  ) : "Not provided"}
-                </dd>
-                <dt>Cover letter</dt>
-                <dd>
-                  {myApplication.coverLetterFile ? (
-                    <SecureFileLink value={myApplication.coverLetterFile} className="resume-link">
-                      {baseName(myApplication.coverLetterFile) || "View cover letter"}
-                    </SecureFileLink>
-                  ) : "None"}
-                </dd>
-              </dl>
-              {myApplication.employerNote && (
-                <p className="app-employer-note"><strong>Note from employer:</strong> {myApplication.employerNote}</p>
-              )}
-              <div className="app-rail-actions">
-                <button type="button" className="btn-rail" onClick={() => navigate(`/jobs/${id}/apply?mode=edit`)}>
-                  Edit application
-                </button>
-                <button type="button" className="btn-rail btn-rail-danger" onClick={handleWithdraw}>
-                  Withdraw
-                </button>
-              </div>
-            </div>
-          ) : (showApplyForm || showEditForm) ? (
-            <div className="apply-card">
-              <h3>{showEditForm ? "Update your application" : "Apply for this position"}</h3>
-              {showEditForm && (
-                <p className="apply-card-note">Leave a field blank to keep what you submitted before.</p>
-              )}
-
-              <form onSubmit={handleSubmit} className="apply-form">
-                <div className="form-group">
-                  <label htmlFor="coverLetterFile">Cover letter <span className="optional-label">(optional)</span></label>
-                  <input
-                    id="coverLetterFile"
-                    ref={coverLetterInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleCoverLetterFileChange}
-                    className="file-input"
-                  />
-                  <label htmlFor="coverLetterFile" className="file-input-label">Choose cover letter</label>
-                  <p className="file-name">
-                    {coverLetterFile
-                      ? coverLetterFile.name
-                      : showEditForm && myApplication.coverLetterFile
-                        ? `Current: ${baseName(myApplication.coverLetterFile)}`
-                        : "No file selected"}
-                  </p>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="resume">
-                    Résumé (PDF, DOC, DOCX — max 5MB){showEditForm ? " " : ""}
-                    {showEditForm && <span className="optional-label">(optional)</span>}
-                  </label>
-                  <input
-                    id="resume"
-                    ref={resumeInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleResumeChange}
-                    className="file-input"
-                  />
-                  <label htmlFor="resume" className="file-input-label">Choose file</label>
-                  <p className="file-name">
-                    {resumeFile
-                      ? resumeFile.name
-                      : showEditForm && myApplication.resume
-                        ? `Current: ${baseName(myApplication.resume)}`
-                        : "No file selected"}
-                  </p>
-                </div>
-
-                <div className="form-group">
-                  <button type="submit" disabled={submitting} className="btn-apply">
-                    {submitting
-                      ? (showEditForm ? "Saving…" : "Applying…")
-                      : (showEditForm ? "Save changes" : "Apply now")}
-                  </button>
-                  {showEditForm && (
-                    <button
-                      type="button"
-                      className="btn-rail"
-                      style={{ marginTop: "0.6rem" }}
-                      onClick={() => navigate(`/jobs/${id}`)}
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-
-                {successMessage && <p className="feedback-success">{successMessage}</p>}
-                {error && <p className="feedback-error">{error}</p>}
-              </form>
-            </div>
-          ) : null}
         </aside>
       </div>
 
@@ -519,6 +495,15 @@ export default function JobDetail() {
         isOpen={employerModalOpen}
         onClose={() => setEmployerModalOpen(false)}
         employer={job.employer}
+      />
+
+      <ApplyModal
+        isOpen={applyModalOpen}
+        onClose={() => setApplyModalOpen(false)}
+        jobId={id}
+        editMode={showEditForm}
+        existingApplication={myApplication}
+        onSuccess={handleApplySuccess}
       />
 
       <AppModal

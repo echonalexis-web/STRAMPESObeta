@@ -162,6 +162,30 @@ const sendPasswordChangedEmail = async ({ to, name }) => {
 };
 
 /* ------------------------------------------------------------------ */
+/* Email verification (registration)                                  */
+/* ------------------------------------------------------------------ */
+
+const sendEmailVerification = async ({ to, name, verifyUrl, expiresHours = 24 }) => {
+  const subject = "Verify your STRAM PESO email address";
+  const text =
+    `Hi ${name || "there"},\n\n` +
+    `Thanks for registering with STRAM PESO. Open the link below to verify this email address. ` +
+    `It expires in ${expiresHours} hours.\n\n` +
+    `${verifyUrl}\n\n` +
+    `If you didn't create this account, you can ignore this email.`;
+  const html = renderEmail({
+    heading: "Verify your email address",
+    paragraphs: [
+      `Hi ${name || "there"},`,
+      `Thanks for registering with ${BRAND}. Confirm this is your email address using the button below — the link expires in <strong>${expiresHours} hours</strong>.`,
+    ],
+    button: { url: verifyUrl, label: "Verify my email" },
+    footnote: "If you didn't create this account, you can ignore this email.",
+  });
+  return sendMail({ to, subject, text, html });
+};
+
+/* ------------------------------------------------------------------ */
 /* Email change                                                        */
 /* ------------------------------------------------------------------ */
 
@@ -225,6 +249,7 @@ module.exports = {
   sendMail,
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
+  sendEmailVerification,
   sendEmailChangeVerification,
   sendEmailChangeAlert,
 };

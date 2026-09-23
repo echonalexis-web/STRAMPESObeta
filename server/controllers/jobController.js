@@ -1,5 +1,7 @@
+const mongoose = require("mongoose");
 const JobVacancy = require("../models/JobVacancy");
 const JobApplication = require("../models/JobApplication");
+const JobseekerDocument = require("../models/JobseekerDocument");
 const User = require("../models/User");
 const Message = require("../models/Message");
 const { ensureConversationBetweenUsers } = require("./messageController");
@@ -7,6 +9,7 @@ const { getHomepageJobsPayload, getApplicationCountMap } = require("../utils/job
 const EmployerProfile = require("../models/EmployerProfile");
 const { createNotificationForUser } = require("../services/notificationService");
 const storageService = require("../services/storageService");
+const { logAuditEvent } = require("../services/auditService");
 
 // Simple logger
 const logger = {
@@ -162,63 +165,6 @@ const archiveJobRecord = async (job, archiveReason = "manual_close", io = null) 
 };
 
 // ---------------------------------------------------------------------
-// Create a job (employer only)
-// ---------------------------------------------------------------------
-exports.createJob = async (req, res) => {
-  try {
-    const { title, description, location, salary, qualifications, jobType, slots, applicationDeadline } = req.body;
-    if (!title || !description || !location) {
-      return res.status(400).json({ message: "Title, description, and location are required" });
-    }
-
-    // Parse qualifications from JSON string if needed
-    let parsedQualifications = [];
-    if (qualifications) {
-      try {
-        parsedQualifications = typeof qualifications === "string" 
-          ? JSON.parse(qualifications) 
-          : qualifications;
-      } catch (e) {
-        return res.status(400).json({ message: "Invalid qualifications format" });
-      }
-    }
-
-    // Validate qualifications
-    if (!Array.isArray(parsedQualifications)) {
-      return res.status(400).json({ message: "Qualifications must be an array" });
-    }
-
-    // Set order if not provided
-    const processedQualifications = parsedQualifications.map((q, index) => ({
-      ...q,
-      order: q.order !== undefined ? q.order : index,
-    }));
-
-    const job = await JobVacancy.create({
-      title: String(title).trim(),
-      description: String(description).trim(),
-      location: String(location).trim(),
-      salary: salary ? String(salary).trim() : "",
-      qualifications: processedQualifications,
-      jobType: jobType || "Full-time",
-      slots: Number(slots) > 0 ? Number(slots) : 1,
-      applicationDeadline: applicationDeadline ? new Date(applicationDeadline) : null,
-      employer: req.user.id,
-    });
-
-    logger.info(`Job created: ${job._id} by user ${req.user.id}`);
-    res.json({ message: "Job posted successfully", job });
-  } catch (error) {
-    logger.error("Create job error:", { userId: req.user?.id, error: error.message });
-    res.status(500).json({ 
-      message: process.env.NODE_ENV === "production" 
-        ? "Failed to create job posting" 
-        : error.message 
-    });
-  }
-};
-
-// ---------------------------------------------------------------------
 // Get all active jobs (public) – with employer profiles
 // Filters out closed jobs and jobs past their deadline
 // Also filters out jobs where the user has applied and been hired
@@ -236,7 +182,7 @@ exports.getJobs = async (req, res) => {
     jobs = jobs.filter(job => job.employer && job.employer.isActive !== false);
 
     // If user is logged in as a jobseeker, filter out jobs where they've been hired
-    if (req.user && req.user.role === "resident") {
+    if (req.user && req.user.role === "jobseeker") {
       const userHiredJobs = await JobApplication.find({
         applicant: req.user.id,
         status: { $in: ["hired", "Accepted"] }
@@ -291,7 +237,7 @@ exports.getHomepageJobs = async (req, res) => {
     jobs = jobs.filter(job => job.employer && job.employer.isActive !== false);
 
     // If user is logged in as a jobseeker, filter out jobs where they've been hired
-    if (req.user && req.user.role === "resident") {
+    if (req.user && req.user.role === "jobseeker") {
       const userHiredJobs = await JobApplication.find({
         applicant: req.user.id,
         status: { $in: ["hired", "Accepted"] }
@@ -340,7 +286,10 @@ exports.getJobById = async (req, res) => {
     const viewerIsPrivileged =
       req.user && (req.user.role === "admin" || String(req.user.id) === String(job.employer?._id));
     if (job.employer && job.employer.isActive === false && !viewerIsPrivileged) {
-      return res.status(404).json({ message: "This job is no longer available" });
+      // The posting itself was never sensitive — surface its title so the
+      // "no longer available" page can still show a breadcrumb, without
+      // leaking anything about the suspended employer account.
+      return res.status(404).json({ message: "This job is no longer available", title: job.title });
     }
 
     // Attach employer profile
@@ -363,98 +312,16 @@ exports.getJobById = async (req, res) => {
   }
 };
 
-// ---------------------------------------------------------------------
-// Update a job (employer or admin)
-// ---------------------------------------------------------------------
-exports.updateJob = async (req, res) => {
-  try {
-    const job = await JobVacancy.findById(req.params.id);
-    if (!job) return res.status(404).json({ message: "Job not found" });
-
-    if (job.employer.toString() !== req.user.id && req.user.role !== "admin") {
-      return res.status(403).json({ message: "You can only update your own job postings" });
-    }
-
-    // Parse qualifications from JSON string if needed
-    let parsedQualifications = undefined;
-    if (req.body.qualifications !== undefined) {
-      try {
-        parsedQualifications = typeof req.body.qualifications === "string" 
-          ? JSON.parse(req.body.qualifications) 
-          : req.body.qualifications;
-      } catch (e) {
-        return res.status(400).json({ message: "Invalid qualifications format" });
-      }
-      
-      // Validate qualifications
-      if (!Array.isArray(parsedQualifications)) {
-        return res.status(400).json({ message: "Qualifications must be an array" });
-      }
-      
-      // Set order if not provided
-      parsedQualifications = parsedQualifications.map((q, index) => ({
-        ...q,
-        order: q.order !== undefined ? q.order : index,
-      }));
-    }
-
-    const updates = {
-      title: req.body.title || job.title,
-      description: req.body.description || job.description,
-      location: req.body.location || job.location,
-      salary: req.body.salary || job.salary,
-      jobType: req.body.jobType || job.jobType,
-      slots: Number(req.body.slots) > 0 ? Number(req.body.slots) : job.slots,
-      applicationDeadline: req.body.applicationDeadline ? new Date(req.body.applicationDeadline) : job.applicationDeadline,
-      isActive: typeof req.body.isActive === "boolean" ? req.body.isActive : job.isActive,
-      // Only update qualifications if provided
-      qualifications: parsedQualifications !== undefined ? parsedQualifications : job.qualifications,
-    };
-
-    // Keep legacy requirements for backward compatibility
-    if (req.body.requirements !== undefined) {
-      updates.requirements = req.body.requirements;
-    }
-
-    const updatedJob = await JobVacancy.findByIdAndUpdate(req.params.id, updates, { new: true });
-    const jobObj = updatedJob.toObject();
-    jobObj.qualifications = formatQualifications(jobObj.qualifications);
-    
-    logger.info(`Job updated: ${req.params.id} by user ${req.user.id}`);
-    res.json({ message: "Job updated", job: jobObj });
-  } catch (error) {
-    logger.error("Update job error:", { jobId: req.params.id, error: error.message });
-    res.status(500).json({ 
-      message: process.env.NODE_ENV === "production" 
-        ? "Failed to update job" 
-        : error.message 
-    });
-  }
+// Resolves a `resumeDocumentId`/`coverLetterDocumentId` body field to the
+// owning JobseekerDocument (or null), scoped to this jobseeker and kind, so
+// an applicant can only ever attach a document from their own library.
+const resolveOwnedDocument = async (documentId, ownerId, kind) => {
+  if (!documentId || !mongoose.isValidObjectId(documentId)) return null;
+  return JobseekerDocument.findOne({ _id: documentId, owner: ownerId, kind });
 };
 
 // ---------------------------------------------------------------------
-// Delete a job (employer or admin)
-// ---------------------------------------------------------------------
-exports.deleteJob = async (req, res) => {
-  try {
-    const job = await JobVacancy.findById(req.params.id);
-    if (!job) return res.status(404).json({ message: "Job not found" });
-
-    if (job.employer.toString() !== req.user.id && req.user.role !== "admin") {
-      return res.status(403).json({ message: "You can only delete your own job postings" });
-    }
-
-    await JobVacancy.findByIdAndDelete(req.params.id);
-    logger.info(`Job deleted: ${req.params.id} by user ${req.user.id}`);
-    res.json({ message: "Job posting removed" });
-  } catch (error) {
-    logger.error("Delete job error:", { jobId: req.params.id, error: error.message });
-    res.status(500).json({ message: "Failed to delete job" });
-  }
-};
-
-// ---------------------------------------------------------------------
-// Apply to a job (resident)
+// Apply to a job (jobseeker)
 // ---------------------------------------------------------------------
 exports.applyToJob = async (req, res) => {
   const resumeUpload = Array.isArray(req.files?.resume) ? req.files.resume[0] : req.file;
@@ -467,6 +334,15 @@ exports.applyToJob = async (req, res) => {
     if (!job) {
       return res.status(404).json({ message: "Job not found" });
     }
+
+    // A saved-document reference is only used when no fresh file was
+    // uploaded for that slot, so a one-off replacement always wins.
+    const resumeDocument = resumeUpload
+      ? null
+      : await resolveOwnedDocument(req.body.resumeDocumentId, req.user.id, "resume");
+    const coverLetterDocument = coverLetterUpload
+      ? null
+      : await resolveOwnedDocument(req.body.coverLetterDocumentId, req.user.id, "coverLetter");
 
     session.startTransaction();
 
@@ -481,18 +357,20 @@ exports.applyToJob = async (req, res) => {
       return res.status(400).json({ message: "You have already applied to this job" });
     }
 
-    if (!resumeUpload) {
+    if (!resumeUpload && !resumeDocument) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(400).json({ message: "Please upload your resume before applying." });
+      return res.status(400).json({ message: "Please attach your resume before applying." });
     }
 
     const application = await JobApplication.create([{
       applicant: req.user.id,
       vacancy: job._id,
-      resume: resumeUpload ? resumeUpload.storedValue : undefined,
+      resume: resumeUpload ? resumeUpload.storedValue : resumeDocument.storedValue,
+      resumeDocumentId: resumeDocument ? resumeDocument._id : null,
       coverLetter: req.body.coverLetter || "",
-      coverLetterFile: coverLetterUpload ? coverLetterUpload.storedValue : "",
+      coverLetterFile: coverLetterUpload ? coverLetterUpload.storedValue : coverLetterDocument ? coverLetterDocument.storedValue : "",
+      coverLetterDocumentId: coverLetterDocument ? coverLetterDocument._id : null,
     }], { session });
 
     await session.commitTransaction();
@@ -513,26 +391,50 @@ exports.applyToJob = async (req, res) => {
         applicationId: String(application[0]._id),
       },
       io,
+      preferenceKey: "notifyNewApplicant",
     });
 
+    // Fresh activity — this vacancy is no longer a candidate for the
+    // "about to auto-close" warning until it goes quiet again.
+    JobVacancy.updateOne({ _id: job._id }, { $set: { expiryWarnedAt: null } }).catch(() => {});
+
     logger.info(`Application submitted: ${application[0]._id} for job ${job._id} by user ${req.user.id}`);
+
+    await logAuditEvent({
+      req,
+      actorId: req.user.id,
+      actorRole: "jobseeker",
+      action: "job.application.created",
+      targetType: "application",
+      targetId: String(application[0]._id),
+      severity: "info",
+      metadata: { jobId: String(job._id), jobTitle: job.title },
+    });
+
     res.json({ message: "Application submitted successfully", application: application[0] });
   } catch (error) {
     // Uploaded files are cleaned up by the cleanupUploadedFiles middleware on error responses.
     await session.abortTransaction();
     session.endSession();
 
-    logger.error("Application submission error:", { 
-      userId: req.user?.id, 
-      jobId: req.params.id, 
+    // Two near-simultaneous requests can both pass the findOne duplicate
+    // check above; the unique (applicant, vacancy) index on JobApplication
+    // is what actually stops the second insert, surfacing here as E11000.
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "You have already applied to this job" });
+    }
+
+    logger.error("Application submission error:", {
+      userId: req.user?.id,
+      jobId: req.params.id,
       error: error.message,
-      stack: error.stack 
+      stack: error.stack
     });
 
-    res.status(500).json({ 
-      message: process.env.NODE_ENV === "production" 
-        ? "Failed to submit application. Please try again later." 
-        : error.message 
+    res.status(500).json({
+      message: process.env.NODE_ENV === "production"
+        ? "Failed to submit application. Please try again later."
+        : error.message
     });
   }
 };
@@ -589,71 +491,138 @@ exports.getApplicationsForJob = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------
-// Get current user's applications (resident)
+// Get current user's applications (jobseeker)
 // ---------------------------------------------------------------------
+const MY_APPLICATIONS_POPULATE = {
+  path: "vacancy",
+  select: "title location employer qualifications",
+  populate: {
+    path: "employer",
+    select: "name email companyName isActive profileImage",
+  },
+};
+
+const normalizeMyApplications = async (applications) =>
+  Promise.all(
+    applications.map(async (application) => {
+      const data = application.toObject();
+      const vacancy = data?.vacancy;
+
+      if (!vacancy) {
+        return data;
+      }
+
+      // Format qualifications
+      if (vacancy.qualifications) {
+        vacancy.qualifications = formatQualifications(vacancy.qualifications);
+      }
+
+      const employerValue = vacancy.employer;
+      const alreadyPopulated = employerValue && typeof employerValue === "object" && employerValue.name;
+
+      // Surface a marker the client uses to show "Employer unavailable"
+      // instead of a working job link when the employer is suspended.
+      if (employerValue && typeof employerValue === "object" && employerValue.isActive === false) {
+        vacancy.employerUnavailable = true;
+      }
+
+      if (alreadyPopulated) {
+        return data;
+      }
+
+      const employerId =
+        typeof employerValue === "string"
+          ? employerValue
+          : employerValue?._id
+            ? String(employerValue._id)
+            : null;
+
+      if (!employerId) {
+        vacancy.employer = { name: "Unknown", companyName: "No company name" };
+        return data;
+      }
+
+      const employerProfile = await User.findById(employerId).select("name email companyName isActive").lean();
+      vacancy.employer = employerProfile || { name: "Unknown", companyName: "No company name" };
+      if (employerProfile && employerProfile.isActive === false) {
+        vacancy.employerUnavailable = true;
+      }
+
+      return data;
+    })
+  );
+
+// Tab keys the client filters by, mapped to the raw (case-insensitive) status
+// values stored on legacy and current documents.
+const MY_APPLICATIONS_STATUS_TABS = {
+  pending: ["pending", "applied"],
+  reviewed: ["reviewed"],
+  shortlisted: ["shortlisted"],
+  accepted: ["accepted", "hired"],
+  rejected: ["rejected"],
+};
+
 exports.getMyApplications = async (req, res) => {
   try {
-    const applications = await JobApplication.find({ applicant: req.user.id })
-      .populate({
-        path: "vacancy",
-        select: "title location employer qualifications",
-        populate: {
-          path: "employer",
-          select: "name email companyName isActive profileImage",
-        },
-      })
-      .sort({ appliedAt: -1 });
+    const baseFilter = { applicant: req.user.id };
+    const isPaginatedRequest =
+      req.query.page !== undefined || req.query.limit !== undefined || req.query.status !== undefined;
 
-    const normalized = await Promise.all(
-      applications.map(async (application) => {
-        const data = application.toObject();
-        const vacancy = data?.vacancy;
+    if (!isPaginatedRequest) {
+      const applications = await JobApplication.find(baseFilter)
+        .populate(MY_APPLICATIONS_POPULATE)
+        .sort({ appliedAt: -1 });
 
-        if (!vacancy) {
-          return data;
-        }
+      return res.json(await normalizeMyApplications(applications));
+    }
 
-        // Format qualifications
-        if (vacancy.qualifications) {
-          vacancy.qualifications = formatQualifications(vacancy.qualifications);
-        }
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5, 1), 100);
+    const tab = String(req.query.status || "all").trim().toLowerCase();
 
-        const employerValue = vacancy.employer;
-        const alreadyPopulated = employerValue && typeof employerValue === "object" && employerValue.name;
+    const filter = { ...baseFilter };
+    if (tab !== "all" && MY_APPLICATIONS_STATUS_TABS[tab]) {
+      filter.status = {
+        $in: MY_APPLICATIONS_STATUS_TABS[tab].map((value) => new RegExp(`^${value}$`, "i")),
+      };
+    }
 
-        // Surface a marker the client uses to show "Employer unavailable"
-        // instead of a working job link when the employer is suspended.
-        if (employerValue && typeof employerValue === "object" && employerValue.isActive === false) {
-          vacancy.employerUnavailable = true;
-        }
+    const [total, applications, statusBuckets] = await Promise.all([
+      JobApplication.countDocuments(filter),
+      JobApplication.find(filter)
+        .populate(MY_APPLICATIONS_POPULATE)
+        .sort({ appliedAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      JobApplication.aggregate([
+        // aggregate() skips Mongoose's automatic query casting, so the
+        // applicant id must be cast to ObjectId explicitly here.
+        { $match: { applicant: new mongoose.Types.ObjectId(req.user.id) } },
+        { $group: { _id: { $toLower: "$status" }, count: { $sum: 1 } } },
+      ]),
+    ]);
 
-        if (alreadyPopulated) {
-          return data;
-        }
+    const bucketCount = {};
+    statusBuckets.forEach((bucket) => {
+      bucketCount[bucket._id || "pending"] = bucket.count;
+    });
 
-        const employerId =
-          typeof employerValue === "string"
-            ? employerValue
-            : employerValue?._id
-              ? String(employerValue._id)
-              : null;
+    const counts = {
+      all: statusBuckets.reduce((sum, bucket) => sum + bucket.count, 0),
+      pending: (bucketCount.pending || 0) + (bucketCount.applied || 0),
+      reviewed: bucketCount.reviewed || 0,
+      shortlisted: bucketCount.shortlisted || 0,
+      accepted: (bucketCount.accepted || 0) + (bucketCount.hired || 0),
+      rejected: bucketCount.rejected || 0,
+    };
 
-        if (!employerId) {
-          vacancy.employer = { name: "Unknown", companyName: "No company name" };
-          return data;
-        }
-
-        const employerProfile = await User.findById(employerId).select("name email companyName isActive").lean();
-        vacancy.employer = employerProfile || { name: "Unknown", companyName: "No company name" };
-        if (employerProfile && employerProfile.isActive === false) {
-          vacancy.employerUnavailable = true;
-        }
-
-        return data;
-      })
-    );
-
-    res.json(normalized);
+    return res.json({
+      items: await normalizeMyApplications(applications),
+      total,
+      totalPages: Math.max(Math.ceil(total / limit), 1),
+      currentPage: page,
+      counts,
+    });
   } catch (error) {
     logger.error("Get my applications error:", { userId: req.user.id, error: error.message });
     res.status(500).json({ message: "Failed to fetch your applications" });
@@ -661,7 +630,7 @@ exports.getMyApplications = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------
-// Update my application (resident)
+// Update my application (jobseeker)
 // ---------------------------------------------------------------------
 exports.updateMyApplication = async (req, res) => {
   try {
@@ -676,20 +645,32 @@ exports.updateMyApplication = async (req, res) => {
 
     const resumeUpload = Array.isArray(req.files?.resume) ? req.files.resume[0] : req.file;
     const coverLetterUpload = Array.isArray(req.files?.coverLetterFile) ? req.files.coverLetterFile[0] : null;
+    const resumeDocument = resumeUpload
+      ? null
+      : await resolveOwnedDocument(req.body.resumeDocumentId, req.user.id, "resume");
+    const coverLetterDocument = coverLetterUpload
+      ? null
+      : await resolveOwnedDocument(req.body.coverLetterDocumentId, req.user.id, "coverLetter");
 
-    if (resumeUpload) {
+    if (resumeUpload || resumeDocument) {
       const previous = application.resume;
-      application.resume = resumeUpload.storedValue;
-      if (previous && previous !== application.resume) {
+      // Never delete storage for a file that was borrowed from the jobseeker's
+      // document library — it may still back other applications there.
+      const previousWasLibrary = Boolean(application.resumeDocumentId);
+      application.resume = resumeUpload ? resumeUpload.storedValue : resumeDocument.storedValue;
+      application.resumeDocumentId = resumeDocument ? resumeDocument._id : null;
+      if (previous && previous !== application.resume && !previousWasLibrary) {
         Promise.resolve(storageService.remove(previous)).catch(() => {});
       }
     }
 
-    if (coverLetterUpload) {
+    if (coverLetterUpload || coverLetterDocument) {
       const previous = application.coverLetterFile;
-      application.coverLetterFile = coverLetterUpload.storedValue;
+      const previousWasLibrary = Boolean(application.coverLetterDocumentId);
+      application.coverLetterFile = coverLetterUpload ? coverLetterUpload.storedValue : coverLetterDocument.storedValue;
+      application.coverLetterDocumentId = coverLetterDocument ? coverLetterDocument._id : null;
       application.coverLetter = "";
-      if (previous && previous !== application.coverLetterFile) {
+      if (previous && previous !== application.coverLetterFile && !previousWasLibrary) {
         Promise.resolve(storageService.remove(previous)).catch(() => {});
       }
     }
@@ -732,6 +713,17 @@ exports.updateMyApplication = async (req, res) => {
     }
 
     logger.info(`Application updated: ${req.params.id} by user ${req.user.id}`);
+
+    await logAuditEvent({
+      req,
+      actorId: req.user.id,
+      actorRole: "jobseeker",
+      action: "job.application.updated",
+      targetType: "application",
+      targetId: String(req.params.id),
+      severity: "info",
+    });
+
     res.json({ message: "Application updated successfully", application: normalizedApplication });
   } catch (error) {
     logger.error("Update application error:", { applicationId: req.params.id, error: error.message });
@@ -744,7 +736,7 @@ exports.updateMyApplication = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------
-// Delete my application (resident)
+// Delete my application (jobseeker)
 // ---------------------------------------------------------------------
 exports.deleteMyApplication = async (req, res) => {
   try {
@@ -757,15 +749,30 @@ exports.deleteMyApplication = async (req, res) => {
       return res.status(403).json({ message: "You can only delete your own applications" });
     }
 
-    if (application.resume) {
+    // Library-sourced files are never deleted here — the same saved document
+    // may still back other applications, or simply still live in the
+    // jobseeker's library; only the JobseekerDocument's own delete route
+    // removes that storage.
+    if (application.resume && !application.resumeDocumentId) {
       Promise.resolve(storageService.remove(application.resume)).catch(() => {});
     }
-    if (application.coverLetterFile) {
+    if (application.coverLetterFile && !application.coverLetterDocumentId) {
       Promise.resolve(storageService.remove(application.coverLetterFile)).catch(() => {});
     }
 
     await JobApplication.findByIdAndDelete(application._id);
     logger.info(`Application deleted: ${req.params.id} by user ${req.user.id}`);
+
+    await logAuditEvent({
+      req,
+      actorId: req.user.id,
+      actorRole: "jobseeker",
+      action: "job.application.deleted",
+      targetType: "application",
+      targetId: String(application._id),
+      severity: "info",
+    });
+
     res.json({ message: "Application withdrawn successfully", id: application._id });
   } catch (error) {
     logger.error("Delete application error:", { applicationId: req.params.id, error: error.message });
@@ -813,6 +820,17 @@ exports.closeJob = async (req, res) => {
     }
 
     logger.info(`Job closed and archived: ${req.params.id} by user ${req.user.id}`);
+
+    await logAuditEvent({
+      req,
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: "employer.job.closed",
+      targetType: "job",
+      targetId: String(req.params.id),
+      severity: "info",
+    });
+
     res.json({ message: "Job closed and archived successfully", job: archivedJob.toObject() });
   } catch (error) {
     logger.error("Close job error:", { jobId: req.params.id, error: error.message });
@@ -863,6 +881,17 @@ exports.archiveJob = async (req, res) => {
     }
 
     logger.info(`Job archived: ${req.params.id} by user ${req.user.id}`);
+
+    await logAuditEvent({
+      req,
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: "employer.job.archived",
+      targetType: "job",
+      targetId: String(req.params.id),
+      severity: "info",
+    });
+
     res.json({ message: "Job archived successfully", job: archivedJob.toObject() });
   } catch (error) {
     logger.error("Archive job error:", { jobId: req.params.id, error: error.message });
@@ -908,60 +937,20 @@ exports.reopenJob = async (req, res) => {
     }
 
     logger.info(`Job reopened: ${req.params.id} by user ${req.user.id}`);
+
+    await logAuditEvent({
+      req,
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: "employer.job.reopened",
+      targetType: "job",
+      targetId: String(req.params.id),
+      severity: "info",
+    });
+
     res.json({ message: "Job reopened successfully", job: job.toObject() });
   } catch (error) {
     logger.error("Reopen job error:", { jobId: req.params.id, error: error.message });
     res.status(500).json({ message: "Failed to reopen job" });
-  }
-};
-
-// ---------------------------------------------------------------------
-// Get jobs for the logged-in employer (employer)
-// Returns ALL jobs including closed and archived (for employer management)
-// Automatically closes jobs past their deadline
-// Includes applicant count
-// ---------------------------------------------------------------------
-exports.getEmployerJobs = async (req, res) => {
-  try {
-    const jobs = await JobVacancy.find({ employer: req.user.id }).sort({ createdAt: -1 });
-    const io = req.app.get("io");
-
-    for (const job of jobs) {
-      if (job.archived && job.status === "closed") continue;
-
-      if (job.status === "closed") {
-        await archiveJobRecord(job, job.archiveReason || "manual_close", io);
-        continue;
-      }
-
-      const hiredCount = await JobApplication.countDocuments({
-        vacancy: job._id,
-        status: { $in: ["hired", "Accepted"] },
-      });
-
-      if (job.status === "active" && isJobPastDeadline(job)) {
-        await archiveJobRecord(job, "deadline_passed", io);
-        continue;
-      }
-
-      if (hiredCount >= Number(job.slots || 1) && job.status !== "closed") {
-        await archiveJobRecord(job, "quota_reached", io);
-      }
-    }
-
-    const updatedJobs = await JobVacancy.find({ employer: req.user.id }).sort({ createdAt: -1 });
-    const countMap = await getApplicationCountMap(updatedJobs.map(job => job._id));
-
-    const jobsWithFormatted = updatedJobs.map(job => {
-      const obj = job.toObject();
-      obj.qualifications = formatQualifications(obj.qualifications);
-      obj.applicationCount = Number(countMap[String(job._id)] || 0);
-      return obj;
-    });
-
-    res.json(jobsWithFormatted);
-  } catch (error) {
-    logger.error("Get employer jobs error:", { userId: req.user.id, error: error.message });
-    res.status(500).json({ message: "Failed to fetch your jobs" });
   }
 };

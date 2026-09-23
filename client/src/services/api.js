@@ -14,6 +14,28 @@ export const ASSET_BASE_URL = API_URL.replace(/\/api\/v\d+\/?$/, "");
 export const isPrivateFileRef = (value) =>
   typeof value === "string" && value.startsWith("cloudinary:");
 
+// Human-readable name for a stored file value. Private refs encode the
+// original filename (and, for files uploaded before that was tracked, a
+// public_id fallback) as base64url JSON with no path separators, so the old
+// "split on / and take the last segment" trick just returned the raw ref.
+export const displayFileName = (value) => {
+  if (!value) return "";
+  if (isPrivateFileRef(value)) {
+    try {
+      const b64 = value.slice("cloudinary:".length).replace(/-/g, "+").replace(/_/g, "/");
+      const padded = b64 + "===".slice((b64.length + 3) % 4);
+      const bytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+      const ref = JSON.parse(new TextDecoder().decode(bytes));
+      if (ref?.n) return ref.n;
+      if (ref?.p) return String(ref.p).split("/").pop();
+    } catch {
+      /* fall through to generic label */
+    }
+    return "Uploaded file";
+  }
+  return String(value).replace(/\\/g, "/").split("/").pop().split("?")[0];
+};
+
 // Turn a stored image path into a loadable URL. Absolute URLs pass through;
 // server-relative "/uploads/..." paths get the API origin prefixed.
 // Private refs return "" (caller must use filesAPI.getSignedUrl).
@@ -45,6 +67,26 @@ api.interceptors.request.use(
   }
 );
 
+// A page like the Dashboard fires several authenticated requests in
+// parallel (profile, stats, notifications, messages, ...). When the account
+// backing all of them stops being valid mid-session, every single one of
+// those requests rejects with the same 403 at roughly the same moment —
+// and `window.location.pathname` does NOT update the instant `.href` is
+// assigned (browser navigation is asynchronous), so a naive per-request
+// `if (window.location.pathname !== "/login") window.location.href = "/login"`
+// guard sees the *old* pathname on every one of them and reassigns
+// `location.href` again, and again. Reassigning it mid-navigation can abort
+// and restart the in-flight page load in some browsers, which is exactly
+// what a "flickering between the old page and the login screen" report
+// looks like. This flag makes only the first rejection in a batch actually
+// act; every other one in the same batch is a no-op.
+let isHandlingAccountInactive = false;
+export const claimAccountInactiveHandling = () => {
+  if (isHandlingAccountInactive) return false;
+  isHandlingAccountInactive = true;
+  return true;
+};
+
 // Response interceptor - Handle errors and retry on rate limit
 api.interceptors.response.use(
   (response) => response,
@@ -75,22 +117,45 @@ api.interceptors.response.use(
       error.response?.status === 403 &&
       error.response?.data?.code === "ACCOUNT_SUSPENDED"
     ) {
-      const data = error.response.data;
-      if (data.appealToken) {
-        localStorage.setItem("appealToken", data.appealToken);
-      }
-      localStorage.setItem(
-        "suspensionInfo",
-        JSON.stringify({
-          accountStatus: data.accountStatus || "suspended",
-          suspensionReason: data.suspensionReason || null,
-          suspendedAt: data.suspendedAt || null,
-        })
-      );
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      if (window.location.pathname !== "/account-suspended") {
+      if (window.location.pathname !== "/account-suspended" && claimAccountInactiveHandling()) {
+        const data = error.response.data;
+        if (data.appealToken) {
+          localStorage.setItem("appealToken", data.appealToken);
+        }
+        localStorage.setItem(
+          "suspensionInfo",
+          JSON.stringify({
+            accountStatus: data.accountStatus || "suspended",
+            suspensionReason: data.suspensionReason || null,
+            suspendedAt: data.suspendedAt || null,
+          })
+        );
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
         window.location.href = "/account-suspended";
+      }
+      return Promise.reject(error);
+    }
+
+    // Account self-deactivated (in another session/tab), a staff account
+    // disabled, or the account deleted outright — all mid-session. None of
+    // these get the suspension/appeal wall; just sign out and explain why on
+    // the login screen. Grouped into one branch (rather than three near-
+    // identical ones) so they share a single claimAccountInactiveHandling()
+    // guard instead of three independent, easy-to-desync copies of it.
+    const NO_APPEAL_CODES = {
+      ACCOUNT_DEACTIVATED: "Your account was deactivated. Sign in again to reactivate it.",
+      ACCOUNT_DISABLED: "This staff account has been disabled. Contact the system superadmin.",
+      ACCOUNT_DELETED: "This account no longer exists.",
+      SESSION_EXPIRED: "Your session has expired. Please sign in again.",
+    };
+    if (error.response?.status === 403 && error.response?.data?.code in NO_APPEAL_CODES) {
+      if (window.location.pathname !== "/login" && claimAccountInactiveHandling()) {
+        const code = error.response.data.code;
+        localStorage.setItem("authNotice", error.response.data.message || NO_APPEAL_CODES[code]);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
       }
       return Promise.reject(error);
     }
@@ -102,7 +167,18 @@ api.interceptors.response.use(
         localStorage.removeItem("user");
         const publicPaths = ['/login', '/register', '/', '/home'];
         const currentPath = window.location.pathname;
-        if (!publicPaths.some(path => currentPath === path || currentPath.startsWith('/auth'))) {
+        // Same batching hazard as the 403 branches above — a page that fires
+        // several requests at once can get several 401s back together, and
+        // without this guard each one would redundantly reassign
+        // location.href, racing/restarting the same navigation. The claim is
+        // only taken right here, immediately before the one redirect that
+        // will actually happen — never on a path where no redirect follows
+        // — so it can't get "used up" by a no-op and then wrongly suppress a
+        // later, genuine redirect later in the same page session.
+        if (
+          !publicPaths.some(path => currentPath === path || currentPath.startsWith('/auth')) &&
+          claimAccountInactiveHandling()
+        ) {
           console.log("🔒 Unauthorized, redirecting to login");
           window.location.href = "/login";
         }
@@ -158,11 +234,13 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
   resetPassword: (payload) => api.post('/auth/reset-password', payload),
-  // `intent` ("employer" | "resident") is only honoured when the Google account
+  // `intent` ("employer" | "jobseeker") is only honoured when the Google account
   // is brand new — it decides which role/profile the account is created with.
   google: (credential, intent) => api.post('/auth/google', { credential, intent }),
   requestEmailChange: (payload) => api.post('/auth/email-change/request', payload, getAuthHeader()),
   confirmEmailChange: (payload) => api.post('/auth/email-change/confirm', payload),
+  resendEmailVerification: (email) => api.post('/auth/verify-email/resend', { email }),
+  confirmEmailVerification: (payload) => api.post('/auth/verify-email/confirm', payload),
   registerEmployee: (data) => api.post('/auth/register/employee', data),
   generateInvite: () => api.post('/auth/invite', {}, getAuthHeader()),
   getProfile: () => api.get('/auth/profile', getAuthHeader()),
@@ -175,6 +253,21 @@ export const authAPI = {
   registerEmployer: (data) => api.post('/auth/register/employer', data),
   acceptTerms: (version) => api.post('/auth/accept-terms', { version }, getAuthHeader()),
   changePassword: (payload) => api.post('/auth/change-password', payload, getAuthHeader()),
+  exportNsrpForm1: () => api.get('/auth/nsrp-form-1/export', { ...getAuthHeader(), responseType: 'blob' }),
+  exportNsrpForm2: () => api.get('/auth/nsrp-form-2/export', { ...getAuthHeader(), responseType: 'blob' }),
+  // Saves a Resume Studio-generated PDF as the profile's official resume
+  // file, via the lightweight /auth/me patch route (no other profile fields
+  // are touched).
+  uploadGeneratedResume: (blob, filename) => {
+    const fd = new FormData();
+    fd.append('resume', blob, filename);
+    return api.patch('/auth/me', fd, getAuthFormHeader());
+  },
+  // Settings → Notifications + Privacy
+  getSettings: () => api.get('/auth/settings', getAuthHeader()),
+  updateSettings: (payload) => api.put('/auth/settings', payload, getAuthHeader()),
+  // Settings → Danger Zone
+  deactivateAccount: (password) => api.post('/auth/deactivate', { password }, getAuthHeader()),
 };
 
 // Superadmin console — provisioning and lifecycle of LMDPESO admin accounts.
@@ -189,6 +282,9 @@ export const superadminAPI = {
   // Permanent policy-violation takedown of a job posting (superadmin only).
   deleteJob: (id, reason) =>
     api.delete(`/superadmin/jobs/${id}`, { ...getAuthHeader(), data: { reason } }),
+  // Settings → System Preferences
+  getSystemSettings: () => api.get('/superadmin/system-settings', getAuthHeader()),
+  updateSystemSettings: (payload) => api.put('/superadmin/system-settings', payload, getAuthHeader()),
 };
 
 // Suspension appeal — authenticated with the appeal-only token.
@@ -203,19 +299,36 @@ export const reportAPI = {
 };
 
 export const jobAPI = {
-  createJob: (data) => api.post('/jobs', data, getAuthHeader()),
   getJobs: () => api.get('/jobs'),
   getHomepageJobs: () => api.get('/jobs/homepage'),
-  searchJobsWithSemantic: (params) => api.get('/recommendations/jobs', { params }),
+  searchJobsWithSemantic: (params, config = {}) => api.get('/recommendations/jobs', { params, ...config }),
   getJobById: (id) => api.get(`/jobs/${id}`),
-  updateJob: (id, data) => api.put(`/jobs/${id}`, data, getAuthHeader()),
-  deleteJob: (id) => api.delete(`/jobs/${id}`, getAuthHeader()),
   applyToJob: (id, data) => api.post(`/jobs/${id}/apply`, data, getAuthFormHeader()),
-  getEmployerJobs: () => api.get('/jobs/mine', getAuthHeader()),
   getApplicationsForJob: (id) => api.get(`/jobs/${id}/applications`, getAuthHeader()),
-  getMyApplications: () => api.get('/jobs/applications/me', getAuthHeader()),
+  getMyApplications: (params = {}, config = {}) => api.get('/jobs/applications/me', { ...getAuthHeader(), params, ...config }),
   updateApplication: (id, data) => api.put(`/jobs/applications/${id}`, data, getAuthFormHeader()),
   deleteApplication: (id) => api.delete(`/jobs/applications/${id}`, getAuthHeader()),
+};
+
+// Jobseeker's private library of saved resumes / cover letters — never
+// visible to employers until one is attached to a submitted application.
+export const jobseekerDocumentAPI = {
+  list: (kind) => api.get('/jobseeker/documents', { ...getAuthHeader(), params: kind ? { kind } : {} }),
+  upload: ({ file, kind, title, source, onProgress }) => {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    fd.append('kind', kind);
+    if (title) fd.append('title', title);
+    if (source) fd.append('source', source);
+    return api.post('/jobseeker/documents/upload', fd, {
+      ...getAuthFormHeader(),
+      onUploadProgress: onProgress
+        ? (event) => onProgress(event.total ? Math.round((event.loaded * 100) / event.total) : 0)
+        : undefined,
+    });
+  },
+  setPrimary: (id) => api.patch(`/jobseeker/documents/${id}/primary`, {}, getAuthHeader()),
+  remove: (id) => api.delete(`/jobseeker/documents/${id}`, getAuthHeader()),
 };
 
 export const adminAPI = {
@@ -229,6 +342,10 @@ export const adminAPI = {
   },
   getProvincialAnalytics: (params = {}) => api.get('/admin/analytics/provincial', { ...getAuthHeader(), params }),
   getUserById: (id) => api.get(`/admin/users/${id}`, getAuthHeader()),
+  exportUserNsrpForm1: (id) =>
+    api.get(`/admin/users/${id}/nsrp-form-1/export`, { ...getAuthHeader(), responseType: 'blob' }),
+  exportUserNsrpForm2: (id) =>
+    api.get(`/admin/users/${id}/nsrp-form-2/export`, { ...getAuthHeader(), responseType: 'blob' }),
   getHomepageJobManagement: async () => {
     await delay(150);
     return api.get('/admin/jobs/homepage-display', getAuthHeader());
@@ -295,6 +412,7 @@ export const messageAPI = {
   getConversations: () => api.get('/messages/conversations', getAuthHeader()),
   getMessages: (conversationId) => api.get(`/messages/conversations/${conversationId}/messages`, getAuthHeader()),
   sendMessage: (conversationId, data) => api.post(`/messages/conversations/${conversationId}/messages`, data, getAuthHeader()),
+  unsendMessage: (messageId) => api.patch(`/messages/${messageId}/unsend`, {}, getAuthHeader()),
   deleteConversation: (conversationId) => api.delete(`/messages/conversations/${conversationId}`, getAuthHeader()),
   getUnreadCount: () => api.get('/messages/unread-count', getAuthHeader()),
 };
@@ -316,6 +434,12 @@ export const employerAPI = {
     api.put(`/employer/applications/${applicationId}/status`, data, getAuthHeader()),
   bulkUpdateApplicationStatuses: (data) =>
     api.put('/employer/applications/bulk-status', data, getAuthHeader()),
+  scheduleInterview: (applicationId, data) =>
+    api.put(`/employer/applications/${applicationId}/interview`, data, getAuthHeader()),
+  bulkScheduleInterview: (data) =>
+    api.put('/employer/applications/bulk-interview', data, getAuthHeader()),
+  markInterviewNoShow: (applicationId) =>
+    api.put(`/employer/applications/${applicationId}/no-show`, {}, getAuthHeader()),
   getJobseekerProfile: (userId) => api.get(`/employer/jobseekers/${userId}`, getAuthHeader()),
   // Reusable qualification / skillset templates
   getQualificationTemplates: () =>
@@ -339,6 +463,26 @@ export const verificationAPI = {
   getQueue: (params = {}) => api.get('/verification/queue', { ...getAuthHeader(), params }),
   // Accepts { decision: "approved" } or { decision: "rejected", note }.
   review: (id, payload) => api.patch(`/verification/${id}`, payload, getAuthHeader()),
+  // Id-scoped approve/reject matching the documented admin API contract.
+  approve: (id) => api.post(`/admin/employers/${id}/verification/approve`, {}, getAuthHeader()),
+  reject: (id, reason) => api.post(`/admin/employers/${id}/verification/reject`, { reason }, getAuthHeader()),
+};
+
+// Employer self-service account endpoints (profile picture + the combined
+// document-upload/submit-for-verification step) — id-scoped, reachable even
+// before the account is verified.
+export const employerAccountAPI = {
+  uploadAvatar: (employerId, file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post(`/employers/${employerId}/avatar`, fd, getAuthFormHeader());
+  },
+  submitVerification: (employerId, { businessPermit, registrationDoc } = {}) => {
+    const fd = new FormData();
+    if (businessPermit) fd.append('businessPermit', businessPermit);
+    if (registrationDoc) fd.append('registrationDoc', registrationDoc);
+    return api.post(`/employers/${employerId}/verification/submit`, fd, getAuthFormHeader());
+  },
 };
 
 // SPES (Special Program for Employment of Students) applications.

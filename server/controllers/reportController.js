@@ -7,6 +7,7 @@ const Announcement = require("../models/Announcement");
 const AuditLog = require("../models/AuditLog");
 const { logAuditEvent } = require("../services/auditService");
 const { createNotificationForUser, notifyManyUsers } = require("../services/notificationService");
+const { forceLogout } = require("../services/sessionService");
 
 const startOfToday = () => {
   const d = new Date();
@@ -123,6 +124,7 @@ exports.createReport = async (req, res) => {
         relatedEntityId: targetOwner || reporterId,
         actionUrl: "/admin/users/moderation",
         io: req.app.get("io"),
+        preferenceKey: "notifyUserReport",
       });
     } catch {
       /* non-fatal */
@@ -270,6 +272,17 @@ exports.resolveReport = async (req, res) => {
           target.suspendedAt = new Date();
           target.suspendedBy = getUserId(req);
           await target.save();
+
+          forceLogout(req.app.get("io"), target._id, {
+            code: "ACCOUNT_SUSPENDED",
+            message:
+              resolutionAction === "ban"
+                ? "This account has been banned following a report review."
+                : "This account has been suspended following a report review.",
+            accountStatus: target.accountStatus,
+            suspensionReason: target.suspensionReason,
+            suspendedAt: target.suspendedAt,
+          });
 
           await createNotificationForUser({
             recipientId: target._id,

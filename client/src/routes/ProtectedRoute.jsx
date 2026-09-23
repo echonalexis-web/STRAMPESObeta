@@ -2,10 +2,10 @@ import { useContext } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 
-const normalizeRole = (role) => (role === "employee" || role === "jobseeker" ? "resident" : role);
+const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
 const routeNeedsCompletedOnboarding = (role, pathname) => {
-  if (role === "resident") {
+  if (role === "jobseeker") {
     return pathname !== "/onboarding";
   }
 
@@ -20,13 +20,6 @@ export const ProtectedRoute = ({ children, requiredRole }) => {
   const { user, token, loading } = useContext(AuthContext);
   const location = useLocation();
   const userRole = normalizeRole(user?.role);
-
-  const getDefaultRouteByRole = (role) => {
-    if (role === "superadmin") return "/superadmin";
-    if (role === "admin") return "/admin";
-    if (role === "employer") return "/employer-dashboard";
-    return "/dashboard";
-  };
 
   if (loading) {
     return null; // Or a spinner/loading indicator
@@ -47,11 +40,15 @@ export const ProtectedRoute = ({ children, requiredRole }) => {
       ? user.hasCompletedOnboarding
       : user?.onboardingComplete;
 
-  const needsOnboarding = ["resident", "employer"].includes(userRole) && hasCompletedOnboarding === false;
+  const needsOnboarding = ["jobseeker", "employer"].includes(userRole) && hasCompletedOnboarding === false;
 
-  if (location.pathname === "/onboarding" && hasCompletedOnboarding === true) {
-    return <Navigate to={getDefaultRouteByRole(userRole)} replace />;
-  }
+  // Intentionally no "already onboarded, redirect away from /onboarding" check
+  // here: JobSeekerOnboarding/EmployerOnboarding both already redirect away on
+  // mount when the user is already onboarded, guarded by their own local
+  // `finished` flag. A duplicate check here would fire the instant `login()`
+  // flips `hasCompletedOnboarding` to true right after a successful
+  // submission — before this component's own `finished`-guarded effect gets
+  // a chance to show its success step — racing the user away from it.
 
   if (
     needsOnboarding &&

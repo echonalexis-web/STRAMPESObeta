@@ -5,9 +5,13 @@ import { useSocket } from "../context/SocketContext";
 import { messageAPI, resolveAssetUrl } from "../services/api";
 import { useToast, useConfirm } from "../components/feedback/context";
 import "../styles/messages.css";
-import { FaSearch, FaPaperPlane, FaUserCircle, FaTrash, FaArrowLeft } from "react-icons/fa";
+import { FaSearch, FaPaperPlane, FaUserCircle, FaTrash, FaArrowLeft, FaTimes } from "react-icons/fa";
 import DOMPurify from 'dompurify';
 import ReportButton from "../components/ReportButton";
+
+// Mirrors the server's unsend window (server/controllers/messageController.js)
+// so the button hides itself before a click would just bounce off a 400.
+const UNSEND_WINDOW_MS = 15 * 60 * 1000;
 
 const sanitizeMessage = (content) => {
   if (!content) return '';
@@ -116,11 +120,11 @@ const getParticipantDisplayName = (participant) => {
 };
 
 const getRoleLabel = (role) => {
-  const normalizedRole = role === "employee" || role === "jobseeker" ? "resident" : role;
+  const normalizedRole = role === "employee" || role === "resident" ? "jobseeker" : role;
 
   if (normalizedRole === "admin") return "Admin";
   if (normalizedRole === "employer") return "Employer";
-  if (normalizedRole === "resident") return "Jobseeker";
+  if (normalizedRole === "jobseeker") return "Jobseeker";
   if (!normalizedRole) return "User";
 
   return normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1);
@@ -361,15 +365,44 @@ export default function Messages() {
       setTypingUserId(null);
     };
 
+    // The other participant unsent one of their messages — swap it for the
+    // shared placeholder and refresh the conversation preview if it was the
+    // most recent message shown there.
+    const onMessageUnsent = ({ messageId, conversationId }) => {
+      if (!conversationId || !messageId) return;
+
+      let wasLastMessage = false;
+      setMessagesByConversation((prev) => {
+        const list = prev[conversationId] || [];
+        if (list.length > 0 && String(list[list.length - 1]._id) === String(messageId)) {
+          wasLastMessage = true;
+        }
+        const next = list.map((message) =>
+          String(message._id) === String(messageId) ? { ...message, isUnsent: true, content: "" } : message
+        );
+        return { ...prev, [conversationId]: next };
+      });
+
+      if (wasLastMessage) {
+        setConversations((prev) =>
+          prev.map((conversation) =>
+            conversation._id === conversationId ? { ...conversation, lastMessage: "Message unsent" } : conversation
+          )
+        );
+      }
+    };
+
     socket.on("receive_message", onReceiveMessage);
     socket.on("user_typing", onUserTyping);
     socket.on("user_stop_typing", onUserStopTyping);
+    socket.on("message_unsent", onMessageUnsent);
 
     return () => {
       if (socket) {
         socket.off("receive_message", onReceiveMessage);
         socket.off("user_typing", onUserTyping);
         socket.off("user_stop_typing", onUserStopTyping);
+        socket.off("message_unsent", onMessageUnsent);
       }
     };
   }, [socket, isConnected, currentUserId, selectedConversationId]);
@@ -452,6 +485,45 @@ export default function Messages() {
   };
 
   // ----- Handlers -----
+  const handleUnsend = async (message) => {
+    const confirmed = await confirm({
+      title: "Unsend this message?",
+      message: 'The other person will see "Message unsent" instead of your message. This can\'t be undone.',
+      confirmLabel: "Unsend",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+
+    const messageId = message._id;
+    const conversationId = selectedConversationId;
+
+    try {
+      await messageAPI.unsendMessage(messageId);
+
+      let wasLastMessage = false;
+      setMessagesByConversation((prev) => {
+        const list = prev[conversationId] || [];
+        if (list.length > 0 && String(list[list.length - 1]._id) === String(messageId)) {
+          wasLastMessage = true;
+        }
+        const next = list.map((item) =>
+          String(item._id) === String(messageId) ? { ...item, isUnsent: true, content: "" } : item
+        );
+        return { ...prev, [conversationId]: next };
+      });
+
+      if (wasLastMessage) {
+        setConversations((prev) =>
+          prev.map((conversation) =>
+            conversation._id === conversationId ? { ...conversation, lastMessage: "Message unsent" } : conversation
+          )
+        );
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to unsend message.");
+    }
+  };
+
   const handleDeleteConversation = async (conversationId) => {
     const confirmed = await confirm({
       title: "Delete this conversation?",
@@ -840,12 +912,34 @@ export default function Messages() {
                     const showSeparator = index === 0 || currentLabel !== previousLabel;
                     const mine = getSenderId(message) === currentUserId;
 
+                    const messageId = String(message._id || "");
+                    const canUnsend =
+                      mine &&
+                      !message.isUnsent &&
+                      !messageId.startsWith("temp-") &&
+                      Date.now() - new Date(message.createdAt).getTime() <= UNSEND_WINDOW_MS;
+
                     return (
                       <div key={getMessageKey(message) || `${message.createdAt}-${index}`}>
                         {showSeparator && <div className="date-divider">{currentLabel}</div>}
                         <div className={`message ${mine ? "sent" : "received"}`}>
-                          <div className="message-bubble">
-                            <p>{sanitizeMessage(message.content)}</p>
+                          {canUnsend && (
+                            <button
+                              type="button"
+                              className="unsend-btn"
+                              onClick={() => handleUnsend(message)}
+                              aria-label="Unsend message"
+                              title="Unsend"
+                            >
+                              <FaTimes />
+                            </button>
+                          )}
+                          <div className={`message-bubble ${message.isUnsent ? "is-unsent" : ""}`}>
+                            {message.isUnsent ? (
+                              <p className="message-unsent-text">Message unsent</p>
+                            ) : (
+                              <p>{sanitizeMessage(message.content)}</p>
+                            )}
                             <span className="message-time">{formatTime(message.createdAt)}</span>
                           </div>
                         </div>

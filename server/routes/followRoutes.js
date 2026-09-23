@@ -14,8 +14,8 @@ router.post("/:userId/follow", protect, followUser);
 router.post("/:userId/unfollow", protect, unfollowUser);
 
 // Get endpoints
-router.get("/:userId/followers", getFollowers);
-router.get("/:userId/following", getFollowing);
+router.get("/:userId/followers", protect, getFollowers);
+router.get("/:userId/following", protect, getFollowing);
 router.get("/:userId/follow-status", protect, getFollowStatus);
 router.get("/:userId/counts", getFollowerCounts);
 

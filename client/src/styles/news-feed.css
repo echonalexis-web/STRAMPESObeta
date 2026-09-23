@@ -42,8 +42,9 @@ body:not(.app-with-sidebar) .news-feed-page {
 
 @media (max-width: 480px) {
   body:not(.app-with-sidebar) .news-feed-page {
-    padding-top: 60px;
+    padding-top: 80px;
   }
+
 }
 
 .news-feed-header-wrap,
@@ -54,7 +55,19 @@ body:not(.app-with-sidebar) .news-feed-page {
 }
 
 .news-feed-header {
-  padding-top: 2.2rem;
+  padding-top: 4.2rem;
+}
+
+/* Same logged-in/out split as .news-feed-page above: the 4.2rem here is
+   sized to clear a fixed top bar, so it's redundant (and shows as
+   unwanted empty space) at desktop widths, where the sidebar sits on the
+   left with nothing to clear at the top. Below 900px the sidebar itself
+   collapses into a real fixed top bar (see navbar.css), which still
+   needs the full clearance, so this only applies above that breakpoint. */
+@media (min-width: 901px) {
+  body.app-with-sidebar .news-feed-header {
+    padding-top: 1.5rem;
+  }
 }
 
 .news-feed-header h1 {
@@ -108,6 +121,21 @@ body:not(.app-with-sidebar) .news-feed-page {
   background: var(--cat, var(--brand));
   border-color: var(--cat, var(--brand));
   color: #fff;
+}
+
+.news-filter-select-wrap {
+  display: none;
+}
+
+.news-filter-select {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .news-search {
@@ -385,7 +413,7 @@ body:not(.app-with-sidebar) .news-article-page {
 
 @media (max-width: 480px) {
   body:not(.app-with-sidebar) .news-article-page {
-    padding-top: 60px;
+    padding-top: 80px;
   }
 }
 
@@ -799,6 +827,15 @@ body:not(.app-with-sidebar) .news-article-page {
 @media (max-width: 640px) {
   .news-feed-toolbar {
     align-items: stretch;
+  }
+
+  .news-filter-chips {
+    display: none;
+  }
+
+  .news-filter-select-wrap {
+    display: block;
+    flex-basis: 100%;
   }
 
   .news-search {

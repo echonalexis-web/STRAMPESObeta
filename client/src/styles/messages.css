@@ -1,7 +1,7 @@
-/* Messages Page - STRAM PESO Design */
+/* Messages Page - Messenger-inspired layout */
 .messages-page {
-  height: calc(100vh - 84px);
-  background: #f5f7f8;
+  min-height: 100vh;
+  background: #edf2ef;
   font-family: var(--sans);
   overflow: hidden;
 }
@@ -9,11 +9,13 @@
 .messages-container {
   display: grid;
   grid-template-columns: 380px 1fr;
-  height: 100%;
+  height: calc(100vh - 84px);
   max-width: 1400px;
   margin: 0 auto;
-  background: #ffffff;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  background: #f7f7f7;
+  box-shadow: none;
+  border: 1px solid #dfe5e4;
+  border-top: none;
   overflow: hidden;
   min-height: 0;
 }
@@ -29,22 +31,24 @@
 }
 
 .sidebar-header {
-  padding: 20px 20px 12px;
-  border-bottom: 1px solid #f0f2f4;
+  padding: 18px 18px 12px;
+  border-bottom: 1px solid #e7ecea;
   flex-shrink: 0;
+  background: #f7f7f7;
 }
 
 .sidebar-header h1 {
   margin: 0 0 14px 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #1a2a3a;
-  letter-spacing: -0.3px;
+  font-size: 2.2rem;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #1f2f3d;
+  letter-spacing: -0.04em;
 }
 
 .search-wrapper {
   position: relative;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .search-wrapper:last-of-type {
@@ -53,33 +57,34 @@
 
 .search-icon {
   position: absolute;
-  left: 12px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: #9aa6b2;
-  font-size: 13px;
+  color: #8695a3;
+  font-size: 14px;
 }
 
 .search-wrapper input {
   width: 100%;
-  padding: 8px 12px 8px 36px;
-  border: 1px solid #e8ecf0;
-  border-radius: 10px;
-  font-size: 13px;
-  background: #f8fafb;
+  height: 42px;
+  padding: 10px 14px 10px 38px;
+  border: 1px solid #e0e5e6;
+  border-radius: 12px;
+  font-size: 15px;
+  background: #eff2f1;
   color: #1a2a3a;
   transition: all 0.2s;
 }
 
 .search-wrapper input:focus {
   outline: none;
-  border-color: #2e7d32;
+  border-color: #cfd8dc;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.08);
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.06);
 }
 
 .search-wrapper input::placeholder {
-  color: #aab4be;
+  color: #8b99a6;
 }
 
 /* Search Results */
@@ -190,28 +195,36 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  height: 100%;
+  justify-content: center;
+  min-height: 300px;
   color: #9aa6b2;
   padding: 40px 20px;
+  text-align: center;
 }
 
 .empty-icon {
-  font-size: 48px;
-  color: #dce1e6;
-  margin-bottom: 12px;
+  font-size: 64px;
+  color: #d3d9dd;
+  margin-bottom: 18px;
+  background: #dfe4e7;
+  border-radius: 50%;
+  width: 78px;
+  height: 78px;
+  display: grid;
+  place-items: center;
 }
 
 .empty-state p {
   margin: 0;
-  font-weight: 500;
-  color: #6a7a8a;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #4d5f6c;
 }
 
 .empty-state span {
-  font-size: 13px;
-  color: #aab4be;
-  margin-top: 4px;
+  font-size: 0.97rem;
+  color: #7590a0;
+  margin-top: 6px;
 }
 
 .conversation-item {
@@ -513,6 +526,59 @@
   word-wrap: break-word;
 }
 
+/* Unsend affordance — a small "x" that only appears on hover of your own
+   recent messages, sitting to the left of the bubble since sent messages
+   are right-aligned. */
+.unsend-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(122, 138, 154, 0.12);
+  color: #7a8a9a;
+  font-size: 11px;
+  cursor: pointer;
+}
+.unsend-btn svg {
+  display: block;
+  width: 0.9em;
+  height: 0.9em;
+  color: currentColor;
+  fill: currentColor;
+  stroke: currentColor;
+  flex-shrink: 0;
+}
+.message.sent:hover .unsend-btn {
+  display: inline-flex;
+}
+.unsend-btn:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+.unsend-btn:focus-visible {
+  display: inline-flex;
+  outline: 2px solid rgba(46, 125, 50, 0.4);
+  outline-offset: 2px;
+}
+
+/* Unsent placeholder — neutral styling regardless of sent/received so it
+   reads as a system note rather than a normal chat bubble. */
+.message.sent .message-bubble.is-unsent,
+.message.received .message-bubble.is-unsent {
+  background: rgba(122, 138, 154, 0.15);
+}
+.message.sent .message-bubble.is-unsent p,
+.message.received .message-bubble.is-unsent p {
+  color: #64748b;
+  font-style: italic;
+}
+
 .message-time {
   font-size: 10px;
   opacity: 0.75;
@@ -662,13 +728,22 @@
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
+  /* Prevent iOS Safari auto-zoom-on-focus */
+  .search-wrapper input {
+    font-size: 16px;
+  }
+
   .messages-page {
-    margin-top: 108px;
+    padding-top: 4.5rem;
     height: calc(100vh - 108px);
+    background: #edf2ef;
   }
 
   .messages-container {
     grid-template-columns: 1fr;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
   }
 
   .messages-sidebar {
@@ -730,7 +805,7 @@
   }
 
   .sidebar-header h1 {
-    font-size: 17px;
+    font-size: 2rem;
     margin-bottom: 10px;
   }
 
@@ -759,7 +834,7 @@
   }
 
   .chat-input-bar input {
-    font-size: 13px;
+    font-size: 16px; /* Prevent iOS zoom — was dropping below the desktop size here */
     padding: 8px 12px;
   }
 }

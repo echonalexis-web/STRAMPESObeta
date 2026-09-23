@@ -3,7 +3,7 @@ import { authAPI } from "../services/api";
 
 const AuthContext = createContext();
 
-const normalizeRole = (role) => (role === "employee" || role === "jobseeker" ? "resident" : role);
+const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
 const normalizeUser = (user) => {
   if (!user) return user;
@@ -101,6 +101,10 @@ export const AuthProvider = ({ children }) => {
     persistUser(nextValue);
   };
 
+  // Returns the merged user it ends up persisting, so a caller that needs it
+  // right away (e.g. to decide where to navigate next) can use the return
+  // value directly instead of re-fetching/re-merging the profile itself —
+  // login() already does exactly that internally.
   const login = async (tokenValue, userValue) => {
     const normalizedUser = normalizeUser(userValue);
     localStorage.setItem("token", tokenValue);
@@ -112,8 +116,10 @@ export const AuthProvider = ({ children }) => {
       const { data } = await authAPI.getProfile();
       const mergedUser = mergeProfileIntoUser(data?.user || normalizedUser, data?.profile || {});
       persistUser(mergedUser);
+      return mergedUser;
     } catch (error) {
       console.warn("Login profile hydration failed:", error?.response?.data?.message || error.message);
+      return normalizedUser;
     }
   };
 

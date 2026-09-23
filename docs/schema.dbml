@@ -1,0 +1,539 @@
+// STRAMPESO — DBML schema
+// Paste this file's contents directly into https://dbdiagram.io (Editor pane).
+// Source of truth: server/models/*.js (MongoDB/Mongoose). ObjectIds are modeled
+// as `varchar` ids; embedded sub-documents are flattened to `json` columns;
+// Conversation.participants (an array ref) is modeled as an explicit join table.
+
+Enum user_role {
+  resident
+  employer
+  admin
+  superadmin
+}
+
+Enum auth_provider {
+  local
+  google
+}
+
+Enum account_status {
+  active
+  suspended
+  banned
+}
+
+Enum verification_status {
+  unverified
+  pending
+  verified
+  rejected
+}
+
+Enum company_size {
+  micro
+  small
+  medium
+  large
+}
+
+Enum job_type {
+  "Full-time"
+  "Part-time"
+  Contract
+  Internship
+  Temporary
+  Remote
+}
+
+Enum vacancy_status {
+  active
+  closed
+  draft
+}
+
+Enum work_nature {
+  remote
+  onsite
+  hybrid
+}
+
+Enum application_status {
+  pending
+  reviewed
+  shortlisted
+  rejected
+  hired
+}
+
+Enum announcement_category {
+  general
+  hiring
+  training
+  event
+  advisory
+  spes
+}
+
+Enum spes_status {
+  submitted
+  under_review
+  for_exam
+  for_interview
+  evaluated
+  results_released
+  withdrawn
+  disqualified
+}
+
+Enum spes_outcome {
+  pending
+  accepted
+  waitlisted
+  not_accepted
+}
+
+Enum notification_type {
+  system
+  message
+  job_application
+  application_status
+  admin_action
+  follow
+  news
+  like
+  spes
+}
+
+Enum appeal_status {
+  pending
+  under_review
+  approved
+  denied
+}
+
+Enum report_target_type {
+  user
+  job
+  news_comment
+  news_post
+  message
+  avatar
+}
+
+Enum report_status {
+  open
+  under_review
+  action_taken
+  dismissed
+}
+
+Enum audit_severity {
+  info
+  warning
+  critical
+}
+
+Table users {
+  id varchar [pk]
+  name varchar [not null]
+  email varchar [unique, not null]
+  password varchar
+  google_id varchar
+  auth_provider auth_provider [default: 'local']
+  role user_role [default: 'resident', not null]
+  phone varchar
+  must_change_password boolean [default: false]
+  created_by_superadmin varchar [ref: > users.id]
+  staff_note varchar
+  last_login_at timestamp
+  about varchar
+  address varchar
+  profile_image varchar
+  date_of_birth date
+  gender varchar
+  desired_job_title varchar
+  skills json [note: 'string array']
+  preferred_industries json [note: 'string array']
+  work_experience varchar
+  educational_attainment varchar
+  availability_status varchar
+  company_name varchar
+  industry varchar
+  company_size company_size
+  website varchar
+  company_description varchar
+  business_address varchar
+  verification_status verification_status [default: 'unverified']
+  business_permit_url varchar
+  registration_doc_url varchar
+  verification_reviewed_by varchar [ref: > users.id]
+  resume_file varchar
+  valid_id_file varchar
+  is_active boolean [default: true]
+  account_status account_status [default: 'active']
+  suspension_reason varchar
+  suspended_at timestamp
+  suspended_by varchar [ref: > users.id]
+  accepted_terms_at timestamp
+  has_completed_onboarding boolean [default: false]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  Note: 'Central account table for all roles (resident/employer/admin/superadmin)'
+}
+
+Table jobseeker_profiles {
+  id varchar [pk]
+  user_id varchar [ref: - users.id, unique, not null]
+  civil_status varchar
+  place_of_birth varchar
+  citizenship varchar
+  height float
+  weight float
+  religion varchar
+  tin varchar
+  sss_gsis_no varchar
+  pagibig_no varchar
+  philhealth_no varchar
+  landline varchar
+  mobile_secondary varchar
+  present_address json
+  permanent_address json
+  disability json [note: 'string array']
+  is_4ps_beneficiary boolean [default: false]
+  is_ofw boolean [default: false]
+  is_repatriated boolean [default: false]
+  passport_no varchar
+  employment_status varchar
+  employment_type varchar
+  unemployment_reason varchar
+  skills json [note: 'string array']
+  preferred_industries json [note: 'string array, max 10']
+  preferred_job_types json [note: 'string array']
+  preferred_work_nature json [note: 'string array']
+  preferred_occupations json [note: 'string array, max 4']
+  expected_salary_min float
+  expected_salary_max float
+  school_attended varchar
+  course varchar
+  year_graduated varchar
+  language_proficiency json
+  work_history json [note: 'array of {companyName, position, dateFrom, dateTo, status}']
+  vocational_trainings json
+  eligibilities json
+  professional_licenses json
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  Note: '1:1 extension of users for residents (NSRP profile detail)'
+}
+
+Table employer_profiles {
+  id varchar [pk]
+  user_id varchar [ref: - users.id, unique, not null]
+  trade_name varchar
+  acronym varchar
+  tin varchar
+  office_type varchar [note: 'main | branch']
+  employer_classification_type varchar [note: 'public | private']
+  employer_classification_subtype varchar
+  total_workforce_size company_size
+  business_address json
+  owner_name varchar
+  contact_person_name varchar
+  contact_person_position varchar
+  fax varchar
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  Note: '1:1 extension of users for employers (business/registration detail)'
+}
+
+Table job_vacancies {
+  id varchar [pk]
+  title varchar [not null]
+  description varchar [not null]
+  location varchar [not null]
+  salary_min float
+  salary_max float
+  qualifications json [note: 'array of {type, value, optional, order}']
+  requirements varchar [note: 'deprecated free-text']
+  application_deadline timestamp
+  job_type job_type [default: 'Full-time']
+  slots integer [default: 1]
+  employer varchar [ref: > users.id, not null]
+  is_active boolean [default: true]
+  status vacancy_status [default: 'active']
+  is_featured boolean [default: false]
+  featured_order integer
+  industry varchar
+  work_nature work_nature
+  min_age integer
+  max_age integer
+  min_education_level varchar
+  education_or_equivalent_experience boolean [default: false]
+  min_experience_years integer
+  language_requirements json
+  archived boolean [default: false]
+  archived_at timestamp
+  archive_reason varchar
+  closed_at timestamp
+  archived_metrics json
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  Note: 'Job posting created by an employer'
+}
+
+Table job_applications {
+  id varchar [pk]
+  applicant varchar [ref: > users.id, not null]
+  vacancy varchar [ref: > job_vacancies.id, not null]
+  resume varchar
+  cover_letter varchar
+  cover_letter_file varchar
+  status application_status [default: 'pending']
+  employer_note varchar
+  status_updated_at timestamp
+  applied_at timestamp [default: `now()`]
+  interview_scheduled_at timestamp
+  interview_mode varchar [note: 'onsite | online']
+  interview_location varchar
+  interview_notes varchar
+  interview_scheduled_by varchar [ref: > users.id]
+  interview_no_show boolean [default: false]
+
+  Note: 'A resident applying to a job vacancy'
+}
+
+Table qualification_templates {
+  id varchar [pk]
+  employer varchar [ref: > users.id, not null]
+  name varchar [not null]
+  job_title varchar
+  items json [note: 'array of {type, value, optional, order}']
+  source varchar [default: 'custom']
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  Note: 'Employer-owned reusable qualification set. Unique on (employer, name)'
+}
+
+Table conversations {
+  id varchar [pk]
+  last_message varchar
+  last_message_at timestamp
+  created_at timestamp [default: `now()`]
+
+  Note: 'A messaging thread'
+}
+
+Table conversation_participants {
+  id varchar [pk]
+  conversation_id varchar [ref: > conversations.id, not null]
+  user_id varchar [ref: > users.id, not null]
+
+  Note: 'Join table modeling Conversation.participants (array of user refs)'
+}
+
+Table messages {
+  id varchar [pk]
+  conversation_id varchar [ref: > conversations.id, not null]
+  sender varchar [ref: > users.id, not null]
+  content varchar [not null]
+  is_read boolean [default: false]
+  created_at timestamp [default: `now()`]
+
+  Note: 'A single chat message inside a conversation'
+}
+
+Table follows {
+  id varchar [pk]
+  follower varchar [ref: > users.id, not null]
+  following varchar [ref: > users.id, not null]
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    (follower, following) [unique]
+  }
+
+  Note: 'A user following another user'
+}
+
+Table job_likes {
+  id varchar [pk]
+  user_id varchar [ref: > users.id, not null]
+  job_id varchar [ref: > job_vacancies.id, not null]
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    (user_id, job_id) [unique]
+  }
+
+  Note: 'A user liking/saving a job vacancy'
+}
+
+Table announcements {
+  id varchar [pk]
+  title varchar [not null]
+  content varchar [not null]
+  category announcement_category [default: 'general']
+  spes_application_deadline timestamp
+  spes_slots integer
+  spes_requirements json
+  spes_results_url varchar
+  spes_results_status varchar [note: 'pending | published']
+  spes_results_published_at timestamp
+  spes_results_published_by varchar [ref: > users.id]
+  spes_results_summary varchar
+  image_url varchar
+  published_at timestamp [default: `now()`]
+  author varchar [ref: > users.id, not null]
+  is_active boolean [default: true]
+  comments_enabled boolean [default: true]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  Note: 'Admin-authored news/SPES post'
+}
+
+Table news_likes {
+  id varchar [pk]
+  user_id varchar [ref: > users.id, not null]
+  news_id varchar [ref: > announcements.id, not null]
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    (user_id, news_id) [unique]
+  }
+
+  Note: 'A user liking an announcement'
+}
+
+Table news_comments {
+  id varchar [pk]
+  news_id varchar [ref: > announcements.id, not null]
+  author varchar [ref: > users.id, not null]
+  content varchar [not null]
+  is_hidden boolean [default: false]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  Note: "A user's comment on an announcement"
+}
+
+Table spes_applications {
+  id varchar [pk]
+  applicant varchar [ref: > users.id, not null]
+  announcement varchar [ref: > announcements.id, not null]
+  status spes_status [default: 'submitted']
+  nsrp_complete boolean [default: false]
+  contact_number varchar
+  school varchar
+  grade_level varchar
+  guardian_name varchar
+  documents json [note: 'array of {label, fileUrl}']
+  exam_score float
+  exam_taken_at timestamp
+  interview_score float
+  interview_at timestamp
+  evaluated_by varchar [ref: > users.id]
+  result_outcome spes_outcome [default: 'pending']
+  result_rank integer
+  result_remarks varchar
+  decided_by varchar [ref: > users.id]
+  decided_at timestamp
+  result_released_at timestamp
+  admin_note varchar
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  indexes {
+    (applicant, announcement) [unique]
+  }
+
+  Note: "A resident's application to a SPES announcement"
+}
+
+Table notifications {
+  id varchar [pk]
+  recipient varchar [ref: > users.id, not null]
+  actor varchar [ref: > users.id]
+  type notification_type [default: 'system']
+  title varchar [not null]
+  message varchar [not null]
+  related_entity_type varchar
+  related_entity_id varchar
+  action_url varchar
+  metadata json
+  is_read boolean [default: false]
+  read_at timestamp
+  created_at timestamp [default: `now()`]
+
+  Note: 'In-app notification. Read notifications auto-expire 30 days after read_at'
+}
+
+Table appeals {
+  id varchar [pk]
+  user varchar [ref: > users.id, not null]
+  account_status varchar [note: 'suspended | banned']
+  suspension_reason varchar
+  message varchar [not null]
+  status appeal_status [default: 'pending']
+  admin_response varchar
+  reviewed_by varchar [ref: > users.id]
+  resolved_at timestamp
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  Note: "A suspended/banned user's request for admin review"
+}
+
+Table reports {
+  id varchar [pk]
+  reporter varchar [ref: > users.id, not null]
+  target_type report_target_type [not null]
+  target_id varchar [note: 'polymorphic reference, not a real FK']
+  target_owner varchar [ref: > users.id]
+  category varchar [not null]
+  details varchar
+  status report_status [default: 'open']
+  resolution_action varchar [default: 'none']
+  resolution_note varchar
+  resolution_handled_by varchar [ref: > users.id]
+  resolution_resolved_at timestamp
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+
+  Note: 'A policy-violation report against a user/job/comment/post/message/avatar'
+}
+
+Table audit_logs {
+  id varchar [pk]
+  actor_id varchar [ref: > users.id]
+  actor_role varchar
+  action varchar [not null]
+  target_user_id varchar [ref: > users.id]
+  target_type varchar [default: 'user']
+  target_id varchar [note: 'polymorphic reference, not a real FK']
+  severity audit_severity [default: 'info']
+  ip_address varchar
+  user_agent varchar
+  metadata json
+  created_at timestamp [default: `now()`]
+
+  Note: 'Immutable log of admin/system actions'
+}
+
+// ---- Manual layout guide (free plan has no TableGroup/color — arrange by hand) ----
+// Tables above are declared in cluster order on purpose, which is what
+// dbdiagram.io's auto-layout leans on. Drag to tidy into these six clusters:
+//   1. Identity & Profiles     -> users, jobseeker_profiles, employer_profiles
+//   2. Hiring                  -> job_vacancies, job_applications, qualification_templates
+//   3. Messaging                -> conversations, conversation_participants, messages
+//   4. Social                  -> follows, job_likes, news_likes, news_comments
+//   5. Content & Programs      -> announcements, spes_applications
+//   6. Moderation & System     -> notifications, appeals, reports, audit_logs
+// Put `users` in the middle of the canvas first (everything connects to it),
+// then drag each cluster's tables into a loose group around it, roughly in
+// the numbered order above (e.g. left-to-right, top-to-bottom).

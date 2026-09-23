@@ -425,11 +425,13 @@
 .jm-table-wrap {
   border: 0.5px solid #e2e8f0;
   border-radius: 10px;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .jm-table {
   width: 100%;
+  min-width: 640px;
   border-collapse: collapse;
   background: #ffffff;
 }
@@ -765,10 +767,11 @@
 }
 
 .jm-modal__grid--narrow {
-  grid-template-columns: 1.4fr 1fr;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
 }
 
 .jm-modal__card {
+  min-width: 0;
   background: #f8fafc;
   border: 0.5px solid #e2e8f0;
   border-radius: 12px;
@@ -806,6 +809,8 @@
 .jm-skill-tag {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   padding: 5px 11px;
   border-radius: 8px;
   background: #ffffff;
@@ -842,7 +847,7 @@
 
 @media (max-width: 640px) {
   .jm-page {
-    padding: 20px 18px 28px;
+    padding: 70px 18px 28px;
   }
 
   .jm-kpi-grid {

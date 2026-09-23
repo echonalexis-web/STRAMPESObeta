@@ -46,17 +46,39 @@ export default function ImageEditorModal({
 
   const imgRef = useRef(null);
   const dragRef = useRef(null);
+  const stageWrapRef = useRef(null);
+
+  // The crop stage is capped at ROUND_SIZE/RECT_MAX_W on desktop, but on a
+  // narrow phone that's wider than the modal itself — measure the actual
+  // available width so the stage (and the drag/zoom math tied to it) shrinks
+  // to fit instead of overflowing or getting silently clipped.
+  const [stageMaxW, setStageMaxW] = useState(round ? ROUND_SIZE : RECT_MAX_W);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const el = stageWrapRef.current;
+    if (!el) return undefined;
+    const cap = round ? ROUND_SIZE : RECT_MAX_W;
+    const measure = () => {
+      const w = el.clientWidth;
+      if (w > 0) setStageMaxW(Math.min(w, cap));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open, round]);
 
   const frame = useMemo(() => {
-    if (round) return { w: ROUND_SIZE, h: ROUND_SIZE };
-    let w = RECT_MAX_W;
+    if (round) return { w: stageMaxW, h: stageMaxW };
+    let w = stageMaxW;
     let h = w / activeAspect;
     if (h > RECT_MAX_H) {
       h = RECT_MAX_H;
       w = h * activeAspect;
     }
     return { w: Math.round(w), h: Math.round(h) };
-  }, [round, activeAspect]);
+  }, [round, activeAspect, stageMaxW]);
 
   // Reset every time the modal opens with a (possibly new) image.
   useEffect(() => {
@@ -197,31 +219,33 @@ export default function ImageEditorModal({
         </header>
 
         <div className="ie-body">
-          <div
-            className={`ie-stage${round ? " ie-stage--round" : ""}`}
-            style={{ width: frame.w, height: frame.h }}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerLeave={onPointerUp}
-            onWheel={onWheel}
-          >
-            <img
-              ref={imgRef}
-              src={src}
-              alt=""
-              className="ie-img"
-              draggable="false"
-              onLoad={onImgLoad}
-              style={{
-                transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px) rotate(${rotation}deg) scale(${effScale || 1})`,
-              }}
-            />
-            <div className={`ie-frame${round ? " ie-frame--round" : ""}`} aria-hidden="true">
-              <span />
-              <span />
-              <span />
-              <span />
+          <div className="ie-stage-wrap" ref={stageWrapRef}>
+            <div
+              className={`ie-stage${round ? " ie-stage--round" : ""}`}
+              style={{ width: frame.w, height: frame.h }}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerLeave={onPointerUp}
+              onWheel={onWheel}
+            >
+              <img
+                ref={imgRef}
+                src={src}
+                alt=""
+                className="ie-img"
+                draggable="false"
+                onLoad={onImgLoad}
+                style={{
+                  transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px) rotate(${rotation}deg) scale(${effScale || 1})`,
+                }}
+              />
+              <div className={`ie-frame${round ? " ie-frame--round" : ""}`} aria-hidden="true">
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
             </div>
           </div>
         </div>

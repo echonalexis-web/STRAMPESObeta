@@ -1,11 +1,13 @@
-﻿import { useContext } from "react";
-import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-router-dom";
+﻿import { useContext, useEffect, useState } from "react";
+import { BrowserRouter, Navigate, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext";
 import { AuthContext } from "./context/AuthContext";
-import { SocketProvider } from "./context/SocketContext";
+import { SocketProvider, useSocket } from "./context/SocketContext";
 import { FeedbackProvider } from "./components/feedback/FeedbackProvider";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
+import AccountInactiveModal from "./components/AccountInactiveModal";
+import { claimAccountInactiveHandling } from "./services/api";
 
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
@@ -19,6 +21,7 @@ import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
 import SuperadminConsole from "./pages/superadmin/SuperadminConsole";
 import VerifyEmail from "./pages/VerifyEmail";
+import ConfirmEmail from "./pages/ConfirmEmail";
 import AccountSuspended from "./pages/AccountSuspended";
 import TermsGate from "./components/TermsGate";
 import Dashboard from "./pages/Dashboard";
@@ -26,6 +29,7 @@ import JobBoard from "./pages/JobBoard";
 import JobDetail from "./pages/JobDetail";
 import ProfilePage from "./pages/ProfilePage";
 import EditProfile from "./pages/EditProfile";
+import ResumeStudio from "./pages/ResumeStudio";
 import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -53,7 +57,11 @@ import "./styles/style.css";
 // account-suspended wall lands here precisely because the user can't sign in
 // normally, so Login/Register chrome would be contradictory — and the fixed
 // navbar overlaps the centered card.
-const BARE_ROUTES = new Set(["/account-suspended", "/change-password"]);
+// Edit Profile builds its own full-page shell with its own sidebar rail
+// (see .editprofile-shell in styles/profile.css) — it was never designed to
+// sit alongside the main app navbar, which previously still rendered here
+// and pushed a second, redundant sidebar onto the page.
+const BARE_ROUTES = new Set(["/account-suspended", "/change-password", "/profile/edit"]);
 
 function SiteChrome() {
   const { pathname } = useLocation();
@@ -61,9 +69,65 @@ function SiteChrome() {
   return <Navbar />;
 }
 
+// Ends an already-open session the moment an admin suspends/bans/disables/
+// deletes this account (or the account deactivates itself from another
+// device) — not just on this tab's *next* request. The backend pushes
+// "account:forced_logout" to this account's socket room (see
+// services/sessionService.js); mounted once, globally, regardless of route,
+// so it still fires even on routes that don't render the main Navbar (which
+// is where the equivalent socket listeners for other features tend to live).
+function ForcedLogoutListener() {
+  const { socket } = useSocket();
+  const { logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const [notice, setNotice] = useState(null);
+
+  useEffect(() => {
+    if (!socket) return undefined;
+    const handleForcedLogout = (payload = {}) => {
+      // Shares one guard with the API interceptor's own handling of the same
+      // family of 403s (services/api.js). Whichever of the two — this live
+      // push, or an ordinary request happening to reject around the same
+      // moment — arrives first wins; the other is a no-op, so a hard
+      // `window.location.href` redirect from one can never interrupt (and
+      // get visually torn apart by) this modal from the other.
+      if (!claimAccountInactiveHandling()) return;
+      setNotice(payload);
+    };
+    socket.on("account:forced_logout", handleForcedLogout);
+    return () => socket.off("account:forced_logout", handleForcedLogout);
+  }, [socket]);
+
+  if (!notice) return null;
+
+  const handleDismiss = () => {
+    const isSuspended = notice.code === "ACCOUNT_SUSPENDED";
+    if (isSuspended) {
+      localStorage.setItem(
+        "suspensionInfo",
+        JSON.stringify({
+          accountStatus: notice.accountStatus || "suspended",
+          suspensionReason: notice.suspensionReason || null,
+          suspendedAt: notice.suspendedAt || null,
+        })
+      );
+    } else {
+      localStorage.setItem(
+        "authNotice",
+        notice.message || "Your account is no longer active. Please sign in again."
+      );
+    }
+    logout();
+    setNotice(null);
+    navigate(isSuspended ? "/account-suspended" : "/login", { replace: true });
+  };
+
+  return <AccountInactiveModal onDismiss={handleDismiss} />;
+}
+
 function HomeRoute() {
   const { user } = useContext(AuthContext);
-  const normalizedRole = user?.role === "employee" || user?.role === "jobseeker" ? "resident" : user?.role;
+  const normalizedRole = user?.role === "employee" || user?.role === "resident" ? "jobseeker" : user?.role;
 
   if (normalizedRole === "superadmin") {
     return <Navigate to="/superadmin" replace />;
@@ -85,6 +149,7 @@ function AppRoutes() {
       <BrowserRouter>
         <SiteChrome />
         <TermsGate />
+        <ForcedLogoutListener />
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/about" element={<About />} />
@@ -95,6 +160,7 @@ function AppRoutes() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/confirm-email" element={<ConfirmEmail />} />
           <Route path="/account-suspended" element={<AccountSuspended />} />
           <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
           <Route path="/superadmin" element={<ProtectedRoute requiredRole="superadmin"><SuperadminConsole /></ProtectedRoute>} />
@@ -106,12 +172,14 @@ function AppRoutes() {
           <Route path="/profile/favorites" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/profile/likes" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/profile/followers" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/profile/documents" element={<ProtectedRoute requiredRole="jobseeker"><ProfilePage /></ProtectedRoute>} />
           <Route path="/profile/edit" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
+          <Route path="/profile/resume" element={<ProtectedRoute requiredRole="jobseeker"><ResumeStudio /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/dashboard" element={<ProtectedRoute requiredRole="resident"><Dashboard /></ProtectedRoute>} />
-          <Route path="/applications" element={<ProtectedRoute requiredRole="resident"><YourApplications /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute requiredRole="jobseeker"><Dashboard /></ProtectedRoute>} />
+          <Route path="/applications" element={<ProtectedRoute requiredRole="jobseeker"><YourApplications /></ProtectedRoute>} />
           <Route path="/spes/applications" element={<ProtectedRoute><MySpesApplications /></ProtectedRoute>} />
-          <Route path="/jobs" element={<ProtectedRoute requiredRole="resident"><JobBoard /></ProtectedRoute>} />
+          <Route path="/jobs" element={<ProtectedRoute requiredRole="jobseeker"><JobBoard /></ProtectedRoute>} />
           <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/jobs/:id/apply" element={<JobDetail />} />
           <Route path="/post-job" element={<ProtectedRoute requiredRole="employer"><PostJob /></ProtectedRoute>} />

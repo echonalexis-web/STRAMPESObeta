@@ -1,12 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { adminAPI } from "../../services/api";
 import "../../styles/admin.css";
 import AdminHeader from "./AdminHeader";
-import {
-  formatAuditAction,
-  getAuditActionCategory,
-  getAuditCategories,
-} from "../../utils/auditConstants";
+import { formatAuditAction, getAuditCategories } from "../../utils/auditConstants";
 
 const formatDateTime = (value) => {
   if (!value) return "—";
@@ -23,6 +19,35 @@ const formatDateTime = (value) => {
 
 const normalizeSeverity = (value) => String(value || "info").trim().toLowerCase();
 
+const range = (start, end) => Array.from({ length: end - start + 1 }, (_, index) => start + index);
+
+const ELLIPSIS = "ellipsis";
+
+const getPaginationItems = (currentPage, totalPages, siblingCount = 1) => {
+  const totalSlots = siblingCount * 2 + 5;
+
+  if (totalPages <= totalSlots) {
+    return range(1, totalPages);
+  }
+
+  const leftSibling = Math.max(currentPage - siblingCount, 1);
+  const rightSibling = Math.min(currentPage + siblingCount, totalPages);
+  const showLeftEllipsis = leftSibling > 2;
+  const showRightEllipsis = rightSibling < totalPages - 1;
+
+  if (!showLeftEllipsis && showRightEllipsis) {
+    const leftRange = range(1, 3 + siblingCount * 2);
+    return [...leftRange, ELLIPSIS, totalPages];
+  }
+
+  if (showLeftEllipsis && !showRightEllipsis) {
+    const rightRange = range(totalPages - (3 + siblingCount * 2) + 1, totalPages);
+    return [1, ELLIPSIS, ...rightRange];
+  }
+
+  return [1, ELLIPSIS, ...range(leftSibling, rightSibling), ELLIPSIS, totalPages];
+};
+
 export default function AuditTrail() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,23 +59,38 @@ export default function AuditTrail() {
   const [toDate, setToDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalEntries, setTotalEntries] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    let isMounted = true;
+    let isCurrent = true;
 
     const loadLogs = async () => {
+      setLoading(true);
       try {
-        const { data } = await adminAPI.getAuditLogs({ page: 1, limit: 20 });
-        if (!isMounted) return;
+        const { data } = await adminAPI.getAuditLogs({
+          page: currentPage,
+          limit: rowsPerPage,
+          search: searchTerm.trim() || undefined,
+          severity: severityFilter !== "all" ? severityFilter : undefined,
+          category: actionCategoryFilter !== "all" ? actionCategoryFilter : undefined,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
+        });
+        if (!isCurrent) return;
         setLogs(Array.isArray(data?.items) ? data.items : []);
+        setTotalEntries(Number(data?.total) || 0);
+        setTotalPages(Math.max(Number(data?.totalPages) || 1, 1));
         setError("");
       } catch (err) {
-        if (isMounted) {
+        if (isCurrent) {
           setLogs([]);
+          setTotalEntries(0);
+          setTotalPages(1);
           setError(err.response?.data?.message || "Failed to load audit logs");
         }
       } finally {
-        if (isMounted) {
+        if (isCurrent) {
           setLoading(false);
         }
       }
@@ -58,51 +98,16 @@ export default function AuditTrail() {
 
     loadLogs();
     return () => {
-      isMounted = false;
+      isCurrent = false;
     };
-  }, []);
+  }, [currentPage, rowsPerPage, searchTerm, severityFilter, actionCategoryFilter, fromDate, toDate]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, severityFilter, actionCategoryFilter, fromDate, toDate]);
-
-  const filteredLogs = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-
-    return logs.filter((log) => {
-      const actor = String(log.actorId?.name || log.actorRole || "System").toLowerCase();
-      const rawAction = String(log.action || "Unknown action").toLowerCase();
-      const actionLabel = formatAuditAction(log.action).toLowerCase();
-      const target = String(log.targetUserId?.name || log.targetType || "—").toLowerCase();
-      const severity = normalizeSeverity(log.severity);
-      const timestamp = log.createdAt ? new Date(log.createdAt).getTime() : null;
-
-      const matchesSearch =
-        !normalizedSearch ||
-        actor.includes(normalizedSearch) ||
-        rawAction.includes(normalizedSearch) ||
-        actionLabel.includes(normalizedSearch) ||
-        target.includes(normalizedSearch);
-
-      const matchesSeverity = severityFilter === "all" || severity === severityFilter;
-
-      const matchesActionCategory = (() => {
-        if (actionCategoryFilter === "all") return true;
-        return getAuditActionCategory(log.action) === actionCategoryFilter;
-      })();
-
-      const fromTimestamp = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
-      const toTimestamp = toDate ? new Date(`${toDate}T23:59:59.999`).getTime() : null;
-
-      const matchesFromDate = !fromTimestamp || (timestamp !== null && timestamp >= fromTimestamp);
-      const matchesToDate = !toTimestamp || (timestamp !== null && timestamp <= toTimestamp);
-
-      return matchesSearch && matchesSeverity && matchesActionCategory && matchesFromDate && matchesToDate;
-    });
-  }, [logs, searchTerm, severityFilter, actionCategoryFilter, fromDate, toDate]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / rowsPerPage));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const hasActiveFilters =
+    Boolean(searchTerm.trim()) ||
+    severityFilter !== "all" ||
+    actionCategoryFilter !== "all" ||
+    Boolean(fromDate) ||
+    Boolean(toDate);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -110,13 +115,8 @@ export default function AuditTrail() {
     }
   }, [currentPage, totalPages]);
 
-  const paginatedLogs = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * rowsPerPage;
-    return filteredLogs.slice(startIndex, startIndex + rowsPerPage);
-  }, [filteredLogs, safeCurrentPage, rowsPerPage]);
-
-  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
-  const totalEntries = filteredLogs.length;
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginationItems = getPaginationItems(safeCurrentPage, totalPages);
   const startEntry = totalEntries === 0 ? 0 : (safeCurrentPage - 1) * rowsPerPage + 1;
   const endEntry = totalEntries === 0 ? 0 : Math.min(safeCurrentPage * rowsPerPage, totalEntries);
 
@@ -154,7 +154,10 @@ export default function AuditTrail() {
                 id="audit-search"
                 type="text"
                 value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                onChange={(event) => {
+                  setSearchTerm(event.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder="Search actor, action, or target"
               />
             </div>
@@ -166,7 +169,10 @@ export default function AuditTrail() {
               <select
                 id="audit-severity"
                 value={severityFilter}
-                onChange={(event) => setSeverityFilter(event.target.value)}
+                onChange={(event) => {
+                  setSeverityFilter(event.target.value);
+                  setCurrentPage(1);
+                }}
               >
                 <option value="all">All Severities</option>
                 <option value="info">info</option>
@@ -182,7 +188,10 @@ export default function AuditTrail() {
               <select
                 id="audit-action-category"
                 value={actionCategoryFilter}
-                onChange={(event) => setActionCategoryFilter(event.target.value)}
+                onChange={(event) => {
+                  setActionCategoryFilter(event.target.value);
+                  setCurrentPage(1);
+                }}
               >
                 {getAuditCategories().map((category) => (
                   <option key={category.value} value={category.value}>
@@ -200,7 +209,10 @@ export default function AuditTrail() {
                 id="audit-from-date"
                 type="date"
                 value={fromDate}
-                onChange={(event) => setFromDate(event.target.value)}
+                onChange={(event) => {
+                  setFromDate(event.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
 
@@ -212,7 +224,10 @@ export default function AuditTrail() {
                 id="audit-to-date"
                 type="date"
                 value={toDate}
-                onChange={(event) => setToDate(event.target.value)}
+                onChange={(event) => {
+                  setToDate(event.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
 
@@ -242,18 +257,16 @@ export default function AuditTrail() {
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="admin-empty-state">
-                    <p>No audit entries found.</p>
-                  </td>
-                </tr>
-              ) : filteredLogs.length === 0 ? (
-                <tr>
                   <td colSpan={5} className="admin-empty-state admin-audit-empty-state">
-                    <p>No activity logs found matching the selected filters.</p>
+                    <p>
+                      {hasActiveFilters
+                        ? "No activity logs found matching the selected filters."
+                        : "No audit entries found."}
+                    </p>
                   </td>
                 </tr>
               ) : (
-                paginatedLogs.map((log) => {
+                logs.map((log) => {
                   const severity = normalizeSeverity(log.severity);
                   const severityClass = severity === "critical" ? "critical" : severity === "warning" ? "warning" : "info";
                   const severityLabel = severity === "critical" ? "Critical" : severity === "warning" ? "Warning" : "Info";
@@ -292,16 +305,26 @@ export default function AuditTrail() {
               Previous
             </button>
 
-            {pageNumbers.map((pageNumber) => (
-              <button
-                key={pageNumber}
-                type="button"
-                className={`admin-audit-pagination__button ${safeCurrentPage === pageNumber ? "admin-audit-pagination__button--active" : ""}`}
-                onClick={() => setCurrentPage(pageNumber)}
-              >
-                {pageNumber}
-              </button>
-            ))}
+            {paginationItems.map((item, index) =>
+              item === ELLIPSIS ? (
+                <span
+                  key={`ellipsis-${index}`}
+                  className="admin-audit-pagination__ellipsis"
+                  aria-hidden="true"
+                >
+                  …
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  type="button"
+                  className={`admin-audit-pagination__button ${safeCurrentPage === item ? "admin-audit-pagination__button--active" : ""}`}
+                  onClick={() => setCurrentPage(item)}
+                >
+                  {item}
+                </button>
+              )
+            )}
 
             <button
               type="button"

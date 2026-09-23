@@ -3,12 +3,13 @@ import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
 import GoogleSignInButton from "../components/GoogleSignInButton";
+import { useToast } from "../components/feedback/context";
 import "../styles/auth.css";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import pesoLogo from "../assets/images/peso-logo.png";
 import provincialSeal from "../assets/images/provincial-seal.png";
 
-const normalizeRole = (role) => (role === "employee" || role === "jobseeker" ? "resident" : role);
+const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
 const formatApiError = (err, fallback = "Registration failed") => {
   const status = err?.response?.status;
@@ -89,8 +90,22 @@ export default function Register() {
   const [touched, setTouched] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  // Set once registration succeeds — there's no session to log into yet
+  // (see handleSubmit), so this replaces the form with a "check your email"
+  // notice instead of navigating anywhere.
+  const [success, setSuccess] = useState("");
+  const [devVerifyUrl, setDevVerifyUrl] = useState("");
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const toast = useToast();
+
+  // On a long form, a plain inline banner can end up far above whatever the
+  // user has scrolled down to fill in next — this fires a toast alongside it
+  // so the error is seen immediately regardless of scroll position.
+  const showError = (message) => {
+    setError(message);
+    if (message) toast.error(message);
+  };
 
   /* ─── Spotlight mouse tracking ─── */
   useEffect(() => {
@@ -124,7 +139,7 @@ export default function Register() {
       const errors = validatePassword(value);
       setPasswordErrors(errors);
       if (error && error.includes("email")) {
-        setError("");
+        showError("");
       }
     }
   };
@@ -145,7 +160,7 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    showError("");
     setPasswordErrors([]);
 
     // ─── Empty-field validation ───
@@ -153,23 +168,23 @@ export default function Register() {
     setTouched(newTouched);
 
     if (!formData.surname.trim() && !formData.firstName.trim() && !formData.email.trim() && !formData.password) {
-      setError("Please fill in all required fields.");
+      showError("Please fill in all required fields.");
       return;
     }
     if (!formData.surname.trim()) {
-      setError("Please enter your surname.");
+      showError("Please enter your surname.");
       return;
     }
     if (!formData.firstName.trim()) {
-      setError("Please enter your first name.");
+      showError("Please enter your first name.");
       return;
     }
     if (!formData.email.trim()) {
-      setError("Please enter your email address.");
+      showError("Please enter your email address.");
       return;
     }
     if (!formData.password) {
-      setError("Please enter a password.");
+      showError("Please enter a password.");
       return;
     }
 
@@ -182,13 +197,13 @@ export default function Register() {
 
     // Basic email validation
     if (!formData.email.includes("@") || !formData.email.includes(".")) {
-      setError("Please enter a valid email address.");
+      showError("Please enter a valid email address.");
       return;
     }
 
     // Name validation
     if (formData.surname.trim().length < 2 || formData.firstName.trim().length < 2) {
-      setError("Please enter your full name.");
+      showError("Please enter your full name.");
       return;
     }
 
@@ -202,7 +217,7 @@ export default function Register() {
       const suffix = formData.suffix.trim();
       const composedName = [firstName, middleName, surname, suffix].filter(Boolean).join(" ");
 
-      const registerResponse = await authAPI.register({
+      const { data: registerResponse } = await authAPI.register({
         name: composedName,
         surname,
         firstName,
@@ -213,61 +228,31 @@ export default function Register() {
         role: "employee",
       });
 
-      const registeredHasCompletedOnboarding =
-        typeof registerResponse.data?.hasCompletedOnboarding === "boolean"
-          ? registerResponse.data.hasCompletedOnboarding
-          : registerResponse.data?.onboardingComplete;
-
-      const { data: loginResponse } = await authAPI.login({
-        email: normalizedEmail,
-        password: formData.password,
-      });
-
-      if (!loginResponse.token || !loginResponse.user) {
-        throw new Error("Invalid response from server");
-      }
-
-      let profileData = null;
-      try {
-        const profileResponse = await authAPI.getProfile();
-        if (profileResponse && profileResponse.data) {
-          profileData = profileResponse.data;
-        }
-      } catch (profileErr) {
-        console.warn("Could not fetch profile on registration:", profileErr);
-        // Profile fetch is optional - user will be created successfully even if this fails
-      }
-
-      const mergedUser = {
-        ...loginResponse.user,
-        ...(profileData || {}),
-        role: normalizeRole(profileData?.role || loginResponse.user?.role),
-      };
-
-      login(loginResponse.token, mergedUser);
-
-      const mergedHasCompletedOnboarding =
-        typeof mergedUser?.hasCompletedOnboarding === "boolean"
-          ? mergedUser.hasCompletedOnboarding
-          : mergedUser?.onboardingComplete;
-
-      if (registeredHasCompletedOnboarding === false || mergedHasCompletedOnboarding === false) {
-        navigate("/onboarding");
-      } else {
-        navigate(getDefaultRouteByRole(mergedUser?.role));
-      }
+      // register() deliberately returns no session token: the account is
+      // unverified until the emailed link is opened, and login() refuses
+      // unverified accounts. So there's nothing to log in with yet — show a
+      // "check your email" state instead of navigating anywhere.
+      setSuccess(
+        registerResponse.message ||
+          "Account created! We've sent a verification link to your email — verify it, then log in."
+      );
+      setDevVerifyUrl(registerResponse.devVerifyUrl || "");
+      setFormData({ surname: "", firstName: "", middleName: "", suffix: "", email: "", password: "" });
+      setTouched({});
+      setTimeout(() => navigate("/login"), 4000);
     } catch (err) {
       console.error("Registration error:", err);
-      setError(formatApiError(err, "Registration failed"));
+      showError(formatApiError(err, "Registration failed"));
+    } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleCredential = async (credential) => {
-    setError("");
+    showError("");
     setLoading(true);
     try {
-      const { data } = await authAPI.google(credential, "resident");
+      const { data } = await authAPI.google(credential, "jobseeker");
       const token = data.token;
       const userData = data.user || {};
       if (!token) throw new Error("Invalid response from server");
@@ -304,7 +289,8 @@ export default function Register() {
         navigate("/account-suspended");
         return;
       }
-      setError(formatApiError(err, "Google sign-in failed"));
+      showError(formatApiError(err, "Google sign-in failed"));
+    } finally {
       setLoading(false);
     }
   };
@@ -344,6 +330,17 @@ export default function Register() {
             </div>
           )}
 
+          {success ? (
+            <div className="auth-notice" role="status" aria-live="polite">
+              <p>{success}</p>
+              {devVerifyUrl && (
+                <p className="auth-notice__dev">
+                  <strong>Dev:</strong> email isn&rsquo;t wired up yet &mdash;{" "}
+                  <a href={devVerifyUrl}>open the verification link</a>.
+                </p>
+              )}
+            </div>
+          ) : (
           <form className="auth-form" onSubmit={handleSubmit} noValidate>
             <div className="form-row">
               <div className="form-group">
@@ -476,8 +473,9 @@ export default function Register() {
               {loading ? "Creating Account..." : "Create Account"}
             </button>
           </form>
+          )}
 
-          <GoogleSignInButton onCredential={handleGoogleCredential} text="signup_with" />
+          {!success && <GoogleSignInButton onCredential={handleGoogleCredential} text="signup_with" />}
 
           <p className="auth-link">
             Already have an account? <Link to="/login" onClick={(e) => {

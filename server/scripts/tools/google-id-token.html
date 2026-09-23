@@ -1,0 +1,78 @@
+<!doctype html>
+<!--
+  Manual test harness — Step 5 of the Google OAuth audit (token claims check).
+
+  This is NOT part of the built client. It renders Google's real "Sign in
+  with Google" button so you can sign in with a TEST Google account and get a
+  fresh, real id_token to feed into verifyGoogleAuth.js. Nothing here talks to
+  the STRAM PESO app or backend — it only talks to Google.
+
+  Usage:
+    1. Open this file directly in a browser (file:// is fine — GIS accepts it
+       for localhost-equivalent testing, but if it complains, serve it with
+       any static server, e.g. `npx serve server/scripts/tools`).
+    2. Paste your GOOGLE_CLIENT_ID (the same value as VITE_GOOGLE_CLIENT_ID /
+       GOOGLE_CLIENT_ID in your .env) into the field below and click "Load
+       button". The origin you're viewing this from must be listed under
+       "Authorized JavaScript origins" for that client ID in Google Cloud
+       Console (add http://localhost:<port> there for local testing if it
+       isn't already).
+    3. Sign in with a disposable/test Google account.
+    4. Copy the id_token shown and pass it to:
+         node server/scripts/verifyGoogleAuth.js <id_token>
+-->
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Google ID token capture (audit tool)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    textarea { width: 100%; height: 140px; font-family: monospace; font-size: 12px; }
+    input { width: 100%; padding: 8px; font-family: monospace; }
+    .row { margin: 16px 0; }
+    .warn { color: #a33; font-size: 14px; }
+    #btn { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Google ID token capture</h1>
+  <p class="warn">Audit tool only. Use a test Google account. Do not commit any token you capture here.</p>
+
+  <div class="row">
+    <label for="cid">GOOGLE_CLIENT_ID</label>
+    <input id="cid" placeholder="xxxxxxxx.apps.googleusercontent.com" />
+    <button id="load">Load button</button>
+  </div>
+
+  <div id="btn"></div>
+
+  <div class="row">
+    <label for="out">Captured id_token (copy this):</label>
+    <textarea id="out" readonly placeholder="Sign in above to populate this field."></textarea>
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    document.getElementById("load").addEventListener("click", () => {
+      const clientId = document.getElementById("cid").value.trim();
+      if (!clientId) { alert("Enter a client ID first."); return; }
+      if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+        alert("Google Identity Services hasn't loaded yet — wait a second and try again.");
+        return;
+      }
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: (response) => {
+          document.getElementById("out").value = response && response.credential ? response.credential : "(no credential returned)";
+        },
+      });
+      document.getElementById("btn").innerHTML = "";
+      window.google.accounts.id.renderButton(document.getElementById("btn"), {
+        theme: "outline",
+        size: "large",
+        text: "signin_with",
+      });
+    });
+  </script>
+</body>
+</html>

@@ -18,8 +18,11 @@ import {
 import { adminAPI, superadminAPI } from "../../services/api";
 import { useToast } from "../../components/feedback/context";
 import { useAuth } from "../../context/AuthContext";
+import { exportCsv, exportPdfTable } from "../../utils/exportUtils";
 import "../../styles/jobMonitoring.css";
 import { normalizeJobMonitoringRecord } from "../../data/jobMonitoringData";
+
+const EXPORT_LIMIT = 500;
 
 const MUNICIPALITY_OPTIONS = [
   "All Marinduque",
@@ -47,6 +50,26 @@ const STATUS_META = {
   closed: { label: "Closed", cls: "jm-badge jm-badge--closed" },
 };
 
+const JOB_EXPORT_COLUMNS = [
+  { key: "title", label: "Job title", get: (r) => r.title },
+  { key: "employer", label: "Employer", get: (r) => r.employer },
+  { key: "category", label: "Category", get: (r) => r.category },
+  { key: "type", label: "Type", get: (r) => r.type },
+  { key: "municipality", label: "Municipality", get: (r) => r.municipality },
+  { key: "salary", label: "Salary", get: (r) => r.salary },
+  { key: "slots", label: "Slots", get: (r) => r.slots },
+  { key: "applicants", label: "Applicants", get: (r) => r.applicants },
+  { key: "status", label: "Status", get: (r) => STATUS_META[r.status]?.label || r.status },
+  {
+    key: "datePosted",
+    label: "Posted",
+    get: (r) =>
+      r.datePosted
+        ? new Date(r.datePosted).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+        : "—",
+  },
+];
+
 export default function JobMonitoring() {
   const PAGE_SIZE = 10;
   const toast = useToast();
@@ -69,6 +92,7 @@ export default function JobMonitoring() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalJobs, setTotalJobs] = useState(0);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -259,6 +283,57 @@ export default function JobMonitoring() {
     }
   };
 
+  const fetchAllMatchingJobs = async () => {
+    const { data } = await adminAPI.getAdminVacancies({
+      page: 1,
+      limit: EXPORT_LIMIT,
+      search: searchTerm,
+      municipality: selectedMunicipality === "All Marinduque" ? "all" : selectedMunicipality,
+      status: selectedStatus === "All Statuses" ? "all" : selectedStatus,
+    });
+    return Array.isArray(data?.jobs) ? data.jobs.map(normalizeJobMonitoringRecord) : [];
+  };
+
+  const exportFilterPairs = [
+    { label: "Search", value: searchTerm },
+    { label: "Municipality", value: selectedMunicipality === "All Marinduque" ? "" : selectedMunicipality },
+    { label: "Status", value: selectedStatus === "All Statuses" ? "" : selectedStatus },
+  ];
+
+  const handleExportCsv = async () => {
+    try {
+      setExporting(true);
+      const rows = await fetchAllMatchingJobs();
+      const stamp = new Date().toISOString().slice(0, 10);
+      exportCsv({ filename: `job-vacancy-directory-${stamp}.csv`, columns: JOB_EXPORT_COLUMNS, rows });
+    } catch (error) {
+      console.error("Failed to export job vacancy directory (CSV)", error);
+      toast.error("Failed to export the job vacancy directory.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      setExporting(true);
+      const rows = await fetchAllMatchingJobs();
+      const stamp = new Date().toISOString().slice(0, 10);
+      exportPdfTable({
+        title: "Job Vacancy Directory",
+        filters: exportFilterPairs,
+        columns: JOB_EXPORT_COLUMNS,
+        rows,
+        filename: `job-vacancy-directory-${stamp}.pdf`,
+      });
+    } catch (error) {
+      console.error("Failed to export job vacancy directory (PDF)", error);
+      toast.error("Failed to export the job vacancy directory.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="jm-page">
       <header className="jm-banner">
@@ -332,9 +407,23 @@ export default function JobMonitoring() {
           <h2 className="jm-panel__title">Job Vacancy Directory</h2>
           {!isSuperadmin && (
             <div className="jm-directory-actions">
-              <button type="button" className="jm-btn jm-btn--ghost">
+              <button
+                type="button"
+                className="jm-btn jm-btn--ghost"
+                onClick={handleExportCsv}
+                disabled={exporting || loading || jobs.length === 0}
+              >
                 <FaDownload />
-                <span>Export CSV</span>
+                <span>{exporting ? "Preparing…" : "Export CSV"}</span>
+              </button>
+              <button
+                type="button"
+                className="jm-btn jm-btn--ghost"
+                onClick={handleExportPdf}
+                disabled={exporting || loading || jobs.length === 0}
+              >
+                <FaDownload />
+                <span>{exporting ? "Preparing…" : "Export PDF"}</span>
               </button>
               <button type="button" className="jm-btn jm-btn--primary">
                 <FaPlus />

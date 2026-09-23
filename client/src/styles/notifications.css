@@ -1,54 +1,122 @@
 .notifications-page {
-  padding: 2rem 2rem 2.5rem;
+  padding: 2rem 0 2.5rem;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f3f7ff 0%, #edf7f0 55%, #fff7e9 100%);
+  background: linear-gradient(180deg, #edf2ef 0%, #f2f3ef 100%);
 }
 
 .notifications-page__header {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.4rem;
+  justify-content: flex-start;
+  gap: 0.8rem;
+  margin: 0 0 1.2rem;
+  padding: 0 1.1rem;
 }
 
 .notifications-page__header h1 {
   margin: 0;
-  font-size: 1.9rem;
-  color: #17315f;
-  font-weight: 700;
+  font-size: clamp(2.25rem, 7vw, 3.2rem);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  color: #1d2f3c;
+  font-weight: 800;
 }
 
 .notifications-page__header p {
-  margin-top: 0.35rem;
-  color: #4a607f;
+  margin: 0;
+  color: #4b5f68;
+  font-size: 1.05rem;
+  line-height: 1.5;
 }
 
 .notifications-page__read-all {
   border: none;
-  border-radius: 10px;
-  background: #0f6e38;
-  color: #ffffff;
+  border-radius: 12px;
+  background: #dfe7e1;
+  color: #1e3a34;
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  font-weight: 600;
-  padding: 0.65rem 0.85rem;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.72rem 1rem;
+  box-shadow: inset 0 0 0 1px rgba(20, 55, 45, 0.04);
 }
 
 .notifications-page__read-all:disabled {
-  background: #8ca19a;
+  background: #d8e0dc;
+  opacity: 0.9;
 }
 
 .notifications-page__state {
-  color: #435268;
-  margin-top: 2rem;
+  color: #3f4f5d;
+  margin: 0;
+  padding: 0 1.1rem;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.notif-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 1.2rem;
+  padding: 0 1.1rem;
+}
+
+.notif-filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid #d5dbe0;
+  background: #ffffff;
+  color: #4b5a4f;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.notif-filter-tab:hover {
+  border-color: #1660b8;
+  color: #1660b8;
+}
+
+.notif-filter-tab.is-active {
+  background: #1660b8;
+  border-color: #1660b8;
+  color: #ffffff;
+}
+
+.notif-filter-tab-n {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.notif-filter-select-wrap {
+  display: none;
+}
+
+.notif-filter-select {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #d5dbe0;
+  background: #ffffff;
+  color: #1e3a34;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .notifications-list {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  padding: 0 1.1rem;
 }
 
 .notification-card {
@@ -88,7 +156,21 @@
   display: grid;
   place-items: center;
   margin-top: 0.15rem;
+  flex-shrink: 0;
 }
+
+/* Per-type accent so a card's icon and color hint at what it's about
+   before you even read the title. */
+.notif-icon--message      { background: #dbeafe; color: #1d4ed8; }
+.notif-icon--application  { background: #e0e7ff; color: #4338ca; }
+.notif-icon--status       { background: #dcfce7; color: #166534; }
+.notif-icon--admin        { background: #e2e8f0; color: #334155; }
+.notif-icon--follow       { background: #ccfbf1; color: #0f766e; }
+.notif-icon--news         { background: #ffedd5; color: #c2410c; }
+.notif-icon--like         { background: #fce7f3; color: #be185d; }
+.notif-icon--spes         { background: #ede9fe; color: #7c3aed; }
+.notif-icon--system       { background: #e2e8f0; color: #475569; }
+.notif-icon--default      { background: #eaf1ff; color: #195db5; }
 
 .notification-card__content {
   flex: 1;
@@ -143,11 +225,38 @@
 
 @media (max-width: 768px) {
   .notifications-page {
-    padding: 1rem;
+    padding-top: 5.5rem;
   }
 
   .notifications-page__header {
-    flex-direction: column;
+    gap: 0.7rem;
+    padding: 0 1rem;
+  }
+
+  .notifications-page__header h1 {
+    font-size: 2.3rem;
+  }
+
+  .notifications-page__header p {
+    font-size: 0.98rem;
+  }
+
+  .notifications-page__state {
+    padding: 0 1rem;
+  }
+
+  .notif-filter-tabs {
+    display: none;
+  }
+
+  .notif-filter-select-wrap {
+    display: block;
+    padding: 0 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .notifications-list {
+    padding: 0 1rem;
   }
 
   .notification-card {

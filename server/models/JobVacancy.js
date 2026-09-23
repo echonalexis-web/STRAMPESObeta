@@ -136,6 +136,14 @@ const jobVacancySchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  // Set once an "about to auto-close" warning notification has been sent to
+  // the employer (see employerController.applyInactivityAutoCloseForEmployer),
+  // so the lazy sweep doesn't re-notify every time the employer's dashboard
+  // loads. Cleared when a fresh application comes in (see jobController.applyToJob).
+  expiryWarnedAt: {
+    type: Date,
+    default: null,
+  },
   archivedMetrics: {
     totalApplicants: { type: Number, default: 0 },
     qualifiedCount: { type: Number, default: 0 },

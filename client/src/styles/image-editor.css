@@ -75,10 +75,18 @@
   justify-content: center;
 }
 
+.ie-stage-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+}
+
 .ie-stage {
   position: relative;
   overflow: hidden;
   border-radius: 12px;
+  flex-shrink: 0;
   background:
     repeating-conic-gradient(#1a201d 0% 25%, #141a17 0% 50%) 50% / 22px 22px;
   cursor: grab;

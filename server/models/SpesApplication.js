@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const { Schema } = mongoose;
 
-// A resident's application to a SPES (Special Program for Employment of
+// A jobseeker's application to a SPES (Special Program for Employment of
 // Students) program that an LMD Admin posted as an announcement. The exam and
 // interview happen offline; the platform tracks the pipeline stage and, once
 // results are released, the outcome.
@@ -28,6 +28,7 @@ const spesApplicationSchema = new Schema(
 
     nsrpComplete: { type: Boolean, default: false },
     contactNumber: { type: String, default: "" },
+    isOutOfSchoolYouth: { type: Boolean, default: false },
     school: { type: String, default: "" },
     gradeLevel: { type: String, default: "" },
     guardianName: { type: String, default: "" },

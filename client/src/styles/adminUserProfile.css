@@ -48,6 +48,16 @@
   pointer-events: none;
 }
 
+.aup-header__toprow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .aup-back {
   position: relative;
   z-index: 1;
@@ -68,6 +78,11 @@
 .aup-back:hover {
   background: rgba(255, 255, 255, 0.16);
   transform: translateX(-2px);
+}
+.aup-back:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .aup-id {

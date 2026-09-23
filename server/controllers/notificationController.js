@@ -1,4 +1,5 @@
 const Notification = require("../models/Notification");
+const { logAuditEvent } = require("../services/auditService");
 
 const getUserId = (req) => req.user._id || req.user.id;
 
@@ -83,6 +84,16 @@ exports.markNotificationRead = async (req, res) => {
       });
     }
 
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: req.user.role,
+      action: "notification.read",
+      targetType: "notification",
+      targetId: String(notificationId),
+      severity: "info",
+    });
+
     return res.json({ message: "Notification marked as read", notification: updated });
   } catch (error) {
     return res.status(500).json({ message: "Failed to mark notification as read" });
@@ -104,6 +115,16 @@ exports.markAllNotificationsRead = async (req, res) => {
         userId: String(userId),
       });
     }
+
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: req.user.role,
+      action: "notification.marked_all_read",
+      targetType: "user",
+      targetId: String(userId),
+      severity: "info",
+    });
 
     return res.json({ message: "All notifications marked as read" });
   } catch (error) {
@@ -127,6 +148,16 @@ exports.deleteNotification = async (req, res) => {
         _id: notificationId,
       });
     }
+
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: req.user.role,
+      action: "notification.deleted",
+      targetType: "notification",
+      targetId: String(notificationId),
+      severity: "info",
+    });
 
     return res.json({ message: "Notification deleted" });
   } catch (error) {

@@ -4,10 +4,11 @@ const EmployerProfile = require("../models/EmployerProfile");
 const authController = require("./authController");
 const VALID_INDUSTRIES = require("../data/industries"); // Import industry validation list
 const { isAdultAge, MIN_ACCOUNT_AGE } = require("../utils/age");
+const { logAuditEvent } = require("../services/auditService");
 
 // Helper to update or create profile
 const upsertProfile = async (userId, role, data) => {
-  let Model = role === "resident" ? JobseekerProfile : EmployerProfile;
+  let Model = role === "jobseeker" ? JobseekerProfile : EmployerProfile;
   return Model.findOneAndUpdate({ userId }, { $set: data }, { new: true, upsert: true });
 };
 
@@ -29,7 +30,7 @@ exports.getProfile = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     let profile = null;
-    if (user.role === "resident") {
+    if (user.role === "jobseeker") {
       profile = await JobseekerProfile.findOne({ userId: user._id });
     } else if (user.role === "employer") {
       profile = await EmployerProfile.findOne({ userId: user._id });
@@ -48,7 +49,7 @@ exports.completeOnboarding = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Age gate — enforced here too because residents supply their birth date
+    // Age gate — enforced here too because jobseekers supply their birth date
     // during onboarding rather than at registration.
     const dobForCheck = req.body.dateOfBirth || user.dateOfBirth;
     if (dobForCheck) {
@@ -72,7 +73,7 @@ exports.completeOnboarding = async (req, res) => {
     };
 
     // For jobseekers, also update career fields on User
-    if (user.role === "resident") {
+    if (user.role === "jobseeker") {
       commonUpdates.desiredJobTitle = req.body.desiredJobTitle || null;
       commonUpdates.workExperience = req.body.workExperience || null;
       commonUpdates.educationalAttainment = req.body.educationalAttainment || null;
@@ -121,6 +122,16 @@ exports.completeOnboarding = async (req, res) => {
       if (req.body.companySize !== undefined) {
         commonUpdates.companySize = User.normalizeCompanySize(req.body.companySize);
       }
+
+      // Keep `name` (the business's display identity everywhere in the app)
+      // in sync with the company name the onboarding form requires — a
+      // Google sign-up otherwise leaves `name` as the personal Google
+      // account name forever, since nothing else ever writes to it here.
+      // See the matching fix in authController.updateProfile.
+      const trimmedCompanyName = String(req.body.companyName || "").trim();
+      if (trimmedCompanyName) {
+        commonUpdates.name = trimmedCompanyName;
+      }
     }
 
     // Apply common updates
@@ -128,7 +139,7 @@ exports.completeOnboarding = async (req, res) => {
 
     // 2. Build role‑specific profile data (NSRP fields)
     let profileData = {};
-    if (user.role === "resident") {
+    if (user.role === "jobseeker") {
       profileData = {
         civilStatus: req.body.civilStatus || null,
         placeOfBirth: req.body.placeOfBirth || null,
@@ -182,6 +193,16 @@ exports.completeOnboarding = async (req, res) => {
 
     const updatedUser = await User.findById(userId).select("-password");
 
+    await logAuditEvent({
+      req,
+      actorId: userId,
+      actorRole: user.role,
+      action: "user.profile.onboarding_completed",
+      targetType: "user",
+      targetId: String(userId),
+      severity: "info",
+    });
+
     res.json({
       message: "Onboarding completed",
       user: updatedUser,
@@ -205,6 +226,17 @@ exports.uploadProfileImage = async (req, res) => {
       { profileImage: imageUrl },
       { new: true }
     ).select("-password");
+
+    await logAuditEvent({
+      req,
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: "user.profile_image.uploaded",
+      targetType: "user",
+      targetId: String(req.user.id),
+      severity: "info",
+    });
+
     res.json({ message: "Profile image uploaded", profileImage: imageUrl, user });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -220,6 +252,17 @@ exports.uploadResume = async (req, res) => {
       { resumeFile: resumeUrl },
       { new: true }
     ).select("-password");
+
+    await logAuditEvent({
+      req,
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: "user.resume.uploaded",
+      targetType: "user",
+      targetId: String(req.user.id),
+      severity: "info",
+    });
+
     res.json({ message: "Resume uploaded", resume: resumeUrl, user });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -235,21 +278,10 @@ exports.changePassword = async (req, res) => {
     if (!isMatch) return res.status(401).json({ message: "Current password is incorrect" });
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
+    // Invalidates every other token issued before this change.
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
     res.json({ message: "Password changed successfully" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-exports.getUserById = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id).select("-password");
-    if (!user) return res.status(404).json({ message: "User not found" });
-    let profile = null;
-    if (user.role === "resident") profile = await JobseekerProfile.findOne({ userId: user._id });
-    else if (user.role === "employer") profile = await EmployerProfile.findOne({ userId: user._id });
-    res.json({ user, profile });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

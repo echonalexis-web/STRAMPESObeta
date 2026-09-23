@@ -15,6 +15,7 @@ import {
 } from "../utils/basicRequirements";
 import "../styles/qualifications-editor.css";
 import RankedApplicantsTable from "../components/RankedApplicantsTable";
+import InterviewScheduleModal from "../components/InterviewScheduleModal";
 import SecureFileLink from "../components/SecureFileLink";
 import { useRankedApplicants } from "../hooks/useRankedApplicants";
 import { useSwipeable } from "react-swipeable";
@@ -230,8 +231,7 @@ function SwipeableJobCard({
   formatDate,
   isVerifiedEmployer,
   setShowVerificationModal,
-  setActiveTab,
-  setSelectedJobId,
+  onViewApplicants,
   openEditJobModal,
   handleCloseOrReopen,
   handleArchiveJob,
@@ -277,8 +277,7 @@ function SwipeableJobCard({
               className="view-applicants-btn"
               onClick={() => {
                 if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
-                setActiveTab("applicants");
-                setSelectedJobId(job._id);
+                onViewApplicants(job._id);
               }}
             >
               View Applicants
@@ -391,7 +390,15 @@ export default function EmployerDashboard() {
   const [drawerNote, setDrawerNote] = useState("");
   const [isSavingApplication, setIsSavingApplication] = useState(false);
 
+  const [interviewApplication, setInterviewApplication] = useState(null);
+  const [bulkInterviewApplications, setBulkInterviewApplications] = useState(null);
+  const [isSchedulingInterview, setIsSchedulingInterview] = useState(false);
+
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  // On mobile the Applicants tab is a two-step (master-detail) flow: pick a
+  // job from the list first, then drill into its ranked table. This tracks
+  // which step is showing; it's irrelevant on desktop, where both show at once.
+  const [mobileApplicantsDrilledIn, setMobileApplicantsDrilledIn] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   const [jobToDelete, setJobToDelete] = useState(null);
@@ -516,6 +523,21 @@ export default function EmployerDashboard() {
     const idx = railJobs.findIndex((j) => j._id === selectedJobId);
     const nextIdx = idx === -1 ? 0 : (idx + delta + railJobs.length) % railJobs.length;
     setSelectedJobId(railJobs[nextIdx]._id);
+  };
+
+  // Picking a job from the applicants-tab rail: on mobile this also drills
+  // into the detail (table) step, since the list and table never show together there.
+  const selectJobForApplicants = (jobId) => {
+    setSelectedJobId(jobId);
+    if (isMobile) setMobileApplicantsDrilledIn(true);
+  };
+
+  // Jumping to a specific job's applicants from elsewhere (the Jobs tab, the
+  // overview's "Review N applicants" shortcut on a job card, etc).
+  const viewJobApplicants = (jobId) => {
+    setSelectedJobId(jobId);
+    setActiveTab("applicants");
+    setMobileApplicantsDrilledIn(true);
   };
 
   const visibleJobs = useMemo(() => {
@@ -927,6 +949,9 @@ export default function EmployerDashboard() {
           employerNote: drawerNote,
         });
         setSuccessToast("Application rejected successfully");
+      } else if (rejectDialog.kind === "no-show") {
+        await employerAPI.markInterviewNoShow(rejectDialog.applicationId);
+        setSuccessToast("Marked as a no-show and rejected");
       }
 
       setRejectDialog(null);
@@ -942,7 +967,7 @@ export default function EmployerDashboard() {
 
       setTimeout(() => loadDashboardData(), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to reject applicant");
+      setError(err.response?.data?.message || (rejectDialog.kind === "no-show" ? "Failed to mark as a no-show" : "Failed to reject applicant"));
     }
   };
 
@@ -972,6 +997,81 @@ export default function EmployerDashboard() {
       setTimeout(() => loadDashboardData(), 3000);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update application status");
+    }
+  };
+
+  const handleOpenScheduleInterview = (application) => {
+    if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
+    setInterviewApplication(application);
+  };
+
+  const handleMarkNoShow = (application) => {
+    if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
+    setRejectDialog({
+      kind: "no-show",
+      applicationId: application._id,
+      applicantName: application.applicant?.name || "this applicant",
+    });
+  };
+
+  const handleOpenBulkScheduleInterview = () => {
+    if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
+    if (selectedApplicants.length === 0) {
+      setError("Please select at least one applicant");
+      return;
+    }
+    const selected = rankedApplicants.filter((app) => selectedApplicants.includes(app._id));
+    const eligible = selected.filter((app) => !["hired", "rejected"].includes(normalizeApplicationStatus(app.status)));
+
+    if (eligible.length === 0) {
+      setError("Selected applicants are already hired or rejected");
+      return;
+    }
+    if (eligible.length < selected.length) {
+      setSuccessToast(`${selected.length - eligible.length} already hired/rejected applicant(s) were left out`);
+    }
+    setBulkInterviewApplications(eligible);
+  };
+
+  const handleSubmitInterview = async (interviewData) => {
+    if (bulkInterviewApplications?.length) {
+      setIsSchedulingInterview(true);
+      setError("");
+      try {
+        const response = await employerAPI.bulkScheduleInterview({
+          applicationIds: bulkInterviewApplications.map((app) => app._id),
+          ...interviewData,
+        });
+        const skippedNote = response.data.skipped ? ` (${response.data.skipped} already hired/rejected were skipped)` : "";
+        setSuccessToast(`Scheduled interviews for ${response.data.updated} applicants${skippedNote}`);
+        setBulkInterviewApplications(null);
+        setSelectedApplicants([]);
+
+        await refetchRanked();
+        setTimeout(() => loadDashboardData(), 3000);
+      } catch (err) {
+        setError(err.response?.data?.message || "Failed to schedule interviews");
+      } finally {
+        setIsSchedulingInterview(false);
+      }
+      return;
+    }
+
+    if (!interviewApplication?._id) return;
+    setIsSchedulingInterview(true);
+    setError("");
+
+    try {
+      await employerAPI.scheduleInterview(interviewApplication._id, interviewData);
+      setSuccessToast("Interview scheduled and applicant notified");
+      setInterviewApplication(null);
+
+      await refetchRanked();
+      setTimeout(() => loadDashboardData(), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to schedule interview");
+    } finally {
+      setIsSchedulingInterview(false);
     }
   };
 
@@ -1153,7 +1253,10 @@ export default function EmployerDashboard() {
               type="button"
               role="tab"
               className={`employer-tab ${activeTab === tab ? "active" : ""}`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                if (tab === "applicants") setMobileApplicantsDrilledIn(false);
+              }}
               aria-selected={activeTab === tab}
             >
               {tabMeta[tab].label}
@@ -1171,41 +1274,53 @@ export default function EmployerDashboard() {
             {/* -------- OVERVIEW TAB -------- */}
             {activeTab === "overview" && (
               <div className="employer-tab-panel">
-                <div className="emp-hero-row">
-                  {heroStats.map((card) => (
-                    <article key={card.key} className={`emp-hero-tile tone-${card.tone}`}>
-                      <span className="emp-hero-icon" aria-hidden="true">{card.icon}</span>
-                      <span className="emp-hero-value">{card.value}</span>
-                      <span className="emp-hero-label">{card.label}</span>
-                      {card.action ? (
-                        <button
-                          type="button"
-                          className="emp-hero-action"
-                          onClick={() => setActiveTab(card.action.tab)}
-                        >
-                          {card.action.label}
-                        </button>
-                      ) : (
-                        <span className="emp-hero-action muted">All caught up</span>
-                      )}
-                    </article>
-                  ))}
-                </div>
+                <div className="emp-overview-summary">
+                  <div className="emp-hero-row">
+                    {heroStats.map((card) => (
+                      <article key={card.key} className={`emp-hero-tile tone-${card.tone}`}>
+                        <span className="emp-hero-icon" aria-hidden="true">{card.icon}</span>
+                        <span className="emp-hero-value">{card.value}</span>
+                        <span className="emp-hero-label">{card.label}</span>
+                        {card.action ? (
+                          <button
+                            type="button"
+                            className="emp-hero-action"
+                            onClick={() => {
+                              setActiveTab(card.action.tab);
+                              if (card.action.tab === "applicants") setMobileApplicantsDrilledIn(false);
+                            }}
+                          >
+                            {card.action.label}
+                          </button>
+                        ) : (
+                          <span className="emp-hero-action muted">All caught up</span>
+                        )}
+                      </article>
+                    ))}
+                  </div>
 
-                <div className="emp-context-strip">
-                  {contextStats.map((s) => (
-                    <div key={s.label} className="emp-context-item">
-                      <span className="emp-context-value">{s.value}</span>
-                      <span className="emp-context-label">{s.label}</span>
-                    </div>
-                  ))}
+                  <div className="emp-context-strip">
+                    {contextStats.map((s) => (
+                      <div key={s.label} className="emp-context-item">
+                        <span className="emp-context-value">{s.value}</span>
+                        <span className="emp-context-label">{s.label}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="table-card">
                   <div className="table-card-header">
                     <h2>Recent Applicants</h2>
                     {recentApplicants.length > 0 && (
-                      <button type="button" className="emp-link-btn" onClick={() => setActiveTab("applicants")}>
+                      <button
+                        type="button"
+                        className="emp-link-btn"
+                        onClick={() => {
+                          setActiveTab("applicants");
+                          setMobileApplicantsDrilledIn(false);
+                        }}
+                      >
                         View all
                       </button>
                     )}
@@ -1265,26 +1380,24 @@ export default function EmployerDashboard() {
                       ) : (
                         <div className="recent-applicants-mobile" aria-label="Recent applicants mobile list">
                           {recentApplicants.map((application) => (
-                            <article key={`mobile-${application._id}`} className="recent-applicant-card">
-                              <div className="recent-applicant-top">
-                                <strong>{application.applicant?.name || "Unknown Applicant"}</strong>
-                                <span className={`status-pill ${recentApplicantStatusClass(application.status)}`}>
-                                  {recentApplicantStatusLabel(application.status)}
-                                </span>
+                            <article
+                              key={`mobile-${application._id}`}
+                              className="recent-applicant-card"
+                              onClick={() => openApplicantDrawer(application)}
+                            >
+                              <div className="recent-applicant-avatar">
+                                {getInitials(application.applicant?.name)}
                               </div>
-                              <div className="recent-applicant-grid">
-                                <span className="label">Applied For</span>
-                                <span className="value">{application.vacancy?.title || "Unknown Job"}</span>
-                                <span className="label">Date</span>
-                                <span className="value">{formatDate(application.createdAt || application.appliedAt)}</span>
-                                <span className="label">Contact</span>
-                                <span className="value">{getApplicantContact(application)}</span>
-                                <span className="label">Action</span>
-                                <span className="value">
-                                  <button type="button" className="recent-view-btn" onClick={() => openApplicantDrawer(application)}>
-                                    View
-                                  </button>
-                                </span>
+                              <div className="recent-applicant-body">
+                                <div className="recent-applicant-top">
+                                  <strong>{application.applicant?.name || "Unknown Applicant"}</strong>
+                                  <span className={`status-pill ${recentApplicantStatusClass(application.status)}`}>
+                                    {recentApplicantStatusLabel(application.status)}
+                                  </span>
+                                </div>
+                                <div className="recent-applicant-meta">
+                                  {application.vacancy?.title || "Unknown Job"} · {formatDate(application.createdAt || application.appliedAt)}
+                                </div>
                               </div>
                             </article>
                           ))}
@@ -1350,8 +1463,7 @@ export default function EmployerDashboard() {
                         formatDate={formatDate}
                         isVerifiedEmployer={isVerifiedEmployer}
                         setShowVerificationModal={setShowVerificationModal}
-                        setActiveTab={setActiveTab}
-                        setSelectedJobId={setSelectedJobId}
+                        onViewApplicants={viewJobApplicants}
                         openEditJobModal={openEditJobModal}
                         handleCloseOrReopen={handleCloseOrReopen}
                         handleArchiveJob={handleArchiveJob}
@@ -1393,8 +1505,7 @@ export default function EmployerDashboard() {
                               className={`emp-row ${f.total === 0 ? "is-quiet" : ""}`}
                               onClick={() => {
                                 if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
-                                setSelectedJobId(job._id);
-                                setActiveTab("applicants");
+                                viewJobApplicants(job._id);
                               }}
                             >
                               <td>
@@ -1465,7 +1576,7 @@ export default function EmployerDashboard() {
                         <button type="button" role="menuitem" onClick={() => { setOpenJobMenuId(null); openEditJobModal(menuJob); }}>
                           <FaEdit /> Edit posting
                         </button>
-                        <button type="button" role="menuitem" onClick={() => { setOpenJobMenuId(null); setSelectedJobId(menuJob._id); setActiveTab("applicants"); }}>
+                        <button type="button" role="menuitem" onClick={() => { setOpenJobMenuId(null); viewJobApplicants(menuJob._id); }}>
                           <FaUsers /> View applicants
                         </button>
                         <div className="emp-menu-sep" role="separator" />
@@ -1680,10 +1791,10 @@ export default function EmployerDashboard() {
                 )}
 
                 {filteredArchivedJobs.length > 0 ? (
-                  <nav className="dash-pagination" aria-label="Archived jobs pagination">
+                  <nav className="emp-pager" aria-label="Archived jobs pagination">
                     <button
                       type="button"
-                      className="dash-page-btn"
+                      className="emp-pager-btn"
                       onClick={() => setArchivedPage((p) => Math.max(1, p - 1))}
                       disabled={archivedPage === 1}
                       aria-label="Previous page"
@@ -1691,7 +1802,7 @@ export default function EmployerDashboard() {
                       <FaChevronLeft />
                     </button>
 
-                    <div className="dash-page-numbers">
+                    <div className="emp-pager-numbers">
                       {Array.from({ length: archivedTotalPages }, (_, i) => i + 1)
                         .filter((page) => page === 1 || page === archivedTotalPages || Math.abs(page - archivedPage) <= 1)
                         .reduce((acc, page, idx, arr) => {
@@ -1701,12 +1812,12 @@ export default function EmployerDashboard() {
                         }, [])
                         .map((page) =>
                           typeof page === "string" ? (
-                            <span key={page} className="dash-page-ellipsis">…</span>
+                            <span key={page} className="emp-pager-ellipsis">…</span>
                           ) : (
                             <button
                               type="button"
                               key={page}
-                              className={`dash-page-btn ${page === archivedPage ? "active" : ""}`}
+                              className={`emp-pager-btn ${page === archivedPage ? "active" : ""}`}
                               onClick={() => setArchivedPage(page)}
                               aria-current={page === archivedPage ? "page" : undefined}
                             >
@@ -1718,7 +1829,7 @@ export default function EmployerDashboard() {
 
                     <button
                       type="button"
-                      className="dash-page-btn"
+                      className="emp-pager-btn"
                       onClick={() => setArchivedPage((p) => Math.min(archivedTotalPages, p + 1))}
                       disabled={archivedPage === archivedTotalPages}
                       aria-label="Next page"
@@ -1733,11 +1844,42 @@ export default function EmployerDashboard() {
             {/* -------- APPLICANTS TAB -------- */}
             {activeTab === "applicants" && (
               <div className="employer-tab-panel applicants-layout">
-                <aside className={`job-list-panel emp-job-rail ${railJobs.length > RAIL_CHIP_LIMIT ? "is-picker" : ""}`}>
+                {/* On mobile this is a two-step flow: the job list and the ranked
+                    table never render together, so only one mounts at a time. */}
+                {(!isMobile || !mobileApplicantsDrilledIn) && (
+                <aside className={`job-list-panel emp-job-rail ${isMobile ? "emp-job-rail--standalone" : railJobs.length > RAIL_CHIP_LIMIT ? "is-picker" : ""}`}>
                   {!railJobs.length ? (
                     <>
                       <h3>Your Jobs</h3>
                       <p className="empty-muted">No active jobs yet.</p>
+                    </>
+                  ) : isMobile ? (
+                    <>
+                      {railJobs.map((job) => {
+                        const f = funnelFor(job._id);
+                        return (
+                          <button
+                            type="button"
+                            key={job._id}
+                            className="job-list-item emp-rail-item"
+                            onClick={() => selectJobForApplicants(job._id)}
+                          >
+                            <span className="emp-rail-top">
+                              <strong>{job.title}</strong>
+                              {f.new > 0 && <span className="emp-rail-dot" title={`${f.new} new`}>{f.new}</span>}
+                            </span>
+                            <small className="job-location-text">
+                              <FaMapMarkerAlt />
+                              <span>{formatJobLocation(job.location)}</span>
+                            </small>
+                            <span className="emp-rail-funnel">
+                              {f.total} applicant{f.total === 1 ? "" : "s"}
+                              {f.shortlisted > 0 && <> · {f.shortlisted} shortlisted</>}
+                              {f.hired > 0 && <> · {f.hired} hired</>}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </>
                   ) : railJobs.length > RAIL_CHIP_LIMIT ? (
                     <div className="emp-job-picker">
@@ -1745,7 +1887,7 @@ export default function EmployerDashboard() {
                         <span className="emp-job-picker-caption">Job</span>
                         <select
                           value={selectedJobId || ""}
-                          onChange={(e) => setSelectedJobId(e.target.value)}
+                          onChange={(e) => selectJobForApplicants(e.target.value)}
                           className="emp-select"
                           aria-label="Select a job to view applicants"
                         >
@@ -1788,7 +1930,7 @@ export default function EmployerDashboard() {
                             type="button"
                             key={job._id}
                             className={`job-list-item emp-rail-item ${selectedJobId === job._id ? "active" : ""}`}
-                            onClick={() => setSelectedJobId(job._id)}
+                            onClick={() => selectJobForApplicants(job._id)}
                           >
                             <span className="emp-rail-top">
                               <strong>{job.title}</strong>
@@ -1809,8 +1951,19 @@ export default function EmployerDashboard() {
                     </>
                   )}
                 </aside>
+                )}
 
+                {(!isMobile || mobileApplicantsDrilledIn) && (
                 <section className="applicants-panel">
+                  {isMobile && (
+                    <button
+                      type="button"
+                      className="emp-mobile-back"
+                      onClick={() => setMobileApplicantsDrilledIn(false)}
+                    >
+                      <FaChevronLeft /> Back to jobs
+                    </button>
+                  )}
                   <div className="emp-appbar">
                     <div className="emp-appbar-title">
                       <h2>{selectedJob ? selectedJob.title : "Applicants"}</h2>
@@ -1873,6 +2026,14 @@ export default function EmployerDashboard() {
                         </button>
                         <button
                           type="button"
+                          className="bulk-action-btn bulk-schedule"
+                          onClick={handleOpenBulkScheduleInterview}
+                          disabled={isBulkUpdating}
+                        >
+                          Schedule Interview
+                        </button>
+                        <button
+                          type="button"
                           className="bulk-action-btn bulk-reject"
                           onClick={() => handleBulkAction('rejected')}
                           disabled={isBulkUpdating}
@@ -1919,16 +2080,18 @@ export default function EmployerDashboard() {
                         }
                       }}
                       onQuickStatusChange={handleQuickStatusChange}
+                      onScheduleInterview={handleOpenScheduleInterview}
+                      onMarkNoShow={handleMarkNoShow}
                       emptyStateMessage={statusFilter === "all" ? "No applicants for this job yet." : `No ${statusFilter} applicants found.`}
                       emptyStateIcon={statusFilter === "all" ? "👥" : "🔍"}
                     />
                   )}
 
                   {selectedJobId && filteredAndSortedApplicants.length > 0 ? (
-                    <nav className="dash-pagination" aria-label="Applicants pagination">
+                    <nav className="emp-pager" aria-label="Applicants pagination">
                       <button
                         type="button"
-                        className="dash-page-btn"
+                        className="emp-pager-btn"
                         onClick={() => setApplicantsPage((p) => Math.max(1, p - 1))}
                         disabled={applicantsPage === 1}
                         aria-label="Previous page"
@@ -1936,7 +2099,7 @@ export default function EmployerDashboard() {
                         <FaChevronLeft />
                       </button>
 
-                      <div className="dash-page-numbers">
+                      <div className="emp-pager-numbers">
                         {Array.from({ length: applicantsTotalPages }, (_, i) => i + 1)
                           .filter((page) => page === 1 || page === applicantsTotalPages || Math.abs(page - applicantsPage) <= 1)
                           .reduce((acc, page, idx, arr) => {
@@ -1946,12 +2109,12 @@ export default function EmployerDashboard() {
                           }, [])
                           .map((page) =>
                             typeof page === "string" ? (
-                              <span key={page} className="dash-page-ellipsis">…</span>
+                              <span key={page} className="emp-pager-ellipsis">…</span>
                             ) : (
                               <button
                                 type="button"
                                 key={page}
-                                className={`dash-page-btn ${page === applicantsPage ? "active" : ""}`}
+                                className={`emp-pager-btn ${page === applicantsPage ? "active" : ""}`}
                                 onClick={() => setApplicantsPage(page)}
                                 aria-current={page === applicantsPage ? "page" : undefined}
                               >
@@ -1963,7 +2126,7 @@ export default function EmployerDashboard() {
 
                       <button
                         type="button"
-                        className="dash-page-btn"
+                        className="emp-pager-btn"
                         onClick={() => setApplicantsPage((p) => Math.min(applicantsTotalPages, p + 1))}
                         disabled={applicantsPage === applicantsTotalPages}
                         aria-label="Next page"
@@ -1973,6 +2136,7 @@ export default function EmployerDashboard() {
                     </nav>
                   ) : null}
                 </section>
+                )}
               </div>
             )}
           </>
@@ -1982,11 +2146,13 @@ export default function EmployerDashboard() {
       {rejectDialog && (
         <div className="modal-overlay" onClick={() => setRejectDialog(null)}>
           <div className="verification-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>Confirm Rejection</h3>
+            <h3>{rejectDialog.kind === "no-show" ? "Confirm No-Show" : "Confirm Rejection"}</h3>
             <p>
               {rejectDialog.kind === "bulk"
                 ? `Are you sure you want to reject ${rejectDialog.applicantName}? This will mark all selected applicants as rejected.`
-                : `Are you sure you want to reject ${rejectDialog.applicantName}? This action will notify the applicant and update their status to rejected.`}
+                : rejectDialog.kind === "no-show"
+                  ? `Mark ${rejectDialog.applicantName} as a no-show? Their application will be rejected and they'll be notified that they missed the scheduled interview.`
+                  : `Are you sure you want to reject ${rejectDialog.applicantName}? This action will notify the applicant and update their status to rejected.`}
             </p>
             <div className="verification-modal-actions">
               <button
@@ -1994,7 +2160,7 @@ export default function EmployerDashboard() {
                 style={{ background: "#dc2626" }}
                 onClick={confirmRejectDialog}
               >
-                Confirm Reject
+                {rejectDialog.kind === "no-show" ? "Confirm No-Show" : "Confirm Reject"}
               </button>
               <button className="outline-btn" onClick={() => setRejectDialog(null)}>
                 Cancel
@@ -2002,6 +2168,20 @@ export default function EmployerDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {(interviewApplication || bulkInterviewApplications?.length) && (
+        <InterviewScheduleModal
+          application={interviewApplication}
+          applications={bulkInterviewApplications}
+          saving={isSchedulingInterview}
+          onClose={() => {
+            if (isSchedulingInterview) return;
+            setInterviewApplication(null);
+            setBulkInterviewApplications(null);
+          }}
+          onSubmit={handleSubmitInterview}
+        />
       )}
 
       {/* ===== APPLICANT DETAIL - CENTER MODAL ===== */}

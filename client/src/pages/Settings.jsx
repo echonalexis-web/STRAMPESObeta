@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   FaUserCog,
   FaLanguage,
@@ -16,26 +17,17 @@ import {
   FaRegClock,
 } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
-import { employerAPI } from "../services/api";
+import { employerAPI, authAPI, superadminAPI } from "../services/api";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { useToast, useConfirm } from "../components/feedback/context";
-import NotYetAvailable from "../components/NotYetAvailable";
 import "../styles/settings.css";
 
 const normalizeRole = (role) =>
-  role === "employee" || role === "jobseeker" ? "resident" : role;
+  role === "employee" || role === "resident" ? "jobseeker" : role;
 
-const ROLE_LABEL = {
-  resident: "Job Seeker",
-  employer: "Employer",
-  admin: "Administrator",
-  superadmin: "System Superadmin",
-};
-
-// Front-end-only defaults. These persist to localStorage so the controls feel
-// real, but nothing here is sent to the server yet.
-const DRAFT_DEFAULTS = {
-  language: "en",
+// Fallback shape shown while the real values load from the server, and the
+// baseline a partial server response is merged onto.
+const NOTIFICATION_DEFAULTS = {
   notifyMessages: true,
   notifyJobMatch: true,
   notifyApplicationUpdate: true,
@@ -44,58 +36,60 @@ const DRAFT_DEFAULTS = {
   notifyVerificationRequest: true,
   notifyUserReport: true,
   notifySpesSubmission: true,
+};
+
+const PRIVACY_DEFAULTS = {
   profileVisibility: "public",
   allowMessagesFrom: "anyone",
-  sysAutoCloseDays: 30,
-  sysRequireVerification: true,
-  sysAppealWindowDays: 14,
-  sysRegistrationMode: "open",
+};
+
+const SYSTEM_DEFAULTS = {
+  autoCloseDays: 30,
+  appealWindowDays: 14,
+  requireEmployerVerification: true,
 };
 
 const SECTIONS_BY_ROLE = {
-  resident: ["account", "language", "notifications", "privacy", "about", "danger"],
+  jobseeker: ["account", "language", "notifications", "privacy", "about", "danger"],
   employer: ["account", "language", "templates", "notifications", "about", "danger"],
   admin: ["account", "notifications", "access", "about"],
   superadmin: ["account", "system", "admin-tools", "about"],
 };
 
-const SECTION_META = {
-  account: { label: "Account", icon: <FaUserCog /> },
-  language: { label: "Language & Region", icon: <FaLanguage /> },
-  templates: { label: "Templates", icon: <FaLayerGroup /> },
-  notifications: { label: "Notifications", icon: <FaBell /> },
-  privacy: { label: "Privacy", icon: <FaUserShield /> },
-  access: { label: "Your Access", icon: <FaClipboardList /> },
-  system: { label: "System Preferences", icon: <FaSlidersH /> },
-  "admin-tools": { label: "Admin Tools", icon: <FaClipboardList /> },
-  about: { label: "About STRAM PESO", icon: <FaInfoCircle /> },
-  danger: { label: "Account Deactivation", icon: <FaExclamationTriangle /> },
+const SECTION_ICON = {
+  account: <FaUserCog />,
+  language: <FaLanguage />,
+  templates: <FaLayerGroup />,
+  notifications: <FaBell />,
+  privacy: <FaUserShield />,
+  access: <FaClipboardList />,
+  system: <FaSlidersH />,
+  "admin-tools": <FaClipboardList />,
+  about: <FaInfoCircle />,
+  danger: <FaExclamationTriangle />,
 };
 
-const ADMIN_MODULES = [
-  "Admin Dashboard & Reports",
-  "Employer Verification queue",
-  "Job Monitoring",
-  "News Feed & Announcements",
-  "SPES Applications",
-];
+const SECTION_LABEL_KEY = {
+  account: "account",
+  language: "language",
+  templates: "templates",
+  notifications: "notifications",
+  privacy: "privacy",
+  access: "access",
+  system: "system",
+  "admin-tools": "adminTools",
+  about: "about",
+  danger: "danger",
+};
 
-const SUPERADMIN_MODULES = [
-  "Superadmin Console (admin account provisioning)",
-  "User Management directory",
-  "Reports & Appeals / moderation",
-  "Employer Verification queue",
-  "Job Monitoring",
-  "Audit Trail",
-];
-
-function Toggle({ id, checked, onChange, label, hint }) {
+function Toggle({ id, checked, onChange, label, hint, disabled }) {
   return (
-    <label className="set-toggle" htmlFor={id}>
+    <label className={`set-toggle ${disabled ? "is-disabled" : ""}`} htmlFor={id}>
       <input
         id={id}
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
       />
       <span className="set-toggle__track" aria-hidden="true">
@@ -110,31 +104,126 @@ function Toggle({ id, checked, onChange, label, hint }) {
 }
 
 export default function Settings() {
-  const { user } = useContext(AuthContext);
+  const { t } = useTranslation();
+  const { user, logout } = useContext(AuthContext);
   const toast = useToast();
   const confirm = useConfirm();
+  const navigate = useNavigate();
 
-  const role = normalizeRole(user?.role) || "resident";
-  const sections = SECTIONS_BY_ROLE[role] || SECTIONS_BY_ROLE.resident;
+  const role = normalizeRole(user?.role) || "jobseeker";
+  const sections = SECTIONS_BY_ROLE[role] || SECTIONS_BY_ROLE.jobseeker;
 
+  // Scoped to the signed-in account — bare keys here would be shared by
+  // every account that ever uses this browser, so a different account
+  // signing in later could silently inherit someone else's unsaved
+  // preference toggles.
+  const currentUserId = user?._id || user?.id || null;
   const [activeSection, setActiveSection] = usePersistentState(
-    "settingsActiveSection",
+    currentUserId ? `settingsActiveSection_${currentUserId}` : null,
     { value: sections[0] }
   );
   const active = sections.includes(activeSection?.value)
     ? activeSection.value
     : sections[0];
 
-  const [draft, setDraft] = usePersistentState("settingsDraft", DRAFT_DEFAULTS);
-  const d = { ...DRAFT_DEFAULTS, ...(draft || {}) };
-  const setField = (key, val) => setDraft((prev) => ({ ...DRAFT_DEFAULTS, ...prev, [key]: val }));
-
   const go = (value) => setActiveSection({ value });
+
+  // ── Notification preferences + privacy (jobseeker / employer / admin) ──
+  const hasAccountSettings = ["jobseeker", "employer", "admin"].includes(role);
+  const [notifPrefs, setNotifPrefs] = useState(NOTIFICATION_DEFAULTS);
+  const [privacy, setPrivacy] = useState(PRIVACY_DEFAULTS);
+  const [accountSettingsLoading, setAccountSettingsLoading] = useState(hasAccountSettings);
+
+  useEffect(() => {
+    if (!hasAccountSettings) return;
+    let cancelled = false;
+    setAccountSettingsLoading(true);
+    authAPI
+      .getSettings()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data?.notificationPreferences) {
+          setNotifPrefs((prev) => ({ ...prev, ...data.notificationPreferences }));
+        }
+        if (data?.privacy) {
+          setPrivacy((prev) => ({ ...prev, ...data.privacy }));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) toast.error(t("settings.saveError"));
+      })
+      .finally(() => {
+        if (!cancelled) setAccountSettingsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasAccountSettings]);
+
+  const saveNotificationPref = async (key, value) => {
+    const previous = notifPrefs;
+    setNotifPrefs((prev) => ({ ...prev, [key]: value }));
+    try {
+      await authAPI.updateSettings({ notificationPreferences: { [key]: value } });
+    } catch {
+      setNotifPrefs(previous);
+      toast.error(t("settings.saveError"));
+    }
+  };
+
+  const savePrivacyField = async (key, value) => {
+    const previous = privacy;
+    setPrivacy((prev) => ({ ...prev, [key]: value }));
+    try {
+      await authAPI.updateSettings({ privacy: { [key]: value } });
+    } catch {
+      setPrivacy(previous);
+      toast.error(t("settings.saveError"));
+    }
+  };
+
+  // ── System preferences (superadmin) ──
+  const [systemSettings, setSystemSettings] = useState(SYSTEM_DEFAULTS);
+  const [systemLoading, setSystemLoading] = useState(role === "superadmin");
+
+  useEffect(() => {
+    if (role !== "superadmin") return;
+    let cancelled = false;
+    setSystemLoading(true);
+    superadminAPI
+      .getSystemSettings()
+      .then(({ data }) => {
+        if (!cancelled && data) setSystemSettings((prev) => ({ ...prev, ...data }));
+      })
+      .catch(() => {
+        if (!cancelled) toast.error(t("settings.saveError"));
+      })
+      .finally(() => {
+        if (!cancelled) setSystemLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
+
+  const saveSystemField = async (patch) => {
+    const previous = systemSettings;
+    setSystemSettings((prev) => ({ ...prev, ...patch }));
+    try {
+      const { data } = await superadminAPI.updateSystemSettings(patch);
+      setSystemSettings((prev) => ({ ...prev, ...data }));
+    } catch {
+      setSystemSettings(previous);
+      toast.error(t("settings.saveError"));
+    }
+  };
 
   const displayName =
     user?.name ||
     [user?.firstName, user?.surname].filter(Boolean).join(" ") ||
-    "Your account";
+    t("settings.account.yourAccount");
 
   return (
     <div className="set">
@@ -144,13 +233,13 @@ export default function Settings() {
             <FaUserCog />
           </span>
           <div>
-            <h1>Settings</h1>
-            <p>Manage your account, preferences, and how STRAM PESO works for you.</p>
+            <h1>{t("settings.pageTitle")}</h1>
+            <p>{t("settings.pageSubtitle")}</p>
           </div>
         </header>
 
         <div className="set__layout">
-          <nav className="set__rail" aria-label="Settings sections">
+          <nav className="set__rail" aria-label={t("settings.railLabel")}>
             {sections.map((key) => (
               <button
                 key={key}
@@ -158,9 +247,8 @@ export default function Settings() {
                 className={`set__rail-item ${active === key ? "is-active" : ""}`}
                 onClick={() => go(key)}
               >
-                <span className="set__rail-icon">{SECTION_META[key].icon}</span>
-                <span>{SECTION_META[key].label}</span>
-                <FaChevronRight className="set__rail-caret" aria-hidden="true" />
+                <span className="set__rail-icon">{SECTION_ICON[key]}</span>
+                <span>{t(`settings.sections.${SECTION_LABEL_KEY[key]}`)}</span>
               </button>
             ))}
           </nav>
@@ -169,21 +257,36 @@ export default function Settings() {
             {active === "account" && (
               <AccountSection role={role} user={user} displayName={displayName} />
             )}
-            {active === "language" && (
-              <LanguageSection value={d.language} onChange={(v) => setField("language", v)} />
-            )}
+            {active === "language" && <LanguageSection />}
             {active === "templates" && <TemplatesSection toast={toast} confirm={confirm} />}
             {active === "notifications" && (
-              <NotificationsSection role={role} d={d} setField={setField} />
+              <NotificationsSection
+                role={role}
+                prefs={notifPrefs}
+                loading={accountSettingsLoading}
+                onToggle={saveNotificationPref}
+              />
             )}
             {active === "privacy" && (
-              <PrivacySection d={d} setField={setField} />
+              <PrivacySection
+                privacy={privacy}
+                loading={accountSettingsLoading}
+                onChange={savePrivacyField}
+              />
             )}
             {active === "access" && <AccessSection role={role} />}
-            {active === "system" && <SystemSection d={d} setField={setField} />}
+            {active === "system" && (
+              <SystemSection
+                system={systemSettings}
+                loading={systemLoading}
+                onSave={saveSystemField}
+              />
+            )}
             {active === "admin-tools" && <AdminToolsSection />}
             {active === "about" && <AboutSection />}
-            {active === "danger" && <DangerSection confirm={confirm} toast={toast} />}
+            {active === "danger" && (
+              <DangerSection confirm={confirm} toast={toast} logout={logout} navigate={navigate} />
+            )}
           </div>
         </div>
       </div>
@@ -193,14 +296,11 @@ export default function Settings() {
 
 /* ── Sections ─────────────────────────────────────────────────────────── */
 
-function SectionHead({ title, subtitle, badge }) {
+function SectionHead({ title, subtitle }) {
   return (
     <div className="set-card__head">
       <div>
-        <h2 className="set-card__title">
-          {title}
-          {badge}
-        </h2>
+        <h2 className="set-card__title">{title}</h2>
         {subtitle && <p className="set-card__subtitle">{subtitle}</p>}
       </div>
     </div>
@@ -208,79 +308,75 @@ function SectionHead({ title, subtitle, badge }) {
 }
 
 function AccountSection({ role, user, displayName }) {
+  const { t } = useTranslation();
+  const roleLabel = t(`settings.roles.${role}`, { defaultValue: role });
   return (
     <section className="set-card">
       <SectionHead
-        title="Account"
-        subtitle="Your sign-in details and profile information."
+        title={t("settings.account.title")}
+        subtitle={t("settings.account.subtitle")}
       />
       <dl className="set-kv">
         <div>
-          <dt>Name</dt>
+          <dt>{t("settings.account.name")}</dt>
           <dd>{displayName}</dd>
         </div>
         <div>
-          <dt>Email</dt>
+          <dt>{t("settings.account.email")}</dt>
           <dd>{user?.email || "—"}</dd>
         </div>
         <div>
-          <dt>Phone</dt>
+          <dt>{t("settings.account.phone")}</dt>
           <dd>{user?.phone || "—"}</dd>
         </div>
         {role === "employer" && (
           <div>
-            <dt>Company</dt>
+            <dt>{t("settings.account.company")}</dt>
             <dd>{user?.companyName || "—"}</dd>
           </div>
         )}
         <div>
-          <dt>Role</dt>
+          <dt>{t("settings.account.role")}</dt>
           <dd>
-            <span className="set-rolebadge">{ROLE_LABEL[role] || role}</span>
+            <span className="set-rolebadge">{roleLabel}</span>
           </dd>
         </div>
       </dl>
       <div className="set-actions">
         <Link to="/profile/edit" className="set-btn set-btn--primary">
-          Edit full profile <FaArrowRight aria-hidden="true" />
+          {t("settings.account.editFullProfile")} <FaArrowRight aria-hidden="true" />
         </Link>
         <Link to="/profile" className="set-btn set-btn--ghost">
-          View profile
+          {t("settings.account.viewProfile")}
         </Link>
       </div>
-      <p className="set-hint">
-        Email, password, and every profile field are managed on the Edit Profile
-        page.
-      </p>
+      <p className="set-hint">{t("settings.account.hint")}</p>
     </section>
   );
 }
 
-function LanguageSection({ value, onChange }) {
+function LanguageSection() {
+  const { t, i18n } = useTranslation();
   return (
     <section className="set-card">
       <SectionHead
-        title="Language & Region"
-        subtitle="Choose the language STRAM PESO is shown in."
-        badge={<NotYetAvailable />}
+        title={t("settings.language.title")}
+        subtitle={t("settings.language.subtitle")}
       />
-      <NotYetAvailable variant="banner" />
       <label className="set-field">
-        <span className="set-field__label">Display language</span>
-        <select value={value} onChange={(e) => onChange(e.target.value)}>
-          <option value="en">English</option>
-          <option value="fil">Filipino</option>
+        <span className="set-field__label">{t("settings.language.displayLanguage")}</span>
+        <select value={i18n.language} onChange={(e) => i18n.changeLanguage(e.target.value)}>
+          <option value="en">{t("settings.language.english")}</option>
+          <option value="fil">{t("settings.language.filipino")}</option>
         </select>
       </label>
-      <p className="set-hint">
-        Full translation of the portal is planned. For now this only remembers
-        your choice on this device.
-      </p>
+      <p className="set-hint">{t("settings.language.hint")}</p>
     </section>
   );
 }
 
 function TemplatesSection({ toast, confirm }) {
+  const { t } = useTranslation();
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -291,9 +387,9 @@ function TemplatesSection({ toast, confirm }) {
     try {
       const res = await employerAPI.getQualificationTemplates();
       const all = Array.isArray(res.data?.templates) ? res.data.templates : [];
-      setTemplates(all.filter((t) => t.source === "custom"));
+      setTemplates(all.filter((item) => item.source === "custom"));
     } catch {
-      setError("Couldn't load your templates. Try again in a moment.");
+      setError(t("settings.templates.loadError"));
     } finally {
       setLoading(false);
     }
@@ -305,36 +401,36 @@ function TemplatesSection({ toast, confirm }) {
 
   const handleDelete = async (tpl) => {
     const ok = await confirm({
-      title: `Delete "${tpl.name}"?`,
-      message: "This removes the saved template. Jobs already posted with it are not affected.",
+      title: t("settings.templates.deleteConfirmTitle", { name: tpl.name }),
+      message: t("settings.templates.deleteConfirmMessage"),
       tone: "danger",
-      confirmLabel: "Delete",
+      confirmLabel: t("common.delete"),
     });
     if (!ok) return;
     try {
       await employerAPI.deleteQualificationTemplate(tpl.id);
-      setTemplates((prev) => prev.filter((t) => t.id !== tpl.id));
-      toast.success("Template deleted.");
+      setTemplates((prev) => prev.filter((item) => item.id !== tpl.id));
+      toast.success(t("settings.templates.deleted"));
     } catch {
-      toast.error("Couldn't delete that template.");
+      toast.error(t("settings.templates.deleteError"));
     }
   };
 
   return (
     <section className="set-card">
       <SectionHead
-        title="Qualification Templates"
-        subtitle="Reusable qualification sets you've saved from the job posting form."
+        title={t("settings.templates.title")}
+        subtitle={t("settings.templates.subtitle")}
       />
 
-      {loading && <p className="set-hint">Loading templates…</p>}
+      {loading && <p className="set-hint">{t("common.loading")}</p>}
       {error && !loading && <p className="set-error">{error}</p>}
 
       {!loading && !error && templates.length === 0 && (
         <p className="set-empty">
-          No saved templates yet. When posting a vacancy, use{" "}
-          <strong>Save as template</strong> in the Qualifications step and it will
-          appear here.
+          {t("settings.templates.emptyPrefix")}{" "}
+          <strong>{t("settings.templates.saveAsTemplate")}</strong>{" "}
+          {t("settings.templates.emptySuffix")}
         </p>
       )}
 
@@ -348,7 +444,7 @@ function TemplatesSection({ toast, confirm }) {
                   <span className="set-tpl__hint">for “{tpl.jobTitle}”</span>
                 )}
                 <span className="set-tpl__meta">
-                  {tpl.items.length} item{tpl.items.length === 1 ? "" : "s"}
+                  {t("settings.templates.itemCount", { count: tpl.items.length })}
                   {tpl.updatedAt && (
                     <>
                       {" · "}
@@ -363,7 +459,7 @@ function TemplatesSection({ toast, confirm }) {
                 className="set-btn set-btn--danger-ghost"
                 onClick={() => handleDelete(tpl)}
               >
-                <FaTrashAlt aria-hidden="true" /> Delete
+                <FaTrashAlt aria-hidden="true" /> {t("common.delete")}
               </button>
             </li>
           ))}
@@ -371,57 +467,58 @@ function TemplatesSection({ toast, confirm }) {
       )}
 
       <p className="set-hint">
-        Create and edit templates from the <Link to="/post-job">Post Vacancy</Link>{" "}
-        form — the Qualifications step has the full editor.
+        {t("settings.templates.hintPrefix")} <Link to="/post-job">{t("navbar.postVacancy")}</Link>{" "}
+        {t("settings.templates.hintSuffix")}
       </p>
 
       <div className="set-subrow">
         <div>
-          <span className="set-subrow__title">Job Posting Templates</span>
-          <span className="set-subrow__hint">
-            Save an entire vacancy — title, pay, logistics, requirements — as one
-            reusable template.
-          </span>
+          <span className="set-subrow__title">{t("settings.templates.jobPostingTemplatesTitle")}</span>
+          <span className="set-subrow__hint">{t("settings.templates.jobPostingTemplatesHint")}</span>
         </div>
-        <span className="set-comingsoon">Coming soon</span>
+        <span className="set-comingsoon">{t("common.comingSoon")}</span>
       </div>
     </section>
   );
 }
 
-function NotificationsSection({ role, d, setField }) {
+function NotificationsSection({ role, prefs, loading, onToggle }) {
+  const { t } = useTranslation();
   return (
     <section className="set-card">
       <SectionHead
-        title="Notifications"
-        subtitle="Choose which emails STRAM PESO sends you."
-        badge={<NotYetAvailable />}
+        title={t("settings.notifications.title")}
+        subtitle={t("settings.notifications.subtitle")}
       />
-      <NotYetAvailable variant="banner" />
+
+      {loading && <p className="set-hint">{t("common.loading")}</p>}
 
       <div className="set-toggle-group">
-        {role === "resident" && (
+        {role === "jobseeker" && (
           <>
             <Toggle
               id="n-msg"
-              checked={d.notifyMessages}
-              onChange={(v) => setField("notifyMessages", v)}
-              label="New messages"
-              hint="When an employer or the PESO office messages you."
+              checked={prefs.notifyMessages}
+              disabled={loading}
+              onChange={(v) => onToggle("notifyMessages", v)}
+              label={t("settings.notifications.newMessages")}
+              hint={t("settings.notifications.newMessagesHint")}
             />
             <Toggle
               id="n-match"
-              checked={d.notifyJobMatch}
-              onChange={(v) => setField("notifyJobMatch", v)}
-              label="Job matches"
-              hint="New vacancies that fit your preferred occupations and location."
+              checked={prefs.notifyJobMatch}
+              disabled={loading}
+              onChange={(v) => onToggle("notifyJobMatch", v)}
+              label={t("settings.notifications.jobMatches")}
+              hint={t("settings.notifications.jobMatchesHint")}
             />
             <Toggle
               id="n-appupd"
-              checked={d.notifyApplicationUpdate}
-              onChange={(v) => setField("notifyApplicationUpdate", v)}
-              label="Application updates"
-              hint="When the status of one of your applications changes."
+              checked={prefs.notifyApplicationUpdate}
+              disabled={loading}
+              onChange={(v) => onToggle("notifyApplicationUpdate", v)}
+              label={t("settings.notifications.applicationUpdates")}
+              hint={t("settings.notifications.applicationUpdatesHint")}
             />
           </>
         )}
@@ -429,17 +526,19 @@ function NotificationsSection({ role, d, setField }) {
           <>
             <Toggle
               id="n-applicant"
-              checked={d.notifyNewApplicant}
-              onChange={(v) => setField("notifyNewApplicant", v)}
-              label="New applicants"
-              hint="When someone applies to one of your vacancies."
+              checked={prefs.notifyNewApplicant}
+              disabled={loading}
+              onChange={(v) => onToggle("notifyNewApplicant", v)}
+              label={t("settings.notifications.newApplicants")}
+              hint={t("settings.notifications.newApplicantsHint")}
             />
             <Toggle
               id="n-expiring"
-              checked={d.notifyJobExpiring}
-              onChange={(v) => setField("notifyJobExpiring", v)}
-              label="Vacancy expiring soon"
-              hint="A reminder before a posting auto-closes."
+              checked={prefs.notifyJobExpiring}
+              disabled={loading}
+              onChange={(v) => onToggle("notifyJobExpiring", v)}
+              label={t("settings.notifications.vacancyExpiring")}
+              hint={t("settings.notifications.vacancyExpiringHint")}
             />
           </>
         )}
@@ -447,24 +546,27 @@ function NotificationsSection({ role, d, setField }) {
           <>
             <Toggle
               id="n-verif"
-              checked={d.notifyVerificationRequest}
-              onChange={(v) => setField("notifyVerificationRequest", v)}
-              label="Employer verification requests"
-              hint="When a new employer submits documents for review."
+              checked={prefs.notifyVerificationRequest}
+              disabled={loading}
+              onChange={(v) => onToggle("notifyVerificationRequest", v)}
+              label={t("settings.notifications.verificationRequests")}
+              hint={t("settings.notifications.verificationRequestsHint")}
             />
             <Toggle
               id="n-report"
-              checked={d.notifyUserReport}
-              onChange={(v) => setField("notifyUserReport", v)}
-              label="User reports"
-              hint="When a user or a piece of content is reported."
+              checked={prefs.notifyUserReport}
+              disabled={loading}
+              onChange={(v) => onToggle("notifyUserReport", v)}
+              label={t("settings.notifications.userReports")}
+              hint={t("settings.notifications.userReportsHint")}
             />
             <Toggle
               id="n-spes"
-              checked={d.notifySpesSubmission}
-              onChange={(v) => setField("notifySpesSubmission", v)}
-              label="SPES submissions"
-              hint="When a new SPES application comes in."
+              checked={prefs.notifySpesSubmission}
+              disabled={loading}
+              onChange={(v) => onToggle("notifySpesSubmission", v)}
+              label={t("settings.notifications.spesSubmissions")}
+              hint={t("settings.notifications.spesSubmissionsHint")}
             />
           </>
         )}
@@ -473,36 +575,39 @@ function NotificationsSection({ role, d, setField }) {
   );
 }
 
-function PrivacySection({ d, setField }) {
+function PrivacySection({ privacy, loading, onChange }) {
+  const { t } = useTranslation();
   return (
     <section className="set-card">
       <SectionHead
-        title="Privacy"
-        subtitle="Control who can see your profile and message you."
-        badge={<NotYetAvailable />}
+        title={t("settings.privacy.title")}
+        subtitle={t("settings.privacy.subtitle")}
       />
-      <NotYetAvailable variant="banner" />
+
+      {loading && <p className="set-hint">{t("common.loading")}</p>}
 
       <label className="set-field">
-        <span className="set-field__label">Profile visibility</span>
+        <span className="set-field__label">{t("settings.privacy.profileVisibility")}</span>
         <select
-          value={d.profileVisibility}
-          onChange={(e) => setField("profileVisibility", e.target.value)}
+          value={privacy.profileVisibility}
+          disabled={loading}
+          onChange={(e) => onChange("profileVisibility", e.target.value)}
         >
-          <option value="public">Public — anyone signed in can view</option>
-          <option value="employers">Employers only</option>
-          <option value="hidden">Hidden — only me and the PESO office</option>
+          <option value="public">{t("settings.privacy.visibilityPublic")}</option>
+          <option value="employers">{t("settings.privacy.visibilityEmployers")}</option>
+          <option value="hidden">{t("settings.privacy.visibilityHidden")}</option>
         </select>
       </label>
 
       <label className="set-field">
-        <span className="set-field__label">Who can message me</span>
+        <span className="set-field__label">{t("settings.privacy.whoCanMessage")}</span>
         <select
-          value={d.allowMessagesFrom}
-          onChange={(e) => setField("allowMessagesFrom", e.target.value)}
+          value={privacy.allowMessagesFrom}
+          disabled={loading}
+          onChange={(e) => onChange("allowMessagesFrom", e.target.value)}
         >
-          <option value="anyone">Anyone signed in</option>
-          <option value="employers">Employers only</option>
+          <option value="anyone">{t("settings.privacy.messageAnyone")}</option>
+          <option value="employers">{t("settings.privacy.messageEmployers")}</option>
         </select>
       </label>
     </section>
@@ -510,83 +615,110 @@ function PrivacySection({ d, setField }) {
 }
 
 function AccessSection({ role }) {
-  const modules = role === "superadmin" ? SUPERADMIN_MODULES : ADMIN_MODULES;
+  const { t } = useTranslation();
+  const modules = t(
+    role === "superadmin" ? "settings.access.superadminModules" : "settings.access.adminModules",
+    { returnObjects: true }
+  );
   return (
     <section className="set-card">
       <SectionHead
-        title="Your Access"
-        subtitle="The parts of STRAM PESO your role can reach."
+        title={t("settings.access.title")}
+        subtitle={t("settings.access.subtitle")}
       />
       <ul className="set-list">
         {modules.map((m) => (
           <li key={m}>{m}</li>
         ))}
       </ul>
-      <p className="set-hint">
-        Access is set by your role. To change what an administrator can do, a
-        superadmin manages it from the Superadmin Console.
-      </p>
+      <p className="set-hint">{t("settings.access.hint")}</p>
     </section>
   );
 }
 
-function SystemSection({ d, setField }) {
+function SystemSection({ system, loading, onSave }) {
+  const { t } = useTranslation();
+  // Local typing buffers for the two number fields, so keystrokes stay
+  // smooth and the network save only fires once the field is committed
+  // (blur), not on every keystroke.
+  const [autoCloseDraft, setAutoCloseDraft] = useState(String(system.autoCloseDays));
+  const [appealWindowDraft, setAppealWindowDraft] = useState(String(system.appealWindowDays));
+  // Re-sync the typing buffers when the underlying value changes from outside
+  // this component (initial load, or a revert after a failed save) — done
+  // during render (React's documented "adjusting state on prop change"
+  // pattern), not in an effect, so it doesn't cause an extra render pass.
+  const [syncedAutoClose, setSyncedAutoClose] = useState(system.autoCloseDays);
+  if (system.autoCloseDays !== syncedAutoClose) {
+    setSyncedAutoClose(system.autoCloseDays);
+    setAutoCloseDraft(String(system.autoCloseDays));
+  }
+  const [syncedAppealWindow, setSyncedAppealWindow] = useState(system.appealWindowDays);
+  if (system.appealWindowDays !== syncedAppealWindow) {
+    setSyncedAppealWindow(system.appealWindowDays);
+    setAppealWindowDraft(String(system.appealWindowDays));
+  }
+
+  const commitAutoClose = () => {
+    const clamped = Math.min(365, Math.max(1, Math.round(Number(autoCloseDraft)) || system.autoCloseDays));
+    setAutoCloseDraft(String(clamped));
+    if (clamped !== system.autoCloseDays) onSave({ autoCloseDays: clamped });
+  };
+
+  const commitAppealWindow = () => {
+    const clamped = Math.min(90, Math.max(1, Math.round(Number(appealWindowDraft)) || system.appealWindowDays));
+    setAppealWindowDraft(String(clamped));
+    if (clamped !== system.appealWindowDays) onSave({ appealWindowDays: clamped });
+  };
+
   return (
     <section className="set-card">
       <SectionHead
-        title="System Preferences"
-        subtitle="Portal-wide rules. Changing these affects every user."
-        badge={<NotYetAvailable />}
+        title={t("settings.system.title")}
+        subtitle={t("settings.system.subtitle")}
       />
-      <NotYetAvailable variant="banner" />
+
+      {loading && <p className="set-hint">{t("common.loading")}</p>}
 
       <label className="set-field">
-        <span className="set-field__label">Auto-close a vacancy after</span>
+        <span className="set-field__label">{t("settings.system.autoCloseLabel")}</span>
         <div className="set-field__inline">
           <input
             type="number"
             min="1"
             max="365"
-            value={d.sysAutoCloseDays}
-            onChange={(e) => setField("sysAutoCloseDays", e.target.value)}
+            value={autoCloseDraft}
+            disabled={loading}
+            onChange={(e) => setAutoCloseDraft(e.target.value)}
+            onBlur={commitAutoClose}
           />
-          <span>days with no activity</span>
+          <span>{t("settings.system.autoCloseSuffix")}</span>
         </div>
       </label>
 
       <label className="set-field">
-        <span className="set-field__label">Appeal window</span>
+        <span className="set-field__label">{t("settings.system.appealWindowLabel")}</span>
         <div className="set-field__inline">
           <input
             type="number"
             min="1"
             max="90"
-            value={d.sysAppealWindowDays}
-            onChange={(e) => setField("sysAppealWindowDays", e.target.value)}
+            value={appealWindowDraft}
+            disabled={loading}
+            onChange={(e) => setAppealWindowDraft(e.target.value)}
+            onBlur={commitAppealWindow}
           />
-          <span>days to appeal a suspension</span>
+          <span>{t("settings.system.appealWindowSuffix")}</span>
         </div>
-      </label>
-
-      <label className="set-field">
-        <span className="set-field__label">New account registration</span>
-        <select
-          value={d.sysRegistrationMode}
-          onChange={(e) => setField("sysRegistrationMode", e.target.value)}
-        >
-          <option value="open">Open — anyone can register</option>
-          <option value="invite">Invite only</option>
-          <option value="closed">Closed</option>
-        </select>
       </label>
 
       <div className="set-toggle-group">
         <Toggle
           id="s-verif"
-          checked={d.sysRequireVerification}
-          onChange={(v) => setField("sysRequireVerification", v)}
-          label="Require employer verification before posting"
-          hint="Employers must be verified by the PESO office before a vacancy goes live."
+          checked={system.requireEmployerVerification}
+          disabled={loading}
+          onChange={(v) => onSave({ requireEmployerVerification: v })}
+          label={t("settings.system.requireVerification")}
+          hint={t("settings.system.requireVerificationHint")}
         />
       </div>
     </section>
@@ -594,31 +726,32 @@ function SystemSection({ d, setField }) {
 }
 
 function AdminToolsSection() {
+  const { t } = useTranslation();
   return (
     <section className="set-card">
       <SectionHead
-        title="Admin Tools"
-        subtitle="Jump to the system management areas."
+        title={t("settings.adminTools.title")}
+        subtitle={t("settings.adminTools.subtitle")}
       />
       <div className="set-linklist">
         <Link to="/superadmin" className="set-linkrow">
           <span>
-            <strong>Superadmin Console</strong>
-            <small>Provision, disable, and reset administrator accounts.</small>
+            <strong>{t("settings.adminTools.superadminConsole")}</strong>
+            <small>{t("settings.adminTools.superadminConsoleHint")}</small>
           </span>
           <FaChevronRight aria-hidden="true" />
         </Link>
         <Link to="/admin/users" className="set-linkrow">
           <span>
-            <strong>User Management</strong>
-            <small>The full directory of residents and employers.</small>
+            <strong>{t("settings.adminTools.userManagement")}</strong>
+            <small>{t("settings.adminTools.userManagementHint")}</small>
           </span>
           <FaChevronRight aria-hidden="true" />
         </Link>
         <Link to="/admin/audit-logs" className="set-linkrow">
           <span>
-            <strong>Audit Trail</strong>
-            <small>A record of sensitive actions across the system.</small>
+            <strong>{t("settings.adminTools.auditTrail")}</strong>
+            <small>{t("settings.adminTools.auditTrailHint")}</small>
           </span>
           <FaChevronRight aria-hidden="true" />
         </Link>
@@ -628,63 +761,82 @@ function AdminToolsSection() {
 }
 
 function AboutSection() {
+  const { t } = useTranslation();
   return (
     <section className="set-card">
       <SectionHead
-        title="About STRAM PESO"
-        subtitle="A province-wide employment portal for Marinduque."
+        title={t("settings.about.title")}
+        subtitle={t("settings.about.subtitle")}
       />
-      <p className="set-prose">
-        STRAM PESO connects jobseekers, employers, and the six municipalities of
-        Marinduque, built on the province's Labor Market Data and the work of the
-        Public Employment Service Office. It was designed and built as a
-        4th-year capstone project by students of Marinduque State University —
-        College of Information and Computing Sciences.
-      </p>
+      <p className="set-prose">{t("settings.about.body")}</p>
       <div className="set-actions">
         <Link to="/about" className="set-btn set-btn--primary">
-          View the full About page <FaArrowRight aria-hidden="true" />
+          {t("settings.about.viewFullAboutPage")} <FaArrowRight aria-hidden="true" />
         </Link>
       </div>
     </section>
   );
 }
 
-function DangerSection({ confirm, toast }) {
+function DangerSection({ confirm, toast, logout, navigate }) {
+  const { t } = useTranslation();
+  const [password, setPassword] = useState("");
+  const [deactivating, setDeactivating] = useState(false);
+
   const handleDeactivate = async () => {
+    if (!password) {
+      toast.error(t("settings.danger.passwordRequired"));
+      return;
+    }
+
     const ok = await confirm({
-      title: "Deactivate your account?",
-      message:
-        "Your profile will be hidden and you'll be signed out. You can ask the PESO office to restore it later.",
+      title: t("settings.danger.confirmTitle"),
+      message: t("settings.danger.confirmMessage"),
       tone: "danger",
-      confirmLabel: "Deactivate",
+      confirmLabel: t("settings.danger.confirmLabel"),
     });
     if (!ok) return;
-    toast.info("Account deactivation isn't available yet — nothing was changed.");
+
+    setDeactivating(true);
+    try {
+      const { data } = await authAPI.deactivateAccount(password);
+      toast.success(data?.message || t("settings.danger.deactivateSuccess"));
+      logout();
+      navigate("/login");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || t("settings.danger.deactivateError"));
+      setDeactivating(false);
+    }
   };
 
   return (
     <section className="set-card set-card--danger">
       <SectionHead
-        title="Account Deactivation"
-        subtitle="Temporarily remove your account from STRAM PESO."
-        badge={<NotYetAvailable />}
+        title={t("settings.danger.title")}
+        subtitle={t("settings.danger.subtitle")}
       />
-      <NotYetAvailable
-        variant="banner"
-        note="Self-service deactivation is being built. The button below is a preview and won't change your account yet."
-      />
-      <p className="set-prose">
-        Deactivating hides your profile and listings and signs you out. This is
-        reversible — contact the PESO office to reactivate.
-      </p>
+      <p className="set-prose">{t("settings.danger.body")}</p>
+
+      <label className="set-field">
+        <span className="set-field__label">{t("settings.danger.passwordLabel")}</span>
+        <input
+          type="password"
+          value={password}
+          autoComplete="current-password"
+          placeholder={t("settings.danger.passwordPlaceholder")}
+          disabled={deactivating}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </label>
+
       <div className="set-actions">
         <button
           type="button"
           className="set-btn set-btn--danger"
           onClick={handleDeactivate}
+          disabled={deactivating}
         >
-          Deactivate my account
+          {deactivating ? t("common.loading") : t("settings.danger.deactivateButton")}
         </button>
       </div>
     </section>

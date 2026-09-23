@@ -37,23 +37,30 @@ export const useJobLike = (jobId) => {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('job:liked', (data) => {
+    const onJobLiked = (data) => {
       if (data.jobId === jobId) {
-        setLikeCount(data.totalLikes || likeCount);
+        setLikeCount(prev => data.totalLikes ?? prev);
       }
-    });
-
-    socket.on('job:unliked', (data) => {
-      if (data.jobId === jobId) {
-        setLikeCount(data.totalLikes || Math.max(0, likeCount - 1));
-      }
-    });
-
-    return () => {
-      socket.off('job:liked');
-      socket.off('job:unliked');
     };
-  }, [socket, jobId, likeCount]);
+
+    const onJobUnliked = (data) => {
+      if (data.jobId === jobId) {
+        setLikeCount(prev => data.totalLikes ?? Math.max(0, prev - 1));
+      }
+    };
+
+    socket.on('job:liked', onJobLiked);
+    socket.on('job:unliked', onJobUnliked);
+
+    // Deregister only these specific handlers — socket.off(event) with no
+    // handler argument would remove every listener for that event on the
+    // shared socket, including ones registered by other useJobLike instances
+    // mounted at the same time (e.g. multiple job cards on one page).
+    return () => {
+      socket.off('job:liked', onJobLiked);
+      socket.off('job:unliked', onJobUnliked);
+    };
+  }, [socket, jobId]);
 
   const likeJob = async () => {
     try {

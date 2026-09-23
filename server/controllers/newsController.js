@@ -4,8 +4,9 @@ const User = require("../models/User");
 const { logAuditEvent } = require("../services/auditService");
 const { notifyManyUsers } = require("../services/notificationService");
 const storageService = require("../services/storageService");
+const { escapeRegex } = require("../utils/sanitize");
 
-// Categories that only matter to jobseekers get scoped to residents; general
+// Categories that only matter to jobseekers get scoped to that role; general
 // updates and events go out to everyone so the audience matches the content.
 const JOBSEEKER_ONLY_CATEGORIES = ["hiring", "training", "advisory", "spes"];
 
@@ -40,8 +41,8 @@ const normalizeSpesConfig = (raw) => {
 
 const notifyNewsPublished = async ({ announcement, authorId, io }) => {
   const roleFilter = JOBSEEKER_ONLY_CATEGORIES.includes(announcement.category)
-    ? { role: "resident" }
-    : { role: { $in: ["resident", "employer"] } };
+    ? { role: "jobseeker" }
+    : { role: { $in: ["jobseeker", "employer"] } };
 
   const recipients = await User.find({ ...roleFilter, _id: { $ne: authorId } }).select("_id");
   if (recipients.length === 0) return;
@@ -128,9 +129,10 @@ exports.listNews = async (req, res) => {
     }
 
     if (search) {
+      const searchRegex = escapeRegex(search);
       filter.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { content: { $regex: search, $options: "i" } },
+        { title: { $regex: searchRegex, $options: "i" } },
+        { content: { $regex: searchRegex, $options: "i" } },
       ];
     }
 

@@ -9,6 +9,8 @@ const AuditLog = require("../models/AuditLog");
 const { getApplicationCountMap, normalizeFeaturedOrdering } = require("../utils/jobDisplay");
 const { logAuditEvent } = require("../services/auditService");
 const { createNotificationForUser } = require("../services/notificationService");
+const { forceLogout } = require("../services/sessionService");
+const { escapeRegex } = require("../utils/sanitize");
 
 const monthBuckets = () => Array.from({ length: 12 }, () => 0);
 
@@ -149,7 +151,7 @@ exports.getAdminAnalytics = async (req, res) => {
     ] = await Promise.all([
       User.countDocuments({ role: { $ne: "superadmin" } }),
       User.countDocuments({ role: "employer" }),
-      User.countDocuments({ role: "resident" }),
+      User.countDocuments({ role: "jobseeker" }),
       JobVacancy.countDocuments(),
       JobApplication.countDocuments(),
       User.countDocuments({ role: "employer", verificationStatus: "verified" }),
@@ -226,7 +228,7 @@ exports.getProvincialAnalytics = async (req, res) => {
       {
         $match: {
           createdAt: { $gte: yearStart, $lt: yearEnd },
-          role: { $in: ["resident", "employer"] },
+          role: { $in: ["jobseeker", "employer"] },
         },
       },
       {
@@ -500,7 +502,7 @@ exports.getAllUsers = async (req, res) => {
     // in listings, counts, or moderation targets.
     const filter = { role: { $ne: "superadmin" } };
 
-    if (["employer", "resident", "admin"].includes(role)) {
+    if (["employer", "jobseeker", "admin"].includes(role)) {
       filter.role = role;
     }
 
@@ -514,8 +516,8 @@ exports.getAllUsers = async (req, res) => {
 
     if (search) {
       filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
+        { name: { $regex: escapeRegex(search), $options: "i" } },
+        { email: { $regex: escapeRegex(search), $options: "i" } },
       ];
     }
 
@@ -541,6 +543,23 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
+const AUDIT_CATEGORY_PREFIXES = {
+  "auth-security": ["auth."],
+  "user-account": ["user."],
+  "applicant-jobs": ["job.application."],
+  "employer-management": ["employer."],
+  "user-management": ["admin.user.", "admin.verification_queue."],
+  "job-management": ["admin.job."],
+  "news-announcements": ["admin.news."],
+  "audit-analytics": ["admin.audit."],
+  "messaging": ["message."],
+  "notifications": ["notification."],
+  "social-interactions": ["social.user."],
+  "job-interactions": ["social.job."],
+  "search-discovery": ["search."],
+  "system-maintenance": ["system."],
+};
+
 exports.getAuditLogs = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -548,33 +567,115 @@ exports.getAuditLogs = async (req, res) => {
     const action = String(req.query.action || "").trim();
     const severity = String(req.query.severity || "").trim();
     const search = String(req.query.search || "").trim();
+    const category = String(req.query.category || "").trim();
+    const fromDate = String(req.query.fromDate || "").trim();
+    const toDate = String(req.query.toDate || "").trim();
 
-    const filter = {};
+    const andConditions = [];
 
     if (action) {
-      filter.action = { $regex: action, $options: "i" };
+      andConditions.push({ action: { $regex: escapeRegex(action), $options: "i" } });
     }
 
     if (["info", "warning", "critical"].includes(severity)) {
-      filter.severity = severity;
+      andConditions.push({ severity });
     }
+
+    if (category && category !== "all" && AUDIT_CATEGORY_PREFIXES[category]) {
+      andConditions.push({
+        $or: AUDIT_CATEGORY_PREFIXES[category].map((prefix) => ({
+          action: { $regex: `^${escapeRegex(prefix)}` },
+        })),
+      });
+    }
+
+    if (fromDate || toDate) {
+      const createdAt = {};
+      if (fromDate) {
+        const start = new Date(`${fromDate}T00:00:00`);
+        if (!Number.isNaN(start.getTime())) createdAt.$gte = start;
+      }
+      if (toDate) {
+        const end = new Date(`${toDate}T23:59:59.999`);
+        if (!Number.isNaN(end.getTime())) createdAt.$lte = end;
+      }
+      if (Object.keys(createdAt).length > 0) {
+        andConditions.push({ createdAt });
+      }
+    }
+
+    const matchStage = andConditions.length > 0 ? { $and: andConditions } : {};
+
+    const pipeline = [
+      { $match: matchStage },
+      {
+        $lookup: {
+          from: "users",
+          localField: "actorId",
+          foreignField: "_id",
+          as: "actorInfo",
+        },
+      },
+      { $unwind: { path: "$actorInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "targetUserId",
+          foreignField: "_id",
+          as: "targetInfo",
+        },
+      },
+      { $unwind: { path: "$targetInfo", preserveNullAndEmptyArrays: true } },
+    ];
 
     if (search) {
-      filter.$or = [
-        { action: { $regex: search, $options: "i" } },
-        { "metadata.message": { $regex: search, $options: "i" } },
-      ];
+      const searchRegex = { $regex: escapeRegex(search), $options: "i" };
+      pipeline.push({
+        $match: {
+          $or: [
+            { action: searchRegex },
+            { "metadata.message": searchRegex },
+            { "actorInfo.name": searchRegex },
+            { "targetInfo.name": searchRegex },
+            { actorRole: searchRegex },
+            { targetType: searchRegex },
+          ],
+        },
+      });
     }
 
-    const [total, logs] = await Promise.all([
-      AuditLog.countDocuments(filter),
-      AuditLog.find(filter)
-        .populate("actorId", "name email role")
-        .populate("targetUserId", "name email role")
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-    ]);
+    pipeline.push({
+      $facet: {
+        data: [
+          { $sort: { createdAt: -1 } },
+          { $skip: (page - 1) * limit },
+          { $limit: limit },
+        ],
+        totalCount: [{ $count: "count" }],
+      },
+    });
+
+    const [result] = await AuditLog.aggregate(pipeline);
+    const total = result?.totalCount?.[0]?.count || 0;
+    const logs = (result?.data || []).map((log) => ({
+      ...log,
+      actorId: log.actorInfo
+        ? {
+            _id: log.actorInfo._id,
+            name: log.actorInfo.name,
+            email: log.actorInfo.email,
+            role: log.actorInfo.role,
+          }
+        : log.actorId,
+      targetUserId: log.targetInfo
+        ? {
+            _id: log.targetInfo._id,
+            name: log.targetInfo.name,
+            email: log.targetInfo.email,
+            role: log.targetInfo.role,
+          }
+        : log.targetUserId,
+    }));
 
     return res.json({
       items: logs,
@@ -596,7 +697,7 @@ const buildAdminVacancyFilter = (query = {}) => {
   const filter = {};
 
   if (search) {
-    const regex = { $regex: search, $options: "i" };
+    const regex = { $regex: escapeRegex(search), $options: "i" };
     filter.$or = [
       { title: regex },
       { industry: regex },
@@ -628,7 +729,7 @@ const buildAdminVacancyFilter = (query = {}) => {
   }
 
   if (category !== "all") {
-    filter.industry = { $regex: category, $options: "i" };
+    filter.industry = { $regex: escapeRegex(category), $options: "i" };
   }
 
   return filter;
@@ -866,14 +967,14 @@ exports.updateUserRole = async (req, res) => {
     // revoking the "admin" role is a superadmin-only action performed from the
     // superadmin console — never from here — and "superadmin" is never assignable
     // through the app at all.
-    if (!["resident", "employer"].includes(role)) {
+    if (!["jobseeker", "employer"].includes(role)) {
       return res.status(400).json({
         message:
           "Invalid role. Admin accounts are managed by the system superadmin in the superadmin console.",
       });
     }
 
-    const user = await User.findById(id);
+    const user = await User.findById(id).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -931,7 +1032,7 @@ exports.deactivateUser = async (req, res) => {
       return res.status(400).json({ message: "Admin cannot deactivate their own account" });
     }
 
-    const user = await User.findById(id);
+    const user = await User.findById(id).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -949,6 +1050,22 @@ exports.deactivateUser = async (req, res) => {
     user.suspendedAt = new Date();
     user.suspendedBy = req.user.id;
     await user.save();
+
+    // End any session this account already has open right now — the
+    // isActive check in verifyToken only catches their *next* request, which
+    // could be minutes away (or never, if they just leave the tab idle).
+    forceLogout(req.app.get("io"), user._id, {
+      // Same code/shape as the 403 verifyToken/login already return for a
+      // suspended account — "banned" vs "suspended" is distinguished by
+      // accountStatus within that one code, not a separate code.
+      code: "ACCOUNT_SUSPENDED",
+      message: permanent
+        ? "This account has been banned by an administrator."
+        : "This account has been suspended by an administrator.",
+      accountStatus: user.accountStatus,
+      suspensionReason: user.suspensionReason,
+      suspendedAt: user.suspendedAt,
+    });
 
     await logAuditEvent({
       req,
@@ -984,7 +1101,7 @@ exports.deactivateUser = async (req, res) => {
 exports.reactivateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id);
+    const user = await User.findById(id).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -1063,6 +1180,11 @@ exports.deleteUser = async (req, res) => {
       User.findByIdAndDelete(id),
     ]);
 
+    forceLogout(req.app.get("io"), id, {
+      code: "ACCOUNT_DELETED",
+      message: "This account has been deleted by an administrator.",
+    });
+
     await logAuditEvent({
       req,
       actorId: req.user.id,
@@ -1101,7 +1223,7 @@ exports.getUserProfileDetails = async (req, res) => {
     let stats = {};
     let employerJobs = [];
 
-    if (user.role === "resident") {
+    if (user.role === "jobseeker") {
       profile = await JobseekerProfile.findOne({ userId: user._id });
       const totalApplications = await JobApplication.countDocuments({ applicant: user._id });
       stats = { totalApplications };

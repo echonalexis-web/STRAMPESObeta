@@ -1,7 +1,8 @@
-import React, { useContext } from "react";
+import React, { useContext, useRef } from "react";
 import { FaStar, FaUsers, FaEnvelope, FaPhone, FaGlobe, FaMapMarkerAlt, FaBriefcase, FaRegClock, FaTimes } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { useFollow } from "../hooks/useFollow";
+import { useModalA11y } from "../hooks/useModalA11y";
 import { workforceSizeLabel } from "../data/employerProfile";
 import "../styles/EmployerModal.css";
 
@@ -34,11 +35,21 @@ export default function EmployerModal({ isOpen, onClose, employer }) {
     toggleFollow,
   } = useFollow(employerId);
 
+  const dialogRef = useRef(null);
+  useModalA11y(isOpen && Boolean(employer), onClose, dialogRef);
+
   if (!isOpen || !employer) return null;
 
   return (
     <div className="employer-modal-overlay" onClick={onClose}>
-      <div className="employer-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="employer-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={employer.companyName ? `${employer.companyName} details` : "Employer details"}
+        ref={dialogRef}
+        onClick={(e) => e.stopPropagation()}
+      >
         <button className="employer-modal-close" onClick={onClose} type="button" aria-label="Close">
           <FaTimes />
         </button>

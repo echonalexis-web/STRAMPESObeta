@@ -1,23 +1,21 @@
 const router = require("express").Router();
 const { verifyToken: protect } = require("../middleware/auth");
-const { 
-  completeOnboarding, 
-  getProfile, 
-  updateProfile, 
+const {
+  completeOnboarding,
+  getProfile,
+  updateProfile,
   uploadProfileImage,
-  getUserById,
   changePassword,
   uploadResume,
 } = require("../controllers/userController");
 const { submitEmployerVerification } = require("../controllers/verificationController");
 const { profileUpload, validateFile, persistUploads, cleanupUploadedFiles } = require("../middleware/upload");
-const { 
-  validateUserUpdate, 
+const {
+  validateUserUpdate,
   validatePasswordChange,
   validateRequest,
   sanitizeRequestBody,
   sanitizeQueryParams,
-  validateMongoId,
 } = require("../middleware/validation");
 const { detectMaliciousPayload, sensitiveOperationLimiter } = require("../middleware/security");
 
@@ -63,8 +61,5 @@ router.post("/verification/submit", sanitizeRequestBody, submitEmployerVerificat
 
 // Password change with rate limiting
 router.put("/change-password", sensitiveOperationLimiter(3, 60 * 60 * 1000), sanitizeRequestBody, detectMaliciousPayload, validatePasswordChange, validateRequest, changePassword);
-
-// Get user by ID with validation
-router.get("/:id", validateMongoId("id"), sanitizeQueryParams, getUserById);
 
 module.exports = router;

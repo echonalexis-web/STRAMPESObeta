@@ -2,6 +2,7 @@ const router = require("express").Router();
 const {
     documentsUpload,
     avatarUpload,
+    validateFile,
     persistFields,
     persistUploads,
     cleanupUploadedFiles,
@@ -14,15 +15,21 @@ const {
     requestEmailChange,
     confirmEmailChange,
     googleAuth,
+    resendEmailVerification,
+    confirmEmailVerification,
     getMe,
     getProfile,
     updateProfile,
     updateAvatar,
     registerEmployer,
     acceptTerms,
-    changePassword
+    changePassword,
+    getSettings,
+    updateSettings,
+    deactivateAccount
 } = require("../controllers/authController");
 const { verifyToken: protect, isAdmin } = require("../middleware/auth");
+const { exportOwnForm1, exportOwnForm2 } = require("../controllers/nsrpFormController");
 const {
   sanitizeRequestBody,
   sanitizeQueryParams,
@@ -30,7 +37,7 @@ const {
   validateUserLogin,
   validateRequest
 } = require("../middleware/validation");
-const { detectMaliciousPayload } = require("../middleware/security");
+const { detectMaliciousPayload, sensitiveOperationLimiter } = require("../middleware/security");
 
 // Field -> storage category for the profile update endpoints
 const PROFILE_DOC_FIELDS = [
@@ -104,6 +111,21 @@ router.post(
   confirmEmailChange
 );
 
+// Registration email verification — both public, no session needed.
+router.post(
+  "/verify-email/resend",
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  resendEmailVerification
+);
+
+router.post(
+  "/verify-email/confirm",
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  confirmEmailVerification
+);
+
 router.post(
   "/register/employer",
   sanitizeRequestBody,
@@ -116,6 +138,8 @@ router.post(
 // Protected routes
 router.get("/me", protect, getMe);
 router.get("/profile", protect, getProfile);
+router.get("/nsrp-form-1/export", protect, exportOwnForm1);
+router.get("/nsrp-form-2/export", protect, exportOwnForm2);
 router.post("/accept-terms", protect, sanitizeRequestBody, acceptTerms);
 router.post(
   "/change-password",
@@ -161,9 +185,24 @@ router.patch(
   "/profile/avatar",
   protect,
   avatarUpload.single("profileImage"),
+  validateFile,
   cleanupUploadedFiles,
   persistUploads("avatar"),
   updateAvatar
+);
+
+// Settings → Notifications + Privacy
+router.get("/settings", protect, getSettings);
+router.put("/settings", protect, sanitizeRequestBody, detectMaliciousPayload, updateSettings);
+
+// Settings → Danger Zone — self-service account deactivation
+router.post(
+  "/deactivate",
+  protect,
+  sensitiveOperationLimiter(3, 60 * 60 * 1000),
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  deactivateAccount
 );
 
 module.exports = router;

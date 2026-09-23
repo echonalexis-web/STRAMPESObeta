@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { FaCloudUploadAlt, FaFileAlt, FaTimes, FaSyncAlt } from "react-icons/fa";
 import SecureFileLink from "./SecureFileLink";
+import { displayFileName } from "../services/api";
 
 const formatSize = (bytes) => {
   if (!bytes && bytes !== 0) return "";
@@ -8,8 +9,6 @@ const formatSize = (bytes) => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
-
-const existingFileName = (url) => (url ? url.split("/").pop().split("?")[0] : "");
 
 export default function FileDropzone({
   id,
@@ -84,7 +83,7 @@ export default function FileDropzone({
         <div className="dropzone-file-card">
           <FaFileAlt className="dropzone-file-icon" />
           <div className="dropzone-file-info">
-            <span className="dropzone-file-name">{file ? file.name : existingFileName(existingUrl)}</span>
+            <span className="dropzone-file-name">{file ? file.name : displayFileName(existingUrl)}</span>
             <span className="dropzone-file-meta">
               {file ? formatSize(file.size) : "Uploaded"}
               {!file && existingUrl && (
@@ -99,9 +98,9 @@ export default function FileDropzone({
             <button type="button" className="dropzone-action-btn" onClick={openPicker} disabled={disabled} title="Replace file">
               <FaSyncAlt /> Replace
             </button>
-            {file && (
-              <button type="button" className="dropzone-action-btn dropzone-action-btn--remove" onClick={onRemove} disabled={disabled} title="Remove selected file">
-                <FaTimes />
+            {onRemove && (
+              <button type="button" className="dropzone-action-btn dropzone-action-btn--remove" onClick={onRemove} disabled={disabled} title="Delete file">
+                <FaTimes /> Delete
               </button>
             )}
           </div>

@@ -49,7 +49,7 @@ exports.applyToSpes = async (req, res) => {
 
     const user = await User.findById(userId).select("role name hasCompletedOnboarding onboardingComplete");
     if (!user) return res.status(404).json({ message: "User not found" });
-    if (!["resident", "employee", "jobseeker"].includes(user.role)) {
+    if (!["jobseeker", "employee", "resident"].includes(user.role)) {
       return res.status(403).json({ message: "Only jobseeker accounts can apply for SPES." });
     }
 
@@ -68,6 +68,12 @@ exports.applyToSpes = async (req, res) => {
         .json({ message: "You have already applied to this SPES program.", application: existing });
     }
 
+    const isOutOfSchoolYouth = ["true", "1", "on"].includes(String(req.body.isOutOfSchoolYouth || "").toLowerCase());
+    const school = String(req.body.school || "").trim().slice(0, 160);
+    if (!isOutOfSchoolYouth && !school) {
+      return res.status(400).json({ message: "School is required unless you are applying as an out-of-school youth." });
+    }
+
     const documents = (req.files || [])
       .filter((f) => f.storedValue)
       .map((f, i) => ({ label: f.originalname || `Document ${i + 1}`, fileUrl: f.storedValue }));
@@ -77,8 +83,9 @@ exports.applyToSpes = async (req, res) => {
       announcement: announcementId,
       nsrpComplete: true,
       contactNumber: String(req.body.contactNumber || "").trim().slice(0, 40),
-      school: String(req.body.school || "").trim().slice(0, 160),
-      gradeLevel: String(req.body.gradeLevel || "").trim().slice(0, 60),
+      isOutOfSchoolYouth,
+      school: isOutOfSchoolYouth ? "" : school,
+      gradeLevel: isOutOfSchoolYouth ? "" : String(req.body.gradeLevel || "").trim().slice(0, 60),
       guardianName: String(req.body.guardianName || "").trim().slice(0, 120),
       documents,
       status: "submitted",
@@ -98,6 +105,7 @@ exports.applyToSpes = async (req, res) => {
         relatedEntityId: application._id,
         actionUrl: "/admin/spes",
         io,
+        preferenceKey: "notifySpesSubmission",
       });
     }
 
@@ -111,12 +119,13 @@ exports.applyToSpes = async (req, res) => {
       relatedEntityId: application._id,
       actionUrl: "/spes/applications",
       io,
+      preferenceKey: "notifyApplicationUpdate",
     });
 
     await logAuditEvent({
       req,
       actorId: userId,
-      actorRole: "resident",
+      actorRole: "jobseeker",
       action: "spes.application.submitted",
       targetType: "spes_application",
       targetId: String(application._id),
@@ -244,6 +253,18 @@ exports.adminRecordEvaluation = async (req, res) => {
     const app = await SpesApplication.findById(req.params.id);
     if (!app) return res.status(404).json({ message: "Application not found" });
 
+    const trimmedRemarks = typeof remarks === "string" ? remarks.trim().slice(0, 2000) : "";
+
+    // Explicitly excluding an applicant (they withdrew, or were disqualified)
+    // always needs a recorded reason — this is the only way to pull a
+    // neglected/stuck applicant out of a program's results-release gate,
+    // so it should never happen silently.
+    if ((status === "withdrawn" || status === "disqualified") && !trimmedRemarks) {
+      return res.status(400).json({
+        message: `A reason in Remarks is required to mark an application as ${status}.`,
+      });
+    }
+
     if (examScore !== undefined && examScore !== null && examScore !== "") {
       app.evaluation.examScore = Number(examScore);
       app.evaluation.examTakenAt = app.evaluation.examTakenAt || new Date();
@@ -256,13 +277,14 @@ exports.adminRecordEvaluation = async (req, res) => {
 
     if (outcome !== undefined && ["pending", ...RELEASABLE_OUTCOMES].includes(outcome)) {
       app.result.outcome = outcome;
-      app.result.remarks = typeof remarks === "string" ? remarks.trim().slice(0, 2000) : app.result.remarks;
+      app.result.remarks = typeof remarks === "string" ? trimmedRemarks : app.result.remarks;
       if (rank !== undefined && rank !== null && rank !== "") app.result.rank = Number(rank);
       app.result.decidedBy = getUserId(req);
       app.result.decidedAt = new Date();
     }
 
-    const validStages = ["under_review", "for_exam", "for_interview", "evaluated"];
+    const previousStatus = app.status;
+    const validStages = ["under_review", "for_exam", "for_interview", "evaluated", "withdrawn", "disqualified"];
     if (status && validStages.includes(status)) {
       app.status = status;
     } else if (app.result.outcome !== "pending" && app.status !== "results_released") {
@@ -271,15 +293,18 @@ exports.adminRecordEvaluation = async (req, res) => {
 
     await app.save();
 
+    const isNewExclusion =
+      previousStatus !== app.status && ["withdrawn", "disqualified"].includes(app.status);
+
     await logAuditEvent({
       req,
       actorId: getUserId(req),
       actorRole: "admin",
-      action: "spes.evaluation.recorded",
+      action: isNewExclusion ? `spes.application.${app.status}` : "spes.evaluation.recorded",
       targetType: "spes_application",
       targetId: String(app._id),
-      severity: "info",
-      metadata: { outcome: app.result.outcome, status: app.status },
+      severity: isNewExclusion ? "warning" : "info",
+      metadata: { outcome: app.result.outcome, status: app.status, remarks: trimmedRemarks || undefined },
     });
 
     return res.json({ message: "Evaluation saved", application: app });
@@ -335,6 +360,7 @@ exports.adminReleaseResults = async (req, res) => {
       relatedEntityId: announcement._id,
       actionUrl: "/spes/applications",
       io,
+      preferenceKey: "notifyApplicationUpdate",
     });
 
     await logAuditEvent({
@@ -386,6 +412,7 @@ exports.adminAmendResult = async (req, res) => {
         relatedEntityId: app._id,
         actionUrl: "/spes/applications",
         io: req.app.get("io"),
+        preferenceKey: "notifyApplicationUpdate",
       });
     }
 

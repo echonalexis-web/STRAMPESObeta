@@ -20,6 +20,10 @@ export default function AvatarPicker({
   size = 128,
   disabled = false,
   inline = false,
+  // Overrides the default authAPI.updateAvatar(file) call — used where the
+  // upload must go through an id-scoped endpoint instead (e.g. employer
+  // onboarding posting to POST /employers/:id/avatar).
+  uploadFn,
 }) {
   const toast = useToast();
   const inputRef = useRef(null);
@@ -85,8 +89,9 @@ export default function AvatarPicker({
     setBusy(true);
     setError("");
     try {
-      const { data } = await authAPI.updateAvatar(file);
-      onUploaded?.(data.profileImage);
+      const doUpload = uploadFn || authAPI.updateAvatar;
+      const { data } = await doUpload(file);
+      onUploaded?.(data.profileImage || data.avatarUrl);
       toast.success("Profile photo updated.");
     } catch (err) {
       setError(err.response?.data?.message || "Upload failed. Please try again.");

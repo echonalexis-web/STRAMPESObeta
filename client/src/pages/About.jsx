@@ -6,33 +6,60 @@ import alkimarPhoto from "../assets/images/Alkimar.png";
 import alexisPhoto from "../assets/images/Alexis.png";
 import jakePhoto from "../assets/images/Jake.png";
 import ivyPhoto from "../assets/images/Ivy.png";
+import marinduqueMap from "../data/marinduqueMap.json";
 
+// geoKey maps each town to its MUNICIPALI key in marinduqueMap.json (traced
+// from a real municipal boundary GeoJSON — see client/scripts/geojson-to-svg.mjs).
 const MUNICIPALITIES = {
   boac: {
     name: "Boac",
+    geoKey: "BOAC",
+    tag: "Provincial Capital",
     text: "The provincial capital - home to the main government offices, PESO Marinduque's main office, and a growing base of retail and service-sector jobs.",
   },
   mogpog: {
     name: "Mogpog",
+    geoKey: "MOGPOG",
+    tag: "Municipality",
     text: "A farming and inland-fishing community on the island's north side, with a workforce centered on agriculture and small-scale trade.",
   },
   santacruz: {
     name: "Santa Cruz",
+    geoKey: "SANTA CRUZ",
+    tag: "Municipality",
     text: "The province's largest municipality by land area, with a workforce spread across agriculture, trade, and local industry.",
   },
   gasan: {
     name: "Gasan",
+    geoKey: "GASAN",
+    tag: "Municipality",
     text: "A coastal municipality and port town, where fishing and small enterprise make up a large share of local livelihoods.",
   },
   buenavista: {
     name: "Buenavista",
+    geoKey: "BUENAVISTA",
+    tag: "Municipality",
     text: "The smallest municipality on the island, largely agricultural, with farming households forming the core of the local workforce.",
   },
   torrijos: {
     name: "Torrijos",
+    geoKey: "TORRIJOS",
+    tag: "Municipality",
     text: "Known for its coastline and marine tourism spots, with livelihoods split between fishing, tourism-linked work, and agriculture.",
   },
 };
+
+const fmtNumber = (n) => Number(n || 0).toLocaleString("en-US");
+const haToKm2 = (ha) => (Number(ha || 0) / 100).toFixed(1);
+
+const PROVINCE_TOTALS = Object.values(marinduqueMap.municipalities).reduce(
+  (totals, town) => ({
+    voters: totals.voters + Number(town.registeredVoters || 0),
+    barangays: totals.barangays + Number(town.barangays || 0),
+    landAreaHectares: totals.landAreaHectares + Number(town.landAreaHectares || 0),
+  }),
+  { voters: 0, barangays: 0, landAreaHectares: 0 }
+);
 
 const TEAM_MEMBERS = [
   {
@@ -111,8 +138,13 @@ export default function About() {
     ? MUNICIPALITIES[activeMunicipality]
     : {
         name: "Marinduque",
+        tag: "Province",
         text: "Six municipalities - Boac, Mogpog, Santa Cruz, Gasan, Buenavista, and Torrijos - make up the province. Hover any point on the map to read a short note about that town's local livelihoods.",
       };
+
+  const municipalityStats = activeMunicipality
+    ? marinduqueMap.municipalities[MUNICIPALITIES[activeMunicipality].geoKey]
+    : null;
 
   return (
     <main className="about-mock" aria-label="About STRAM PESO">
@@ -162,7 +194,6 @@ export default function About() {
               <div className={`tab-panel ${activeTab === "lmd" ? "active" : ""}`} id="panel-lmd">
                 <h3>Labor Market Data (LMD)</h3>
                 <p>LMD refers to the ongoing collection of information on job vacancies, in-demand skills, industry activity, and workforce movement across Marinduque's six municipalities. It's the raw material this portal runs on - turned into listings, guidance, and a clearer picture of where work is happening on the island.</p>
-                <p>Edit the figures and summaries in this section once your group has gathered the actual dataset for your capstone.</p>
                 <div className="chip-list">
                   <span className="chip">Job vacancies</span>
                   <span className="chip">Skills in demand</span>
@@ -173,7 +204,6 @@ export default function About() {
               <div className={`tab-panel ${activeTab === "peso" ? "active" : ""}`} id="panel-peso">
                 <h3>Public Employment Service Office</h3>
                 <p>PESO Marinduque provides free employment facilitation to residents - job referrals, labor market information, career guidance, and coordination with national programs. It's the office that turns Labor Market Data into direct help for jobseekers and local employers.</p>
-                <p>Replace this description with your own research on PESO Marinduque's specific programs and services.</p>
                 <div className="chip-list">
                   <span className="chip">Job referral</span>
                   <span className="chip">Career counseling</span>
@@ -191,42 +221,85 @@ export default function About() {
           <div className="head reveal">
             <span className="eyebrow">Across the Island</span>
             <h2>Six municipalities, one workforce</h2>
-            <p>Hover or tap a point on the map to see a short note on that municipality. Swap in your group's real labor data for each one.</p>
+            <p>Hover or tap a point on the map to see a short note on that municipality.</p>
           </div>
 
           <div className="map-grid reveal">
             <div className="island-wrap">
-              <svg viewBox="0 0 400 420" xmlns="http://www.w3.org/2000/svg">
-                <path d="M200,20 C270,-10 360,40 370,130 C380,220 330,300 260,350 C210,385 190,405 180,405 C170,405 150,385 100,345 C40,300 15,220 30,140 C45,65 130,50 175,35 C183,32 191,25 200,20 Z" fill="none" stroke="rgba(250,251,245,0.35)" strokeWidth="1.5" />
-                <path d="M200,20 C270,-10 360,40 370,130 C380,220 330,300 260,350 C210,385 190,405 180,405 C170,405 150,385 100,345 C40,300 15,220 30,140 C45,65 130,50 175,35 C183,32 191,25 200,20 Z" fill="rgba(139,197,63,0.07)" />
-
-                {[
-                  { key: "mogpog", x: 175, y: 80 },
-                  { key: "boac", x: 150, y: 165 },
-                  { key: "santacruz", x: 275, y: 150 },
-                  { key: "gasan", x: 120, y: 230 },
-                  { key: "buenavista", x: 155, y: 285 },
-                  { key: "torrijos", x: 230, y: 320 },
-                ].map((pin) => (
-                  <g
-                    key={pin.key}
-                    className={`pin ${activeMunicipality === pin.key ? "active" : ""}`}
-                    transform={`translate(${pin.x},${pin.y})`}
-                    onMouseEnter={() => setActiveMunicipality(pin.key)}
-                    onClick={() => setActiveMunicipality(pin.key)}
-                  >
-                    <circle className="ring" r="7" />
-                    <circle className="core" r="7" />
-                  </g>
+              <svg viewBox={marinduqueMap.viewBox} xmlns="http://www.w3.org/2000/svg">
+                {Object.entries(MUNICIPALITIES).map(([key, muni]) => (
+                  <path
+                    key={key}
+                    className={`region ${activeMunicipality === key ? "active" : ""}`}
+                    d={marinduqueMap.municipalities[muni.geoKey].d}
+                    onMouseEnter={() => setActiveMunicipality(key)}
+                    onClick={() => setActiveMunicipality(key)}
+                  />
                 ))}
+                {Object.entries(MUNICIPALITIES).map(([key, muni]) => {
+                  const [x, y] = marinduqueMap.municipalities[muni.geoKey].labelPos;
+                  return (
+                    <text
+                      key={key}
+                      className={`region-label ${activeMunicipality === key ? "active" : ""}`}
+                      x={x}
+                      y={y}
+                      onMouseEnter={() => setActiveMunicipality(key)}
+                      onClick={() => setActiveMunicipality(key)}
+                    >
+                      {muni.name}
+                    </text>
+                  );
+                })}
               </svg>
             </div>
 
             <div className="muni-info" id="muniInfo">
-              <span className="tag">Municipality</span>
+              <span className="tag">{municipalityData.tag}</span>
               <h3 id="muniName">{municipalityData.name}</h3>
               <p id="muniText">{municipalityData.text}</p>
-              <p className="muni-hint">Tip: this text pulls from the data object in the page component - edit the MUNICIPALITIES list to update it.</p>
+
+              <div className="muni-stat-grid">
+                {municipalityStats ? (
+                  <>
+                    <div className="muni-stat">
+                      <span className="k">Zip code</span>
+                      <span className="v">{municipalityStats.zipcode}</span>
+                    </div>
+                    <div className="muni-stat">
+                      <span className="k">Barangays</span>
+                      <span className="v">{municipalityStats.barangays}</span>
+                    </div>
+                    <div className="muni-stat">
+                      <span className="k">Registered voters</span>
+                      <span className="v">{fmtNumber(municipalityStats.registeredVoters)}</span>
+                    </div>
+                    <div className="muni-stat">
+                      <span className="k">Land area</span>
+                      <span className="v small">~{haToKm2(municipalityStats.landAreaHectares)} km²</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="muni-stat">
+                      <span className="k">Municipalities</span>
+                      <span className="v">6</span>
+                    </div>
+                    <div className="muni-stat">
+                      <span className="k">Barangays</span>
+                      <span className="v">{PROVINCE_TOTALS.barangays}</span>
+                    </div>
+                    <div className="muni-stat">
+                      <span className="k">Registered voters</span>
+                      <span className="v">{fmtNumber(PROVINCE_TOTALS.voters)}</span>
+                    </div>
+                    <div className="muni-stat">
+                      <span className="k">Land area</span>
+                      <span className="v small">~{haToKm2(PROVINCE_TOTALS.landAreaHectares)} km²</span>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -276,7 +349,7 @@ export default function About() {
           <div className="head reveal">
             <span className="eyebrow">Behind This Page</span>
             <h2>A student capstone project</h2>
-            <p>This portal was designed and built by a group of 4th-year students from Marinduque State University - College of Information and Computing Sciences as requirement for their capstone project.</p>
+            <p>This portal was designed and built by four students as their capstone project.</p>
           </div>
 
           <div className="team-grid reveal">
@@ -291,7 +364,7 @@ export default function About() {
                 <div className="team-body">
                   <h3>{member.name}</h3>
                   <span className="team-role">{member.role}</span>
-                  <p className="team-bio">{member.bio}.</p>
+                  <p className="team-bio">{member.bio}</p>
                 </div>
               </div>
             ))}
@@ -310,7 +383,6 @@ export default function About() {
         <div className="wrap reveal">
           <span className="eyebrow closing-eyebrow">Isang Marinduque</span>
           <h2>Six towns, one island, one workforce - better connected.</h2>
-          <p className="kicker">Update this page's copy, images, and municipality notes as your capstone data comes in.</p>
           <p className="tagalog">"Marinduque, ang puso ng Pilipinas."</p>
         </div>
       </section>

@@ -7,11 +7,15 @@ import LocationSelect from "../../components/LocationSelect";
 import { parseLocationValue } from "../../utils/locationParser";
 import LocationAutosuggest from "../../components/LocationAutosuggest";
 import Autosuggest from "../../components/Autosuggest";
+import SearchableDropdown from "../../components/SearchableDropdown";
 import AvatarPicker from "../../components/AvatarPicker";
 import { usePersistentState } from "../../hooks/usePersistentState";
+import { SUGGESTED_SKILLS, INDUSTRY_SKILLS } from "../../data/skills";
 import marinduqueSchools from "../../data/marinduque_schools.json";
 import collegeCourses from "../../data/philippine_college_courses.json";
 import PH_JOB_TITLES from "../../data/ph_job_titles_complete.json";
+import countriesData from "../../data/countries.json";
+import { ALL_LOCATIONS } from "../../utils/philippineLocations";
 import { parseHeightToCm, parseWeightToKg, wasConverted } from "../../utils/unitConversion";
 
 // STRAM PESO accounts are for ages 15 and up (SPES applicants may be 15–30).
@@ -33,11 +37,6 @@ const RELIGIONS = [
   "Buddhist", "Philippine Benevolent Missionaries Association (PBMA)", "Others",
 ];
 
-const suggestedSkills = [
-  "Computer Literacy", "Driving", "Cooking", "Carpentry", "Caregiving", "Typing",
-  "Customer Service", "Communication", "Problem Solving", "Teamwork", "Leadership", "Time Management",
-];
-
 const INDUSTRY_OPTIONS = [
   "Information Technology (IT)", "Healthcare", "Finance & Banking", "Education",
   "Construction & Engineering", "Manufacturing", "Retail & Wholesale", "Hospitality & Tourism",
@@ -46,29 +45,6 @@ const INDUSTRY_OPTIONS = [
   "Marketing & Advertising", "Arts & Entertainment", "Human Resources", "Customer Service",
   "Environmental Services", "Others"
 ];
-
-const INDUSTRY_SKILLS = {
-  "Information Technology (IT)": ["Computer Literacy", "Typing", "Troubleshooting", "Data Entry", "Software Installation"],
-  "Healthcare": ["Caregiving", "First Aid", "Patient Care", "Attention to Detail", "Vital Signs Monitoring"],
-  "Finance & Banking": ["Bookkeeping", "Cash Handling", "Data Entry", "Attention to Detail", "Customer Service"],
-  "Education": ["Communication", "Lesson Planning", "Public Speaking", "Patience", "Mentoring"],
-  "Construction & Engineering": ["Carpentry", "Blueprint Reading", "Manual Labor", "Equipment Operation", "Safety Compliance"],
-  "Manufacturing": ["Quality Control", "Machine Operation", "Assembly", "Safety Compliance", "Time Management"],
-  "Retail & Wholesale": ["Customer Service", "Cash Handling", "Inventory Management", "Sales", "Communication"],
-  "Hospitality & Tourism": ["Customer Service", "Cooking", "Housekeeping", "Communication", "Teamwork"],
-  "Transportation & Logistics": ["Driving", "Route Planning", "Inventory Management", "Time Management", "Safety Compliance"],
-  "Agriculture": ["Farming", "Manual Labor", "Equipment Operation", "Livestock Care", "Time Management"],
-  "Media & Communications": ["Writing", "Communication", "Social Media", "Video Editing", "Public Speaking"],
-  "Real Estate": ["Sales", "Communication", "Negotiation", "Customer Service", "Time Management"],
-  "Government & Public Administration": ["Data Entry", "Communication", "Record Keeping", "Attention to Detail", "Customer Service"],
-  "Legal Services": ["Research", "Attention to Detail", "Communication", "Record Keeping", "Confidentiality"],
-  "Telecommunications": ["Troubleshooting", "Customer Service", "Technical Support", "Communication", "Problem Solving"],
-  "Marketing & Advertising": ["Social Media", "Communication", "Creativity", "Sales", "Writing"],
-  "Arts & Entertainment": ["Creativity", "Communication", "Teamwork", "Time Management", "Public Speaking"],
-  "Human Resources": ["Communication", "Recruitment", "Record Keeping", "Conflict Resolution", "Organization"],
-  "Customer Service": ["Customer Service", "Communication", "Problem Solving", "Patience", "Teamwork"],
-  "Environmental Services": ["Manual Labor", "Safety Compliance", "Attention to Detail", "Teamwork", "Equipment Operation"],
-};
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
@@ -105,7 +81,11 @@ const getSchoolOptions = (attainment) => {
 
 const COURSE_ATTAINMENTS = ["Vocational / TESDA", "College Undergraduate", "College Graduate", "Master's Degree", "Doctorate"];
 const COURSE_CATEGORIES = collegeCourses.categories || {};
+const VOCATIONAL_COURSES = COURSE_CATEGORIES["Technical-Vocational (TESDA) Programs"] || [];
+const ALL_COURSES_FLAT = collegeCourses.all_courses_flat || [];
+const COURSE_UNKNOWN_VALUE = "Undecided / Not sure yet";
 const TECH_VOC_INSTITUTIONS = (marinduqueSchools.technical_vocational_schools || []).map((s) => s.name);
+const COUNTRY_OPTIONS = countriesData.countries || [];
 const LANGUAGE_SKILLS = [
   { key: "read", label: "Read" },
   { key: "write", label: "Write" },
@@ -321,7 +301,14 @@ export default function JobSeekerOnboarding() {
     };
   };
 
-  const [persistedState, setPersistedState, clearPersistedState] = usePersistentState('jobseekerOnboarding', defaultState);
+  // Scoped to the signed-in account — a bare "jobseekerOnboarding" key would
+  // be shared by every account that ever uses this browser, so a new
+  // signup could land on an older, unrelated account's abandoned draft.
+  const currentUserId = user?._id || user?.id || null;
+  const [persistedState, setPersistedState, clearPersistedState] = usePersistentState(
+    currentUserId ? `jobseekerOnboarding_${currentUserId}` : null,
+    defaultState
+  );
 
   // Safe destructuring: if persistedState is invalid, use defaultState
   const safeState = (persistedState && typeof persistedState === 'object' && persistedState.form)
@@ -386,7 +373,7 @@ export default function JobSeekerOnboarding() {
   }, [preferredIndustries, skills]);
 
   const genericSuggestions = useMemo(() => {
-    return suggestedSkills.filter(skill => !skills.includes(skill) && !industrySuggestions.includes(skill));
+    return SUGGESTED_SKILLS.filter(skill => !skills.includes(skill) && !industrySuggestions.includes(skill));
   }, [skills, industrySuggestions]);
   const [resumeFile, setResumeFile] = useState(null);
   const [validIdFile, setValidIdFile] = useState(null);
@@ -396,20 +383,53 @@ export default function JobSeekerOnboarding() {
   // On mount, if user has onboarding completed, redirect
   useEffect(() => {
     if (!finished && (user?.hasCompletedOnboarding === true || user?.onboardingComplete === true)) {
-      const role = user?.role || "resident";
+      const role = user?.role || "jobseeker";
       if (role === "employer") navigate("/employer-dashboard");
       else navigate("/dashboard");
     }
-    // If no persisted state exists, or it's corrupted, reset to user data
-    if (user && !localStorage.getItem('jobseekerOnboarding')) {
+    // If no persisted state exists for THIS account, or it's corrupted,
+    // reset to user data. Must check the same per-user key the persisted
+    // state itself uses — checking the old flat key here would always read
+    // empty (nothing writes to it anymore) and reset a legitimate draft on
+    // every mount.
+    if (user && currentUserId && !localStorage.getItem(`jobseekerOnboarding_${currentUserId}`)) {
       setForm(getInitialForm(user));
     }
   }, [user, navigate, finished]);
 
+  // Registration already collects surname/first/middle/suffix, but the auth
+  // context populates those fields via an async profile fetch that resolves
+  // after this page has already mounted (and possibly after the draft form
+  // was first persisted with them blank). Backfill once they arrive, without
+  // clobbering anything the user has since typed.
+  useEffect(() => {
+    if (!user) return;
+    setForm(prev => ({
+      ...prev,
+      surname: prev.surname || user.surname || "",
+      firstName: prev.firstName || user.firstName || "",
+      middleName: prev.middleName || user.middleName || "",
+      suffix: prev.suffix || user.suffix || "",
+    }));
+  }, [user?.surname, user?.firstName, user?.middleName, user?.suffix]);
+
   const progress = useMemo(() => (Math.min(step, LAST_STEP) / LAST_STEP) * 100, [step]);
+
+  const handleStepJump = (targetStep) => {
+    if (targetStep < 1 || targetStep > LAST_STEP) return;
+    if (targetStep > step) return;
+    setError("");
+    setStep(targetStep);
+  };
 
   const schoolOptions = useMemo(() => getSchoolOptions(form.educationalAttainment), [form.educationalAttainment]);
   const showCourseField = COURSE_ATTAINMENTS.includes(form.educationalAttainment);
+  const courseSuggestions = useMemo(
+    () => (form.educationalAttainment === "Vocational / TESDA" ? VOCATIONAL_COURSES : ALL_COURSES_FLAT),
+    [form.educationalAttainment]
+  );
+  const courseUnknown = form.course === COURSE_UNKNOWN_VALUE;
+  const toggleCourseUnknown = (checked) => setForm(prev => ({ ...prev, course: checked ? COURSE_UNKNOWN_VALUE : "" }));
 
   const heightCm = useMemo(() => parseHeightToCm(form.height), [form.height]);
   const heightConverted = heightCm !== null && wasConverted(form.height, heightCm) ? heightCm : null;
@@ -675,17 +695,23 @@ export default function JobSeekerOnboarding() {
           {STEP_LABELS.map((label, i) => {
             const idx = i + 1;
             const state = step > idx || step === SUCCESS_STEP ? "done" : step === idx ? "current" : "upcoming";
+            const canJump = idx <= step && step <= LAST_STEP;
             return (
-              <li
-                key={label}
-                className={`onboarding-step-item ${state}`}
-                aria-current={state === "current" ? "step" : undefined}
-              >
-                <span className="onboarding-step-index" aria-hidden="true">{state === "done" ? "✓" : idx}</span>
-                <span className="onboarding-step-label">
-                  {label}
-                  {state === "done" && <span className="sr-only"> (completed)</span>}
-                </span>
+              <li key={label} className={`onboarding-step-item ${state}`}>
+                <button
+                  type="button"
+                  className="onboarding-step-button"
+                  onClick={() => handleStepJump(idx)}
+                  aria-current={state === "current" ? "step" : undefined}
+                  disabled={!canJump || saving}
+                  aria-label={`Go to ${label}`}
+                >
+                  <span className="onboarding-step-index" aria-hidden="true">{state === "done" ? "✓" : idx}</span>
+                  <span className="onboarding-step-label">
+                    {label}
+                    {state === "done" && <span className="sr-only"> (completed)</span>}
+                  </span>
+                </button>
               </li>
             );
           })}
@@ -699,6 +725,26 @@ export default function JobSeekerOnboarding() {
             <div className="onboarding-progress-mobile">
               <div className="onboarding-progress-meta">Step {step} of {LAST_STEP} · {STEP_LABELS[step - 1]}</div>
               <div className="onboarding-progress-track"><div className="onboarding-progress-fill" style={{ width: `${progress}%` }}></div></div>
+              <div className="onboarding-mobile-step-pills" aria-label="Jump to setup step">
+                {STEP_LABELS.map((label, i) => {
+                  const idx = i + 1;
+                  const isCurrent = idx === step;
+                  const isDone = idx < step;
+                  const disabled = idx > step || saving;
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      className={`onboarding-mobile-step-pill ${isCurrent ? "current" : ""} ${isDone ? "done" : ""}`}
+                      onClick={() => handleStepJump(idx)}
+                      disabled={disabled}
+                      aria-label={`Jump to ${label}`}
+                    >
+                      {idx}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
       {step === 1 && (
@@ -845,6 +891,7 @@ export default function JobSeekerOnboarding() {
                 placeholder="e.g. Boac, Marinduque"
                 values={form.preferredWorkLocationLocal}
                 cap={3}
+                options={ALL_LOCATIONS}
                 onAdd={(v) => addToCappedList("preferredWorkLocationLocal", v)}
                 onRemove={(v) => removeFromCappedList("preferredWorkLocationLocal", v)}
                 disabled={saving}
@@ -854,6 +901,7 @@ export default function JobSeekerOnboarding() {
                 placeholder="e.g. Japan"
                 values={form.preferredWorkLocationOverseas}
                 cap={3}
+                options={COUNTRY_OPTIONS}
                 onAdd={(v) => addToCappedList("preferredWorkLocationOverseas", v)}
                 onRemove={(v) => removeFromCappedList("preferredWorkLocationOverseas", v)}
                 disabled={saving}
@@ -921,6 +969,8 @@ export default function JobSeekerOnboarding() {
                 <label>Work Experience
                   <select value={form.workExperience || ""} onChange={e => updateField("workExperience", e.target.value)} disabled={saving}>
                     <option value="">Select</option>
+                    <option value="Student">Student</option>
+                    <option value="Not Applicable / No Work Experience">Not Applicable / No Work Experience</option>
                     <option value="Fresh Graduate">Fresh Graduate</option>
                     <option value="Less than 1 year">Less than 1 year</option>
                     <option value="1-3 years">1-3 years</option>
@@ -943,16 +993,26 @@ export default function JobSeekerOnboarding() {
                 <label>School Name <input type="text" value={form.schoolAttendedOther || ""} onChange={e => updateField("schoolAttendedOther", e.target.value)} disabled={saving} /></label>
               )}
               {showCourseField && (
-                <label>Course
-                  <select value={form.course || ""} onChange={e => updateField("course", e.target.value)} disabled={saving}>
-                    <option value="">Select</option>
-                    {Object.entries(COURSE_CATEGORIES).map(([category, courses]) => (
-                      <optgroup key={category} label={category}>
-                        {courses.map(c => <option key={c} value={c}>{c}</option>)}
-                      </optgroup>
-                    ))}
-                  </select>
-                </label>
+                <div>
+                  <label>Course
+                    <SearchableDropdown
+                      value={courseUnknown ? "" : (form.course || "")}
+                      onChange={(v) => updateField("course", v)}
+                      options={courseSuggestions}
+                      placeholder={courseUnknown ? "Not sure yet" : "Type to search or select a course"}
+                      disabled={saving || courseUnknown}
+                    />
+                  </label>
+                  <label className="checkbox-label" style={{ marginTop: "0.5rem" }}>
+                    <input
+                      type="checkbox"
+                      checked={courseUnknown}
+                      onChange={(e) => toggleCourseUnknown(e.target.checked)}
+                      disabled={saving}
+                    />
+                    I'm not sure / don't know my course yet
+                  </label>
+                </div>
               )}
               <label>Year Graduated <span className="onboarding-optional">(optional)</span>
                 <input type="text" inputMode="numeric" maxLength={4} placeholder="e.g. 2022" value={form.yearGraduated || ""} onChange={e => updateField("yearGraduated", e.target.value)} disabled={saving} />
@@ -1015,10 +1075,25 @@ export default function JobSeekerOnboarding() {
               <RepeatEntryCard key={i} title={`Employer ${i + 1}`} onRemove={() => removeListItem("workHistory", i)} disabled={saving}>
                 <div className="onboarding-field-grid">
                   <label>Company Name <input type="text" value={entry.companyName || ""} onChange={e => updateListItem("workHistory", i, "companyName", e.target.value)} disabled={saving} /></label>
-                  <label>Address (City/Municipality) <input type="text" value={entry.address || ""} onChange={e => updateListItem("workHistory", i, "address", e.target.value)} disabled={saving} /></label>
+                  <label>Address (City/Municipality)
+                    <LocationAutosuggest
+                      value={entry.address || ""}
+                      onChange={(v) => updateListItem("workHistory", i, "address", v)}
+                      placeholder="e.g. Boac, Marinduque"
+                      disabled={saving}
+                    />
+                  </label>
                 </div>
                 <div className="onboarding-field-grid">
-                  <label>Position <input type="text" value={entry.position || ""} onChange={e => updateListItem("workHistory", i, "position", e.target.value)} disabled={saving} /></label>
+                  <label>Position
+                    <Autosuggest
+                      value={entry.position || ""}
+                      onChange={(v) => updateListItem("workHistory", i, "position", v)}
+                      options={PH_JOB_TITLES}
+                      placeholder="e.g. Administrative Assistant"
+                      disabled={saving}
+                    />
+                  </label>
                   <label>Status
                     <select value={entry.status || ""} onChange={e => updateListItem("workHistory", i, "status", e.target.value)} disabled={saving}>
                       <option value="">Select</option>
@@ -1030,8 +1105,8 @@ export default function JobSeekerOnboarding() {
                   </label>
                 </div>
                 <div className="onboarding-field-grid">
-                  <label>From <input type="month" value={entry.dateFrom || ""} onChange={e => updateListItem("workHistory", i, "dateFrom", e.target.value)} disabled={saving} /></label>
-                  <label>To <input type="month" value={entry.dateTo || ""} onChange={e => updateListItem("workHistory", i, "dateTo", e.target.value)} disabled={saving} /></label>
+                  <label>From <input type="date" value={entry.dateFrom || ""} onChange={e => updateListItem("workHistory", i, "dateFrom", e.target.value)} disabled={saving} /></label>
+                  <label>To <input type="date" value={entry.dateTo || ""} onChange={e => updateListItem("workHistory", i, "dateTo", e.target.value)} disabled={saving} /></label>
                 </div>
               </RepeatEntryCard>
             ))}

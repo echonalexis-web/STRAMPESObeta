@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useRef } from "react";
 import "../styles/modal.css";
 import { FaTimes, FaMapMarkerAlt, FaMoneyBillWave, FaBuilding, FaBriefcase, FaCalendarAlt, FaEnvelope } from "react-icons/fa";
 import QualificationsDisplay from "./QualificationsDisplay";
+import { useModalA11y } from "../hooks/useModalA11y";
 import "../styles/qualifications-editor.css";
 
 const formatAddress = (address) => {
@@ -25,6 +26,9 @@ const getMatchClass = (score) => {
 };
 
 export default function Modal({ isOpen, onClose, job, onMessageEmployer, applications = [], onViewApplication }) {
+  const dialogRef = useRef(null);
+  useModalA11y(isOpen && Boolean(job), onClose, dialogRef);
+
   if (!isOpen || !job) return null;
 
   const isAlreadyApplied = applications.some((app) => String(app.vacancy?._id) === String(job._id));
@@ -56,7 +60,7 @@ export default function Modal({ isOpen, onClose, job, onMessageEmployer, applica
 
   return (
     <div className="job-dialog-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="job-dialog-card" role="dialog" aria-modal="true" aria-label="Job details">
+      <div className="job-dialog-card" role="dialog" aria-modal="true" aria-label="Job details" ref={dialogRef}>
         <button className="job-dialog-close" onClick={onClose} type="button" aria-label="Close">
           <FaTimes />
         </button>

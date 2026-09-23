@@ -5,7 +5,7 @@
 .dashboard-container {
   min-height: 100vh;
   background: #f5f7fa;
-  padding: 24px 24px 40px;
+  padding: 22px 10px 40px;
   font-family: var(--sans);
 }
 
@@ -15,14 +15,18 @@
 
 .dashboard-hero {
   max-width: 1200px;
-  margin: 0 auto 20px;
-  background: linear-gradient(135deg, #1a5c2a 0%, #2e7d42 55%, #43a047 100%);
+  margin: 0 auto 15px;
+  background:
+    linear-gradient(90deg, rgba(15, 87, 45, 0.82) 0%, rgba(21, 120, 69, 0.68) 38%, rgba(21, 120, 69, 0.45) 100%),
+    url('../assets/images/provincial-building.jpg') center center / cover no-repeat;
   border-radius: 16px;
   padding: 24px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   box-shadow: 0 4px 16px rgba(26, 92, 42, 0.18);
+  position: relative;
+  overflow: hidden;
 }
 
 .dashboard-hero-content {
@@ -1088,6 +1092,206 @@
 }
 
 /* ============================================ */
+/* APPLY MODAL (attach saved resume/cover letter) */
+/* ============================================ */
+
+.apply-modal-loading {
+  color: #7a8a9a;
+  margin: 4px 0 0;
+}
+
+.apply-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  min-width: 0;
+}
+
+.apply-modal-picker {
+  width: 100%;
+  min-width: 0;
+}
+
+.apply-modal-picker-label {
+  font-weight: 700;
+  color: #1a2a3a;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.apply-modal-required { color: #b91c1c; font-weight: 600; font-size: 12px; }
+.apply-modal-optional { color: #7a8a9a; font-weight: 600; font-size: 12px; }
+
+.apply-modal-empty {
+  color: #7a8a9a;
+  font-size: 13px;
+  margin: 0 0 10px;
+  word-break: break-word;
+}
+
+.apply-modal-doc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.apply-modal-doc-card {
+  position: relative;
+  text-align: left;
+  border: 1.5px solid #e8ecf0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #ffffff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.apply-modal-doc-card:hover {
+  border-color: #a5d6a7;
+}
+
+.apply-modal-doc-card.is-selected {
+  border-color: #2e7d32;
+  background: #f1f8f1;
+}
+
+.apply-modal-doc-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: #2e7d32;
+  flex-shrink: 0;
+}
+
+.apply-modal-doc-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #1a2a3a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 18px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.apply-modal-doc-preview {
+  font-size: 12px;
+  color: #2e7d32;
+  font-weight: 600;
+  text-decoration: none;
+  align-self: flex-start;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.apply-modal-doc-preview:hover { text-decoration: underline; }
+
+.apply-modal-upload-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+/* The global `input { display: block }` rule in style.css overrides the
+   [hidden] attribute, so force the file input out of the layout here. */
+.apply-modal-file-input {
+  display: none !important;
+}
+
+.apply-modal-upload-btn {
+  border: 1px dashed #c8d0d8;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: #4a5a6a;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.4;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.apply-modal-upload-btn:hover { border-color: #2e7d32; color: #2e7d32; }
+
+.apply-modal-builder-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #2e7d32;
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+}
+.apply-modal-builder-link:hover { text-decoration: underline; }
+
+.apply-modal-error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  margin: 0;
+}
+
+.apply-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.apply-modal-cancel,
+.apply-modal-submit {
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.apply-modal-cancel {
+  background: #f0f2f4;
+  color: #1a2a3a;
+}
+.apply-modal-cancel:hover:not(:disabled) { background: #e5e7eb; }
+
+.apply-modal-submit {
+  background: #2e7d32;
+  color: #ffffff;
+}
+.apply-modal-submit:hover:not(:disabled) { background: #1b5e20; }
+
+.apply-modal-cancel:disabled,
+.apply-modal-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .apply-modal-doc-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================ */
 /* RESPONSIVE */
 /* ============================================ */
 
@@ -1099,36 +1303,65 @@
 
 @media (max-width: 768px) {
   .dashboard-container {
-    padding: 16px 24px;
+    padding: 96px 16px 32px;
   }
 
   .dashboard-hero {
-    padding: 24px;
+    padding: 18px 18px 20px;
     flex-direction: column;
     text-align: center;
+    border-radius: 18px;
   }
 
   .dashboard-hero-content {
     flex-direction: column;
     text-align: center;
+    gap: 14px;
+  }
+
+  .dashboard-hero-text {
+    width: 100%;
   }
 
   .dashboard-hero-text h1 {
-    font-size: 22px;
+    font-size: 1.8rem;
+    line-height: 1.2;
+    letter-spacing: -0.03em;
+  }
+
+  .dashboard-hero-text p {
+    font-size: 0.95rem;
+    line-height: 1.45;
   }
 
   .hero-browse-btn {
     width: 100%;
     justify-content: center;
+    padding: 12px 18px;
+    font-size: 0.99rem;
   }
 
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 0;
+    background: #ffffff;
+    border: 1px solid #e6e9ec;
+    border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(16, 24, 40, 0.05);
+    padding: 4px;
   }
 
   .stat-card {
-    padding: 16px;
+    padding: 14px 16px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 12px;
+  }
+
+  .stat-card:hover {
+    transform: none;
+    box-shadow: none;
   }
 
   .stat-card-content .stat-number {
@@ -1194,8 +1427,87 @@
 }
 
 @media (max-width: 480px) {
+  .dashboard-container {
+    padding-top: 70px;
+  }
+
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2px;
+    align-items: stretch;
+  }
+
+  .stat-card {
+    min-height: 110px;
+    padding: 12px 8px;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    border-radius: 12px;
+  }
+
+  .stat-card-icon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 6px;
+  }
+
+  .stat-card-content {
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .stat-card-content .stat-number {
+    font-size: 1.6rem;
+    line-height: 1;
+  }
+
+  .stat-card-content .stat-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.2;
+    text-align: center;
+    color: #4b5563;
+  }
+
+  .profile-card {
+    padding: 18px 16px;
+    border-radius: 16px;
+  }
+
+  .profile-card-left {
+    gap: 14px;
+  }
+
+  .profile-avatar-large {
+    width: 72px;
+    height: 72px;
+  }
+
+  .profile-details h2 {
+    font-size: 1.1rem;
+  }
+
+  .profile-email {
+    font-size: 0.83rem;
+  }
+
+  .btn-profile-edit {
+    width: 100%;
+  }
+
+  .section-header {
+    margin-bottom: 14px;
+  }
+
+  .section-header h2 {
+    font-size: 1.2rem;
+  }
+
+  .section-view-all {
+    font-size: 0.8rem;
   }
 
   .job-card-actions {

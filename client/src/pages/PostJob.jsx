@@ -26,6 +26,7 @@ import LocationSelect from "../components/LocationSelect";
 import QualificationsEditor from "../components/QualificationsEditor";
 import BasicRequirements from "../components/BasicRequirements";
 import Autosuggest from "../components/Autosuggest";
+import { useToast } from "../components/feedback/context";
 import PH_JOB_TITLES from "../data/ph_job_titles_complete.json";
 import {
   EMPTY_BASIC_REQUIREMENTS,
@@ -103,6 +104,7 @@ const getInitialFormData = () => ({
 export default function PostJob() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const toast = useToast();
 
   const defaultState = {
     formData: getInitialFormData(),
@@ -119,7 +121,14 @@ export default function PostJob() {
     };
   };
 
-  const [persistedState, setPersistedState, clearPersistedState] = usePersistentState('postJobState', defaultState);
+  // Scoped to the signed-in account — a bare "postJobState" key would be
+  // shared by every account that ever uses this browser, so a different
+  // employer signing in later could inherit someone else's draft posting.
+  const currentUserId = user?._id || user?.id || null;
+  const [persistedState, setPersistedState, clearPersistedState] = usePersistentState(
+    currentUserId ? `postJobState_${currentUserId}` : null,
+    defaultState
+  );
 
   const safeState = (persistedState && typeof persistedState === 'object' && persistedState.formData)
     ? { ...persistedState, formData: normalizeFormData(persistedState.formData) }
@@ -426,7 +435,9 @@ export default function PostJob() {
       clearPersistedState(); // clear saved draft
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to create job vacancy");
+      const message = err.response?.data?.message || "Failed to create job vacancy";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }

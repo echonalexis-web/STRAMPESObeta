@@ -20,7 +20,7 @@ const createUser = async () => {
     const name = process.argv[2];
     const email = process.argv[3];
     const password = process.argv[4];
-    const role = process.argv[5] || "resident"; // Default to 'resident'
+    const role = process.argv[5] || "jobseeker"; // Default to 'jobseeker'
 
     if (!name || !email || !password) {
       console.log(

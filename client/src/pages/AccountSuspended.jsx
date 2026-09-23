@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { appealAPI } from "../services/api";
 import "../styles/suspended.css";
-import { FaBan, FaShieldAlt, FaPaperPlane } from "react-icons/fa";
+import { FaBan, FaShieldAlt, FaPaperPlane, FaExclamationTriangle } from "react-icons/fa";
 import pesoLogo from "../assets/images/peso-logo.png";
+import { SUPPORT_EMAIL } from "../components/AccountInactiveModal";
 
 const readSuspensionInfo = () => {
   try {
@@ -123,6 +124,14 @@ export default function AccountSuspended() {
             ? "Access to STRAM PESO has been permanently revoked for this account following a policy violation."
             : "Your access to STRAM PESO is temporarily disabled while an administrator reviews your account."}
         </p>
+
+        <div className="suspended-support-banner">
+          <FaExclamationTriangle aria-hidden="true" />
+          <p>
+            Your account has been suspended or deactivated. If you believe this is a mistake,
+            please contact support at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
+          </p>
+        </div>
 
         <div className="suspended-meta">
           {info.suspensionReason ? (

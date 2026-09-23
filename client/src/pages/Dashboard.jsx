@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { jobAPI, resolveAssetUrl } from "../services/api";
 import VacancyCard from "../components/VacancyCard";
+import ApplyModal from "../components/ApplyModal";
 import "../styles/dashboard.css";
 import { FaBriefcase, FaFileAlt, FaBuilding, FaCalendarAlt, FaSearch, FaArrowRight, FaExclamationTriangle, FaSpinner, FaStar } from "react-icons/fa";
 
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [hasSkills, setHasSkills] = useState(true);
   const [recPage, setRecPage] = useState(1);
+  const [applyModalJobId, setApplyModalJobId] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -88,7 +90,7 @@ export default function Dashboard() {
     preferred: preferredIndustries.includes(job.industry),
     matchAvailable: hasSkills,
     onOpen: () => navigate(`/jobs/${job._id}`),
-    onApply: () => navigate(`/jobs/${job._id}/apply`),
+    onApply: () => setApplyModalJobId(job._id),
   });
 
   // Jobs from a followed employer are fast-tracked into recommendations
@@ -138,7 +140,7 @@ export default function Dashboard() {
       <div className="dashboard-hero">
         <div className="dashboard-hero-content">
           <div className="dashboard-hero-text">
-            <h1>Welcome back, {user.name?.split(' ')[0] || 'User'}! 👋</h1>
+            <h1>Welcome back, {user.name?.split(' ')[0] || 'User'}!</h1>
             <p>Find your next opportunity and track your job applications</p>
           </div>
           <button className="hero-browse-btn" onClick={() => navigate("/jobs")}>
@@ -256,6 +258,16 @@ export default function Dashboard() {
           )}
         </>
       )}
+
+      <ApplyModal
+        isOpen={Boolean(applyModalJobId)}
+        onClose={() => setApplyModalJobId(null)}
+        jobId={applyModalJobId}
+        onSuccess={() => {
+          setApplyModalJobId(null);
+          fetchData();
+        }}
+      />
     </div>
   );
 }

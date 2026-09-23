@@ -9,9 +9,18 @@ const sanitizeInput = (value) => {
   return value;
 };
 
+// Credential/token fields must reach bcrypt (or a token comparison) exactly
+// as the caller sent them. Running them through xss()+trim() here would
+// silently alter what actually gets hashed/compared — encoding characters
+// like <, >, &, " in a chosen password, or trimming intentional leading/
+// trailing whitespace — without the user ever knowing their password was
+// changed out from under them.
+const NEVER_SANITIZE_FIELDS = /password|token/i;
+
 const sanitizeRequestBody = (req, res, next) => {
   if (req.body) {
     Object.keys(req.body).forEach(key => {
+      if (NEVER_SANITIZE_FIELDS.test(key)) return;
       if (typeof req.body[key] === 'string') {
         req.body[key] = sanitizeInput(req.body[key]);
       } else if (Array.isArray(req.body[key])) {
@@ -94,7 +103,7 @@ const validateUserUpdate = (req, res, next) => {
     errors.push('Bio cannot exceed 500 characters');
   }
 
-  if (req.user?.role === 'resident' || !req.user) {
+  if (req.user?.role === 'jobseeker' || !req.user) {
     if (civilStatus !== undefined && !["Single", "Married", "Widowed", "Separated", "Divorced"].includes(civilStatus)) {
       errors.push('Invalid civil status');
     }
@@ -110,10 +119,13 @@ const validateUserUpdate = (req, res, next) => {
     if (weight !== undefined && weight && (isNaN(parseFloat(weight)) || parseFloat(weight) < 10 || parseFloat(weight) > 500)) {
       errors.push('Weight must be a number between 10 and 500 kg');
     }
-    if (landline !== undefined && landline && !/^[0-9+\-\s()]{7,15}$/.test(landline)) {
+    // Optional field: a value that's only punctuation (someone typing "-" or
+    // "n/a" as a placeholder for "none") has no digits once stripped, so it's
+    // treated as not provided rather than rejected as a malformed number.
+    if (landline !== undefined && landline && landline.replace(/\D/g, '') && !/^[0-9+\-\s()]{7,15}$/.test(landline)) {
       errors.push('Invalid landline format');
     }
-    if (mobileSecondary !== undefined && mobileSecondary && !/^[0-9+\-\s()]{10,20}$/.test(mobileSecondary)) {
+    if (mobileSecondary !== undefined && mobileSecondary && mobileSecondary.replace(/\D/g, '') && !/^[0-9+\-\s()]{10,20}$/.test(mobileSecondary)) {
       errors.push('Invalid secondary mobile format');
     }
     if (disability !== undefined && !Array.isArray(disability)) {
@@ -166,8 +178,14 @@ const validateUserUpdate = (req, res, next) => {
     if (acronym !== undefined && acronym && acronym.length > 20) {
       errors.push('Acronym too long');
     }
-    if (tin !== undefined && tin && !/^\d{9,12}$/.test(tin.replace(/-/g, ''))) {
-      errors.push('Invalid TIN format (should be 9-12 digits)');
+    if (tin !== undefined && tin) {
+      // Optional field: a value that's only punctuation (e.g. someone typing
+      // "-" as a placeholder for "none") has no digits once dashes are
+      // stripped, so it's treated as not provided rather than rejected.
+      const tinDigits = tin.replace(/-/g, '');
+      if (tinDigits && !/^\d{9,12}$/.test(tinDigits)) {
+        errors.push('Invalid TIN format (should be 9-12 digits)');
+      }
     }
     if (officeType !== undefined && officeType && !["main", "branch"].includes(officeType)) {
       errors.push('Invalid office type');
@@ -212,15 +230,19 @@ const validateUserUpdate = (req, res, next) => {
     if (contactPersonPosition !== undefined && contactPersonPosition && contactPersonPosition.length > 100) {
       errors.push('Contact person position too long');
     }
-    if (fax !== undefined && fax && !/^[0-9+\-\s()]{7,15}$/.test(fax)) {
+    if (fax !== undefined && fax && fax.replace(/\D/g, '') && !/^[0-9+\-\s()]{7,15}$/.test(fax)) {
       errors.push('Invalid fax format');
     }
   }
 
   if (errors.length > 0) {
-    return res.status(400).json({ errors });
+    // Every caller of this route already reads `err.response.data.message`
+    // for its error toast — without this, only `.errors` (the full list)
+    // was sent back, so every one of those callers silently fell through to
+    // a generic "something went wrong" message instead of the real reason.
+    return res.status(400).json({ errors, message: errors[0] });
   }
-  
+
   next();
 };
 
@@ -243,9 +265,9 @@ const validatePasswordChange = (req, res, next) => {
   if (newPassword !== confirmPassword) {
     errors.push('Passwords do not match');
   }
-  
+
   if (errors.length > 0) {
-    return res.status(400).json({ errors });
+    return res.status(400).json({ errors, message: errors[0] });
   }
   
   next();
@@ -290,7 +312,7 @@ const validateUserRegistration = (req, res, next) => {
   }
   
   if (errors.length > 0) {
-    return res.status(400).json({ errors });
+    return res.status(400).json({ errors, message: errors[0] });
   }
   
   next();
@@ -309,7 +331,7 @@ const validateUserLogin = (req, res, next) => {
   }
   
   if (errors.length > 0) {
-    return res.status(400).json({ errors });
+    return res.status(400).json({ errors, message: errors[0] });
   }
   
   next();
@@ -359,7 +381,7 @@ const validateJobApplication = (req, res, next) => {
   }
   
   if (errors.length > 0) {
-    return res.status(400).json({ errors });
+    return res.status(400).json({ errors, message: errors[0] });
   }
   
   next();
@@ -382,7 +404,7 @@ const validateMessage = (req, res, next) => {
   }
   
   if (errors.length > 0) {
-    return res.status(400).json({ errors });
+    return res.status(400).json({ errors, message: errors[0] });
   }
   
   next();
@@ -446,7 +468,7 @@ const validateJobPosting = (req, res, next) => {
   }
   
   if (errors.length > 0) {
-    return res.status(400).json({ errors });
+    return res.status(400).json({ errors, message: errors[0] });
   }
   
   next();
@@ -560,7 +582,7 @@ const validateAnnouncementPayload = (req, res, next) => {
   }
 
   if (errors.length > 0) {
-    return res.status(400).json({ errors });
+    return res.status(400).json({ errors, message: errors[0] });
   }
 
   return next();

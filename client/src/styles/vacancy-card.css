@@ -126,6 +126,20 @@
   background: #ffffff;
   border: 1px solid #e6e9ec !important;
   color: #9aa4b0;
+  position: relative; /* anchors the expanded-hit-area pseudo-element below */
+}
+
+/* Expands the tappable area to the 44x44px touch-target minimum (WCAG
+   2.5.5 / iOS/Android guidance) without changing the button's visible 30px
+   size — invisible, extends symmetrically past each edge. */
+.vac-tools .btn-favorite-icon::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 
 .vac-tools .btn-favorite-icon:hover {

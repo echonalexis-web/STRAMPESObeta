@@ -4,6 +4,7 @@ const {
   getConversations,
   getMessages,
   sendMessage,
+  unsendMessage,
   deleteConversation,
   getUnreadCount,
   searchUsers,
@@ -40,6 +41,7 @@ router.post(
   validateRequest,
   sendMessage
 );
+router.patch("/:messageId/unsend", validateMongoId("messageId"), unsendMessage);
 
 // Unread count
 router.get("/unread-count", getUnreadCount);

@@ -1,21 +1,25 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { authAPI, resolveAssetUrl, verificationAPI } from "../services/api";
+import { authAPI, jobseekerDocumentAPI, resolveAssetUrl, verificationAPI } from "../services/api";
 import "../styles/profile.css";
-import { FaUser, FaEnvelope, FaPhone, FaBriefcase, FaBuilding, FaMapMarkerAlt, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaIdCard, FaTimes, FaPlus, FaSave, FaArrowLeft, FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaUser, FaEnvelope, FaPhone, FaBriefcase, FaBuilding, FaMapMarkerAlt, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaIdCard, FaTimes, FaPlus, FaSave, FaArrowLeft, FaEye, FaEyeSlash, FaMagic } from "react-icons/fa";
 import LocationSelect from "../components/LocationSelect";
 import LocationAutosuggest from "../components/LocationAutosuggest";
 import Autosuggest from "../components/Autosuggest";
+import SearchableDropdown from "../components/SearchableDropdown";
 import FileDropzone from "../components/FileDropzone";
 import EmailChangeCard from "../components/EmailChangeCard";
-import { COMMON_SKILLS as skillsList } from "../data/skills";
+import { useToast } from "../components/feedback/context";
+import { SUGGESTED_SKILLS, INDUSTRY_SKILLS } from "../data/skills";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { parseHeightToCm, parseWeightToKg, wasConverted } from "../utils/unitConversion";
 import { ALL_LOCATIONS } from "../utils/philippineLocations";
+import { parseLocationValue } from "../utils/locationParser";
 import marinduqueSchools from "../data/marinduque_schools.json";
 import collegeCourses from "../data/philippine_college_courses.json";
 import countriesData from "../data/countries.json";
+import PH_JOB_TITLES from "../data/ph_job_titles_complete.json";
 import { WORKFORCE_SIZE_OPTIONS } from "../data/employerProfile";
 
 const COUNTRY_OPTIONS = countriesData.countries || [];
@@ -47,6 +51,9 @@ const getSchoolOptions = (attainment) => {
 
 const COURSE_ATTAINMENTS = ["Vocational / TESDA", "College Undergraduate", "College Graduate", "Master's Degree", "Doctorate"];
 const COURSE_CATEGORIES = collegeCourses.categories || {};
+const VOCATIONAL_COURSES = COURSE_CATEGORIES["Technical-Vocational (TESDA) Programs"] || [];
+const ALL_COURSES_FLAT = collegeCourses.all_courses_flat || [];
+const COURSE_UNKNOWN_VALUE = "Undecided / Not sure yet";
 const TECH_VOC_INSTITUTIONS = (marinduqueSchools.technical_vocational_schools || []).map((s) => s.name);
 const LANGUAGE_SKILLS = [
   { key: "read", label: "Read" },
@@ -230,6 +237,35 @@ const mapMergedToFormData = (merged) => ({
   businessAddressStructured: merged.businessAddressStructured || { street: "", barangay: "", municipality: "", province: "", region: "" },
 });
 
+// Fields where AuthContext's `user` — already hydrated with the account's
+// real data by the time this page mounts in the normal navigation flow — is
+// trusted as a fallback whenever the persisted draft has left the field
+// blank. Without this, a stale *empty* draft cached in localStorage from an
+// earlier visit (e.g. one that happened before onboarding was completed, or
+// while the profile fetch below raced the app's own auth hydration) would
+// silently keep masking real data forever: the "always populate from the
+// API on mount" fetch only overwrites the draft if and when it resolves,
+// and by then the blank values have often already been shown/saved.
+const IDENTITY_FALLBACK_FIELDS = [
+  "name", "surname", "firstName", "middleName", "suffix",
+  "email", "phone", "address", "businessAddress",
+  "companyName", "industry", "companySize", "website", "companyDescription",
+  "desiredJobTitle", "workExperience", "educationalAttainment", "availabilityStatus",
+];
+const fillBlanksFromUser = (data, userSource) => {
+  if (!userSource) return data;
+  const filled = { ...data };
+  for (const field of IDENTITY_FALLBACK_FIELDS) {
+    if (!filled[field] && userSource[field]) {
+      filled[field] = userSource[field];
+    }
+  }
+  if (!filled.businessAddress && userSource.address) {
+    filled.businessAddress = userSource.address;
+  }
+  return filled;
+};
+
 const getInitialPersisted = () => ({
   formData: { ...initialFormData },
   skills: [],
@@ -240,6 +276,7 @@ const getInitialPersisted = () => ({
 
 export default function EditProfile() {
   const { user, login } = useContext(AuthContext);
+  const toast = useToast();
   const isEmployer = user?.role === "employer";
   const isSuperadmin = user?.role === "superadmin";
   // The superadmin shares the admin's minimal edit form (name, phone, password) —
@@ -271,11 +308,18 @@ export default function EditProfile() {
   };
 
   const defaultState = getInitialPersisted();
-  const [persistedState, setPersistedState, clearPersistedState] = usePersistentState('editProfileState', defaultState);
+  // Scoped to the signed-in account — a bare "editProfileState" key would be
+  // shared by every account that ever uses this browser, so a different
+  // account signing in later could inherit someone else's unsaved edits.
+  const currentUserId = user?._id || user?.id || null;
+  const [persistedState, setPersistedState] = usePersistentState(
+    currentUserId ? `editProfileState_${currentUserId}` : null,
+    defaultState
+  );
 
   const safeState = (persistedState && typeof persistedState === 'object' && persistedState.formData)
-    ? { ...persistedState, formData: normalizeFormData(persistedState.formData) }
-    : defaultState;
+    ? { ...persistedState, formData: fillBlanksFromUser(normalizeFormData(persistedState.formData), user) }
+    : { ...defaultState, formData: fillBlanksFromUser(defaultState.formData, user) };
 
   const { formData, skills, preferredIndustries, industryPreferenceLevel, activeTab } = safeState;
 
@@ -285,6 +329,22 @@ export default function EditProfile() {
   const weightConverted = weightKg !== null && wasConverted(formData.weight, weightKg) ? weightKg : null;
   const schoolOptions = useMemo(() => getSchoolOptions(formData.educationalAttainment), [formData.educationalAttainment]);
   const showCourseField = COURSE_ATTAINMENTS.includes(formData.educationalAttainment);
+  const courseSuggestions = useMemo(
+    () => (formData.educationalAttainment === "Vocational / TESDA" ? VOCATIONAL_COURSES : ALL_COURSES_FLAT),
+    [formData.educationalAttainment]
+  );
+  const courseUnknown = formData.course === COURSE_UNKNOWN_VALUE;
+  const toggleCourseUnknown = (checked) => setFormData((prev) => ({ ...prev, course: checked ? COURSE_UNKNOWN_VALUE : "" }));
+
+  const industrySuggestions = useMemo(() => {
+    const fromIndustries = preferredIndustries.flatMap((ind) => INDUSTRY_SKILLS[ind] || []);
+    const deduped = [...new Set(fromIndustries)];
+    return deduped.filter((skill) => !skills.includes(skill));
+  }, [preferredIndustries, skills]);
+
+  const genericSuggestions = useMemo(() => {
+    return SUGGESTED_SKILLS.filter((skill) => !skills.includes(skill) && !industrySuggestions.includes(skill));
+  }, [skills, industrySuggestions]);
   const setFormData = (updater) => setPersistedState(prev => {
     // Normalize first: a draft saved before a field existed (e.g. languageProficiency)
     // won't have it, and updaters assume it's there.
@@ -309,6 +369,11 @@ export default function EditProfile() {
     return { ...prev, activeTab: newVal };
   });
 
+  // Purely a UI affordance (not persisted) — checking it copies the current
+  // Company Profile business address into the structured NSRP fields below;
+  // it doesn't keep the two permanently linked, so editing one afterward
+  // doesn't silently rewrite the other.
+  const [useOnboardingAddress, setUseOnboardingAddress] = useState(false);
   const [resumeFile, setResumeFile] = useState(null);
   const [supportingDocumentFile, setSupportingDocumentFile] = useState(null);
   const [businessPermitFile, setBusinessPermitFile] = useState(null);
@@ -317,8 +382,13 @@ export default function EditProfile() {
   const [existingValidId, setExistingValidId] = useState("");
   const [existingBusinessPermit, setExistingBusinessPermit] = useState("");
   const [existingRegistrationDoc, setExistingRegistrationDoc] = useState("");
+  const [documentClearFlags, setDocumentClearFlags] = useState({
+    resume: false,
+    validId: false,
+    businessPermit: false,
+    registrationDoc: false,
+  });
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [verifySubmitting, setVerifySubmitting] = useState(false);
   const [verifyMsg, setVerifyMsg] = useState("");
@@ -332,8 +402,7 @@ export default function EditProfile() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [skillFilterInput, setSkillFilterInput] = useState("");
-  const [showSkillsDropdown, setShowSkillsDropdown] = useState(false);
+  const [skillInput, setSkillInput] = useState("");
   const [occupationInput, setOccupationInput] = useState("");
   const [localLocationInput, setLocalLocationInput] = useState("");
   const [overseasLocationInput, setOverseasLocationInput] = useState("");
@@ -374,12 +443,27 @@ export default function EditProfile() {
     if (userData.role === "employer" && profileData.businessAddress) {
       merged.businessAddressStructured = profileData.businessAddress;
     }
-    const { businessAddress, ...restProfile } = profileData;
+    // profileData is a separate document (JobseekerProfile/EmployerProfile)
+    // with its own _id/userId/timestamps — those must never overwrite the
+    // User document's own identity fields. Otherwise the merged object's
+    // `_id` gets replaced with the profile sub-document's id, which then
+    // flows into AuthContext's `user` via login() below, changes the id
+    // SocketProvider keys its connection on, and causes the socket to
+    // disconnect/reconnect — see AuthContext.jsx's mergeProfileIntoUser,
+    // which strips these same fields for the same reason.
+    const { businessAddress, _id, id, userId, createdAt, updatedAt, __v, ...restProfile } = profileData;
     Object.assign(merged, restProfile);
     return merged;
   };
 
   useEffect(() => {
+    // Guards against a hard page-load landing directly on this route: on
+    // first paint AuthContext's own user hydration may not have resolved
+    // yet, so `currentUserId` starts out null. Re-running once it becomes
+    // known (rather than only once on mount) makes sure this fetch — and the
+    // draft's per-account localStorage key above — are never left keyed to
+    // "no user yet" for the lifetime of the page.
+    if (!currentUserId) return;
     const fetchProfile = async () => {
       try {
         const { data } = await authAPI.getProfile();
@@ -428,7 +512,8 @@ export default function EditProfile() {
     };
 
     fetchProfile();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId]);
 
   const handleChange = (event) => {
     setFormData((prev) => ({ ...prev, [event.target.name]: event.target.value }));
@@ -441,11 +526,6 @@ export default function EditProfile() {
     }));
   };
 
-  const handleSkillSelect = (e) => {
-    const selectedOptions = Array.from(e.target.selectedOptions).map(opt => opt.value);
-    setSkills(selectedOptions);
-  };
-
   const toggleIndustry = (industry) => {
     setPreferredIndustries(prev =>
       prev.includes(industry)
@@ -454,8 +534,11 @@ export default function EditProfile() {
     );
   };
 
-  const handleAddCustomSkill = () => {
-    // Not used with new dropdown approach, but kept for compatibility
+  const addSkill = (value) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    if (skills.some((skill) => skill.toLowerCase() === trimmed.toLowerCase())) return;
+    setSkills((prev) => [...prev, trimmed]);
   };
 
   const handleRemoveSkill = (skillToRemove) => {
@@ -466,7 +549,6 @@ export default function EditProfile() {
     event.preventDefault();
     setLoading(true);
     setError("");
-    setMessage("");
     setEmailChangeNotice("");
 
     const previousEmail = (user?.email || "").trim().toLowerCase();
@@ -474,7 +556,10 @@ export default function EditProfile() {
     try {
       const data = new FormData();
       const composedName = [formData.firstName, formData.middleName, formData.surname, formData.suffix].filter(Boolean).join(" ");
-      data.append("name", (!isEmployer && !isAdmin && composedName) ? composedName : formData.name);
+      // For an employer, `name` is the business's display identity — mirror
+      // whatever is in Company Name rather than a separately-typed value (the
+      // server does this same sync independently; see authController.updateProfile).
+      data.append("name", isEmployer ? formData.companyName : (!isAdmin && composedName) ? composedName : formData.name);
       data.append("email", formData.email);
       data.append("phone", formData.phone);
 
@@ -578,8 +663,33 @@ export default function EditProfile() {
         if (supportingDocumentFile) data.append("validIdFile", supportingDocumentFile);
       }
 
+      if (!resumeFile && documentClearFlags.resume && existingResume) data.append("resumeFile", "");
+      if (!supportingDocumentFile && documentClearFlags.validId && existingValidId) data.append("validIdFile", "");
+      if (!businessPermitFile && documentClearFlags.businessPermit && existingBusinessPermit) data.append("businessPermit", "");
+      if (!registrationDocFile && documentClearFlags.registrationDoc && existingRegistrationDoc) data.append("registrationDoc", "");
+
       const { data: response } = await authAPI.updateProfile(data);
-      setMessage(response.message);
+      toast.success(response.message || "Profile updated successfully");
+
+      // A resume uploaded here only sets the single NSRP Form 1 slot on the
+      // user document — it's invisible to the actual job-application flow,
+      // which sources its resume choices from the document library. Mirror
+      // it there too so a resume saved from any entry point is usable both
+      // for NSRP and for applying to jobs.
+      if (resumeFile && !isEmployer && !isAdmin) {
+        try {
+          await jobseekerDocumentAPI.upload({
+            file: resumeFile,
+            kind: "resume",
+            title: resumeFile.name,
+            source: "upload",
+          });
+        } catch (libraryError) {
+          // The profile save already succeeded — don't let a library-mirror
+          // failure surface as if the whole action failed.
+          console.warn("Failed to mirror resume into the document library", libraryError);
+        }
+      }
 
       const newEmail = (response.user?.email || formData.email || "").trim();
       if (previousEmail && newEmail && newEmail.toLowerCase() !== previousEmail) {
@@ -589,6 +699,7 @@ export default function EditProfile() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setDocumentClearFlags({ resume: false, validId: false, businessPermit: false, registrationDoc: false });
       login(localStorage.getItem("token"), response.user);
       
       // Update form with fresh server response to keep fields populated
@@ -598,7 +709,9 @@ export default function EditProfile() {
       setPreferredIndustries(Array.isArray(merged.preferredIndustries) ? merged.preferredIndustries : []);
       setIndustryPreferenceLevel(merged.industryPreferenceLevel || "flexible");
     } catch (err) {
-      setError(err.response?.data?.message || err.message || "Failed to update profile");
+      const message = err.response?.data?.message || err.message || "Failed to update profile";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -610,18 +723,22 @@ export default function EditProfile() {
     setVerifyMsg("");
     try {
       const { data } = await verificationAPI.submit();
-      setVerifyMsg(data?.message || "Submitted for review.");
+      const successMessage = data?.message || "Submitted for review.";
+      setVerifyMsg(successMessage);
+      toast.success(successMessage);
       // Re-hydrate so the new "pending" status shows immediately.
       await login(localStorage.getItem("token"), { ...user, verificationStatus: "pending" });
     } catch (err) {
-      setVerifyMsg(err.response?.data?.message || "Failed to submit for review.");
+      const message = err.response?.data?.message || "Failed to submit for review.";
+      setVerifyMsg(message);
+      toast.error(message);
     } finally {
       setVerifySubmitting(false);
     }
   };
 
   const tabs = [
-    { id: "profile", label: "Personal Info", icon: <FaUser /> },
+    { id: "profile", label: isEmployer ? "Company Info" : "Personal Info", icon: isEmployer ? <FaBuilding /> : <FaUser /> },
     ...(!isAdmin && !isEmployer ? [
       { id: "career", label: "Career", icon: <FaBriefcase /> },
       { id: "training", label: "Training & Eligibility", icon: <FaUserGraduate /> },
@@ -651,7 +768,13 @@ export default function EditProfile() {
     }
   };
 
-  const railName = formData.name || [formData.firstName, formData.surname].filter(Boolean).join(" ") || "Your Profile";
+  // For an employer whose account predates the name/companyName sync fix
+  // (e.g. a Google sign-up, where `name` still holds the personal Google
+  // account name), prefer the company name directly here so the sidebar is
+  // correct immediately — not just after their next profile save.
+  const railName = isEmployer
+    ? (formData.companyName || formData.name || "Your Profile")
+    : formData.name || [formData.firstName, formData.surname].filter(Boolean).join(" ") || "Your Profile";
   const railRole = isSuperadmin ? "System Superadmin" : isAdmin ? "Administrator" : isEmployer ? "Employer" : "Job Seeker";
 
   return (
@@ -680,6 +803,11 @@ export default function EditProfile() {
             </li>
           ))}
         </ul>
+        {!isAdmin && !isEmployer ? (
+          <Link to="/profile/resume" className="editprofile-rail-resume">
+            <FaMagic /> Resume &amp; Cover Letter Studio
+          </Link>
+        ) : null}
         <p className="editprofile-rail-footer">Fields are saved when you click Save Profile.</p>
       </aside>
 
@@ -692,7 +820,6 @@ export default function EditProfile() {
             <p className="editprofile-panel-subtitle">Update your personal information and preferences</p>
           </div>
 
-          {message && <div className="alert alert-success">{message}</div>}
           {error && <div className="alert alert-error">{error}</div>}
           {emailChangeNotice && (
             <div className="alert alert-warning">
@@ -708,12 +835,12 @@ export default function EditProfile() {
           {activeTab === "profile" && (
             <>
               <div className="profile-field-group">
-                {isEmployer || isAdmin ? (
+                {isAdmin ? (
                   <div className="profile-field">
                     <label htmlFor="name"><FaUser /> Full Name</label>
                     <input id="name" type="text" name="name" value={formData.name} onChange={handleChange} required />
                   </div>
-                ) : (
+                ) : isEmployer ? null : (
                   <>
                     <div className="profile-field-grid">
                       <div className="profile-field">
@@ -783,7 +910,7 @@ export default function EditProfile() {
                     </div>
                   </div>
                 </div>
-              ) : (
+              ) : isEmployer ? null : (
                 <>
                   <div className="profile-field-grid">
                     <div className="profile-field">
@@ -801,61 +928,57 @@ export default function EditProfile() {
                     </div>
                   </div>
 
-                  {!isEmployer && (
-                    <>
-                      <div className="profile-field">
-                        <label><FaMapMarkerAlt /> Address</label>
-                        <LocationSelect
-                          value={formData.address}
-                          onChange={(loc) => setFormData((prev) => ({ ...prev, address: loc }))}
+                  <div className="profile-field">
+                    <label><FaMapMarkerAlt /> Address</label>
+                    <LocationSelect
+                      value={formData.address}
+                      onChange={(loc) => setFormData((prev) => ({ ...prev, address: loc }))}
+                      disabled={loading}
+                      required
+                    />
+                  </div>
+                  <div className="profile-field">
+                    <label htmlFor="about">About You</label>
+                    <textarea id="about" name="about" value={formData.about} onChange={handleChange} rows="4" placeholder="Tell employers about yourself..." />
+                  </div>
+                  <div className="profile-field-group">
+                    <h3 className="profile-section-title">Preferred Industries</h3>
+                    <p className="profile-section-hint">Select the industries you are interested in working in.</p>
+                    <div className="industry-pills-grid">
+                      {INDUSTRY_OPTIONS.map(ind => (
+                        <button
+                          key={ind}
+                          type="button"
+                          className={`industry-pill ${preferredIndustries.includes(ind) ? "active" : ""}`}
+                          onClick={() => toggleIndustry(ind)}
                           disabled={loading}
-                          required
-                        />
+                        >
+                          {ind}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ marginTop: '1.5rem' }}>
+                      <span className="profile-label">Preference Mode</span>
+                      <div className="pill-row">
+                        <button
+                          type="button"
+                          className={`pill-btn ${industryPreferenceLevel === "flexible" ? "active" : ""}`}
+                          onClick={() => setIndustryPreferenceLevel("flexible")}
+                          disabled={loading}
+                        >
+                          Flexible (Show all jobs, prioritize these)
+                        </button>
+                        <button
+                          type="button"
+                          className={`pill-btn ${industryPreferenceLevel === "strict" ? "active" : ""}`}
+                          onClick={() => setIndustryPreferenceLevel("strict")}
+                          disabled={loading}
+                        >
+                          Strict (Only show these industries)
+                        </button>
                       </div>
-                      <div className="profile-field">
-                        <label htmlFor="about">About You</label>
-                        <textarea id="about" name="about" value={formData.about} onChange={handleChange} rows="4" placeholder="Tell employers about yourself..." />
-                      </div>
-                      <div className="profile-field-group">
-                        <h3 className="profile-section-title">Preferred Industries</h3>
-                        <p className="profile-section-hint">Select the industries you are interested in working in.</p>
-                        <div className="industry-pills-grid">
-                          {INDUSTRY_OPTIONS.map(ind => (
-                            <button
-                              key={ind}
-                              type="button"
-                              className={`industry-pill ${preferredIndustries.includes(ind) ? "active" : ""}`}
-                              onClick={() => toggleIndustry(ind)}
-                              disabled={loading}
-                            >
-                              {ind}
-                            </button>
-                          ))}
-                        </div>
-                        <div style={{ marginTop: '1.5rem' }}>
-                          <span className="profile-label">Preference Mode</span>
-                          <div className="pill-row">
-                            <button
-                              type="button"
-                              className={`pill-btn ${industryPreferenceLevel === "flexible" ? "active" : ""}`}
-                              onClick={() => setIndustryPreferenceLevel("flexible")}
-                              disabled={loading}
-                            >
-                              Flexible (Show all jobs, prioritize these)
-                            </button>
-                            <button
-                              type="button"
-                              className={`pill-btn ${industryPreferenceLevel === "strict" ? "active" : ""}`}
-                              onClick={() => setIndustryPreferenceLevel("strict")}
-                              disabled={loading}
-                            >
-                              Strict (Only show these industries)
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                    </div>
+                  </div>
                 </>
               )}
 
@@ -891,13 +1014,17 @@ export default function EditProfile() {
                     <input id="website" type="url" name="website" value={formData.website} onChange={handleChange} placeholder="https://..." />
                   </div>
                   <div className="profile-field">
-                    <label><FaMapMarkerAlt /> Business Address (string)</label>
+                    <label><FaMapMarkerAlt /> Business Address</label>
                     <LocationSelect
                       value={formData.businessAddress}
                       onChange={(loc) => setFormData((prev) => ({ ...prev, businessAddress: loc }))}
                       disabled={loading}
                       required
                     />
+                    <p className="help-text" style={{ marginTop: "6px" }}>
+                      Shown on your job postings and public profile. The detailed, form-ready version
+                      (street, barangay, etc.) is set separately under the <strong>NSRP Details</strong> tab.
+                    </p>
                   </div>
                   <div className="profile-field">
                     <label htmlFor="companyDescription">Company Description</label>
@@ -1012,57 +1139,16 @@ export default function EditProfile() {
 
               <div className="profile-field">
                 <label htmlFor="skills"><FaPlus /> Skills</label>
-                <div className="skills-modern-wrapper">
-                  <div className="skills-search-box">
-                    <input
-                      type="text"
-                      value={skillFilterInput}
-                      onChange={(e) => setSkillFilterInput(e.target.value)}
-                      onFocus={() => setShowSkillsDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowSkillsDropdown(false), 150)}
-                      placeholder="Search and select skills..."
-                      className="skills-search-input"
-                    />
-                    {showSkillsDropdown && (
-                      <div className="skills-dropdown-menu">
-                        {skillsList
-                          .filter((skill) =>
-                            !skills.includes(skill) &&
-                            skill.toLowerCase().includes(skillFilterInput.toLowerCase())
-                          )
-                          .map((skill) => (
-                            <button
-                              key={skill}
-                              type="button"
-                              className="skills-dropdown-item"
-                              onMouseDown={() => {
-                                setSkills((prev) => [...prev, skill]);
-                                setSkillFilterInput("");
-                                setShowSkillsDropdown(true);
-                              }}
-                            >
-                              {skill}
-                            </button>
-                          ))}
-                        {skillFilterInput && !skillsList.some((s) => s.toLowerCase().includes(skillFilterInput.toLowerCase())) && (
-                          <button
-                            type="button"
-                            className="skills-dropdown-item skills-dropdown-item--custom"
-                            onMouseDown={() => {
-                              const value = skillFilterInput.trim();
-                              if (value && !skills.some((skill) => skill.toLowerCase() === value.toLowerCase())) {
-                                setSkills((prev) => [...prev, value]);
-                                setSkillFilterInput("");
-                                setShowSkillsDropdown(true);
-                              }
-                            }}
-                          >
-                            <FaPlus /> Add "{skillFilterInput}" as custom skill
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                <div className="skills-input-row">
+                  <input
+                    id="skills"
+                    type="text"
+                    value={skillInput}
+                    placeholder="Type a skill and press Enter"
+                    onChange={(e) => setSkillInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSkill(skillInput); setSkillInput(""); } }}
+                  />
+                  <button type="button" className="skill-add-btn" onClick={() => { addSkill(skillInput); setSkillInput(""); }}><FaPlus /></button>
                 </div>
                 <div className="skills-tags-wrap">
                   {skills.map((skill) => (
@@ -1072,7 +1158,27 @@ export default function EditProfile() {
                     </span>
                   ))}
                 </div>
-                {skills.length === 0 && (
+                {industrySuggestions.length > 0 && (
+                  <>
+                    <span className="suggestion-caption">Recommended for your industry:</span>
+                    <div className="suggestions-row">
+                      {industrySuggestions.map((skill) => (
+                        <button key={skill} type="button" className="suggestion-chip suggestion-chip-recommended" onClick={() => addSkill(skill)}>+ {skill}</button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {genericSuggestions.length > 0 && (
+                  <>
+                    <span className="suggestion-caption">All skills:</span>
+                    <div className="suggestions-row">
+                      {genericSuggestions.map((skill) => (
+                        <button key={skill} type="button" className="suggestion-chip" onClick={() => addSkill(skill)}>+ {skill}</button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {skills.length === 0 && industrySuggestions.length === 0 && genericSuggestions.length === 0 && (
                   <p className="help-text" style={{ marginTop: "8px" }}>Add skills to improve job matching and recommendations</p>
                 )}
               </div>
@@ -1082,6 +1188,8 @@ export default function EditProfile() {
                   <label htmlFor="workExperience">Work Experience</label>
                   <select id="workExperience" name="workExperience" value={formData.workExperience} onChange={handleChange}>
                     <option value="">Select</option>
+                    <option value="Student">Student</option>
+                    <option value="Not Applicable / No Work Experience">Not Applicable / No Work Experience</option>
                     <option value="Fresh Graduate">Fresh Graduate</option>
                     <option value="Less than 1 year">Less than 1 year</option>
                     <option value="1–3 years">1–3 years</option>
@@ -1124,14 +1232,22 @@ export default function EditProfile() {
               {showCourseField && (
                 <div className="profile-field">
                   <label htmlFor="course">Course</label>
-                  <select id="course" name="course" value={formData.course} onChange={handleChange}>
-                    <option value="">Select</option>
-                    {Object.entries(COURSE_CATEGORIES).map(([category, courses]) => (
-                      <optgroup key={category} label={category}>
-                        {courses.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </optgroup>
-                    ))}
-                  </select>
+                  <SearchableDropdown
+                    id="course"
+                    value={courseUnknown ? "" : (formData.course || "")}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, course: v }))}
+                    options={courseSuggestions}
+                    placeholder={courseUnknown ? "Not sure yet" : "Type to search or select a course"}
+                    disabled={courseUnknown}
+                  />
+                  <label className="custom-checkbox-label" style={{ marginTop: "8px" }}>
+                    <input
+                      type="checkbox"
+                      checked={courseUnknown}
+                      onChange={(e) => toggleCourseUnknown(e.target.checked)}
+                    />
+                    I'm not sure / don't know my course yet
+                  </label>
                 </div>
               )}
               <div className="profile-field">
@@ -1191,13 +1307,22 @@ export default function EditProfile() {
                     </div>
                     <div className="profile-field">
                       <label>Address (City/Municipality)</label>
-                      <input type="text" value={entry.address || ""} onChange={(e) => updateListItem("workHistory", i, "address", e.target.value)} />
+                      <LocationAutosuggest
+                        value={entry.address || ""}
+                        onChange={(v) => updateListItem("workHistory", i, "address", v)}
+                        placeholder="e.g. Boac, Marinduque"
+                      />
                     </div>
                   </div>
                   <div className="profile-field-grid">
                     <div className="profile-field">
                       <label>Position</label>
-                      <input type="text" value={entry.position || ""} onChange={(e) => updateListItem("workHistory", i, "position", e.target.value)} />
+                      <Autosuggest
+                        value={entry.position || ""}
+                        onChange={(v) => updateListItem("workHistory", i, "position", v)}
+                        options={PH_JOB_TITLES}
+                        placeholder="e.g. Administrative Assistant"
+                      />
                     </div>
                     <div className="profile-field">
                       <label>Status</label>
@@ -1213,11 +1338,11 @@ export default function EditProfile() {
                   <div className="profile-field-grid">
                     <div className="profile-field">
                       <label>From</label>
-                      <input type="month" value={entry.dateFrom || ""} onChange={(e) => updateListItem("workHistory", i, "dateFrom", e.target.value)} />
+                      <input type="date" value={entry.dateFrom || ""} onChange={(e) => updateListItem("workHistory", i, "dateFrom", e.target.value)} />
                     </div>
                     <div className="profile-field">
                       <label>To</label>
-                      <input type="month" value={entry.dateTo || ""} onChange={(e) => updateListItem("workHistory", i, "dateTo", e.target.value)} />
+                      <input type="date" value={entry.dateTo || ""} onChange={(e) => updateListItem("workHistory", i, "dateTo", e.target.value)} />
                     </div>
                   </div>
                 </div>
@@ -1388,6 +1513,61 @@ export default function EditProfile() {
                   </div>
                   <div className="profile-field">
                     <label>Business Address (Structured)</label>
+
+                    <div className="business-address-sync-row">
+                      <label className="custom-checkbox-label" htmlFor="useOnboardingAddress">
+                        <input
+                          id="useOnboardingAddress"
+                          type="checkbox"
+                          className="custom-checkbox-input"
+                          checked={useOnboardingAddress}
+                          disabled={!formData.businessAddress.trim()}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setUseOnboardingAddress(checked);
+                            if (checked) {
+                              const parsed = parseLocationValue(formData.businessAddress);
+                              setFormData((prev) => ({
+                                ...prev,
+                                businessAddressStructured: {
+                                  ...prev.businessAddressStructured,
+                                  barangay: parsed.barangay || "",
+                                  municipality: parsed.city || "",
+                                  province: parsed.province || "",
+                                  region: parsed.region || "",
+                                },
+                              }));
+                            }
+                          }}
+                        />
+                        <span className="custom-checkbox-box"></span>
+                        <span className="custom-checkbox-text">
+                          {formData.businessAddress.trim()
+                            ? "Use my business address from onboarding"
+                            : "Use my business address from onboarding (none on file — set it under Company Profile first)"}
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        className="repeat-entry-remove"
+                        onClick={() => {
+                          setUseOnboardingAddress(false);
+                          setFormData((prev) => ({
+                            ...prev,
+                            businessAddressStructured: {
+                              ...prev.businessAddressStructured,
+                              barangay: "",
+                              municipality: "",
+                              province: "",
+                              region: "",
+                            },
+                          }));
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+
                     <div style={{ display: "grid", gap: "0.5rem" }}>
                       <input
                         type="text"
@@ -1704,14 +1884,28 @@ export default function EditProfile() {
               <h3 className="profile-section-title"><FaFileAlt /> Documents</h3>
               {isEmployer ? (
                 <>
+                  {(user?.verificationStatus === "pending" || user?.verificationStatus === "verified") && (
+                    <p className="profile-hint">
+                      {user.verificationStatus === "pending"
+                        ? "Your documents are under review — they can't be changed until LMD Admin makes a decision."
+                        : "Your account is verified and these documents are locked."}
+                    </p>
+                  )}
                   <FileDropzone
                     id="businessPermitUpload"
                     label="Business Permit"
                     hint="Accepted formats: PDF, DOC, JPG, PNG. Max 10 MB."
                     file={businessPermitFile}
                     existingUrl={existingBusinessPermit}
-                    onFileSelect={setBusinessPermitFile}
-                    onRemove={() => setBusinessPermitFile(null)}
+                    disabled={user?.verificationStatus === "pending" || user?.verificationStatus === "verified"}
+                    onFileSelect={(file) => {
+                      setBusinessPermitFile(file);
+                      setDocumentClearFlags((prev) => ({ ...prev, businessPermit: false }));
+                    }}
+                    onRemove={() => {
+                      setBusinessPermitFile(null);
+                      setDocumentClearFlags((prev) => ({ ...prev, businessPermit: true }));
+                    }}
                   />
                   <FileDropzone
                     id="registrationDocUpload"
@@ -1719,8 +1913,15 @@ export default function EditProfile() {
                     hint="Accepted formats: PDF, DOC, JPG, PNG. Max 10 MB."
                     file={registrationDocFile}
                     existingUrl={existingRegistrationDoc}
-                    onFileSelect={setRegistrationDocFile}
-                    onRemove={() => setRegistrationDocFile(null)}
+                    disabled={user?.verificationStatus === "pending" || user?.verificationStatus === "verified"}
+                    onFileSelect={(file) => {
+                      setRegistrationDocFile(file);
+                      setDocumentClearFlags((prev) => ({ ...prev, registrationDoc: false }));
+                    }}
+                    onRemove={() => {
+                      setRegistrationDocFile(null);
+                      setDocumentClearFlags((prev) => ({ ...prev, registrationDoc: true }));
+                    }}
                   />
 
                   <div className="employer-verify-block">
@@ -1763,8 +1964,14 @@ export default function EditProfile() {
                     hint="Accepted formats: PDF, DOC, JPG, PNG. Max 10 MB."
                     file={resumeFile}
                     existingUrl={existingResume}
-                    onFileSelect={setResumeFile}
-                    onRemove={() => setResumeFile(null)}
+                    onFileSelect={(file) => {
+                      setResumeFile(file);
+                      setDocumentClearFlags((prev) => ({ ...prev, resume: false }));
+                    }}
+                    onRemove={() => {
+                      setResumeFile(null);
+                      setDocumentClearFlags((prev) => ({ ...prev, resume: true }));
+                    }}
                   />
                   <FileDropzone
                     id="supportingUpload"
@@ -1772,8 +1979,14 @@ export default function EditProfile() {
                     hint="Accepted formats: PDF, DOC, JPG, PNG. Max 10 MB."
                     file={supportingDocumentFile}
                     existingUrl={existingValidId}
-                    onFileSelect={setSupportingDocumentFile}
-                    onRemove={() => setSupportingDocumentFile(null)}
+                    onFileSelect={(file) => {
+                      setSupportingDocumentFile(file);
+                      setDocumentClearFlags((prev) => ({ ...prev, validId: false }));
+                    }}
+                    onRemove={() => {
+                      setSupportingDocumentFile(null);
+                      setDocumentClearFlags((prev) => ({ ...prev, validId: true }));
+                    }}
                   />
                 </>
               )}

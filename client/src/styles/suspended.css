@@ -83,6 +83,38 @@
   line-height: 1.55;
 }
 
+.suspended-support-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  color: #991b1b;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.suspended-support-banner svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  font-size: 1rem;
+}
+
+.suspended-support-banner p {
+  margin: 0;
+}
+
+.suspended-support-banner a {
+  color: #991b1b;
+  font-weight: 700;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
 .suspended-meta {
   text-align: left;
   background: #f6faf6;

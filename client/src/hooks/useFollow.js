@@ -44,21 +44,28 @@ export const useFollow = (userId) => {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('follow:new', (data) => {
+    const onFollowNew = (data) => {
       if (data.followedUserId === userId) {
         setFollowerCount(prev => prev + 1);
       }
-    });
+    };
 
-    socket.on('follow:removed', (data) => {
+    const onFollowRemoved = (data) => {
       if (data.followedUserId === userId) {
         setFollowerCount(prev => Math.max(0, prev - 1));
       }
-    });
+    };
 
+    socket.on('follow:new', onFollowNew);
+    socket.on('follow:removed', onFollowRemoved);
+
+    // Deregister only these specific handlers — socket.off(event) with no
+    // handler argument would remove every listener for that event on the
+    // shared socket, including ones registered by other useFollow instances
+    // mounted at the same time (e.g. multiple follow buttons on one page).
     return () => {
-      socket.off('follow:new');
-      socket.off('follow:removed');
+      socket.off('follow:new', onFollowNew);
+      socket.off('follow:removed', onFollowRemoved);
     };
   }, [socket, userId]);
 

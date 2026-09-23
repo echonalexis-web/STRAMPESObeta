@@ -80,6 +80,21 @@
   cursor: not-allowed;
 }
 
+.rpt-export-group {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.rpt-export--pdf {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.rpt-export--pdf:hover:not(:disabled) {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
 .rpt-filters {
   display: flex;
   flex-wrap: wrap;
@@ -229,7 +244,11 @@ select.rpt-input {
   .rpt-tabs {
     justify-content: space-between;
   }
+  .rpt-export-group {
+    justify-content: stretch;
+  }
   .rpt-export {
+    flex: 1 1 0;
     justify-content: center;
   }
 }

@@ -24,6 +24,7 @@ import {
   FaUsers,
 } from "react-icons/fa";
 import { adminAPI } from "../../services/api";
+import { exportCsv, exportPdfTable } from "../../utils/exportUtils";
 import "../../styles/admin.css";
 import "../../styles/reports.css";
 import AdminHeader from "./AdminHeader";
@@ -100,23 +101,10 @@ const formatDate = (value) => {
     : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 };
 
-const csvCell = (value) => {
-  const text = value === null || value === undefined ? "" : String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-};
-
-const downloadCsv = (filename, columns, rows) => {
-  const header = columns.map((col) => csvCell(col.label)).join(",");
-  const body = rows.map((row) => columns.map((col) => csvCell(col.get(row))).join(",")).join("\n");
-  const blob = new Blob([`${header}\n${body}`], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+const TAB_TITLES = {
+  applicants: "Applicants Report",
+  jobs: "Job Vacancies Report",
+  employers: "Employers Report",
 };
 
 /* ---------- per-tab query + column config ---------- */
@@ -210,7 +198,7 @@ export default function Reports() {
           totalPages: data?.totalPages || 1,
         };
       }
-      const role = tab === "employers" ? "employer" : "resident";
+      const role = tab === "employers" ? "employer" : "jobseeker";
       const { data } = await adminAPI.getUsers(buildUserParams(filters, role, targetPage, limit));
       return {
         rows: Array.isArray(data?.users) ? data.users : [],
@@ -295,14 +283,49 @@ export default function Reports() {
     setPage(1);
   };
 
-  const handleExport = async () => {
+  const activeFilterPairs = useMemo(() => {
+    const pairs = [{ label: "Search", value: filters.search }];
+    if (tab === "jobs") {
+      pairs.push(
+        { label: "Municipality", value: filters.municipality === "All Marinduque" ? "" : filters.municipality },
+        { label: "Status", value: filters.jobStatus === "all" ? "" : filters.jobStatus },
+      );
+    } else {
+      pairs.push({ label: "Status", value: filters.userStatus === "All" ? "" : filters.userStatus });
+      if (tab === "employers") {
+        pairs.push({ label: "Verification", value: filters.verification === "All" ? "" : filters.verification });
+      }
+    }
+    return pairs;
+  }, [tab, filters]);
+
+  const handleExportCsv = async () => {
     try {
       setExporting(true);
       const result = await fetchRows(1, EXPORT_LIMIT);
       const stamp = new Date().toISOString().slice(0, 10);
-      downloadCsv(`report-${tab}-${stamp}.csv`, columns, result.rows);
+      exportCsv({ filename: `report-${tab}-${stamp}.csv`, columns, rows: result.rows });
     } catch (error) {
       /* no-op: export failure leaves the table intact */
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      setExporting(true);
+      const result = await fetchRows(1, EXPORT_LIMIT);
+      const stamp = new Date().toISOString().slice(0, 10);
+      exportPdfTable({
+        title: TAB_TITLES[tab],
+        filters: activeFilterPairs,
+        columns,
+        rows: result.rows,
+        filename: `report-${tab}-${stamp}.pdf`,
+      });
+    } catch (error) {
+      console.error("Failed to export PDF report", error);
     } finally {
       setExporting(false);
     }
@@ -439,14 +462,24 @@ export default function Reports() {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            className="rpt-export"
-            onClick={handleExport}
-            disabled={exporting || rowsLoading || rows.length === 0}
-          >
-            <FaDownload /> {exporting ? "Preparing…" : "Export CSV"}
-          </button>
+          <div className="rpt-export-group">
+            <button
+              type="button"
+              className="rpt-export"
+              onClick={handleExportCsv}
+              disabled={exporting || rowsLoading || rows.length === 0}
+            >
+              <FaDownload /> {exporting ? "Preparing…" : "Export CSV"}
+            </button>
+            <button
+              type="button"
+              className="rpt-export rpt-export--pdf"
+              onClick={handleExportPdf}
+              disabled={exporting || rowsLoading || rows.length === 0}
+            >
+              <FaFileAlt /> {exporting ? "Preparing…" : "Export PDF"}
+            </button>
+          </div>
         </div>
 
         <div className="rpt-filters">

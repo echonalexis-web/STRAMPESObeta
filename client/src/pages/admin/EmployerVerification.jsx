@@ -14,9 +14,15 @@ const formatDate = (value) => {
   });
 };
 
-function VerificationQueueTable({ data, onDecision, busyId, readOnly }) {
+const STATUS_TABS = [
+  { key: "pending", label: "Pending" },
+  { key: "verified", label: "Verified" },
+];
+
+function VerificationQueueTable({ data, onDecision, busyId, showActions, title, emptyMessage, dateLabel, dateAccessor }) {
   const [rejectingId, setRejectingId] = useState(null);
   const [reason, setReason] = useState("");
+  const colCount = showActions ? 6 : 5;
 
   const startReject = (userId) => {
     setRejectingId(userId);
@@ -36,7 +42,7 @@ function VerificationQueueTable({ data, onDecision, busyId, readOnly }) {
   return (
     <div className="admin-panel-card">
       <div className="admin-card-header">
-        <h3>Verification Queue</h3>
+        <h3>{title}</h3>
       </div>
       <div className="admin-table-wrap">
         <table className="admin-table">
@@ -46,14 +52,14 @@ function VerificationQueueTable({ data, onDecision, busyId, readOnly }) {
               <th>Company</th>
               <th>Documents</th>
               <th>Status</th>
-              <th>Submitted</th>
-              {!readOnly ? <th>Actions</th> : null}
+              <th>{dateLabel}</th>
+              {showActions ? <th>Actions</th> : null}
             </tr>
           </thead>
           <tbody>
             {data.length === 0 ? (
               <tr>
-                <td colSpan={readOnly ? 5 : 6} className="admin-empty-state"><p>No pending verifications.</p></td>
+                <td colSpan={colCount} className="admin-empty-state"><p>{emptyMessage}</p></td>
               </tr>
             ) : (
               data.map((user) => (
@@ -100,8 +106,8 @@ function VerificationQueueTable({ data, onDecision, busyId, readOnly }) {
                         <div className="admin-muted admin-reject-note">Last note: {user.verificationNote}</div>
                       ) : null}
                     </td>
-                    <td>{formatDate(user.verificationSubmittedAt || user.createdAt)}</td>
-                    {!readOnly ? (
+                    <td>{formatDate(dateAccessor(user))}</td>
+                    {showActions ? (
                       <td>
                         <div className="admin-inline-actions">
                           <button
@@ -124,9 +130,9 @@ function VerificationQueueTable({ data, onDecision, busyId, readOnly }) {
                       </td>
                     ) : null}
                   </tr>
-                  {!readOnly && rejectingId === user._id ? (
+                  {showActions && rejectingId === user._id ? (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={colCount}>
                         <div className="admin-reject-row">
                           <input
                             type="text"
@@ -161,8 +167,14 @@ function VerificationQueueTable({ data, onDecision, busyId, readOnly }) {
 
 export default function EmployerVerification() {
   const { user } = useContext(AuthContext);
-  const readOnly = user?.role === "superadmin";
+  // Only a plain admin may approve/reject (mirrors the backend guards on
+  // both the legacy PATCH /verification/:id route and the id-scoped
+  // POST /admin/employers/:id/verification/approve|reject routes, which are
+  // both authorizeRoles("admin") — superadmin is intentionally read-only
+  // here for oversight, on every status tab).
+  const canAct = user?.role === "admin";
 
+  const [statusTab, setStatusTab] = useState("pending");
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -177,17 +189,18 @@ export default function EmployerVerification() {
 
   useEffect(() => {
     let isMounted = true;
+    setLoading(true);
 
     const loadQueue = async () => {
       try {
-        const { data } = await verificationAPI.getQueue({ page: 1, limit: 100 });
+        const { data } = await verificationAPI.getQueue({ page: 1, limit: 100, status: statusTab });
         if (!isMounted) return;
         setQueue(Array.isArray(data?.items) ? data.items : []);
         setLoadError("");
       } catch (error) {
         if (!isMounted) return;
         setQueue([]);
-        setLoadError(error.response?.data?.message || "Failed to load the verification queue.");
+        setLoadError(error.response?.data?.message || "Failed to load the verification list.");
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -197,15 +210,22 @@ export default function EmployerVerification() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [statusTab]);
 
-  const pendingCount = useMemo(() => queue.length, [queue]);
+  const count = useMemo(() => queue.length, [queue]);
+  const showActions = canAct && statusTab === "pending";
+  const isPendingTab = statusTab === "pending";
 
   const handleDecision = async (userId, payload) => {
     setBusyId(userId);
     try {
-      await verificationAPI.review(userId, payload);
-      // The queue only holds pending employers, so a reviewed one drops out.
+      if (payload.decision === "approved") {
+        await verificationAPI.approve(userId);
+      } else {
+        await verificationAPI.reject(userId, payload.note);
+      }
+      // A decided employer leaves the Pending tab; nothing to remove when
+      // acting from elsewhere since actions only render on that tab.
       setQueue((prev) => prev.filter((item) => item._id !== userId));
       setActionToast({
         type: "success",
@@ -226,20 +246,41 @@ export default function EmployerVerification() {
       <AdminHeader
         title="Employer Verification"
         description={
-          readOnly
-            ? "Read-only view of employers awaiting accreditation review."
-            : "Review the documents of employers awaiting accreditation and approve or reject them."
+          !isPendingTab
+            ? "Read-only list of employers who have already been accredited."
+            : canAct
+            ? "Review the documents of employers awaiting accreditation and approve or reject them."
+            : "Read-only view of employers awaiting accreditation review."
         }
       />
 
+      <div className="admin-tab-filters" role="tablist" aria-label="Verification status">
+        {STATUS_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={statusTab === tab.key}
+            className={statusTab === tab.key ? "active" : ""}
+            onClick={() => setStatusTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <section className="admin-stat-row admin-stat-row--compact">
-        <article className="admin-stat-card admin-stat-card--compact admin-stat-card--warning">
-          <span className="admin-stat-label">Pending Verification</span>
-          <strong>{pendingCount}</strong>
+        <article
+          className={`admin-stat-card admin-stat-card--compact admin-stat-card--${
+            isPendingTab ? "warning" : "success"
+          }`}
+        >
+          <span className="admin-stat-label">{isPendingTab ? "Pending Verification" : "Verified Employers"}</span>
+          <strong>{count}</strong>
         </article>
       </section>
 
-      {readOnly ? (
+      {isPendingTab && !canAct ? (
         <p className="admin-muted" style={{ margin: "0 0 1rem" }}>
           Only LMD PESO admins can approve or reject submissions.
         </p>
@@ -247,7 +288,7 @@ export default function EmployerVerification() {
 
       <div className="tab-content">
         {loading ? (
-          <div className="admin-panel-card"><p className="admin-loading">Loading verification queue...</p></div>
+          <div className="admin-panel-card"><p className="admin-loading">Loading verification list...</p></div>
         ) : loadError ? (
           <div className="admin-panel-card"><p className="admin-empty-state">{loadError}</p></div>
         ) : (
@@ -255,7 +296,13 @@ export default function EmployerVerification() {
             data={queue}
             onDecision={handleDecision}
             busyId={busyId}
-            readOnly={readOnly}
+            showActions={showActions}
+            title={isPendingTab ? "Verification Queue" : "Verified Employers"}
+            emptyMessage={isPendingTab ? "No pending verifications." : "No verified employers yet."}
+            dateLabel={isPendingTab ? "Submitted" : "Verified"}
+            dateAccessor={(item) =>
+              isPendingTab ? item.verificationSubmittedAt || item.createdAt : item.verificationReviewedAt || item.createdAt
+            }
           />
         )}
       </div>

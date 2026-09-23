@@ -1,12 +1,13 @@
 import { useContext, useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
-import { usersAPI } from "../../services/api";
+import { usersAPI, employerAccountAPI } from "../../services/api";
 import "../../styles/onboarding.css";
 import LocationSelect from "../../components/LocationSelect";
 import AvatarPicker from "../../components/AvatarPicker";
 import { usePersistentState } from "../../hooks/usePersistentState";
 import { WORKFORCE_SIZE_OPTIONS, workforceSizeLabel } from "../../data/employerProfile";
+import { useToast } from "../../components/feedback/context";
 
 const industries = [
   "Retail", "Manufacturing", "Government", "Healthcare", "Education", "NGO / Non-profit",
@@ -14,7 +15,7 @@ const industries = [
   "Real Estate", "Food & Beverage", "Financial Services", "Other",
 ];
 
-const STEP_LABELS = ["Company Information", "Contact Details", "Review & Submit", "Profile Photo"];
+const STEP_LABELS = ["Company Information", "Contact Details", "Review & Submit", "Attach Profile Picture"];
 
 const getInitialForm = (user) => ({
   companyName: user?.companyName || "",
@@ -41,6 +42,7 @@ const getInitialForm = (user) => ({
 export default function EmployerOnboarding() {
   const { user, login, setUser } = useContext(AuthContext);
   const navigate = useNavigate();
+  const toast = useToast();
 
   const defaultState = {
     form: getInitialForm(user),
@@ -57,7 +59,14 @@ export default function EmployerOnboarding() {
     };
   };
 
-  const [persistedState, setPersistedState, clearPersistedState] = usePersistentState('employerOnboarding', defaultState);
+  // Scoped to the signed-in account — see JobSeekerOnboarding for why a
+  // bare "employerOnboarding" key would leak one account's draft into
+  // whichever different account next lands on this page in the same browser.
+  const currentUserId = user?._id || user?.id || null;
+  const [persistedState, setPersistedState, clearPersistedState] = usePersistentState(
+    currentUserId ? `employerOnboarding_${currentUserId}` : null,
+    defaultState
+  );
 
   const safeState = (persistedState && typeof persistedState === 'object' && persistedState.form)
     ? { ...persistedState, form: normalizeForm(persistedState.form) }
@@ -76,9 +85,11 @@ export default function EmployerOnboarding() {
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [errors, setErrors] = useState({});
-  // Set once onboarding is submitted so the optional photo step (4) can render
+  // Set once onboarding is submitted so the required photo step (4) can render
   // without the "already completed" guard below bouncing the user to the dashboard.
   const [finished, setFinished] = useState(false);
+  // Blocks the Finish button on step 4 until a profile picture is uploaded.
+  const [avatarUrl, setAvatarUrl] = useState(user?.profileImage || "");
 
   useEffect(() => {
     if (!finished && (user?.hasCompletedOnboarding === true || user?.onboardingComplete === true)) {
@@ -87,7 +98,10 @@ export default function EmployerOnboarding() {
     if (user && user.role !== "employer") {
       navigate("/dashboard");
     }
-    if (user && !localStorage.getItem('employerOnboarding')) {
+    // Must check the same per-user key the persisted state itself uses —
+    // checking the old flat key here would always read empty (nothing
+    // writes to it anymore) and reset a legitimate draft on every mount.
+    if (user && currentUserId && !localStorage.getItem(`employerOnboarding_${currentUserId}`)) {
       setForm(getInitialForm(user));
     }
   }, [user, navigate, finished]);
@@ -173,7 +187,9 @@ export default function EmployerOnboarding() {
       setStep(4);
       setSaving(false);
     } catch (err) {
-      setSubmitError(err.response?.data?.message || "Failed to complete onboarding. Please try again.");
+      const message = err.response?.data?.message || "Failed to complete onboarding. Please try again.";
+      setSubmitError(message);
+      toast.error(message);
       setSaving(false);
     }
   };
@@ -244,7 +260,25 @@ export default function EmployerOnboarding() {
               <span className="onboarding-label">Business Address *</span>
               <LocationSelect
                 value={form.businessAddress}
-                onChange={(loc) => updateField("businessAddress", loc)}
+                onChange={(loc, structured) => {
+                  // LocationSelect always hands back both the display string
+                  // and its structured breakdown — capture both, not just the
+                  // string, so the NSRP "Business Address (Structured)"
+                  // fields (Edit Profile → NSRP Details) are pre-filled from
+                  // what's entered here instead of coming back empty later.
+                  setForm((prev) => ({
+                    ...prev,
+                    businessAddress: loc,
+                    businessAddressStructured: {
+                      ...prev.businessAddressStructured,
+                      barangay: structured?.barangay || "",
+                      municipality: structured?.city || structured?.municipality || "",
+                      province: structured?.province || "",
+                      region: structured?.region || "",
+                    },
+                  }));
+                  setErrors((prev) => ({ ...prev, businessAddress: "" }));
+                }}
                 disabled={saving}
                 required
               />
@@ -363,19 +397,29 @@ export default function EmployerOnboarding() {
 
       {step === 4 && (
         <div className="onboarding-step">
-          <h2>Add a company logo or photo</h2>
+          <h2>Attach profile picture</h2>
           <p className="onboarding-subtitle">
-            Optional — this appears on your job posts and employer profile. You can add or change it later from your profile.
+            Required — this appears on your job posts and employer profile. JPG, PNG, or WEBP, up to 5MB.
           </p>
           <AvatarPicker
             name={form.companyName || user?.name}
             initialUrl={user?.profileImage}
-            onUploaded={(url) => setUser((prev) => ({ ...prev, profileImage: url }))}
+            uploadFn={(file) => employerAccountAPI.uploadAvatar(user?._id || user?.id, file)}
+            onUploaded={(url) => {
+              setUser((prev) => ({ ...prev, profileImage: url }));
+              setAvatarUrl(url);
+            }}
           />
+          {!avatarUrl && (
+            <p className="onboarding-field-error">
+              Please upload a profile picture to finish setting up your account.
+            </p>
+          )}
           <button
             type="button"
             className="onboarding-primary onboarding-primary-full"
             onClick={finishOnboarding}
+            disabled={!avatarUrl}
           >
             Go to Dashboard →
           </button>

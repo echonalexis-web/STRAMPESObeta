@@ -234,74 +234,6 @@
   cursor: pointer;
 }
 
-/* ─── Skills Tag Input ─── */
-.filter-skills-wrapper {
-  flex: 2 1 280px;
-  min-width: 0;
-}
-
-.skills-tags {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  border-radius: 10px;
-  border: 1px solid #d5dbe0;
-  background: #f7f9fa;
-  min-height: 42px;
-  box-sizing: border-box;
-  transition: box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-}
-
-.skills-tags:focus-within {
-  background: #ffffff;
-  border-color: #2e7d32;
-  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.12);
-}
-
-.skill-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: #e8f5e9;
-  color: #1b5e20;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.skill-tag button {
-  background: none;
-  border: none;
-  color: #2e7d32;
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 0 2px;
-  margin-left: 2px;
-  transition: color 0.15s ease;
-}
-
-.skill-tag button:hover {
-  color: #b71c1c;
-}
-
-.skills-input {
-  color: #1a2a3a;
-  flex: 1 1 80px;
-  min-width: 80px;
-  border: none !important;
-  background: transparent !important;
-  padding: 4px 2px !important;
-  font-size: 14px;
-  outline: none;
-  box-shadow: none !important;
-  transform: none !important;
-}
-
 /* ─── Buttons ─── */
 .filter-submit-btn {
   display: inline-flex;
@@ -404,6 +336,12 @@
   .salary-range-field {
     width: 100%;
     flex: 1 1 auto !important;
+  }
+
+  /* Prevent iOS Safari auto-zoom-on-focus */
+  .job-search-filters .filter-input,
+  .job-search-filters .filter-select {
+    font-size: 16px;
   }
 
   .filter-submit-btn {

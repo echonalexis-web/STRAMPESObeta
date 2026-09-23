@@ -795,6 +795,16 @@
     flex: 1;
     justify-content: center;
   }
+
+  /* Prevent iOS Safari auto-zoom-on-focus on every text input/select in the modal */
+  .qe-search input,
+  .qe-custom-input,
+  .qe-custom-type,
+  .qe-template-row select,
+  .qe-quick-template select,
+  .qe-save-template-form input {
+    font-size: 16px;
+  }
 }
 
 /* ============================================ */

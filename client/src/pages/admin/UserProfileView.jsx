@@ -13,6 +13,7 @@ import {
 } from "react-icons/fa";
 import { adminAPI } from "../../services/api";
 import SecureFileLink from "../../components/SecureFileLink";
+import { downloadBlob } from "../../utils/exportUtils";
 import "../../styles/adminUserProfile.css";
 
 const formatDate = (value) => {
@@ -67,6 +68,7 @@ export default function UserProfileView() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [exportingNsrp, setExportingNsrp] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -137,8 +139,8 @@ export default function UserProfileView() {
   }
 
   const isEmployer = user.role === "employer";
-  const isResident = user.role === "resident" || user.role === "jobseeker" || user.role === "employee";
-  const roleLabel = isEmployer ? "Employer" : isResident ? "Jobseeker" : "Administrator";
+  const isJobseeker = user.role === "jobseeker" || user.role === "resident" || user.role === "employee";
+  const roleLabel = isEmployer ? "Employer" : isJobseeker ? "Jobseeker" : "Administrator";
   const isActive = user.isActive !== false;
   const verification = user.verificationStatus || "unverified";
 
@@ -153,13 +155,40 @@ export default function UserProfileView() {
   const permitRef = profile?.businessPermitUrl || null;
   const registrationRef = profile?.registrationDocUrl || null;
 
+  const handleExportNsrpForm = async () => {
+    try {
+      setExportingNsrp(true);
+      const { data } = isEmployer
+        ? await adminAPI.exportUserNsrpForm2(userId)
+        : await adminAPI.exportUserNsrpForm1(userId);
+      downloadBlob(isEmployer ? `NSRP-Form-2-${userId}.pdf` : `NSRP-Form-1-${userId}.pdf`, data);
+    } catch (err) {
+      console.error("Failed to export NSRP form", err);
+    } finally {
+      setExportingNsrp(false);
+    }
+  };
+
   return (
     <div className="aup-page">
       <div className="aup-shell">
         <header className="aup-header">
-          <button type="button" className="aup-back" onClick={() => navigate(-1)}>
-            <FaArrowLeft aria-hidden="true" /> Go back
-          </button>
+          <div className="aup-header__toprow">
+            <button type="button" className="aup-back" onClick={() => navigate(-1)}>
+              <FaArrowLeft aria-hidden="true" /> Go back
+            </button>
+            {isEmployer || isJobseeker ? (
+              <button
+                type="button"
+                className="aup-back"
+                onClick={handleExportNsrpForm}
+                disabled={exportingNsrp}
+              >
+                <FaFileAlt aria-hidden="true" />
+                {exportingNsrp ? "Preparing…" : `Export NSRP Form ${isEmployer ? "2" : "1"}`}
+              </button>
+            ) : null}
+          </div>
 
           <div className="aup-id">
             <div className="aup-avatar">{initialsFromName(user.name)}</div>
@@ -240,7 +269,7 @@ export default function UserProfileView() {
             <p className={`aup-copy${summary ? "" : " is-empty"}`}>
               {summary || "No profile summary has been provided for this user yet."}
             </p>
-            {isResident || skills.length > 0 ? (
+            {isJobseeker || skills.length > 0 ? (
               <div className="aup-tags">
                 {skills.length > 0 ? (
                   skills.map((skill) => (

@@ -427,6 +427,29 @@
   text-decoration: underline;
 }
 
+/* A <button> inside .auth-link (e.g. "Resend verification email") styled to
+   match the plain-text links above it. */
+.auth-link button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #16a34a;
+  font-weight: 700;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.auth-link button:hover:not(:disabled) {
+  color: #15803d;
+  text-decoration: underline;
+}
+
+.auth-link button:disabled {
+  color: #94a3b8;
+  cursor: default;
+}
+
 /* Google sign-in */
 .google-signin {
   margin-top: 1.25rem;
@@ -649,7 +672,7 @@ input.is-error:focus {
   }
 
   .auth-form input {
-    font-size: 0.95rem;
+    font-size: 16px; /* Prevent iOS zoom — was dropping below the desktop size here */
     padding: 0.9rem 1rem;
   }
 

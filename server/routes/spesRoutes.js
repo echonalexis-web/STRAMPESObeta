@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { verifyToken: protect, isAdmin, isResident } = require("../middleware/auth");
+const { verifyToken: protect, isAdmin, isJobseeker } = require("../middleware/auth");
 const {
   documentsUpload,
   persistUploads,
@@ -47,7 +47,7 @@ router.get("/:announcementId/results", validateMongoId("announcementId"), spes.g
 router.post(
   "/:announcementId/apply",
   validateMongoId("announcementId"),
-  isResident,
+  isJobseeker,
   documentsUpload.array("documents", 4),
   cleanupUploadedFiles,
   persistUploads("spes"),

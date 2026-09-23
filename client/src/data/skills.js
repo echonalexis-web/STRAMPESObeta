@@ -191,3 +191,38 @@ export const SKILL_CATEGORIES = [
 ];
 
 export const COMMON_SKILLS = SKILL_CATEGORIES.flatMap((category) => category.skills);
+
+// Generic starter suggestions shown to a jobseeker before they've picked any
+// preferred industries — kept short and broadly applicable rather than
+// exhaustive. Used by the onboarding and edit-profile skills picker; typing
+// a skill not listed here still works, this is just the clickable shortlist.
+export const SUGGESTED_SKILLS = [
+  "Computer Literacy", "Driving", "Cooking", "Carpentry", "Caregiving", "Typing",
+  "Customer Service", "Communication", "Problem Solving", "Teamwork", "Leadership", "Time Management",
+];
+
+// Hand-picked skill suggestions per industry, shown once a jobseeker has
+// selected that industry as a preference. Keys must match the industry
+// labels used by INDUSTRY_OPTIONS on the onboarding / edit-profile pages.
+export const INDUSTRY_SKILLS = {
+  "Information Technology (IT)": ["Computer Literacy", "Typing", "Troubleshooting", "Data Entry", "Software Installation"],
+  "Healthcare": ["Caregiving", "First Aid", "Patient Care", "Attention to Detail", "Vital Signs Monitoring"],
+  "Finance & Banking": ["Bookkeeping", "Cash Handling", "Data Entry", "Attention to Detail", "Customer Service"],
+  "Education": ["Communication", "Lesson Planning", "Public Speaking", "Patience", "Mentoring"],
+  "Construction & Engineering": ["Carpentry", "Blueprint Reading", "Manual Labor", "Equipment Operation", "Safety Compliance"],
+  "Manufacturing": ["Quality Control", "Machine Operation", "Assembly", "Safety Compliance", "Time Management"],
+  "Retail & Wholesale": ["Customer Service", "Cash Handling", "Inventory Management", "Sales", "Communication"],
+  "Hospitality & Tourism": ["Customer Service", "Cooking", "Housekeeping", "Communication", "Teamwork"],
+  "Transportation & Logistics": ["Driving", "Route Planning", "Inventory Management", "Time Management", "Safety Compliance"],
+  "Agriculture": ["Farming", "Manual Labor", "Equipment Operation", "Livestock Care", "Time Management"],
+  "Media & Communications": ["Writing", "Communication", "Social Media", "Video Editing", "Public Speaking"],
+  "Real Estate": ["Sales", "Communication", "Negotiation", "Customer Service", "Time Management"],
+  "Government & Public Administration": ["Data Entry", "Communication", "Record Keeping", "Attention to Detail", "Customer Service"],
+  "Legal Services": ["Research", "Attention to Detail", "Communication", "Record Keeping", "Confidentiality"],
+  "Telecommunications": ["Troubleshooting", "Customer Service", "Technical Support", "Communication", "Problem Solving"],
+  "Marketing & Advertising": ["Social Media", "Communication", "Creativity", "Sales", "Writing"],
+  "Arts & Entertainment": ["Creativity", "Communication", "Teamwork", "Time Management", "Public Speaking"],
+  "Human Resources": ["Communication", "Recruitment", "Record Keeping", "Conflict Resolution", "Organization"],
+  "Customer Service": ["Customer Service", "Communication", "Problem Solving", "Patience", "Teamwork"],
+  "Environmental Services": ["Manual Labor", "Safety Compliance", "Attention to Detail", "Teamwork", "Equipment Operation"],
+};

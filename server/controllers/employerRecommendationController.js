@@ -111,6 +111,7 @@ exports.getRankedApplicants = async (req, res) => {
       appliedAt: item.createdAt || item.appliedAt,
       employerNote: item.employerNote,
       resume: item.resume,
+      interview: item.interview || null,
       relevanceScore: item.relevanceScore,
       matchBreakdown: item.matchBreakdown || null,
       disqualified: item.disqualified || null,

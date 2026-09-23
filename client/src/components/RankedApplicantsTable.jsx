@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { normalizeApplicationStatus, statusClass } from "../utils/helpers";
-import { FaStar, FaCheck, FaTimes, FaClock, FaBan, FaEllipsisH } from "react-icons/fa";
+import { FaStar, FaCheck, FaTimes, FaClock, FaBan, FaEllipsisH, FaCalendarAlt } from "react-icons/fa";
 
 const getStatusIcon = (status) => {
   switch (normalizeApplicationStatus(status)) {
@@ -46,7 +46,7 @@ const breakdownSummary = (breakdown) => {
   return parts.join("  •  ");
 };
 
-function RowMenu({ onShortlist, onReject, onViewProfile, onMessage }) {
+function RowMenu({ onShortlist, onReject, onScheduleInterview, scheduleInterviewLabel = "Schedule interview", onMarkNoShow, onViewProfile, onMessage }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const ref = useRef(null);
@@ -92,7 +92,17 @@ function RowMenu({ onShortlist, onReject, onViewProfile, onMessage }) {
               Reject
             </button>
           )}
-          {(onShortlist || onReject) && (onViewProfile || onMessage) && <div className="rt-menu-sep" />}
+          {onScheduleInterview && (
+            <button type="button" role="menuitem" onClick={() => { setOpen(false); onScheduleInterview(); }}>
+              {scheduleInterviewLabel}
+            </button>
+          )}
+          {onMarkNoShow && (
+            <button type="button" role="menuitem" className="danger" onClick={() => { setOpen(false); onMarkNoShow(); }}>
+              Mark as no-show
+            </button>
+          )}
+          {(onShortlist || onReject || onScheduleInterview || onMarkNoShow) && (onViewProfile || onMessage) && <div className="rt-menu-sep" />}
           {onViewProfile && (
             <button type="button" role="menuitem" onClick={() => { setOpen(false); onViewProfile(); }}>
               View full profile
@@ -120,6 +130,8 @@ export default function RankedApplicantsTable({
   onSelectAll,
   isAllSelected = false,
   onQuickStatusChange,
+  onScheduleInterview,
+  onMarkNoShow,
   emptyStateMessage = "No applicants yet.",
   emptyStateIcon = "📋",
 }) {
@@ -143,6 +155,134 @@ export default function RankedApplicantsTable({
 
   return (
     <div className="ranked-applicants-wrapper">
+      <div className="rt-mobile-list">
+        {applicants.map((application, index) => {
+          const applicant = application.applicant || {};
+          const isSelected = selectedApplicants.includes(application._id);
+          const tier = matchTier(application.relevanceScore);
+          const normalized = normalizeApplicationStatus(application.status);
+          const isDisqualified = application.disqualified === "age";
+          const matchHint = breakdownSummary(application.matchBreakdown);
+
+          return (
+            <article
+              key={application._id}
+              className={`rt-mobile-card ${isSelected ? "selected" : ""} ${normalized === "pending" ? "is-new" : ""} ${isDisqualified ? "rt-row-dq" : ""}`}
+            >
+              <div className="rt-mobile-top" onClick={() => onViewApplicant(application)}>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(e) => onSelectApplicant(application._id, e.target.checked)}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`Select ${applicant.name || "applicant"}`}
+                />
+                <span className="rt-avatar">
+                  {(applicant.name || "U").trim().charAt(0).toUpperCase()}
+                </span>
+                <div className="rt-identity-text">
+                  <strong className="rt-name" title={applicant.name || "Unknown"}>
+                    {applicant.name || "Unknown"}
+                  </strong>
+                  <span className="rt-email" title={applicant.email || "No email"}>
+                    {applicant.email || "No email"}
+                  </span>
+                </div>
+                {isDisqualified ? (
+                  <span className="rt-dq-badge" title="Outside the job's age requirement">
+                    <FaBan /> Age
+                  </span>
+                ) : (
+                  <span
+                    className={`rt-gauge ${tier.cls}`}
+                    style={{ "--pct": tier.percent }}
+                    title={matchHint || `${tier.label} match (${tier.percent}%)`}
+                  >
+                    <span className="rt-gauge-val">{tier.percent}%</span>
+                  </span>
+                )}
+              </div>
+
+              <div className="rt-mobile-status" onClick={(e) => e.stopPropagation()}>
+                {onQuickStatusChange ? (
+                  <select
+                    className={`rt-status-select status-pill ${statusClass(application.status)} ${application.interview?.scheduledAt ? "has-interview" : ""}`}
+                    value={normalized}
+                    onChange={(e) => onQuickStatusChange(application._id, e.target.value)}
+                    aria-label={`Status for ${applicant.name || "applicant"}`}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="reviewed">Reviewed</option>
+                    <option value="shortlisted">Shortlisted</option>
+                    <option value="hired">Hired</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                ) : (
+                  <span className={`status-pill ${statusClass(application.status)}`}>
+                    {getStatusIcon(application.status)}
+                    {normalized}
+                  </span>
+                )}
+                {application.interview?.scheduledAt && (
+                  <FaCalendarAlt
+                    className="rt-interview-icon"
+                    title={`Interview: ${new Date(application.interview.scheduledAt).toLocaleString()}`}
+                  />
+                )}
+              </div>
+
+              <div className="rt-mobile-actions" onClick={(e) => e.stopPropagation()}>
+                <button type="button" className="rt-review-btn" onClick={() => onViewApplicant(application)}>
+                  Review
+                </button>
+                {onQuickStatusChange && (
+                  <>
+                    <button
+                      type="button"
+                      className="rt-icon-btn shortlist"
+                      title="Shortlist"
+                      aria-label="Shortlist applicant"
+                      onClick={() => onQuickStatusChange(application._id, "shortlisted")}
+                    >
+                      <FaStar />
+                    </button>
+                    <button
+                      type="button"
+                      className="rt-icon-btn reject"
+                      title="Reject"
+                      aria-label="Reject applicant"
+                      onClick={() => onQuickStatusChange(application._id, "rejected")}
+                    >
+                      <FaTimes />
+                    </button>
+                  </>
+                )}
+                <RowMenu
+                  onShortlist={onQuickStatusChange ? () => onQuickStatusChange(application._id, "shortlisted") : null}
+                  onReject={onQuickStatusChange ? () => onQuickStatusChange(application._id, "rejected") : null}
+                  onScheduleInterview={
+                    onScheduleInterview && !["rejected", "hired"].includes(normalized)
+                      ? () => onScheduleInterview(application)
+                      : null
+                  }
+                  scheduleInterviewLabel={application.interview?.scheduledAt ? "Reschedule interview" : "Schedule interview"}
+                  onMarkNoShow={
+                    onMarkNoShow &&
+                    application.interview?.scheduledAt &&
+                    new Date(application.interview.scheduledAt) <= new Date() &&
+                    !["rejected", "hired"].includes(normalized)
+                      ? () => onMarkNoShow(application)
+                      : null
+                  }
+                  onViewProfile={onViewProfile ? () => onViewProfile(applicant._id) : null}
+                  onMessage={onMessageApplicant ? () => onMessageApplicant(applicant._id) : null}
+                />
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
       <div className="rt-scroll">
         <table className="rt-table">
           <colgroup>
@@ -226,25 +366,39 @@ export default function RankedApplicantsTable({
                   </td>
 
                   <td className="rt-c-status" onClick={(e) => e.stopPropagation()}>
-                    {onQuickStatusChange ? (
-                      <select
-                        className={`rt-status-select status-pill ${statusClass(application.status)}`}
-                        value={normalized}
-                        onChange={(e) => onQuickStatusChange(application._id, e.target.value)}
-                        aria-label={`Status for ${applicant.name || "applicant"}`}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="reviewed">Reviewed</option>
-                        <option value="shortlisted">Shortlisted</option>
-                        <option value="hired">Hired</option>
-                        <option value="rejected">Rejected</option>
-                      </select>
-                    ) : (
-                      <span className={`status-pill ${statusClass(application.status)}`}>
-                        {getStatusIcon(application.status)}
-                        {normalized}
-                      </span>
-                    )}
+                    <span className={`rt-status-wrap ${statusClass(application.status)}`}>
+                      {onQuickStatusChange ? (
+                        <select
+                          className={`rt-status-select status-pill ${statusClass(application.status)} ${application.interview?.scheduledAt ? "has-interview" : ""}`}
+                          value={normalized}
+                          onChange={(e) => onQuickStatusChange(application._id, e.target.value)}
+                          aria-label={`Status for ${applicant.name || "applicant"}`}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="reviewed">Reviewed</option>
+                          <option value="shortlisted">Shortlisted</option>
+                          <option value="hired">Hired</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+                      ) : (
+                        <span className={`status-pill ${statusClass(application.status)}`}>
+                          {getStatusIcon(application.status)}
+                          {normalized}
+                          {application.interview?.scheduledAt && (
+                            <FaCalendarAlt
+                              className="rt-interview-icon rt-interview-icon-inline"
+                              title={`Interview: ${new Date(application.interview.scheduledAt).toLocaleString()}`}
+                            />
+                          )}
+                        </span>
+                      )}
+                      {onQuickStatusChange && application.interview?.scheduledAt && (
+                        <FaCalendarAlt
+                          className="rt-interview-icon rt-interview-icon-overlay"
+                          title={`Interview: ${new Date(application.interview.scheduledAt).toLocaleString()}`}
+                        />
+                      )}
+                    </span>
                   </td>
 
                   <td className="rt-c-actions" onClick={(e) => e.stopPropagation()}>
@@ -281,6 +435,20 @@ export default function RankedApplicantsTable({
                       <RowMenu
                         onShortlist={onQuickStatusChange ? () => onQuickStatusChange(application._id, "shortlisted") : null}
                         onReject={onQuickStatusChange ? () => onQuickStatusChange(application._id, "rejected") : null}
+                        onScheduleInterview={
+                          onScheduleInterview && !["rejected", "hired"].includes(normalized)
+                            ? () => onScheduleInterview(application)
+                            : null
+                        }
+                        scheduleInterviewLabel={application.interview?.scheduledAt ? "Reschedule interview" : "Schedule interview"}
+                        onMarkNoShow={
+                          onMarkNoShow &&
+                          application.interview?.scheduledAt &&
+                          new Date(application.interview.scheduledAt) <= new Date() &&
+                          !["rejected", "hired"].includes(normalized)
+                            ? () => onMarkNoShow(application)
+                            : null
+                        }
                         onViewProfile={onViewProfile ? () => onViewProfile(applicant._id) : null}
                         onMessage={onMessageApplicant ? () => onMessageApplicant(applicant._id) : null}
                       />

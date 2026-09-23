@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git stash *)",
+      "Bash(npm run *)",
+      "Bash(node -e ' *)",
+      "Bash(node scripts/debugNsrpCoordinates.js)",
+      "Bash(npx jest *)",
+      "Bash(node -e \"require\\('./routes/authRoutes'\\); require\\('./routes/adminRoutes'\\); console.log\\('routes OK'\\);\")",
+      "Bash(timeout 8 node server.js)",
+      "Bash(echo \"---exit $?---\")",
+      "Bash(npx vite *)"
+    ]
+  }
+}

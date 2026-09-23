@@ -29,12 +29,19 @@ const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:5173,htt
 
 const allowVercelPreviews = process.env.ALLOW_VERCEL_PREVIEWS === "true";
 
+// Scoped to THIS project's own preview deployments (e.g.
+// "strampeso-git-branch-team.vercel.app", "strampeso-abc123.vercel.app") —
+// trusting bare ".vercel.app" would extend credentialed CORS access to any
+// attacker-controlled app on that shared public hosting domain.
+const isVercelPreviewOrigin = (origin) =>
+  /^https:\/\/strampeso(-[a-z0-9-]+)?\.vercel\.app$/i.test(origin);
+
 const isOriginAllowed = (origin) => {
   if (!origin) return true;
   if (allowedOrigins.includes(origin)) return true;
   if (origin.match(/^http:\/\/localhost:\d+$/)) return true;
   if (origin.match(/^http:\/\/127\.0\.0\.1:\d+$/)) return true;
-  return allowVercelPreviews && origin.endsWith(".vercel.app");
+  return allowVercelPreviews && isVercelPreviewOrigin(origin);
 };
 
 // ============ SECURITY MIDDLEWARE ============
@@ -59,7 +66,10 @@ app.use(helmet({
 // ============ RATE LIMITING ============
 
 // Disable request limits locally so development does not get blocked by 429s.
-const disableRateLimits = process.env.DISABLE_RATE_LIMITS === "true" || process.env.NODE_ENV !== "production";
+// Gated strictly by this one explicit flag — an unset/misconfigured
+// NODE_ENV (empty string, a typo like "prod") must never silently disable
+// rate limiting in a real deployment the way a "!== production" check would.
+const disableRateLimits = process.env.DISABLE_RATE_LIMITS === "true";
 
 const rateLimitHandler = (req, res, next, options) => {
   const origin = req.headers.origin;
@@ -161,6 +171,7 @@ app.use("/api/v1/auth/forgot-password", authLimiter);
 app.use("/api/v1/auth/reset-password", authLimiter);
 app.use("/api/v1/auth/google", authLimiter);
 app.use("/api/v1/auth/email-change", authLimiter);
+app.use("/api/v1/auth/verify-email", authLimiter);
 
 // ============ FILE UPLOAD CONFIGURATION ============
 
@@ -219,14 +230,22 @@ app.post("/api/v1/users/upload-resume", uploadLimiter, (req, res, next) => {
 });
 
 app.use("/uploads", (req, res, next) => {
-  const authHeader = req.headers.authorization;
   // Profile pictures and news announcement images are public assets
   const isPublicImage = req.path.includes("/profiles/") || req.path.includes("/news/");
 
-  if (!isPublicImage && !authHeader) {
-    return res.status(403).json({ message: "Access denied" });
+  if (!isPublicImage) {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    try {
+      const jwt = require("jsonwebtoken");
+      jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res.status(403).json({ message: "Access denied" });
+    }
   }
-  
+
   const requestedPath = path.normalize(req.path);
   if (requestedPath.includes("..")) {
     return res.status(403).json({ message: "Invalid file path" });
@@ -308,6 +327,12 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   const verificationRoutes = require("./routes/verificationRoutes");
   console.log("✅ Verification routes loaded");
 
+  const employerAccountRoutes = require("./routes/employerAccountRoutes");
+  console.log("✅ Employer account routes loaded");
+
+  const jobseekerDocumentRoutes = require("./routes/jobseekerDocumentRoutes");
+  console.log("✅ Jobseeker document routes loaded");
+
   const mountApiRoutes = (basePath) => {
     console.log(`📁 Mounting routes at ${basePath}...`);
     
@@ -317,6 +342,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     app.use(`${basePath}/auth/reset-password`, authLimiter);
     app.use(`${basePath}/auth/google`, authLimiter);
     app.use(`${basePath}/auth/email-change`, authLimiter);
+    app.use(`${basePath}/auth/verify-email`, authLimiter);
     
     try {
       app.use(`${basePath}/auth`, authRoutes);
@@ -447,6 +473,20 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       console.error(`❌ Failed to mount ${basePath}/verification:`, e.message);
     }
 
+    try {
+      app.use(`${basePath}/employers`, employerAccountRoutes);
+      console.log(`✅ ${basePath}/employers mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/employers:`, e.message);
+    }
+
+    try {
+      app.use(`${basePath}/jobseeker/documents`, jobseekerDocumentRoutes);
+      console.log(`✅ ${basePath}/jobseeker/documents mounted`);
+    } catch (e) {
+      console.error(`❌ Failed to mount ${basePath}/jobseeker/documents:`, e.message);
+    }
+
     console.log(`✅ All routes mounted at ${basePath}`);
   };
 
@@ -486,9 +526,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   app.set("io", io);
 
   // Socket authentication middleware
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth.token;
-    
+
     if (!token) {
       console.warn("⚠️ Socket connection attempt without token");
       return next(new Error("Authentication required"));
@@ -497,6 +537,28 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     try {
       const jwt = require("jsonwebtoken");
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // A password change/reset bumps tokenVersion server-side, invalidating
+      // every token signed before it — this closes that same gap for
+      // real-time connections, not just REST requests (see middleware/auth.js).
+      const User = require("./models/User");
+      const user = await User.findById(decoded.id).select("tokenVersion isActive accountStatus");
+      if (!user || (decoded.tokenVersion || 0) !== (user.tokenVersion || 0)) {
+        return next(new Error("Invalid token"));
+      }
+
+      // Mirrors verifyToken's suspended/disabled/deactivated check — a still-
+      // unexpired token for an account moderated after it was issued must not
+      // be able to open a new real-time connection (REST calls already block
+      // this; the socket handshake was the one gap). Reuses the same "Invalid
+      // token" message as the tokenVersion check above so the client's
+      // existing connect_error handling (which disconnects and stops
+      // retrying on that exact string — see SocketContext.jsx) covers this
+      // case too, instead of retry-looping forever against a blocked account.
+      if (user.isActive === false) {
+        return next(new Error("Invalid token"));
+      }
+
       socket.userId = decoded.id;
       socket.userRole = decoded.role;
       console.log(`✅ Socket authenticated for user: ${socket.userId}`);

@@ -5,8 +5,9 @@
 .admin-page-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 18px 24px 24px;
   font-family: var(--sans);
+  background: transparent;
 }
 
 .job-monitoring-shell {
@@ -19,7 +20,9 @@
 
 .job-monitoring-banner {
   position: relative;
-  background: linear-gradient(135deg, #0d5f32 0%, #146b39 52%, #1c7b42 100%);
+  background-image: linear-gradient(135deg, rgba(13, 95, 50, 0.82) 0%, rgba(20, 107, 57, 0.78) 52%, rgba(28, 123, 66, 0.76) 100%), url("../assets/images/provincial-building.jpg");
+  background-size: cover;
+  background-position: center center;
   border-radius: 28px;
   padding: 28px 32px 34px;
   box-shadow: 0 12px 32px rgba(13, 93, 45, 0.18);
@@ -751,15 +754,17 @@
 
 .admin-panel-page {
   min-height: 100vh;
-  background: #f5f7fa;
-  padding: 24px;
+  background: linear-gradient(180deg, #eaf5ee 0%, #dfeee3 100%);
+  padding: 18px 24px 24px;
   font-family: var(--sans);
 }
 
 .admin-page-header {
   max-width: 1400px;
   margin: 0 auto 24px;
-  background: linear-gradient(135deg, #1a5c2a 0%, #2e7d42 50%, #43a047 100%);
+  background-image: linear-gradient(135deg, rgba(12, 84, 43, 0.9) 0%, rgba(24, 118, 62, 0.8) 48%, rgba(31, 132, 72, 0.75) 100%), url("../assets/images/provincial-building.jpg");
+  background-size: cover;
+  background-position: center center;
   border-radius: 16px;
   padding: 28px 32px;
   box-shadow: 0 8px 32px rgba(26, 92, 42, 0.25);
@@ -1593,11 +1598,48 @@
 @media (max-width: 768px) {
   .admin-page-container,
   .admin-panel-page {
-    padding: 16px;
+    padding: calc(88px + 16px) 16px 16px;
   }
 
   .admin-stat-row,
-  .admin-stat-row--compact,
+  .admin-stat-row--compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .admin-stat-card {
+    min-height: 72px;
+    padding: 8px 10px 7px;
+    border-left-width: 3px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  }
+
+  .admin-stat-card--compact {
+    min-height: 68px;
+  }
+
+  .admin-stat-icon {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+
+  .admin-stat-card strong {
+    font-size: 16px;
+    line-height: 1.1;
+    margin-top: 0;
+  }
+
+  .admin-stat-card p,
+  .admin-stat-label {
+    font-size: 9px;
+    margin-top: 1px;
+    line-height: 1.2;
+  }
+
   .admin-form-grid {
     grid-template-columns: 1fr;
   }
@@ -2312,6 +2354,12 @@
   align-items: end;
 }
 
+@media (max-width: 900px) {
+  .admin-filter-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-filter-group {
   display: flex;
   flex-direction: column;
@@ -2478,6 +2526,17 @@
   border-color: #065f46;
   color: #ffffff;
   box-shadow: 0 4px 12px rgba(6, 95, 70, 0.18);
+}
+
+.admin-audit-pagination__ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 38px;
+  color: #9ca3af;
+  font-weight: 600;
+  user-select: none;
 }
 
 .admin-audit-pagination__rows {
@@ -2893,7 +2952,7 @@
   color: #1d4ed8;
 }
 
-.admin-role-badge.resident {
+.admin-role-badge.jobseeker {
   background: #e8f5e9;
   color: #2e7d32;
 }
@@ -3306,6 +3365,7 @@
   .admin-stats-grid {
     grid-template-columns: repeat(3, 1fr);
   }
+  
 }
 
 @media (max-width: 1024px) {
@@ -3319,8 +3379,53 @@
 }
 
 @media (max-width: 768px) {
+  .admin-page-container {
+    padding: 87px 12px 18px;
+  }
+
+  .admin-page-header {
+    padding: 18px 16px 20px;
+    border-radius: 18px;
+    margin-bottom: 16px;
+  }
+
+  .admin-page-kicker {
+    margin-bottom: 8px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
+
+  .admin-page-header h1 {
+    font-size: clamp(2.1rem, 8vw, 3rem);
+    line-height: 1.07;
+  }
+
+  .admin-page-description {
+    margin-top: 10px;
+    font-size: 0.98rem;
+    line-height: 1.5;
+    max-width: 100%;
+  }
+
+  .admin-stat-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .admin-stat-card {
+    min-height: 72px;
+    padding: 8px 10px 7px;
+    border-radius: 8px;
+  }
+
+  .admin-stat-card strong {
+    font-size: 16px;
+    line-height: 1.1;
+  }
+
   .admin-panel-page {
-    padding: 12px 24px;
+    padding: 12px 24px 12px;
   }
 
   .admin-banner {
@@ -3341,11 +3446,12 @@
   }
 
   .admin-stat-card {
-    padding: 16px;
+    padding: 8px 10px 7px;
   }
 
   .admin-stat-card strong {
-    font-size: 22px;
+    font-size: 16px;
+    line-height: 1.1;
   }
 
   .admin-users-toolbar {

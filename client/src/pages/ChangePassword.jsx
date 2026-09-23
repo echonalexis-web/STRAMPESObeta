@@ -5,7 +5,7 @@ import { authAPI } from "../services/api";
 import "../styles/auth.css";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 
-const normalizeRole = (role) => (role === "employee" || role === "jobseeker" ? "resident" : role);
+const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
 const routeForRole = (role) => {
   const r = normalizeRole(role);
@@ -16,7 +16,7 @@ const routeForRole = (role) => {
 };
 
 export default function ChangePassword() {
-  const { user, setUser } = useContext(AuthContext);
+  const { user, setUser, setToken } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const forced = user?.mustChangePassword === true;
@@ -49,10 +49,17 @@ export default function ChangePassword() {
     setSubmitting(true);
     setError("");
     try {
-      await authAPI.changePassword({
+      const { data } = await authAPI.changePassword({
         currentPassword: form.currentPassword,
         newPassword: form.newPassword,
       });
+      // The server invalidates every token issued before this change
+      // (including this tab's own) and returns a fresh one — store it so
+      // this session doesn't immediately get logged out on its next request.
+      if (data?.token) {
+        localStorage.setItem("token", data.token);
+        setToken(data.token);
+      }
       setUser((prev) => (prev ? { ...prev, mustChangePassword: false } : prev));
       navigate(routeForRole(user?.role), { replace: true });
     } catch (err) {
