@@ -6,6 +6,7 @@ const JobseekerProfile = require("../models/JobseekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
 const JobVacancy = require("../models/JobVacancy");
 const JobseekerDocument = require("../models/JobseekerDocument");
+const { sendError } = require("../utils/sendError");
 
 // Does `ref` belong to this user (or is the user an admin)?
 const canAccessRef = async (ref, user) => {
@@ -67,6 +68,8 @@ const canAccessRef = async (ref, user) => {
   return results.some(Boolean);
 };
 
+exports.canAccessRef = canAccessRef;
+
 exports.getSignedUrl = async (req, res) => {
   try {
     const ref = String(req.query.ref || "").trim();
@@ -95,6 +98,6 @@ exports.getSignedUrl = async (req, res) => {
 
     return res.json({ url, expiresIn: SIGNED_URL_TTL_SECONDS });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to resolve file" });
+    return sendError(res, error, "Failed to resolve file");
   }
 };

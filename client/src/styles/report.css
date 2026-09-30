@@ -17,6 +17,16 @@
   padding: 2.4rem 1.5rem 2.6rem;
 }
 
+/* Logged-out visitors get the plain public navbar (navbar.css `.navbar`),
+   which — unlike the authenticated sidebar layout — stays position:fixed
+   at the top on every screen size with no body padding reserved for it.
+   Give the hero its own clearance so the title doesn't sit under it. Scoped
+   to `body:not(.app-with-sidebar)` so the signed-in view (left sidebar, no
+   fixed top bar) keeps its original spacing untouched. */
+body:not(.app-with-sidebar) .job-hero {
+  padding-top: 7rem;
+}
+
 .job-hero-inner {
   max-width: 1120px;
   margin: 0 auto;
@@ -546,6 +556,10 @@ textarea.form-control {
 @media (max-width: 640px) {
   .job-hero {
     padding: 1.5rem 1rem;
+  }
+
+  body:not(.app-with-sidebar) .job-hero {
+    padding-top: 6rem;
   }
 
   .job-hero h1 {

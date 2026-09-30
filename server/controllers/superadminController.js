@@ -6,6 +6,7 @@ const JobApplication = require("../models/JobApplication");
 const { logAuditEvent } = require("../services/auditService");
 const { createNotificationForUser } = require("../services/notificationService");
 const { forceLogout } = require("../services/sessionService");
+const { sendError } = require("../utils/sendError");
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -43,7 +44,7 @@ exports.listAdmins = async (req, res) => {
       .sort({ createdAt: -1 });
     return res.json({ admins: admins.map(toAdminView) });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load admin accounts" });
+    return sendError(res, error, "Failed to load admin accounts");
   }
 };
 
@@ -103,7 +104,7 @@ exports.createAdmin = async (req, res) => {
       tempPassword,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to create admin account" });
+    return sendError(res, error, "Failed to create admin account");
   }
 };
 
@@ -152,7 +153,7 @@ exports.setAdminActive = async (req, res) => {
       admin: toAdminView(admin),
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to update admin account" });
+    return sendError(res, error, "Failed to update admin account");
   }
 };
 
@@ -186,7 +187,7 @@ exports.resetAdminPassword = async (req, res) => {
 
     return res.json({ message: "Temporary password issued.", tempPassword });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to reset password" });
+    return sendError(res, error, "Failed to reset password");
   }
 };
 
@@ -242,6 +243,6 @@ exports.deleteJob = async (req, res) => {
 
     return res.json({ message: "Job permanently removed.", removedApplications });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to remove job" });
+    return sendError(res, error, "Failed to remove job");
   }
 };

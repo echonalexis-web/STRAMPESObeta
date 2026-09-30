@@ -1,5 +1,6 @@
 const SystemSettings = require("../models/SystemSettings");
 const { logAuditEvent } = require("../services/auditService");
+const { sendError } = require("../utils/sendError");
 
 exports.getSystemSettings = async (req, res) => {
   try {
@@ -11,7 +12,7 @@ exports.getSystemSettings = async (req, res) => {
       updatedAt: settings.updatedAt,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message || "Could not load system settings" });
+    sendError(res, error, "Could not load system settings");
   }
 };
 
@@ -75,6 +76,6 @@ exports.updateSystemSettings = async (req, res) => {
       updatedAt: settings.updatedAt,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message || "Could not save system settings" });
+    sendError(res, error, "Could not save system settings");
   }
 };

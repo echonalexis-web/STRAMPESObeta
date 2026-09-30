@@ -2,6 +2,7 @@ const User = require("../models/User");
 const JobseekerProfile = require("../models/JobseekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
 const { fillForm1, fillForm2 } = require("../services/nsrpFormService");
+const { sendError } = require("../utils/sendError");
 
 const sendPdf = (res, filename, buffer) => {
   res.set("Content-Type", "application/pdf");
@@ -24,7 +25,7 @@ exports.exportOwnForm1 = async (req, res) => {
     const buffer = await fillForm1(profile, user);
     sendPdf(res, "NSRP-Form-1.pdf", buffer);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -41,7 +42,7 @@ exports.exportOwnForm2 = async (req, res) => {
     const buffer = await fillForm2(profile, user);
     sendPdf(res, "NSRP-Form-2.pdf", buffer);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -60,7 +61,7 @@ exports.adminExportForm1 = async (req, res) => {
     const buffer = await fillForm1(profile, user);
     sendPdf(res, `NSRP-Form-1-${user._id}.pdf`, buffer);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -77,6 +78,6 @@ exports.adminExportForm2 = async (req, res) => {
     const buffer = await fillForm2(profile, user);
     sendPdf(res, `NSRP-Form-2-${user._id}.pdf`, buffer);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };

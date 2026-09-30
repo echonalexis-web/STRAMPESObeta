@@ -3,6 +3,7 @@ const Announcement = require("../models/Announcement");
 const User = require("../models/User");
 const { createNotificationForUser, notifyManyUsers } = require("../services/notificationService");
 const { logAuditEvent } = require("../services/auditService");
+const { sendError } = require("../utils/sendError");
 
 const getUserId = (req) => req.user.id || req.user._id;
 
@@ -138,7 +139,7 @@ exports.applyToSpes = async (req, res) => {
     if (error.code === 11000) {
       return res.status(409).json({ message: "You have already applied to this SPES program." });
     }
-    return res.status(500).json({ message: error.message || "Failed to submit SPES application" });
+    return sendError(res, error, "Failed to submit SPES application");
   }
 };
 
@@ -153,7 +154,7 @@ exports.getMySpesApplication = async (req, res) => {
     if (!app) return res.json({ application: null });
     return res.json({ application: gateResult(app) });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load application" });
+    return sendError(res, error, "Failed to load application");
   }
 };
 
@@ -165,7 +166,7 @@ exports.listMySpesApplications = async (req, res) => {
       .sort({ createdAt: -1 });
     return res.json({ items: apps.map(gateResult) });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load applications" });
+    return sendError(res, error, "Failed to load applications");
   }
 };
 
@@ -197,7 +198,7 @@ exports.getSpesResultsRoster = async (req, res) => {
       })),
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load results" });
+    return sendError(res, error, "Failed to load results");
   }
 };
 
@@ -231,7 +232,7 @@ exports.adminListSpesApplications = async (req, res) => {
       totalPages: Math.max(Math.ceil(total / limit), 1),
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load applications" });
+    return sendError(res, error, "Failed to load applications");
   }
 };
 
@@ -243,7 +244,7 @@ exports.adminGetSpesApplication = async (req, res) => {
     if (!app) return res.status(404).json({ message: "Application not found" });
     return res.json({ application: app });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load application" });
+    return sendError(res, error, "Failed to load application");
   }
 };
 
@@ -309,7 +310,7 @@ exports.adminRecordEvaluation = async (req, res) => {
 
     return res.json({ message: "Evaluation saved", application: app });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to save evaluation" });
+    return sendError(res, error, "Failed to save evaluation");
   }
 };
 
@@ -379,7 +380,7 @@ exports.adminReleaseResults = async (req, res) => {
       announcement,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to release results" });
+    return sendError(res, error, "Failed to release results");
   }
 };
 
@@ -429,6 +430,6 @@ exports.adminAmendResult = async (req, res) => {
 
     return res.json({ message: "Result updated", application: app });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to amend result" });
+    return sendError(res, error, "Failed to amend result");
   }
 };

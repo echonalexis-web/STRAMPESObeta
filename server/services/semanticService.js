@@ -667,7 +667,11 @@ function cosineSimilarity(vecA, vecB) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-function tfidfRank(job, items, { limit, skip }) {
+// Builds the full sorted TF‑IDF ranking (no pagination slice) — the actually
+// expensive step: one addDocument() + listTerms() per job/candidate, plus an
+// O(n) cosine-similarity pass. Pulled out of tfidfRank() so the cache wrapper
+// below can store and reuse this result across requests.
+function computeTfidfRanking(job, items) {
   const tfidf = new TfIdf();
   tfidf.addDocument(buildJobText(job));
   items.forEach((item) => tfidf.addDocument(buildApplicantText(item)));
@@ -689,6 +693,57 @@ function tfidfRank(job, items, { limit, skip }) {
     };
   });
   ranked.sort((a, b) => b.relevanceScore - a.relevanceScore);
+  return ranked;
+}
+
+// ------------------------------------------------------------------
+// Result cache for the TF‑IDF fallback.
+//
+// This path is only reached when NO structured qualification data exists
+// for any candidate — but on a busy job board or a popular vacancy's
+// applicant list, that can mean the same expensive corpus rebuild running
+// on every page view/poll for the same job and (near-)identical candidate
+// set, causing CPU spikes under load for no new information.
+//
+// The cache key is a hash of the actual document text (buildJobText /
+// buildApplicantText output) rather than an id + timestamp, so correctness
+// doesn't depend on remembering to bump an "updatedAt" anywhere: if a job's
+// description or a candidate's profile actually changes, the hashed text
+// changes, the key changes, and the next request naturally recomputes.
+// Hashing that text is itself far cheaper than the TF‑IDF indexing it lets
+// us skip on a hit. TTL + a max entry count below are just a memory-hygiene
+// backstop, not the correctness mechanism.
+const crypto = require('crypto');
+const TFIDF_CACHE_TTL_MS = 30 * 1000;
+const TFIDF_CACHE_MAX_ENTRIES = 200;
+const tfidfCache = new Map();
+
+function hashText(text) {
+  return crypto.createHash('sha1').update(text).digest('hex');
+}
+
+function tfidfCacheKey(job, items) {
+  const jobKey = hashText(buildJobText(job));
+  const itemsKey = hashText(items.map((item) => buildApplicantText(item)).join(' '));
+  return `${jobKey}:${items.length}:${itemsKey}`;
+}
+
+function tfidfRank(job, items, { limit, skip }) {
+  const key = tfidfCacheKey(job, items);
+  const now = Date.now();
+  const cached = tfidfCache.get(key);
+  if (cached && now - cached.at < TFIDF_CACHE_TTL_MS) {
+    return cached.ranked.slice(skip, skip + limit);
+  }
+
+  const ranked = computeTfidfRanking(job, items);
+
+  if (tfidfCache.size >= TFIDF_CACHE_MAX_ENTRIES) {
+    // Map preserves insertion order — evict the oldest entry.
+    tfidfCache.delete(tfidfCache.keys().next().value);
+  }
+  tfidfCache.set(key, { ranked, at: now });
+
   return ranked.slice(skip, skip + limit);
 }
 

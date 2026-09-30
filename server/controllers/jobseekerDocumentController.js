@@ -1,6 +1,8 @@
 const JobseekerDocument = require("../models/JobseekerDocument");
 const JobApplication = require("../models/JobApplication");
 const storageService = require("../services/storageService");
+const { sendError } = require("../utils/sendError");
+const logger = require("../utils/logger");
 
 // Keeps the library from growing without bound; well above what any real
 // jobseeker needs (a handful of resume variants and a few cover letters).
@@ -30,7 +32,7 @@ exports.listMyDocuments = async (req, res) => {
     const documents = await JobseekerDocument.find(filter).sort({ createdAt: -1 });
     return res.json(documents);
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load your documents" });
+    return sendError(res, error, "Failed to load your documents");
   }
 };
 
@@ -85,7 +87,7 @@ exports.uploadMyDocument = async (req, res) => {
 
     return res.status(201).json(document);
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to save document" });
+    return sendError(res, error, "Failed to save document");
   }
 };
 
@@ -112,7 +114,7 @@ exports.setPrimaryDocument = async (req, res) => {
 
     return res.json(document);
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to update primary document" });
+    return sendError(res, error, "Failed to update primary document");
   }
 };
 
@@ -139,7 +141,9 @@ exports.deleteMyDocument = async (req, res) => {
     await JobseekerDocument.findByIdAndDelete(document._id);
 
     if (!isReferencedByApplication) {
-      Promise.resolve(storageService.remove(document.storedValue)).catch(() => {});
+      Promise.resolve(storageService.remove(document.storedValue)).catch((err) =>
+        logger.error("Failed to remove jobseeker document from storage", { documentId: req.params.id, error: err.message })
+      );
     }
 
     // Deleting the primary document leaves the kind without one — promote
@@ -157,6 +161,6 @@ exports.deleteMyDocument = async (req, res) => {
 
     return res.json({ message: "Document deleted", id: document._id });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to delete document" });
+    return sendError(res, error, "Failed to delete document");
   }
 };

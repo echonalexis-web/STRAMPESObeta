@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 // CSRF Protection (if using sessions)
 const csrfProtection = (req, res, next) => {
@@ -97,20 +98,18 @@ const securityLogger = (req, res, next) => {
   
   res.on('finish', () => {
     const duration = Date.now() - startTime;
-    const logEntry = {
-      timestamp: new Date().toISOString(),
-      method: req.method,
-      url: req.url,
-      ip: req.ip,
-      userAgent: req.get('user-agent'),
-      statusCode: res.statusCode,
-      duration: `${duration}ms`,
-      userId: req.user?._id || 'unauthenticated'
-    };
-    
+
     // Log suspicious activities
     if (res.statusCode === 400 || res.statusCode === 401 || res.statusCode === 403) {
-      console.warn('[SECURITY]', logEntry);
+      logger.warn('security_event', {
+        method: req.method,
+        url: req.url,
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+        statusCode: res.statusCode,
+        duration: `${duration}ms`,
+        userId: req.user?._id || 'unauthenticated',
+      });
     }
   });
   

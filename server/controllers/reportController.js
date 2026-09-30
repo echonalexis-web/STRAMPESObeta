@@ -8,6 +8,7 @@ const AuditLog = require("../models/AuditLog");
 const { logAuditEvent } = require("../services/auditService");
 const { createNotificationForUser, notifyManyUsers } = require("../services/notificationService");
 const { forceLogout } = require("../services/sessionService");
+const { sendError } = require("../utils/sendError");
 
 const startOfToday = () => {
   const d = new Date();
@@ -132,7 +133,7 @@ exports.createReport = async (req, res) => {
 
     return res.status(201).json({ message: "Report submitted. Thank you for helping keep STRAM PESO safe.", report });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to submit report" });
+    return sendError(res, error, "Failed to submit report");
   }
 };
 
@@ -232,7 +233,7 @@ exports.listReports = async (req, res) => {
 
     return res.json({ reports: withContext, total, openCount, counts, page, limit });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load reports" });
+    return sendError(res, error, "Failed to load reports");
   }
 };
 
@@ -338,6 +339,6 @@ exports.resolveReport = async (req, res) => {
 
     return res.json({ message: "Report updated", report: populated });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to resolve report" });
+    return sendError(res, error, "Failed to resolve report");
   }
 };

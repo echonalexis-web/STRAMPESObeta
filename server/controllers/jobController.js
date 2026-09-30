@@ -10,14 +10,7 @@ const EmployerProfile = require("../models/EmployerProfile");
 const { createNotificationForUser } = require("../services/notificationService");
 const storageService = require("../services/storageService");
 const { logAuditEvent } = require("../services/auditService");
-
-// Simple logger
-const logger = {
-  info: (...args) => console.log("[INFO]", ...args),
-  error: (...args) => console.error("[ERROR]", ...args),
-  warn: (...args) => console.warn("[WARN]", ...args),
-  debug: (...args) => console.debug("[DEBUG]", ...args),
-};
+const logger = require("../utils/logger");
 
 // Helper to check if a job is past its deadline
 const isJobPastDeadline = (job) => {
@@ -396,7 +389,9 @@ exports.applyToJob = async (req, res) => {
 
     // Fresh activity — this vacancy is no longer a candidate for the
     // "about to auto-close" warning until it goes quiet again.
-    JobVacancy.updateOne({ _id: job._id }, { $set: { expiryWarnedAt: null } }).catch(() => {});
+    JobVacancy.updateOne({ _id: job._id }, { $set: { expiryWarnedAt: null } }).catch((err) =>
+      logger.error("Failed to clear expiryWarnedAt after new application", { jobId: String(job._id), error: err.message })
+    );
 
     logger.info(`Application submitted: ${application[0]._id} for job ${job._id} by user ${req.user.id}`);
 
@@ -660,7 +655,9 @@ exports.updateMyApplication = async (req, res) => {
       application.resume = resumeUpload ? resumeUpload.storedValue : resumeDocument.storedValue;
       application.resumeDocumentId = resumeDocument ? resumeDocument._id : null;
       if (previous && previous !== application.resume && !previousWasLibrary) {
-        Promise.resolve(storageService.remove(previous)).catch(() => {});
+        Promise.resolve(storageService.remove(previous)).catch((err) =>
+          logger.error("Failed to remove replaced resume from storage", { applicationId: req.params.id, error: err.message })
+        );
       }
     }
 
@@ -671,7 +668,9 @@ exports.updateMyApplication = async (req, res) => {
       application.coverLetterDocumentId = coverLetterDocument ? coverLetterDocument._id : null;
       application.coverLetter = "";
       if (previous && previous !== application.coverLetterFile && !previousWasLibrary) {
-        Promise.resolve(storageService.remove(previous)).catch(() => {});
+        Promise.resolve(storageService.remove(previous)).catch((err) =>
+          logger.error("Failed to remove replaced cover letter from storage", { applicationId: req.params.id, error: err.message })
+        );
       }
     }
 
@@ -754,10 +753,14 @@ exports.deleteMyApplication = async (req, res) => {
     // jobseeker's library; only the JobseekerDocument's own delete route
     // removes that storage.
     if (application.resume && !application.resumeDocumentId) {
-      Promise.resolve(storageService.remove(application.resume)).catch(() => {});
+      Promise.resolve(storageService.remove(application.resume)).catch((err) =>
+        logger.error("Failed to remove resume from storage on application delete", { applicationId: req.params.id, error: err.message })
+      );
     }
     if (application.coverLetterFile && !application.coverLetterDocumentId) {
-      Promise.resolve(storageService.remove(application.coverLetterFile)).catch(() => {});
+      Promise.resolve(storageService.remove(application.coverLetterFile)).catch((err) =>
+        logger.error("Failed to remove cover letter from storage on application delete", { applicationId: req.params.id, error: err.message })
+      );
     }
 
     await JobApplication.findByIdAndDelete(application._id);

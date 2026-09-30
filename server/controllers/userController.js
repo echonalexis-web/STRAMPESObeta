@@ -2,6 +2,7 @@ const User = require("../models/User");
 const JobseekerProfile = require("../models/JobseekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
 const authController = require("./authController");
+const { sendError } = require("../utils/sendError");
 const VALID_INDUSTRIES = require("../data/industries"); // Import industry validation list
 const { isAdultAge, MIN_ACCOUNT_AGE } = require("../utils/age");
 const { logAuditEvent } = require("../services/auditService");
@@ -38,7 +39,7 @@ exports.getProfile = async (req, res) => {
 
     res.json({ user, profile });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -209,7 +210,7 @@ exports.completeOnboarding = async (req, res) => {
       profile: updatedProfile,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -239,7 +240,7 @@ exports.uploadProfileImage = async (req, res) => {
 
     res.json({ message: "Profile image uploaded", profileImage: imageUrl, user });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -265,7 +266,7 @@ exports.uploadResume = async (req, res) => {
 
     res.json({ message: "Resume uploaded", resume: resumeUrl, user });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -283,7 +284,7 @@ exports.changePassword = async (req, res) => {
     await user.save();
     res.json({ message: "Password changed successfully" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 

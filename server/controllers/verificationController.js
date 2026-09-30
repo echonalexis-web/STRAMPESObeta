@@ -3,6 +3,7 @@ const { createNotificationForUser } = require("../services/notificationService")
 const { logAuditEvent } = require("../services/auditService");
 const { postSystemMessage } = require("./messageController");
 const { escapeRegex } = require("../utils/sanitize");
+const { sendError } = require("../utils/sendError");
 
 // ---------------------------------------------------------------------------
 // Shared helpers — submission-received fan-out and the approve/reject core,
@@ -186,7 +187,7 @@ exports.submitEmployerVerification = async (req, res) => {
       verificationStatus: "pending",
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to submit verification" });
+    return sendError(res, error, "Failed to submit verification");
   }
 };
 
@@ -224,7 +225,7 @@ exports.uploadEmployerAvatar = async (req, res) => {
 
     return res.json({ success: true, avatarUrl });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to upload profile picture" });
+    return sendError(res, error, "Failed to upload profile picture");
   }
 };
 
@@ -297,7 +298,7 @@ exports.submitEmployerVerificationWithDocuments = async (req, res) => {
       registrationDocUrl: user.registrationDocUrl,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to submit verification" });
+    return sendError(res, error, "Failed to submit verification");
   }
 };
 
@@ -356,7 +357,7 @@ exports.getVerificationQueue = async (req, res) => {
       status,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load verification queue" });
+    return sendError(res, error, "Failed to load verification queue");
   }
 };
 
@@ -383,7 +384,7 @@ exports.reviewEmployerVerification = async (req, res) => {
 
     return res.json({ message: "Employer verification updated", user: result.user });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to update verification" });
+    return sendError(res, error, "Failed to update verification");
   }
 };
 
@@ -405,7 +406,7 @@ exports.approveEmployerVerification = async (req, res) => {
 
     return res.json({ success: true, verificationStatus: "verified" });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to approve verification" });
+    return sendError(res, error, "Failed to approve verification");
   }
 };
 
@@ -432,6 +433,6 @@ exports.rejectEmployerVerification = async (req, res) => {
       verificationNote: result.note,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to reject verification" });
+    return sendError(res, error, "Failed to reject verification");
   }
 };

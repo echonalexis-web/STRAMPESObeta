@@ -9,6 +9,8 @@ const storageService = require("../services/storageService");
 const { logAuditEvent } = require("../services/auditService");
 const { notifyManyUsers } = require("../services/notificationService");
 const { forceLogout } = require("../services/sessionService");
+const { sendError } = require("../utils/sendError");
+const logger = require("../utils/logger");
 const {
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
@@ -202,7 +204,7 @@ exports.register = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({ message: "Email already exists" });
     }
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -269,7 +271,7 @@ exports.registerEmployer = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({ message: "Email already exists" });
     }
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -352,7 +354,9 @@ exports.login = async (req, res) => {
 
     // Record the sign-in so the superadmin console can flag dormant admin
     // accounts. Fire-and-forget — a write hiccup must not fail a valid login.
-    User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } }).catch(() => {});
+    User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } }).catch((err) =>
+      logger.error("Failed to record lastLoginAt", { userId: String(user._id), error: err.message })
+    );
 
     const token = jwt.sign(
       { id: user._id, role: user.role, tokenVersion: user.tokenVersion },
@@ -379,7 +383,7 @@ exports.login = async (req, res) => {
       ...(reactivated ? { reactivated: true } : {}),
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -421,7 +425,9 @@ exports.changePassword = async (req, res) => {
     user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
-    sendPasswordChangedEmail({ to: user.email, name: user.name }).catch(() => {});
+    sendPasswordChangedEmail({ to: user.email, name: user.name }).catch((err) =>
+      logger.error("Failed to send password-changed notification email", { userId: String(user._id), error: err.message })
+    );
 
     await logAuditEvent({
       req,
@@ -441,7 +447,7 @@ exports.changePassword = async (req, res) => {
 
     return res.json({ message: "Your password has been updated.", token });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Could not change the password" });
+    return sendError(res, error, "Could not change the password");
   }
 };
 
@@ -487,7 +493,7 @@ exports.forgotPassword = async (req, res) => {
     }
     return res.json(generic);
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Could not process the request" });
+    return sendError(res, error, "Could not process the request");
   }
 };
 
@@ -527,7 +533,9 @@ exports.resetPassword = async (req, res) => {
 
     // Security notice to the account's own address (fire-and-forget — a mail
     // hiccup must not fail a completed reset).
-    sendPasswordChangedEmail({ to: user.email, name: user.name }).catch(() => {});
+    sendPasswordChangedEmail({ to: user.email, name: user.name }).catch((err) =>
+      logger.error("Failed to send password-reset notification email", { userId: String(user._id), error: err.message })
+    );
 
     await logAuditEvent({
       req,
@@ -541,7 +549,7 @@ exports.resetPassword = async (req, res) => {
 
     return res.json({ message: "Your password has been reset. You can now sign in." });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Could not reset the password" });
+    return sendError(res, error, "Could not reset the password");
   }
 };
 
@@ -598,7 +606,9 @@ exports.requestEmailChange = async (req, res) => {
     });
     // Heads-up to the current address so the real owner can react if this
     // wasn't them.
-    sendEmailChangeAlert({ to: user.email, name: user.name, newEmail }).catch(() => {});
+    sendEmailChangeAlert({ to: user.email, name: user.name, newEmail }).catch((err) =>
+      logger.error("Failed to send email-change alert to previous address", { userId: String(user._id), error: err.message })
+    );
 
     await logAuditEvent({
       req,
@@ -614,7 +624,7 @@ exports.requestEmailChange = async (req, res) => {
     if (process.env.NODE_ENV !== "production") body.devVerifyUrl = verifyUrl;
     return res.json(body);
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Could not start the email change" });
+    return sendError(res, error, "Could not start the email change");
   }
 };
 
@@ -671,7 +681,9 @@ exports.confirmEmailChange = async (req, res) => {
       name: user.name,
       newEmail: user.email,
       completed: true,
-    }).catch(() => {});
+    }).catch((err) =>
+      logger.error("Failed to send email-change completion alert", { userId: String(user._id), error: err.message })
+    );
 
     await logAuditEvent({
       req,
@@ -685,7 +697,7 @@ exports.confirmEmailChange = async (req, res) => {
 
     return res.json({ message: "Your email address has been updated. Please sign in with your new email." });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Could not confirm the email change" });
+    return sendError(res, error, "Could not confirm the email change");
   }
 };
 
@@ -873,7 +885,7 @@ exports.googleAuth = async (req, res) => {
         message: "An account with this email was just created. Please try signing in again.",
       });
     }
-    return res.status(500).json({ message: error.message || "Google sign-in failed" });
+    return sendError(res, error, "Google sign-in failed");
   }
 };
 
@@ -893,7 +905,7 @@ exports.resendEmailVerification = async (req, res) => {
     const devVerifyUrl = await issueEmailVerification(user);
     return res.json(devVerifyUrl ? { ...generic, devVerifyUrl } : generic);
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Could not process the request" });
+    return sendError(res, error, "Could not process the request");
   }
 };
 
@@ -936,7 +948,7 @@ exports.confirmEmailVerification = async (req, res) => {
 
     return res.json({ message: "Your email has been verified. You can now sign in." });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Could not verify the email" });
+    return sendError(res, error, "Could not verify the email");
   }
 };
 
@@ -960,7 +972,7 @@ exports.acceptTerms = async (req, res) => {
       termsVersion: user.termsVersion,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return sendError(res, error);
   }
 };
 
@@ -973,7 +985,7 @@ exports.getMe = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -993,7 +1005,7 @@ exports.getProfile = async (req, res) => {
 
     res.json({ user, profile });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -1273,7 +1285,7 @@ exports.updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Update profile error:", error);
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -1311,7 +1323,7 @@ exports.updateAvatar = async (req, res) => {
     res.json({ message: "Profile picture updated", profileImage: storedValue });
   } catch (error) {
     console.error("Update avatar error:", error);
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
@@ -1342,7 +1354,7 @@ exports.getSettings = async (req, res) => {
       privacy: user.privacy,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message || "Could not load settings" });
+    sendError(res, error, "Could not load settings");
   }
 };
 
@@ -1385,7 +1397,7 @@ exports.updateSettings = async (req, res) => {
       privacy: user.privacy,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message || "Could not save settings" });
+    sendError(res, error, "Could not save settings");
   }
 };
 
@@ -1446,6 +1458,6 @@ exports.deactivateAccount = async (req, res) => {
       message: "Your account has been deactivated. Sign in again at any time to reactivate it.",
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Could not deactivate the account" });
+    return sendError(res, error, "Could not deactivate the account");
   }
 };

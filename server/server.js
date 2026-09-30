@@ -10,14 +10,34 @@ const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
 const hpp = require("hpp");
 const compression = require("compression");
+const jwt = require("jsonwebtoken");
 const connectDB = require("./config/db");
 const { fileFilter, generateSecureFilename, MAX_FILE_SIZE } = require("./middleware/upload");
 const { sanitizeRequestBody, sanitizeQueryParams } = require("./middleware/validation");
 const { detectMaliciousPayload, securityLogger } = require("./middleware/security");
+const { canAccessRef } = require("./controllers/fileController");
 const presenceService = require("./services/presenceService");
+const logger = require("./utils/logger");
+const { sendError } = require("./utils/sendError");
 
 const app = express();
 const server = http.createServer(app);
+
+// ============ CRASH PROTECTION ============
+// Without these, one unawaited rejected promise or a synchronous throw
+// outside a try/catch anywhere in the app (a controller, a socket handler, a
+// third-party callback) terminates the entire Node process by default,
+// dropping every in-flight HTTP request and Socket.IO connection for every
+// user until the host restarts it. Logging + a controlled exit (so a process
+// manager like Render can restart cleanly) is far safer than letting either
+// event go unhandled.
+process.on("unhandledRejection", (reason) => {
+  logger.error("Unhandled promise rejection", { reason: reason instanceof Error ? reason.message : reason });
+});
+process.on("uncaughtException", (err) => {
+  logger.error("Uncaught exception", { error: err.message, stack: err.stack });
+  process.exit(1);
+});
 
 // ============ CONFIGURATION ============
 
@@ -146,7 +166,7 @@ app.use(
         callback(null, true);
         return;
       }
-      console.warn(`CORS blocked for origin: ${origin}`);
+      logger.warn("CORS blocked", { origin });
       callback(new Error("CORS blocked for this origin"));
     },
     credentials: true,
@@ -177,12 +197,18 @@ app.use("/api/v1/auth/verify-email", authLimiter);
 
 const fs = require("fs");
 const uploadDirs = ["uploads/profiles", "uploads/jobs", "uploads/resumes", "uploads/news", "uploads/temp"];
-uploadDirs.forEach((dir) => {
-  const fullPath = path.join(__dirname, dir);
-  if (!fs.existsSync(fullPath)) {
-    fs.mkdirSync(fullPath, { recursive: true, mode: 0o755 });
-  }
-});
+// fs.promises (not the *Sync variants) so creating these doesn't block the
+// event loop during startup. Fire-and-forget is safe here: the directories
+// only need to exist by the time an actual upload request arrives, which
+// can't happen before server.listen() further down — long after this
+// resolves in practice.
+Promise.all(
+  uploadDirs.map((dir) =>
+    fs.promises
+      .mkdir(path.join(__dirname, dir), { recursive: true, mode: 0o755 })
+      .catch((err) => logger.error("Failed to create upload directory", { dir, error: err.message }))
+  )
+);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -229,28 +255,54 @@ app.post("/api/v1/users/upload-resume", uploadLimiter, (req, res, next) => {
   next();
 });
 
-app.use("/uploads", (req, res, next) => {
-  // Profile pictures and news announcement images are public assets
-  const isPublicImage = req.path.includes("/profiles/") || req.path.includes("/news/");
-
-  if (!isPublicImage) {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) {
-      return res.status(403).json({ message: "Access denied" });
-    }
-    try {
-      const jwt = require("jsonwebtoken");
-      jwt.verify(token, process.env.JWT_SECRET);
-    } catch {
-      return res.status(403).json({ message: "Access denied" });
-    }
-  }
-
+app.use("/uploads", async (req, res, next) => {
   const requestedPath = path.normalize(req.path);
   if (requestedPath.includes("..")) {
     return res.status(403).json({ message: "Invalid file path" });
   }
-  
+
+  // Profile pictures and news announcement images are public assets
+  const isPublicImage = req.path.includes("/profiles/") || req.path.includes("/news/");
+  if (isPublicImage) {
+    return next();
+  }
+
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) {
+    return res.status(403).json({ message: "Access denied" });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    return res.status(403).json({ message: "Access denied" });
+  }
+
+  try {
+    const User = require("./models/User");
+    const user = await User.findById(decoded.id).select("role isActive tokenVersion");
+    if (!user || user.isActive === false) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    if ((decoded.tokenVersion || 0) !== (user.tokenVersion || 0)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // A valid token alone used to be enough to reach any non-public file here
+    // (any authenticated user, any file). This mirrors the same ownership
+    // check the signed-URL path (fileController.getSignedUrl) already
+    // enforces, so this legacy local-storage static route can't grant a
+    // wider audience than that one does for the exact same files.
+    const ref = `/uploads${requestedPath}`;
+    const allowed = await canAccessRef(ref, { id: decoded.id, role: user.role });
+    if (!allowed) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+  } catch {
+    return res.status(403).json({ message: "Access denied" });
+  }
+
   next();
 });
 
@@ -348,56 +400,56 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       app.use(`${basePath}/auth`, authRoutes);
       console.log(`✅ ${basePath}/auth mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/auth:`, e.message);
+      logger.error(`Failed to mount ${basePath}/auth`, { error: e.message });
     }
     
     try {
       app.use(`${basePath}/jobs`, jobRoutes);
       console.log(`✅ ${basePath}/jobs mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/jobs:`, e.message);
+      logger.error(`Failed to mount ${basePath}/jobs`, { error: e.message });
     }
     
     try {
       app.use(`${basePath}/employer`, employerRoutes);
       console.log(`✅ ${basePath}/employer mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/employer:`, e.message);
+      logger.error(`Failed to mount ${basePath}/employer`, { error: e.message });
     }
     
     try {
       app.use(`${basePath}/admin`, adminRoutes);
       console.log(`✅ ${basePath}/admin mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/admin:`, e.message);
+      logger.error(`Failed to mount ${basePath}/admin`, { error: e.message });
     }
 
     try {
       app.use(`${basePath}/superadmin`, superadminRoutes);
       console.log(`✅ ${basePath}/superadmin mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/superadmin:`, e.message);
+      logger.error(`Failed to mount ${basePath}/superadmin`, { error: e.message });
     }
     
     try {
       app.use(`${basePath}/messages`, messageRoutes);
       console.log(`✅ ${basePath}/messages mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/messages:`, e.message);
+      logger.error(`Failed to mount ${basePath}/messages`, { error: e.message });
     }
     
     try {
       app.use(`${basePath}/users`, userRoutes);
       console.log(`✅ ${basePath}/users mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/users:`, e.message);
+      logger.error(`Failed to mount ${basePath}/users`, { error: e.message });
     }
 
     try {
       app.use(`${basePath}/notifications`, notificationRoutes);
       console.log(`✅ ${basePath}/notifications mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/notifications:`, e.message);
+      logger.error(`Failed to mount ${basePath}/notifications`, { error: e.message });
     }
 
     // --- NEW: Mount recommendation routes ---
@@ -405,7 +457,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       app.use(`${basePath}/recommendations`, recommendationRoutes);
       console.log(`✅ ${basePath}/recommendations mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/recommendations:`, e.message);
+      logger.error(`Failed to mount ${basePath}/recommendations`, { error: e.message });
     }
 
     // --- NEW: Mount follow routes ---
@@ -413,7 +465,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       app.use(`${basePath}/follows`, followRoutes);
       console.log(`✅ ${basePath}/follows mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/follows:`, e.message);
+      logger.error(`Failed to mount ${basePath}/follows`, { error: e.message });
     }
 
     // --- NEW: Mount job like routes ---
@@ -421,70 +473,70 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       app.use(`${basePath}/job-likes`, jobLikeRoutes);
       console.log(`✅ ${basePath}/job-likes mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/job-likes:`, e.message);
+      logger.error(`Failed to mount ${basePath}/job-likes`, { error: e.message });
     }
 
     try {
       app.use(`${basePath}/news`, newsRoutes);
       console.log(`✅ ${basePath}/news mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/news:`, e.message);
+      logger.error(`Failed to mount ${basePath}/news`, { error: e.message });
     }
 
     try {
       app.use(`${basePath}/news-likes`, newsLikeRoutes);
       console.log(`✅ ${basePath}/news-likes mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/news-likes:`, e.message);
+      logger.error(`Failed to mount ${basePath}/news-likes`, { error: e.message });
     }
 
     try {
       app.use(`${basePath}/files`, fileRoutes);
       console.log(`✅ ${basePath}/files mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/files:`, e.message);
+      logger.error(`Failed to mount ${basePath}/files`, { error: e.message });
     }
 
     try {
       app.use(`${basePath}/reports`, reportRoutes);
       console.log(`✅ ${basePath}/reports mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/reports:`, e.message);
+      logger.error(`Failed to mount ${basePath}/reports`, { error: e.message });
     }
 
     try {
       app.use(`${basePath}/appeals`, appealRoutes);
       console.log(`✅ ${basePath}/appeals mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/appeals:`, e.message);
+      logger.error(`Failed to mount ${basePath}/appeals`, { error: e.message });
     }
 
     try {
       app.use(`${basePath}/spes`, spesRoutes);
       console.log(`✅ ${basePath}/spes mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/spes:`, e.message);
+      logger.error(`Failed to mount ${basePath}/spes`, { error: e.message });
     }
 
     try {
       app.use(`${basePath}/verification`, verificationRoutes);
       console.log(`✅ ${basePath}/verification mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/verification:`, e.message);
+      logger.error(`Failed to mount ${basePath}/verification`, { error: e.message });
     }
 
     try {
       app.use(`${basePath}/employers`, employerAccountRoutes);
       console.log(`✅ ${basePath}/employers mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/employers:`, e.message);
+      logger.error(`Failed to mount ${basePath}/employers`, { error: e.message });
     }
 
     try {
       app.use(`${basePath}/jobseeker/documents`, jobseekerDocumentRoutes);
       console.log(`✅ ${basePath}/jobseeker/documents mounted`);
     } catch (e) {
-      console.error(`❌ Failed to mount ${basePath}/jobseeker/documents:`, e.message);
+      logger.error(`Failed to mount ${basePath}/jobseeker/documents`, { error: e.message });
     }
 
     console.log(`✅ All routes mounted at ${basePath}`);
@@ -530,7 +582,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     const token = socket.handshake.auth.token;
 
     if (!token) {
-      console.warn("⚠️ Socket connection attempt without token");
+      logger.warn("Socket connection attempt without token");
       return next(new Error("Authentication required"));
     }
 
@@ -564,7 +616,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       console.log(`✅ Socket authenticated for user: ${socket.userId}`);
       next();
     } catch (err) {
-      console.error("❌ Socket authentication error:", err.message);
+      logger.error("Socket authentication error", { error: err.message });
       next(new Error("Invalid token"));
     }
   });
@@ -671,8 +723,8 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   });
 
   app.use((err, req, res, next) => {
-    console.error("Server error:", err);
-    
+    logger.error("Server error", { error: err.message, stack: err.stack, path: req.path });
+
     if (req.uploadedFiles) {
       req.uploadedFiles.forEach((file) => {
         const filePath = path.join(__dirname, "uploads", "temp", file.secure);
@@ -681,12 +733,8 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
         }
       });
     }
-    
-    res.status(err.status || 500).json({
-      message: process.env.NODE_ENV === "production" 
-        ? "Something went wrong" 
-        : err.message,
-    });
+
+    sendError(res, err, "Something went wrong", err.status || 500);
   });
 
   app.use((req, res) => {

@@ -5,6 +5,7 @@ const { notifyNewMessage } = require("../services/notificationService");
 const presenceService = require("../services/presenceService");
 const { logAuditEvent } = require("../services/auditService");
 const { escapeRegex } = require("../utils/sanitize");
+const { sendError } = require("../utils/sendError");
 
 const getUserId = (req) => req.user._id || req.user.id;
 const ACTIVE_USER_FILTER = { $ne: false };
@@ -496,7 +497,7 @@ exports.unsendMessage = async (req, res) => {
     return res.json({ messageId: String(message._id), conversationId: String(message.conversationId) });
   } catch (error) {
     console.error("❌ Unsend message error:", error);
-    return res.status(500).json({ message: error.message || "Failed to unsend message" });
+    return sendError(res, error, "Failed to unsend message");
   }
 };
 

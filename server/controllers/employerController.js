@@ -9,6 +9,7 @@ const { createNotificationForUser } = require("../services/notificationService")
 const { MIN_ACCOUNT_AGE } = require("../utils/age");
 const { logAuditEvent } = require("../services/auditService");
 const SystemSettings = require("../models/SystemSettings");
+const { sendError } = require("../utils/sendError");
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 // How many days before the auto-close cutoff the "about to close" warning
@@ -1266,6 +1267,6 @@ exports.getConnectedJobseekerProfile = async (req, res) => {
 
     return res.json({ user: targetUser, profile });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to fetch jobseeker profile" });
+    return sendError(res, error, "Failed to fetch jobseeker profile");
   }
 };

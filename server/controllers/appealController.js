@@ -4,6 +4,7 @@ const User = require("../models/User");
 const Report = require("../models/Report");
 const { logAuditEvent } = require("../services/auditService");
 const { createNotificationForUser, notifyManyUsers } = require("../services/notificationService");
+const { sendError } = require("../utils/sendError");
 
 const getUserId = (req) => req.user._id || req.user.id;
 
@@ -79,7 +80,7 @@ exports.submitAppeal = async (req, res) => {
 
     return res.status(201).json({ message: "Appeal submitted. LMD Admin will review it.", appeal });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to submit appeal" });
+    return sendError(res, error, "Failed to submit appeal");
   }
 };
 
@@ -103,7 +104,7 @@ exports.getMyAppeal = async (req, res) => {
         : null,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load appeal" });
+    return sendError(res, error, "Failed to load appeal");
   }
 };
 
@@ -169,7 +170,7 @@ exports.listAppeals = async (req, res) => {
 
     return res.json({ appeals: withContext, pendingCount, counts, total, page, limit });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load appeals" });
+    return sendError(res, error, "Failed to load appeals");
   }
 };
 
@@ -245,6 +246,6 @@ exports.resolveAppeal = async (req, res) => {
 
     return res.json({ message: "Appeal updated", appeal });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to resolve appeal" });
+    return sendError(res, error, "Failed to resolve appeal");
   }
 };

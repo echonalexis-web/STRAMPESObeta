@@ -2,6 +2,7 @@ const Announcement = require("../models/Announcement");
 const NewsComment = require("../models/NewsComment");
 const { logAuditEvent } = require("../services/auditService");
 const { createNotificationForUser } = require("../services/notificationService");
+const { sendError } = require("../utils/sendError");
 
 exports.listComments = async (req, res) => {
   try {
@@ -17,7 +18,7 @@ exports.listComments = async (req, res) => {
 
     return res.json({ items: visible });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load comments" });
+    return sendError(res, error, "Failed to load comments");
   }
 };
 
@@ -62,7 +63,7 @@ exports.createComment = async (req, res) => {
 
     return res.status(201).json({ message: "Comment posted", item: populated });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to post comment" });
+    return sendError(res, error, "Failed to post comment");
   }
 };
 
@@ -110,6 +111,6 @@ exports.deleteComment = async (req, res) => {
 
     return res.json({ message: "Comment deleted" });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to delete comment" });
+    return sendError(res, error, "Failed to delete comment");
   }
 };

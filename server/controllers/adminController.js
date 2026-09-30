@@ -11,6 +11,7 @@ const { logAuditEvent } = require("../services/auditService");
 const { createNotificationForUser } = require("../services/notificationService");
 const { forceLogout } = require("../services/sessionService");
 const { escapeRegex } = require("../utils/sanitize");
+const { sendError } = require("../utils/sendError");
 
 const monthBuckets = () => Array.from({ length: 12 }, () => 0);
 
@@ -208,7 +209,7 @@ exports.getAdminAnalytics = async (req, res) => {
       auditEventsToday,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to fetch analytics" });
+    return sendError(res, error, "Failed to fetch analytics");
   }
 };
 
@@ -485,7 +486,7 @@ exports.getProvincialAnalytics = async (req, res) => {
       topRoles,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to fetch provincial analytics" });
+    return sendError(res, error, "Failed to fetch provincial analytics");
   }
 };
 
@@ -539,7 +540,7 @@ exports.getAllUsers = async (req, res) => {
       currentPage: page,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to fetch users" });
+    return sendError(res, error, "Failed to fetch users");
   }
 };
 
@@ -684,7 +685,7 @@ exports.getAuditLogs = async (req, res) => {
       totalPages: Math.max(Math.ceil(total / limit), 1),
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load audit logs" });
+    return sendError(res, error, "Failed to load audit logs");
   }
 };
 
@@ -797,7 +798,7 @@ exports.getAdminVacancies = async (req, res) => {
       totalPages: Math.max(1, Math.ceil(total / limit)),
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to fetch admin job monitoring list" });
+    return sendError(res, error, "Failed to fetch admin job monitoring list");
   }
 };
 
@@ -849,7 +850,7 @@ exports.getAdminVacancyStats = async (req, res) => {
       municipalityBreakdown: Array.from(municipalityMap.values()),
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to fetch job monitoring stats" });
+    return sendError(res, error, "Failed to fetch job monitoring stats");
   }
 };
 
@@ -879,7 +880,7 @@ exports.getHomepageJobManagement = async (req, res) => {
       featuredCount: jobsWithCounts.filter((job) => job.isFeatured).length,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to fetch homepage job management data" });
+    return sendError(res, error, "Failed to fetch homepage job management data");
   }
 };
 
@@ -954,7 +955,7 @@ exports.toggleHomepageFeature = async (req, res) => {
       job: updatedJob,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to update homepage feature" });
+    return sendError(res, error, "Failed to update homepage feature");
   }
 };
 
@@ -1020,7 +1021,7 @@ exports.updateUserRole = async (req, res) => {
       user,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to update role" });
+    return sendError(res, error, "Failed to update role");
   }
 };
 
@@ -1094,7 +1095,7 @@ exports.deactivateUser = async (req, res) => {
 
     return res.json({ message: `User ${permanent ? "banned" : "suspended"}`, user });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to deactivate user" });
+    return sendError(res, error, "Failed to deactivate user");
   }
 };
 
@@ -1137,7 +1138,7 @@ exports.reactivateUser = async (req, res) => {
 
     return res.json({ message: "User reactivated", user });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to reactivate user" });
+    return sendError(res, error, "Failed to reactivate user");
   }
 };
 
@@ -1201,7 +1202,7 @@ exports.deleteUser = async (req, res) => {
 
     return res.json({ message: "User deleted successfully" });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to delete user" });
+    return sendError(res, error, "Failed to delete user");
   }
 };
 
@@ -1266,7 +1267,7 @@ exports.getUserProfileDetails = async (req, res) => {
       employerJobs,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to fetch user profile details" });
+    return sendError(res, error, "Failed to fetch user profile details");
   }
 };
 
@@ -1328,6 +1329,6 @@ exports.updateJobStatus = async (req, res) => {
       job,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to update job status" });
+    return sendError(res, error, "Failed to update job status");
   }
 };

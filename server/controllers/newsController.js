@@ -5,6 +5,8 @@ const { logAuditEvent } = require("../services/auditService");
 const { notifyManyUsers } = require("../services/notificationService");
 const storageService = require("../services/storageService");
 const { escapeRegex } = require("../utils/sanitize");
+const { sendError } = require("../utils/sendError");
+const logger = require("../utils/logger");
 
 // Categories that only matter to jobseekers get scoped to that role; general
 // updates and events go out to everyone so the audience matches the content.
@@ -75,7 +77,9 @@ const toBoolean = (value, fallback) => {
 // Best-effort removal of a previously uploaded announcement image
 const removeNewsImage = (imageUrl) => {
   if (!imageUrl) return;
-  Promise.resolve(storageService.remove(imageUrl)).catch(() => {});
+  Promise.resolve(storageService.remove(imageUrl)).catch((err) =>
+    logger.error("Failed to remove replaced news image from storage", { imageUrl, error: err.message })
+  );
 };
 
 // Attach `likeCount` and `likedByMe` to a list of announcement documents.
@@ -154,7 +158,7 @@ exports.listNews = async (req, res) => {
       totalPages: Math.max(Math.ceil(total / limit), 1),
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load news" });
+    return sendError(res, error, "Failed to load news");
   }
 };
 
@@ -167,7 +171,7 @@ exports.getNewsById = async (req, res) => {
     const [decorated] = await decorateWithLikes([item], req.user?.id);
     return res.json(decorated);
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to load news post" });
+    return sendError(res, error, "Failed to load news post");
   }
 };
 
@@ -207,7 +211,7 @@ exports.createNews = async (req, res) => {
 
     return res.status(201).json({ message: "News post created", item: populated });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to create news post" });
+    return sendError(res, error, "Failed to create news post");
   }
 };
 
@@ -278,7 +282,7 @@ exports.updateNews = async (req, res) => {
 
     return res.json({ message: "News post updated", item: updated });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to update news post" });
+    return sendError(res, error, "Failed to update news post");
   }
 };
 
@@ -301,6 +305,6 @@ exports.deleteNews = async (req, res) => {
     });
     return res.json({ message: "News post deleted" });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to delete news post" });
+    return sendError(res, error, "Failed to delete news post");
   }
 };
