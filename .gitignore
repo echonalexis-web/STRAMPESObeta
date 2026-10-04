@@ -37,6 +37,10 @@ server/uploads/*
 server/scripts/debug-output/
 server/assets/test-output-nsrp1.pdf
 
+# Local-only docs (not part of the app)
+TEST_PLAN_GUIDE.md
+Test Plan - Templates(1).docx
+
 # Editor / OS
 .vscode/*
 !.vscode/extensions.json
@@ -45,3 +49,4 @@ server/assets/test-output-nsrp1.pdf
 *.suo
 *.sw?
 *.local
+
