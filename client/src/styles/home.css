@@ -171,6 +171,12 @@ body, html {
     padding-top: 0 !important;
   }
 
+  .video-hero-section {
+    margin-top: 70px;
+    min-height: calc(100vh - 70px);
+    min-height: calc(100dvh - 70px);
+  }
+
   .hero-mobile-quick-actions {
     display: flex;
   }
@@ -194,6 +200,14 @@ body, html {
   .hero-mobile-register-btn {
     background: var(--marinduque-gold);
     color: var(--primary-green);
+  }
+}
+
+@media (max-width: 700px) {
+  .video-hero-section {
+    margin-top: 62px;
+    min-height: calc(100vh - 62px);
+    min-height: calc(100dvh - 62px);
   }
 }
 

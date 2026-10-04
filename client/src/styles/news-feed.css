@@ -58,6 +58,13 @@ body:not(.app-with-sidebar) .news-feed-page {
   padding-top: 4.2rem;
 }
 
+/* Logged out, .news-feed-page above already clears the fixed top navbar
+   (padding-top: 75px/80px), so this header's own clearance would just
+   stack on top of it and show as a huge gap — zero it out here. */
+body:not(.app-with-sidebar) .news-feed-header {
+  padding-top: 0.8rem;
+}
+
 /* Same logged-in/out split as .news-feed-page above: the 4.2rem here is
    sized to clear a fixed top bar, so it's redundant (and shows as
    unwanted empty space) at desktop widths, where the sidebar sits on the
