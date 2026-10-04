@@ -1,5 +1,5 @@
-import { useContext, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI, jobseekerDocumentAPI, resolveAssetUrl, verificationAPI } from "../services/api";
 import "../styles/profile.css";
@@ -10,7 +10,7 @@ import Autosuggest from "../components/Autosuggest";
 import SearchableDropdown from "../components/SearchableDropdown";
 import FileDropzone from "../components/FileDropzone";
 import EmailChangeCard from "../components/EmailChangeCard";
-import { useToast } from "../components/feedback/context";
+import { useToast, useConfirm } from "../components/feedback/context";
 import { SUGGESTED_SKILLS, INDUSTRY_SKILLS } from "../data/skills";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { parseHeightToCm, parseWeightToKg, wasConverted } from "../utils/unitConversion";
@@ -72,6 +72,58 @@ const INDUSTRY_OPTIONS = [
   "Marketing & Advertising", "Arts & Entertainment", "Human Resources", "Customer Service",
   "Environmental Services", "Others"
 ];
+
+// Shared by the always-visible grid (desktop) and the picker modal (mobile)
+// so both stay in sync with a single source of truth for the button markup.
+function IndustryPillsGrid({ options, selected, onToggle, disabled }) {
+  return (
+    <div className="industry-pills-grid">
+      {options.map((ind) => (
+        <button
+          key={ind}
+          type="button"
+          className={`industry-pill ${selected.includes(ind) ? "active" : ""}`}
+          onClick={() => onToggle(ind)}
+          disabled={disabled}
+        >
+          {ind}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Shared by the always-visible rows (desktop) and the picker modal (mobile).
+function SkillSuggestions({ industrySuggestions, genericSuggestions, onAdd }) {
+  return (
+    <>
+      {industrySuggestions.length > 0 && (
+        <>
+          <span className="suggestion-caption">Recommended for your industry:</span>
+          <div className="suggestions-row">
+            {industrySuggestions.map((skill) => (
+              <button key={skill} type="button" className="suggestion-chip suggestion-chip-recommended" onClick={() => onAdd(skill)}>
+                + {skill}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {genericSuggestions.length > 0 && (
+        <>
+          <span className="suggestion-caption">All skills:</span>
+          <div className="suggestions-row">
+            {genericSuggestions.map((skill) => (
+              <button key={skill} type="button" className="suggestion-chip" onClick={() => onAdd(skill)}>
+                + {skill}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
 
 // Initial empty state for formData
 const initialFormData = {
@@ -277,6 +329,8 @@ const getInitialPersisted = () => ({
 export default function EditProfile() {
   const { user, login } = useContext(AuthContext);
   const toast = useToast();
+  const confirm = useConfirm();
+  const navigate = useNavigate();
   const isEmployer = user?.role === "employer";
   const isSuperadmin = user?.role === "superadmin";
   // The superadmin shares the admin's minimal edit form (name, phone, password) —
@@ -322,6 +376,15 @@ export default function EditProfile() {
     : { ...defaultState, formData: fillBlanksFromUser(defaultState.formData, user) };
 
   const { formData, skills, preferredIndustries, industryPreferenceLevel, activeTab } = safeState;
+
+  // Snapshot of the last-known-saved (server) state, used to detect unsaved
+  // changes for the "leave without saving?" prompt below. localStorage keeps
+  // every keystroke as a draft regardless, so dirtiness has to be measured
+  // against the server, not against that draft.
+  const baselineRef = useRef(null);
+  const setSavedBaseline = (snapshot) => {
+    baselineRef.current = JSON.stringify(snapshot);
+  };
 
   const heightCm = useMemo(() => parseHeightToCm(formData.height), [formData.height]);
   const heightConverted = heightCm !== null && wasConverted(formData.height, heightCm) ? heightCm : null;
@@ -471,10 +534,21 @@ export default function EditProfile() {
 
         // Always populate form from API on component mount
         // This ensures fresh data from server is displayed, not stale persisted state
-        setFormData(mapMergedToFormData(merged));
-        setSkills(Array.isArray(merged.skills) ? merged.skills : []);
-        setPreferredIndustries(Array.isArray(merged.preferredIndustries) ? merged.preferredIndustries : []);
-        setIndustryPreferenceLevel(merged.industryPreferenceLevel || "flexible");
+        const nextFormData = mapMergedToFormData(merged);
+        const nextSkills = Array.isArray(merged.skills) ? merged.skills : [];
+        const nextPreferredIndustries = Array.isArray(merged.preferredIndustries) ? merged.preferredIndustries : [];
+        const nextIndustryPreferenceLevel = merged.industryPreferenceLevel || "flexible";
+
+        setFormData(nextFormData);
+        setSkills(nextSkills);
+        setPreferredIndustries(nextPreferredIndustries);
+        setIndustryPreferenceLevel(nextIndustryPreferenceLevel);
+        setSavedBaseline({
+          formData: nextFormData,
+          skills: nextSkills,
+          preferredIndustries: nextPreferredIndustries,
+          industryPreferenceLevel: nextIndustryPreferenceLevel,
+        });
 
         setExistingResume(merged.resumeFile || "");
         setExistingValidId(merged.validIdFile || "");
@@ -485,7 +559,7 @@ export default function EditProfile() {
       } catch (err) {
         // Fallback to user context if API fails
         if (user) {
-          setFormData({
+          const fallbackFormData = {
             ...initialFormData,
             name: user.name || "",
             surname: user.surname || "",
@@ -505,8 +579,16 @@ export default function EditProfile() {
             workExperience: user.workExperience || "",
             educationalAttainment: user.educationalAttainment || "",
             availabilityStatus: user.availabilityStatus || "",
+          };
+          const fallbackSkills = Array.isArray(user.skills) ? user.skills : [];
+          setFormData(fallbackFormData);
+          setSkills(fallbackSkills);
+          setSavedBaseline({
+            formData: fallbackFormData,
+            skills: fallbackSkills,
+            preferredIndustries,
+            industryPreferenceLevel,
           });
-          setSkills(Array.isArray(user.skills) ? user.skills : []);
         }
       }
     };
@@ -518,6 +600,31 @@ export default function EditProfile() {
   const handleChange = (event) => {
     setFormData((prev) => ({ ...prev, [event.target.name]: event.target.value }));
   };
+
+  const handleTextAreaChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    requestAnimationFrame(() => autoResizeTextarea(event.target));
+  };
+
+  // Auto-growing textareas (About You / Company Description) — resize to fit
+  // their content instead of scrolling inside a fixed-height box.
+  const aboutRef = useRef(null);
+  const companyDescriptionRef = useRef(null);
+  const autoResizeTextarea = (el) => {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.max(el.scrollHeight, 100)}px`;
+  };
+  useLayoutEffect(() => {
+    autoResizeTextarea(aboutRef.current);
+  }, [formData.about]);
+  useLayoutEffect(() => {
+    autoResizeTextarea(companyDescriptionRef.current);
+  }, [formData.companyDescription]);
+
+  const [industryModalOpen, setIndustryModalOpen] = useState(false);
+  const [skillsModalOpen, setSkillsModalOpen] = useState(false);
 
   const handleNestedChange = (parent, field, value) => {
     setFormData((prev) => ({
@@ -547,6 +654,17 @@ export default function EditProfile() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const proceed = await confirm({
+      title: "Save changes?",
+      message: "This will update your profile with the changes you've made.",
+      confirmLabel: "Save Profile",
+      cancelLabel: "Cancel",
+    });
+    if (!proceed) return;
+    await performSave();
+  };
+
+  const performSave = async () => {
     setLoading(true);
     setError("");
     setEmailChangeNotice("");
@@ -704,10 +822,21 @@ export default function EditProfile() {
       
       // Update form with fresh server response to keep fields populated
       const merged = mergeProfileData(response);
-      setFormData(mapMergedToFormData(merged));
-      setSkills(Array.isArray(merged.skills) ? merged.skills : []);
-      setPreferredIndustries(Array.isArray(merged.preferredIndustries) ? merged.preferredIndustries : []);
-      setIndustryPreferenceLevel(merged.industryPreferenceLevel || "flexible");
+      const savedFormData = mapMergedToFormData(merged);
+      const savedSkills = Array.isArray(merged.skills) ? merged.skills : [];
+      const savedPreferredIndustries = Array.isArray(merged.preferredIndustries) ? merged.preferredIndustries : [];
+      const savedIndustryPreferenceLevel = merged.industryPreferenceLevel || "flexible";
+
+      setFormData(savedFormData);
+      setSkills(savedSkills);
+      setPreferredIndustries(savedPreferredIndustries);
+      setIndustryPreferenceLevel(savedIndustryPreferenceLevel);
+      setSavedBaseline({
+        formData: savedFormData,
+        skills: savedSkills,
+        preferredIndustries: savedPreferredIndustries,
+        industryPreferenceLevel: savedIndustryPreferenceLevel,
+      });
     } catch (err) {
       const message = err.response?.data?.message || err.message || "Failed to update profile";
       setError(message);
@@ -777,22 +906,62 @@ export default function EditProfile() {
     : formData.name || [formData.firstName, formData.surname].filter(Boolean).join(" ") || "Your Profile";
   const railRole = isSuperadmin ? "System Superadmin" : isAdmin ? "Administrator" : isEmployer ? "Employer" : "Job Seeker";
 
+  // Dirty = current form state differs from the last state actually saved to
+  // the server (not from the localStorage draft, which tracks every keystroke
+  // regardless of whether it was ever submitted).
+  const isDirty =
+    baselineRef.current !== null &&
+    (baselineRef.current !== JSON.stringify({ formData, skills, preferredIndustries, industryPreferenceLevel }) ||
+      Boolean(currentPassword || newPassword || confirmPassword));
+
+  // Covers an actual browser-level departure (refresh, close tab, typed URL,
+  // browser back/forward) — the browser shows its own built-in confirmation
+  // here; no site can supply custom text for this particular dialog.
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (!isDirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  // Covers in-app navigation away from this page (the Back link and the
+  // Resume Studio link) with our own styled confirm dialog.
+  const guardNavigation = async (event, to) => {
+    if (!isDirty) return;
+    event.preventDefault();
+    const leave = await confirm({
+      title: "Leave without saving?",
+      message: "You have unsaved changes to your profile. If you leave now, those changes will be lost.",
+      confirmLabel: "Discard changes",
+      cancelLabel: "Keep editing",
+      tone: "danger",
+    });
+    if (leave) navigate(to);
+  };
+
   return (
     <div className="editprofile-shell">
       <aside className="editprofile-rail">
-        <Link to="/profile" className="editprofile-rail-back"><FaArrowLeft /> Back to Profile</Link>
-        <div className="editprofile-rail-identity">
-          <div className="editprofile-rail-avatar">
-            {user?.profileImage
-              ? <img src={resolveAssetUrl(user.profileImage)} alt="" />
-              : (railName.trim().charAt(0).toUpperCase() || "U")}
+        <div className="editprofile-rail-topbar">
+          <Link to="/profile" className="editprofile-rail-back" onClick={(event) => guardNavigation(event, "/profile")}>
+            <FaArrowLeft />
+            <span className="editprofile-rail-back-label"> Back to Profile</span>
+          </Link>
+          <div className="editprofile-rail-identity">
+            <div className="editprofile-rail-avatar">
+              {user?.profileImage
+                ? <img src={resolveAssetUrl(user.profileImage)} alt="" />
+                : (railName.trim().charAt(0).toUpperCase() || "U")}
+            </div>
+            <div>
+              <div className="editprofile-rail-name">{railName}</div>
+              <p className="editprofile-rail-role">{railRole}</p>
+            </div>
           </div>
-          <div>
-            <div className="editprofile-rail-name">{railName}</div>
-            <p className="editprofile-rail-role">{railRole}</p>
-          </div>
-        </div>
-        <ul className="editprofile-tabs">
+          <ul className="editprofile-tabs">
           {tabs.map((tab) => (
             <li key={tab.id}>
               <button type="button" className={`editprofile-tab ${activeTab === tab.id ? "active" : ""}`} onClick={() => setActiveTab(tab.id)}>
@@ -802,9 +971,14 @@ export default function EditProfile() {
               </button>
             </li>
           ))}
-        </ul>
+          </ul>
+        </div>
         {!isAdmin && !isEmployer ? (
-          <Link to="/profile/resume" className="editprofile-rail-resume">
+          <Link
+            to="/profile/resume"
+            className="editprofile-rail-resume"
+            onClick={(event) => guardNavigation(event, "/profile/resume")}
+          >
             <FaMagic /> Resume &amp; Cover Letter Studio
           </Link>
         ) : null}
@@ -939,24 +1113,93 @@ export default function EditProfile() {
                   </div>
                   <div className="profile-field">
                     <label htmlFor="about">About You</label>
-                    <textarea id="about" name="about" value={formData.about} onChange={handleChange} rows="4" placeholder="Tell employers about yourself..." />
+                    <textarea
+                      id="about"
+                      name="about"
+                      ref={aboutRef}
+                      value={formData.about}
+                      onChange={handleTextAreaChange}
+                      onInput={(event) => autoResizeTextarea(event.target)}
+                      rows="4"
+                      className="profile-textarea-auto"
+                      placeholder="Tell employers about yourself..."
+                    />
                   </div>
                   <div className="profile-field-group">
                     <h3 className="profile-section-title">Preferred Industries</h3>
                     <p className="profile-section-hint">Select the industries you are interested in working in.</p>
-                    <div className="industry-pills-grid">
-                      {INDUSTRY_OPTIONS.map(ind => (
-                        <button
-                          key={ind}
-                          type="button"
-                          className={`industry-pill ${preferredIndustries.includes(ind) ? "active" : ""}`}
-                          onClick={() => toggleIndustry(ind)}
-                          disabled={loading}
-                        >
-                          {ind}
-                        </button>
-                      ))}
+
+                    <div className="industry-pills-desktop">
+                      <IndustryPillsGrid
+                        options={INDUSTRY_OPTIONS}
+                        selected={preferredIndustries}
+                        onToggle={toggleIndustry}
+                        disabled={loading}
+                      />
                     </div>
+
+                    <div className="industry-mobile-summary">
+                      <div className="industry-chip-list">
+                        {preferredIndustries.length === 0 ? (
+                          <span className="industry-chip-empty">No industries selected yet</span>
+                        ) : (
+                          preferredIndustries.map((ind) => (
+                            <span key={ind} className="industry-chip">
+                              {ind}
+                              <button type="button" onClick={() => toggleIndustry(ind)} aria-label={`Remove ${ind}`}>
+                                <FaTimes />
+                              </button>
+                            </span>
+                          ))
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="industry-select-trigger"
+                        onClick={() => setIndustryModalOpen(true)}
+                        disabled={loading}
+                      >
+                        <FaPlus /> Select Industries
+                      </button>
+                    </div>
+
+                    {industryModalOpen ? (
+                      <div className="industry-modal-overlay" onClick={() => setIndustryModalOpen(false)}>
+                        <div
+                          className="industry-modal"
+                          role="dialog"
+                          aria-modal="true"
+                          aria-label="Select preferred industries"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <div className="industry-modal-head">
+                            <h4>Select Industries</h4>
+                            <button
+                              type="button"
+                              className="industry-modal-close"
+                              onClick={() => setIndustryModalOpen(false)}
+                              aria-label="Close"
+                            >
+                              <FaTimes />
+                            </button>
+                          </div>
+                          <div className="industry-modal-body">
+                            <IndustryPillsGrid
+                              options={INDUSTRY_OPTIONS}
+                              selected={preferredIndustries}
+                              onToggle={toggleIndustry}
+                              disabled={loading}
+                            />
+                          </div>
+                          <div className="industry-modal-foot">
+                            <button type="button" className="industry-modal-done" onClick={() => setIndustryModalOpen(false)}>
+                              Done ({preferredIndustries.length} selected)
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
                     <div style={{ marginTop: '1.5rem' }}>
                       <span className="profile-label">Preference Mode</span>
                       <div className="pill-row">
@@ -1028,7 +1271,16 @@ export default function EditProfile() {
                   </div>
                   <div className="profile-field">
                     <label htmlFor="companyDescription">Company Description</label>
-                    <textarea id="companyDescription" name="companyDescription" value={formData.companyDescription} onChange={handleChange} rows="4" />
+                    <textarea
+                      id="companyDescription"
+                      name="companyDescription"
+                      ref={companyDescriptionRef}
+                      value={formData.companyDescription}
+                      onChange={handleTextAreaChange}
+                      onInput={(event) => autoResizeTextarea(event.target)}
+                      rows="4"
+                      className="profile-textarea-auto"
+                    />
                   </div>
                 </div>
               )}
@@ -1158,26 +1410,62 @@ export default function EditProfile() {
                     </span>
                   ))}
                 </div>
-                {industrySuggestions.length > 0 && (
-                  <>
-                    <span className="suggestion-caption">Recommended for your industry:</span>
-                    <div className="suggestions-row">
-                      {industrySuggestions.map((skill) => (
-                        <button key={skill} type="button" className="suggestion-chip suggestion-chip-recommended" onClick={() => addSkill(skill)}>+ {skill}</button>
-                      ))}
+                <div className="skills-suggestions-desktop">
+                  <SkillSuggestions
+                    industrySuggestions={industrySuggestions}
+                    genericSuggestions={genericSuggestions}
+                    onAdd={addSkill}
+                  />
+                </div>
+
+                {industrySuggestions.length > 0 || genericSuggestions.length > 0 ? (
+                  <div className="skills-suggestions-mobile">
+                    <button
+                      type="button"
+                      className="industry-select-trigger"
+                      onClick={() => setSkillsModalOpen(true)}
+                    >
+                      <FaPlus /> Browse Suggested Skills
+                    </button>
+                  </div>
+                ) : null}
+
+                {skillsModalOpen ? (
+                  <div className="industry-modal-overlay" onClick={() => setSkillsModalOpen(false)}>
+                    <div
+                      className="industry-modal"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label="Browse suggested skills"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <div className="industry-modal-head">
+                        <h4>Suggested Skills</h4>
+                        <button
+                          type="button"
+                          className="industry-modal-close"
+                          onClick={() => setSkillsModalOpen(false)}
+                          aria-label="Close"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                      <div className="industry-modal-body">
+                        <SkillSuggestions
+                          industrySuggestions={industrySuggestions}
+                          genericSuggestions={genericSuggestions}
+                          onAdd={addSkill}
+                        />
+                      </div>
+                      <div className="industry-modal-foot">
+                        <button type="button" className="industry-modal-done" onClick={() => setSkillsModalOpen(false)}>
+                          Done ({skills.length} selected)
+                        </button>
+                      </div>
                     </div>
-                  </>
-                )}
-                {genericSuggestions.length > 0 && (
-                  <>
-                    <span className="suggestion-caption">All skills:</span>
-                    <div className="suggestions-row">
-                      {genericSuggestions.map((skill) => (
-                        <button key={skill} type="button" className="suggestion-chip" onClick={() => addSkill(skill)}>+ {skill}</button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                  </div>
+                ) : null}
+
                 {skills.length === 0 && industrySuggestions.length === 0 && genericSuggestions.length === 0 && (
                   <p className="help-text" style={{ marginTop: "8px" }}>Add skills to improve job matching and recommendations</p>
                 )}
@@ -1245,8 +1533,10 @@ export default function EditProfile() {
                       type="checkbox"
                       checked={courseUnknown}
                       onChange={(e) => toggleCourseUnknown(e.target.checked)}
+                      className="custom-checkbox-input"
                     />
-                    I'm not sure / don't know my course yet
+                    <span className="custom-checkbox-box"></span>
+                    <span className="custom-checkbox-text">I'm not sure / don't know my course yet</span>
                   </label>
                 </div>
               )}

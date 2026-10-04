@@ -55,7 +55,7 @@ export default function UserModeration() {
             >
               <span className="mq-tab__dot" aria-hidden="true" />
               <span className="mq-tab__icon">{meta.icon}</span>
-              <span>{meta.label}</span>
+              <span className="mq-tab__label">{meta.label}</span>
               {badge ? <span className="mq-tab__badge">{badge}</span> : null}
             </button>
           );

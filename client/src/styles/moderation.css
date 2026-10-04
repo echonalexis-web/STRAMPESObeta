@@ -874,7 +874,23 @@
 
 @media (max-width: 768px) {
   .mq-statstrip {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .mq-stat {
+    padding: 10px 8px;
+    gap: 1px;
+  }
+
+  .mq-stat__value {
+    font-size: 1.15rem;
+  }
+
+  .mq-stat__label {
+    font-size: 9px;
+    letter-spacing: 0.03em;
   }
 
   .mq-panel__head {
@@ -891,5 +907,110 @@
 
   .admin-page-header--with-icon {
     gap: 14px;
+  }
+
+  .mq-tab-bar .mq-tab {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    min-height: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .mq-tab-bar .mq-tab .mq-tab__dot {
+    display: none;
+  }
+
+  .mq-tab-bar .mq-tab__icon {
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+
+  .mq-tab__label {
+    flex: 1;
+    line-height: 1.2;
+  }
+
+  .mq-tab__badge {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+  }
+
+  .mq-table-wrap {
+    display: none;
+  }
+
+  .mq-mobile-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .mq-mobile-card {
+    background: #fff;
+    border: 1px solid var(--mq-border);
+    border-left: 3px solid transparent;
+    border-radius: 14px;
+    padding: 14px 14px 12px;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+  }
+
+  .mq-mobile-card--sev-high { border-left-color: #e11d48; }
+  .mq-mobile-card--sev-medium { border-left-color: #f59e0b; }
+  .mq-mobile-card--appeal-pending { border-left-color: #f59e0b; }
+  .mq-mobile-card--appeal-under_review { border-left-color: #2563eb; }
+  .mq-mobile-card--appeal-approved { border-left-color: #16a34a; }
+  .mq-mobile-card--appeal-denied { border-left-color: #94a3b8; }
+
+  .mq-mobile-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .mq-mobile-card__repeat {
+    margin-top: 8px;
+  }
+
+  .mq-mobile-card__meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+    margin: 12px 0;
+  }
+
+  .mq-mobile-card__meta-full {
+    grid-column: 1 / -1;
+  }
+
+  .mq-mobile-card__meta label {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--mq-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 800;
+  }
+
+  .mq-mobile-card__meta p {
+    margin: 0;
+    color: var(--mq-heading);
+    font-size: 0.92rem;
+    line-height: 1.4;
+  }
+
+  .mq-mobile-card__action {
+    width: 100%;
+  }
+}
+
+@media (min-width: 769px) {
+  .mq-mobile-list {
+    display: none;
   }
 }

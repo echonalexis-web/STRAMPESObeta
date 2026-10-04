@@ -316,12 +316,15 @@ exports.getVerificationQueue = async (req, res) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
     const search = String(req.query.search || "").trim();
-    const status = QUEUE_STATUSES.includes(req.query.status) ? req.query.status : "pending";
+    const status =
+      req.query.status === "all"
+        ? "all"
+        : QUEUE_STATUSES.includes(req.query.status)
+        ? req.query.status
+        : "pending";
 
-    const filter = {
-      role: "employer",
-      verificationStatus: status,
-    };
+    const filter = { role: "employer" };
+    if (status !== "all") filter.verificationStatus = status;
 
     if (search) {
       const searchRegex = escapeRegex(search);
@@ -336,7 +339,9 @@ exports.getVerificationQueue = async (req, res) => {
     // already-decided employers (verified/rejected) surface the most
     // recently reviewed one first.
     const sort =
-      status === "pending" ? { createdAt: -1 } : { verificationReviewedAt: -1, createdAt: -1 };
+      status === "pending" || status === "all"
+        ? { createdAt: -1 }
+        : { verificationReviewedAt: -1, createdAt: -1 };
 
     const [total, users] = await Promise.all([
       User.countDocuments(filter),

@@ -548,7 +548,7 @@ export default function Reports() {
                 rows.map((row) => (
                   <tr key={row._id}>
                     {columns.map((col) => (
-                      <td key={col.key}>{col.get(row)}</td>
+                      <td key={col.key} data-label={col.label}>{col.get(row)}</td>
                     ))}
                   </tr>
                 ))

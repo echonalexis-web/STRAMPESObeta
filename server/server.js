@@ -1,4 +1,9 @@
 require("dotenv").config();
+const dns = require("dns");
+// Some hosts (Render included) route outbound IPv6 to nowhere, so an SMTP
+// connection to a host that resolves AAAA first (e.g. Gmail) hangs instead of
+// failing — preferring IPv4 here avoids that class of silent timeout.
+if (typeof dns.setDefaultResultOrder === "function") dns.setDefaultResultOrder("ipv4first");
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");

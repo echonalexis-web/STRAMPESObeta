@@ -33,6 +33,12 @@ const buildTransporter = () => {
 
   const common = {
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    // A blocked/black-holed network path (seen on some hosts' outbound SMTP)
+    // leaves the socket open with no response, so without these the call
+    // hangs well past any caller's own timeout instead of failing fast.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
   };
 
   if (process.env.SMTP_SERVICE) {

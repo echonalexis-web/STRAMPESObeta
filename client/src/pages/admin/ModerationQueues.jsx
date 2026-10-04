@@ -446,6 +446,80 @@ function ReportReviewDrawer({ report, onClose, onResolved }) {
   );
 }
 
+function ReportMobileCards({ reports, loading, onReview, onNavigate }) {
+  return (
+    <div className="mq-mobile-list" aria-label="User reports mobile list">
+      {loading ? (
+        <p className="mq-empty">Loading reports…</p>
+      ) : reports.length === 0 ? (
+        <p className="mq-empty">No reports in this view.</p>
+      ) : (
+        reports.map((report) => {
+          const severity = REPORT_CATEGORY_SEVERITY[report.category] || "low";
+          const repeat = report.ownerContext?.reportTotal > 1;
+          return (
+            <article key={report._id} className={`mq-mobile-card mq-mobile-card--sev-${severity}`}>
+              <div className="mq-mobile-card__header">
+                <div className="mq-target">
+                  <span className={`mq-dot mq-dot--${severity}`} aria-label={`${severity} severity`} />
+                  <div>
+                    <strong>{report.targetType.replace(/_/g, " ")}</strong>
+                    {report.targetOwner ? (
+                      <button
+                        type="button"
+                        className="mq-linklike"
+                        onClick={() => onNavigate(report.targetOwner._id)}
+                      >
+                        {report.targetOwner.name || report.targetOwner.email}
+                      </button>
+                    ) : (
+                      <span className="mq-muted">id: {report.targetId}</span>
+                    )}
+                  </div>
+                </div>
+                <span className={`mq-status mq-status--${report.status}`}>
+                  {report.status.replace(/_/g, " ")}
+                </span>
+              </div>
+              {repeat ? (
+                <span className="mq-repeat mq-mobile-card__repeat">
+                  {report.ownerContext.reportTotal} reports on this user
+                </span>
+              ) : null}
+              <div className="mq-mobile-card__meta">
+                <div className="mq-mobile-card__meta-full">
+                  <label>Reason</label>
+                  <p>
+                    <span className="mq-reason">{REPORT_CATEGORY_LABELS[report.category] || report.category}</span>
+                    <span className={`mq-reason__sev mq-reason__sev--${SEVERITY_META[severity].tone}`}>
+                      {SEVERITY_META[severity].label}
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <label>Reported by</label>
+                  <p>{report.reporter?.name || report.reporter?.email || "—"}</p>
+                </div>
+                <div>
+                  <label>Date</label>
+                  <p>{formatDate(report.createdAt)}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="mq-btn mq-btn--review mq-mobile-card__action"
+                onClick={() => onReview(report)}
+              >
+                Review
+              </button>
+            </article>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 export function ReportsQueue({ onStats }) {
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
@@ -596,6 +670,13 @@ export function ReportsQueue({ onStats }) {
         </table>
       </div>
 
+      <ReportMobileCards
+        reports={reports}
+        loading={loading}
+        onReview={setReviewing}
+        onNavigate={(id) => navigate(`/admin/users/${id}`)}
+      />
+
       <Pagination page={page} total={total} onPage={setPage} />
 
       {reviewing ? (
@@ -730,6 +811,67 @@ function AppealReviewDrawer({ appeal, onClose, onResolved }) {
   );
 }
 
+function AppealMobileCards({ appeals, loading, onReview, onNavigate }) {
+  return (
+    <div className="mq-mobile-list" aria-label="Suspension appeals mobile list">
+      {loading ? (
+        <p className="mq-empty">Loading appeals…</p>
+      ) : appeals.length === 0 ? (
+        <p className="mq-empty">No appeals submitted.</p>
+      ) : (
+        appeals.map((appeal) => {
+          const priorReports = appeal.context?.reportsAgainstUser || 0;
+          return (
+            <article key={appeal._id} className={`mq-mobile-card mq-mobile-card--appeal-${appeal.status}`}>
+              <div className="mq-mobile-card__header">
+                <div className="mq-target">
+                  <span className={`mq-dot mq-dot--appeal-${appeal.status}`} aria-hidden="true" />
+                  <button
+                    type="button"
+                    className="mq-linklike"
+                    onClick={() => appeal.user?._id && onNavigate(appeal.user._id)}
+                  >
+                    {appeal.user?.name || appeal.user?.email || "Unknown"}
+                  </button>
+                </div>
+                <span className={`mq-status mq-status--${appeal.status}`}>
+                  {appeal.status.replace(/_/g, " ")}
+                </span>
+              </div>
+              {priorReports > 0 ? (
+                <span className="mq-repeat mq-mobile-card__repeat">
+                  {priorReports} report{priorReports === 1 ? "" : "s"} on file
+                </span>
+              ) : null}
+              <div className="mq-mobile-card__meta">
+                <div>
+                  <label>Type</label>
+                  <p>
+                    <span className={`mq-pill mq-pill--${appeal.accountStatus === "banned" ? "critical" : "danger"}`}>
+                      {appeal.accountStatus === "banned" ? "Ban" : "Suspension"}
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <label>Submitted</label>
+                  <p>{formatDate(appeal.createdAt)}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="mq-btn mq-btn--review mq-mobile-card__action"
+                onClick={() => onReview(appeal)}
+              >
+                {["approved", "denied"].includes(appeal.status) ? "View" : "Review"}
+              </button>
+            </article>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 export function AppealsQueue({ onStats }) {
   const navigate = useNavigate();
   const [appeals, setAppeals] = useState([]);
@@ -850,6 +992,13 @@ export function AppealsQueue({ onStats }) {
           </tbody>
         </table>
       </div>
+
+      <AppealMobileCards
+        appeals={appeals}
+        loading={loading}
+        onReview={setReviewing}
+        onNavigate={(id) => navigate(`/admin/users/${id}`)}
+      />
 
       <Pagination page={page} total={total} onPage={setPage} />
 

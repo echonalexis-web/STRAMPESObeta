@@ -28,19 +28,63 @@ const formatDate = (value) => {
 
 function UserStatCards({ employers, jobseekers }) {
   const stats = [
-    { label: "Employers", value: employers, tone: "info" },
-    { label: "Jobseekers", value: jobseekers, tone: "success" },
+    { label: "Employers", value: employers, tone: "info", icon: "🏢" },
+    { label: "Jobseekers", value: jobseekers, tone: "success", icon: "👤" },
   ];
 
   return (
-    <section className="admin-stat-row admin-stat-row--compact">
+    <section className="admin-user-summary" aria-label="User totals summary">
       {stats.map((stat) => (
-        <article key={stat.label} className={`admin-stat-card admin-stat-card--compact admin-stat-card--${stat.tone}`}>
-          <span className="admin-stat-label">{stat.label}</span>
-          <strong>{stat.value}</strong>
+        <article key={stat.label} className={`admin-user-summary-card admin-user-summary-card--${stat.tone}`}>
+          <div className="admin-user-summary-card__icon">{stat.icon}</div>
+          <div className="admin-user-summary-card__content">
+            <span className="admin-user-summary-card__label">{stat.label}</span>
+            <strong>{stat.value}</strong>
+          </div>
         </article>
       ))}
     </section>
+  );
+}
+
+function UserDirectoryCards({ title, data, onToggleStatus, onViewProfile }) {
+  return (
+    <div className="admin-mobile-user-list" aria-label={`${title} mobile directory`}>
+      {data.length === 0 ? (
+        <div className="admin-empty-state"><p>No {title.toLowerCase()} found.</p></div>
+      ) : (
+        data.map((user) => (
+          <article key={user._id} className="admin-mobile-user-card">
+            <div className="admin-mobile-user-card__header">
+              <h4>{user.name}</h4>
+              <span className={`admin-status-badge ${user.isActive === false ? "inactive" : "active"}`}>
+                {user.isActive === false ? "Inactive" : "Active"}
+              </span>
+            </div>
+
+            <div className="admin-mobile-user-card__meta">
+              <div>
+                <label>Email</label>
+                <p>{user.email}</p>
+              </div>
+              <div>
+                <label>Joined</label>
+                <p>{formatDate(user.createdAt)}</p>
+              </div>
+            </div>
+
+            <div className="admin-mobile-user-card__actions">
+              <button type="button" className="admin-inline-btn admin-inline-btn--primary" onClick={() => onViewProfile(user)}>
+                View Profile
+              </button>
+              <button type="button" className="admin-inline-btn admin-inline-btn--secondary" onClick={() => onToggleStatus(user)}>
+                {user.isActive === false ? "Reactivate" : "Deactivate"}
+              </button>
+            </div>
+          </article>
+        ))
+      )}
+    </div>
   );
 }
 
@@ -93,6 +137,7 @@ function EmployersDirectory({ data, onToggleStatus, onViewProfile }) {
           </tbody>
         </table>
       </div>
+      <UserDirectoryCards title="Employers" data={data} onToggleStatus={onToggleStatus} onViewProfile={onViewProfile} />
     </div>
   );
 }
@@ -146,11 +191,33 @@ function JobseekersDirectory({ data, onToggleStatus, onViewProfile }) {
           </tbody>
         </table>
       </div>
+      <UserDirectoryCards title="Jobseekers" data={data} onToggleStatus={onToggleStatus} onViewProfile={onViewProfile} />
     </div>
   );
 }
 
 const PAGE_SIZE = 20;
+
+// Builds a page-number list with "…" gap markers, e.g. [1, "…", 4, 5, 6, "…", 12].
+function buildPageList(current, total) {
+  const pages = [];
+  for (let i = 1; i <= total; i += 1) {
+    if (i === 1 || i === total || (i >= current - 1 && i <= current + 1)) {
+      pages.push(i);
+    }
+  }
+
+  const withEllipsis = [];
+  let previous = 0;
+  for (const i of pages) {
+    if (previous && i - previous > 1) {
+      withEllipsis.push("…");
+    }
+    withEllipsis.push(i);
+    previous = i;
+  }
+  return withEllipsis;
+}
 
 export default function UserManagement() {
   const navigate = useNavigate();
@@ -311,7 +378,7 @@ export default function UserManagement() {
         jobseekers={counts.jobseekerCount}
       />
 
-      <div className="tab-pill-bar" role="tablist" aria-label="User management tabs">
+      <div className="tab-pill-bar um-tab-bar" role="tablist" aria-label="User management tabs">
         {Object.entries(tabMeta).map(([key, meta]) => (
           <button
             key={key}
@@ -329,8 +396,8 @@ export default function UserManagement() {
 
       <div className="tab-content">{renderTabContent()}</div>
 
-      {!loading && totalPages > 1 && (
-        <div className="admin-pagination">
+      {!loading && (
+        <div className="admin-pagination um-pagination">
           <button
             type="button"
             disabled={page === 1}
@@ -338,9 +405,26 @@ export default function UserManagement() {
           >
             Previous
           </button>
-          <span>
-            Page <strong>{page}</strong> of {totalPages} — {directoryLabel}
-          </span>
+          <div className="um-pagination__pages">
+            {buildPageList(page, totalPages).map((item, index) =>
+              item === "…" ? (
+                <span key={`ellipsis-${index}`} className="um-pagination__ellipsis">
+                  …
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  type="button"
+                  className={`um-pagination__page ${item === page ? "active" : ""}`}
+                  aria-current={item === page ? "page" : undefined}
+                  disabled={item === page}
+                  onClick={() => setPage(item)}
+                >
+                  {item}
+                </button>
+              )
+            )}
+          </div>
           <button
             type="button"
             disabled={page >= totalPages}

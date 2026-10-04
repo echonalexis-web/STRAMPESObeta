@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { FaChevronDown, FaSlidersH } from "react-icons/fa";
 import { adminAPI } from "../../services/api";
 import "../../styles/admin.css";
+import "../../styles/audit-trail.css";
 import AdminHeader from "./AdminHeader";
 import { formatAuditAction, getAuditCategories } from "../../utils/auditConstants";
 
@@ -18,6 +20,13 @@ const formatDateTime = (value) => {
 };
 
 const normalizeSeverity = (value) => String(value || "info").trim().toLowerCase();
+
+const getSeverityMeta = (value) => {
+  const severity = normalizeSeverity(value);
+  const severityClass = severity === "critical" ? "critical" : severity === "warning" ? "warning" : "info";
+  const severityLabel = severity === "critical" ? "Critical" : severity === "warning" ? "Warning" : "Info";
+  return { severityClass, severityLabel };
+};
 
 const range = (start, end) => Array.from({ length: end - start + 1 }, (_, index) => start + index);
 
@@ -61,6 +70,7 @@ export default function AuditTrail() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalEntries, setTotalEntries] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   useEffect(() => {
     let isCurrent = true;
@@ -108,6 +118,15 @@ export default function AuditTrail() {
     actionCategoryFilter !== "all" ||
     Boolean(fromDate) ||
     Boolean(toDate);
+
+  // Drives the mobile "Filters" toggle badge — search stays always visible,
+  // so it isn't counted here.
+  const extraActiveFilterCount = [
+    severityFilter !== "all",
+    actionCategoryFilter !== "all",
+    Boolean(fromDate),
+    Boolean(toDate),
+  ].filter(Boolean).length;
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -162,7 +181,21 @@ export default function AuditTrail() {
               />
             </div>
 
-            <div className="admin-filter-group">
+            <button
+              type="button"
+              className={`admin-filter-toggle ${filtersExpanded ? "is-expanded" : ""}`}
+              aria-expanded={filtersExpanded}
+              onClick={() => setFiltersExpanded((prev) => !prev)}
+            >
+              <FaSlidersH aria-hidden="true" />
+              Filters
+              {extraActiveFilterCount > 0 ? (
+                <span className="admin-filter-toggle__badge">{extraActiveFilterCount}</span>
+              ) : null}
+              <FaChevronDown aria-hidden="true" className="admin-filter-toggle__chevron" />
+            </button>
+
+            <div className={`admin-filter-group admin-filter-group--collapsible ${filtersExpanded ? "is-expanded" : ""}`}>
               <label htmlFor="audit-severity" className="admin-filter-label">
                 Severity
               </label>
@@ -181,7 +214,7 @@ export default function AuditTrail() {
               </select>
             </div>
 
-            <div className="admin-filter-group">
+            <div className={`admin-filter-group admin-filter-group--collapsible ${filtersExpanded ? "is-expanded" : ""}`}>
               <label htmlFor="audit-action-category" className="admin-filter-label">
                 Action Category
               </label>
@@ -201,7 +234,7 @@ export default function AuditTrail() {
               </select>
             </div>
 
-            <div className="admin-filter-group">
+            <div className={`admin-filter-group admin-filter-group--collapsible ${filtersExpanded ? "is-expanded" : ""}`}>
               <label htmlFor="audit-from-date" className="admin-filter-label">
                 From Date
               </label>
@@ -216,7 +249,7 @@ export default function AuditTrail() {
               />
             </div>
 
-            <div className="admin-filter-group">
+            <div className={`admin-filter-group admin-filter-group--collapsible ${filtersExpanded ? "is-expanded" : ""}`}>
               <label htmlFor="audit-to-date" className="admin-filter-label">
                 To Date
               </label>
@@ -267,9 +300,7 @@ export default function AuditTrail() {
                 </tr>
               ) : (
                 logs.map((log) => {
-                  const severity = normalizeSeverity(log.severity);
-                  const severityClass = severity === "critical" ? "critical" : severity === "warning" ? "warning" : "info";
-                  const severityLabel = severity === "critical" ? "Critical" : severity === "warning" ? "Warning" : "Info";
+                  const { severityClass, severityLabel } = getSeverityMeta(log.severity);
 
                   return (
                     <tr key={log._id || `${log.createdAt}-${log.action}`}>
@@ -288,6 +319,52 @@ export default function AuditTrail() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="admin-audit-mobile-list" aria-label="Audit log mobile list">
+          {loading ? (
+            <p className="admin-loading">Loading audit logs...</p>
+          ) : logs.length === 0 ? (
+            <div className="admin-empty-state admin-audit-empty-state">
+              <p>
+                {hasActiveFilters
+                  ? "No activity logs found matching the selected filters."
+                  : "No audit entries found."}
+              </p>
+            </div>
+          ) : (
+            logs.map((log) => {
+              const { severityClass, severityLabel } = getSeverityMeta(log.severity);
+
+              return (
+                <article
+                  key={log._id || `${log.createdAt}-${log.action}`}
+                  className={`admin-audit-card admin-audit-card--${severityClass}`}
+                >
+                  <div className="admin-audit-card__top">
+                    <span className="admin-audit-card__time">{formatDateTime(log.createdAt)}</span>
+                    <span className={`admin-severity-pill ${severityClass}`}>{severityLabel}</span>
+                  </div>
+
+                  <div className="admin-audit-card__action">
+                    <label>Action</label>
+                    <p>{formatAuditAction(log.action)}</p>
+                  </div>
+
+                  <div className="admin-audit-card__meta">
+                    <div>
+                      <label>Actor</label>
+                      <p>{log.actorId?.name || log.actorRole || "System"}</p>
+                    </div>
+                    <div>
+                      <label>Target</label>
+                      <p>{log.targetUserId?.name || log.targetType || "—"}</p>
+                    </div>
+                  </div>
+                </article>
+              );
+            })
+          )}
         </div>
 
         <div className="admin-audit-pagination">

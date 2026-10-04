@@ -1,0 +1,161 @@
+/* ============================================================
+   Audit Trail — mobile fixes: collapsible filters, a card list
+   standing in for the hidden table, and a pagination strip that
+   scrolls instead of wrapping raggedly.
+   ============================================================ */
+
+/* ---------- Collapsible "extra" filters (mobile only) ---------- */
+
+.admin-filter-toggle {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .admin-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    border: 1px solid #b8d4c3;
+    background: #ffffff;
+    color: #065f46;
+    font-weight: 700;
+    font-size: 14px;
+    border-radius: 10px;
+    padding: 10px 14px;
+    min-height: 42px;
+    cursor: pointer;
+  }
+
+  .admin-filter-toggle__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #065f46;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .admin-filter-toggle__chevron {
+    transition: transform 0.2s ease;
+  }
+
+  .admin-filter-toggle.is-expanded .admin-filter-toggle__chevron {
+    transform: rotate(180deg);
+  }
+
+  .admin-filter-group--collapsible {
+    display: none;
+  }
+
+  .admin-filter-group--collapsible.is-expanded {
+    display: flex;
+  }
+}
+
+/* ---------- Mobile card list, standing in for the hidden table ---------- */
+
+@media (max-width: 768px) {
+  .admin-audit-mobile-list {
+    display: grid;
+    gap: 12px;
+    padding-top: 12px;
+  }
+
+  .admin-audit-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-left: 3px solid #cbd5e1;
+    border-radius: 14px;
+    padding: 12px 14px 14px;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+  }
+
+  .admin-audit-card--critical { border-left-color: #dc2626; }
+  .admin-audit-card--warning { border-left-color: #d97706; }
+  .admin-audit-card--info { border-left-color: #0f766e; }
+
+  .admin-audit-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .admin-audit-card__time {
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .admin-audit-card__action {
+    margin-bottom: 10px;
+  }
+
+  .admin-audit-card__action label,
+  .admin-audit-card__meta label {
+    display: block;
+    margin-bottom: 3px;
+    color: #64748b;
+    font-size: 0.63rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 800;
+  }
+
+  .admin-audit-card__action p {
+    margin: 0;
+    color: #0f172a;
+    font-size: 0.96rem;
+    font-weight: 700;
+    word-break: break-word;
+  }
+
+  .admin-audit-card__meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .admin-audit-card__meta p {
+    margin: 0;
+    color: #1e293b;
+    font-size: 0.88rem;
+    word-break: break-word;
+  }
+}
+
+@media (min-width: 769px) {
+  .admin-audit-mobile-list {
+    display: none;
+  }
+}
+
+/* ---------- Pagination: scroll instead of wrapping raggedly ---------- */
+
+@media (max-width: 900px) {
+  .admin-audit-pagination__controls {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .admin-audit-pagination__controls::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-audit-pagination__button,
+  .admin-audit-pagination__ellipsis {
+    flex-shrink: 0;
+  }
+}
