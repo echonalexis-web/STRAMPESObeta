@@ -18,6 +18,7 @@
  */
 
 const nodemailer = require("nodemailer");
+const dnsPromises = require("dns").promises;
 
 const FROM = process.env.MAIL_FROM || "STRAM PESO <no-reply@strampeso.local>";
 const BRAND = "STRAM PESO";
@@ -26,33 +27,57 @@ const GREEN = "#16a34a";
 const isEmailConfigured = () =>
   Boolean((process.env.SMTP_HOST || process.env.SMTP_SERVICE) && process.env.SMTP_USER && process.env.SMTP_PASS);
 
-let _transporter = null;
-const buildTransporter = () => {
-  if (_transporter) return _transporter;
-  if (!isEmailConfigured()) return null;
+const WELL_KNOWN_HOSTS = { gmail: "smtp.gmail.com" };
 
-  const common = {
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    // A blocked/black-holed network path (seen on some hosts' outbound SMTP)
-    // leaves the socket open with no response, so without these the call
-    // hangs well past any caller's own timeout instead of failing fast.
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 15_000,
-  };
-
-  if (process.env.SMTP_SERVICE) {
-    _transporter = nodemailer.createTransport({ service: process.env.SMTP_SERVICE, ...common });
-  } else {
-    const port = Number(process.env.SMTP_PORT) || 465;
-    _transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === "true" : port === 465,
-      ...common,
-    });
+/**
+ * Resolve a literal IPv4 address for `hostname`, or null if that fails.
+ * Several hosts (Render included) have no outbound IPv6 route, but
+ * nodemailer does its own DNS resolution and can still pick an AAAA record
+ * for the hostname, failing with ENETUNREACH — nodemailer's `family` option
+ * does not prevent this (it's not read by the underlying smtp-connection
+ * resolver). Connecting to a pre-resolved IPv4 literal instead sidesteps
+ * nodemailer's resolver entirely; `tls.servername` below keeps TLS
+ * certificate validation working against the real hostname.
+ */
+const resolveIPv4 = async (hostname) => {
+  try {
+    const addresses = await dnsPromises.resolve4(hostname);
+    return addresses[0] || null;
+  } catch {
+    return null;
   }
-  return _transporter;
+};
+
+let _transporter = null;
+let _building = null;
+const buildTransporter = () => {
+  if (_transporter) return Promise.resolve(_transporter);
+  if (!isEmailConfigured()) return Promise.resolve(null);
+  if (_building) return _building;
+
+  _building = (async () => {
+    const hostname = process.env.SMTP_HOST || WELL_KNOWN_HOSTS[process.env.SMTP_SERVICE] || "smtp.gmail.com";
+    const port = Number(process.env.SMTP_PORT) || 465;
+    const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === "true" : port === 465;
+    const ipv4 = await resolveIPv4(hostname);
+
+    _transporter = nodemailer.createTransport({
+      host: ipv4 || hostname,
+      port,
+      secure,
+      tls: { servername: hostname },
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      // A blocked/black-holed network path leaves the socket open with no
+      // response, so without these the call hangs well past any caller's
+      // own timeout instead of failing fast.
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000,
+    });
+    return _transporter;
+  })();
+
+  return _building;
 };
 
 const logToConsole = ({ to, subject, text, reason = "no mail provider configured" }) => {
@@ -107,7 +132,7 @@ const renderEmail = ({ heading, paragraphs = [], button, footnote }) => {
  * @returns {Promise<{delivered:boolean, channel:string}>}
  */
 const sendMail = async ({ to, subject, text, html }) => {
-  const transporter = buildTransporter();
+  const transporter = await buildTransporter();
   if (!transporter) {
     logToConsole({ to, subject, text });
     return { delivered: false, channel: "console" };
