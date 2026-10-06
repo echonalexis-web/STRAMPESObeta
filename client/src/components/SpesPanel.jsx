@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FaCalendarAlt, FaUsers, FaClipboardCheck, FaExternalLinkAlt } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { spesAPI } from "../services/api";
+import { isSpesEligibleAge } from "../utils/age";
 import { useToast } from "./feedback/context";
 import Autosuggest from "./Autosuggest";
 import marinduqueSchoolsData from "../data/marinduque_schools.json";
@@ -81,6 +82,7 @@ export default function SpesPanel({ announcement }) {
   const spes = announcement?.spes || {};
   const announcementId = announcement?._id;
   const isJobseeker = user?.role === "jobseeker";
+  const spesAgeEligible = isSpesEligibleAge(user?.dateOfBirth);
   const nsrpComplete = user?.hasCompletedOnboarding === true || user?.onboardingComplete === true;
   const deadlinePassed = spes.applicationDeadline && new Date(spes.applicationDeadline) < new Date();
 
@@ -234,6 +236,9 @@ export default function SpesPanel({ announcement }) {
       );
     }
 
+    if (!spesAgeEligible) {
+      return <p className="spes-note">SPES applications are limited to applicants 30 years old and below.</p>;
+    }
     if (deadlinePassed) {
       return <p className="spes-note">The application deadline has passed.</p>;
     }

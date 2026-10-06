@@ -1,0 +1,9 @@
+# Printed NSRP template replacements
+
+Superadmins replace Form 1 and Form 2 from the Settings card in the Superadmin Console. PUT /superadmin/system-settings/nsrp-templates/form1 (or form2) accepts a multipart template PDF and returns a filled sample. GET on the same path with /sample downloads a sample of the current active template.
+
+Persistence uses the NsrpTemplate MongoDB collection, one document per form, with a PDF Buffer and uploader metadata. No Procfile, render.yaml or Dockerfile in the repository confirms persistent backend disks; vercel.json configures only the client. The generic storage service defaults to local disk unless Cloudinary is configured, so this feature explicitly uses MongoDB regardless of that setting. Preserve this collection in database backups. Uploads are limited to 5 MB, keeping each document below MongoDB's document size limit.
+
+Upload follows the existing memory upload, validation, then persistence pipeline. It rejects invalid/encrypted PDFs, incorrect page counts, changed media/crop boxes and rotation. The candidate is filled through fillForm1/fillForm2 before replacement; failed validation or rendering leaves the prior template intact. Form documents are updated independently. Exports read the saved PDF on each call, or the bundled template if no document exists. A database read error fails the export instead of silently switching templates.
+
+Dimensions cannot prove layout compatibility. Upload activates the replacement immediately. Review every page of the downloaded filled sample before production exports; field coordinates are not remapped. If fields moved, restore the previous PDF by uploading it and calibrate server/services/nsrpFormFieldMaps.js using extractPdfText.mjs and debugNsrpCoordinates.js before deploying the revised map. Form 2 page 2 remains blank by the existing service contract.

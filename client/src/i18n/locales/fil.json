@@ -42,6 +42,7 @@
     "myDashboard": "Aking Dashboard",
     "yourApplications": "Iyong mga Aplikasyon",
     "mySpes": "Aking SPES",
+    "trackSpesApplications": "Subaybayan ang SPES Applications",
     "browseJobs": "Tumingin ng Trabaho",
     "overview": "Pangkalahatang-ideya",
     "career": "Karera",
@@ -56,6 +57,7 @@
     "pageTitle": "Mga Setting",
     "pageSubtitle": "Pamahalaan ang iyong account, mga kagustuhan, at kung paano gumagana ang STRAM PESO para sa iyo.",
     "railLabel": "Mga seksyon ng setting",
+    "backToList": "Bumalik sa Settings",
     "sections": {
       "account": "Account",
       "language": "Wika at Rehiyon",
@@ -165,6 +167,12 @@
       ]
     },
     "system": {
+      "navbarTitle": "Istilo ng Navigation Bar",
+      "navbarSubtitle": "Piliin kung paano ipapakita ng sidebar ang iyong mga link sa navigation. Ito ay nakakaapekto lamang sa iyong sariling view.",
+      "navbarFullTitle": "Normal / Buong Sidebar",
+      "navbarFullDesc": "Ipinapakita ang buong kategorya ng menu at text label. Inirerekomenda para sa karaniwang desktop screen.",
+      "navbarIconsTitle": "Icon Lamang ang Ipakita",
+      "navbarIconsDesc": "Pinaliliit ang sidebar sa mga icon lamang, na nagbibigay ng mas maraming espasyo. I-hover ang icon para makita ang pangalan nito.",
       "title": "Mga Kagustuhan sa Sistema",
       "subtitle": "Mga patakaran sa buong portal. Ang pagbabago dito ay nakakaapekto sa lahat ng user.",
       "autoCloseLabel": "Awtomatikong isara ang bakante pagkatapos ng",
@@ -205,5 +213,35 @@
       "deactivateError": "Hindi ma-deactivate ang iyong account. Pakisubukang muli."
     },
     "saveError": "Hindi ma-save ang iyong mga pagbabago. Pakisubukang muli."
+  },
+  "jobEditing": {
+    "title": "I-edit ang Post ng Trabaho",
+    "back": "Bumalik sa Pagmomonitor ng Trabaho",
+    "saving": "Nagse-save...",
+    "saved": "Na-update na ang post ng trabaho.",
+    "error": "Hindi ma-update ang post ng trabahong ito.",
+    "loadError": "Hindi ma-load ang post ng trabahong ito."
+  },
+  "nsrpTemplates": {
+    "title": "Mga Setting: Naka-print na NSRP Form",
+    "subtitle": "Mag-upload at ihanay ang naka-print na PDF template ng National Skills Registration Program.",
+    "warningTitle": "Paalala sa Pagkakahanay ng Field:",
+    "warning": "Hindi awtomatikong inaayos ang posisyon ng mga field. Pagkatapos palitan ang template, suriin ang bawat pahina ng napunang sample at tiyaking tama ang pagkakalagay bago gamitin sa produksyon. Ang magkatugmang sukat ng pahina ay hindi garantiya ng magkatugmang layout.",
+    "requirements": "PDF lamang, hanggang 5 MB. Dapat tumugma sa orihinal ang bilang, sukat at pag-ikot ng mga pahina. Magkahiwalay na pinapalitan ang bawat form.",
+    "sizeBadge": "PDF, hanggang 5 MB",
+    "form1": "Form 1: Pagpaparehistro ng Jobseeker",
+    "form2": "Form 2: Pagpaparehistro ng Employer",
+    "dropHintPrefix": "I-drag at i-drop ang PDF template dito, o",
+    "browse": "mag-browse",
+    "form1Hint": "Dapat tumugma sa orihinal na NSRP Form 1 ang bilang ng pahina at pag-ikot.",
+    "form2Hint": "Dapat tumugma sa orihinal na NSRP Form 2 ang bilang ng pahina at pag-ikot.",
+    "selected": "Napili",
+    "currentFile": "Kasalukuyang file",
+    "noCustomTemplate": "Ginagamit ang paunang-bundle na default na template",
+    "lastUpdated": "Huling na-update {{date}}",
+    "upload": "Palitan ang template at i-download ang napunang sample",
+    "sample": "I-download ang kasalukuyang napunang sample",
+    "saved": "Napalitan na ang template. Suriin ang na-download na sample bago gamitin ang form.",
+    "error": "Hindi ma-update o ma-download ang NSRP form."
   }
 }

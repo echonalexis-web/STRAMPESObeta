@@ -42,6 +42,7 @@
     "myDashboard": "My Dashboard",
     "yourApplications": "Your Applications",
     "mySpes": "My SPES",
+    "trackSpesApplications": "Track your SPES Applications",
     "browseJobs": "Browse Jobs",
     "overview": "Overview",
     "career": "Career",
@@ -56,6 +57,7 @@
     "pageTitle": "Settings",
     "pageSubtitle": "Manage your account, preferences, and how STRAM PESO works for you.",
     "railLabel": "Settings sections",
+    "backToList": "Back to Settings",
     "sections": {
       "account": "Account",
       "language": "Language & Region",
@@ -165,6 +167,12 @@
       ]
     },
     "system": {
+      "navbarTitle": "Navigation Bar Style",
+      "navbarSubtitle": "Choose how the sidebar displays your navigation links. This only affects your own view.",
+      "navbarFullTitle": "Normal / Full Sidebar",
+      "navbarFullDesc": "Shows full menu categories and text labels. Recommended for standard desktop screens.",
+      "navbarIconsTitle": "Only Show Icons",
+      "navbarIconsDesc": "Collapses the sidebar to icons only, freeing up screen space. Hover an icon to see its name.",
       "title": "System Preferences",
       "subtitle": "Portal-wide rules. Changing these affects every user.",
       "autoCloseLabel": "Auto-close a vacancy after",
@@ -205,5 +213,35 @@
       "deactivateError": "Couldn't deactivate your account. Please try again."
     },
     "saveError": "Couldn't save your changes. Please try again."
+  },
+  "jobEditing": {
+    "title": "Edit Job Posting",
+    "back": "Back to Job Monitoring",
+    "saving": "Saving...",
+    "saved": "Job posting updated.",
+    "error": "Could not update this job posting.",
+    "loadError": "Could not load this job posting."
+  },
+  "nsrpTemplates": {
+    "title": "Settings: Printed NSRP Forms",
+    "subtitle": "Upload and align the printed National Skills Registration Program PDF templates.",
+    "warningTitle": "Field Alignment Notice:",
+    "warning": "Field positions are not automatically remapped. After replacing a template, inspect every page of the filled sample and verify alignment before using it in production. Matching page dimensions does not guarantee matching layout.",
+    "requirements": "PDF only, up to 5 MB. Page count, dimensions and rotation must match the original form. Each form is replaced independently.",
+    "sizeBadge": "PDF, max 5 MB",
+    "form1": "Form 1: Jobseeker Registration",
+    "form2": "Form 2: Employer Registration",
+    "dropHintPrefix": "Drag & drop your PDF template here, or",
+    "browse": "browse",
+    "form1Hint": "Page count & rotation must match the original NSRP Form 1.",
+    "form2Hint": "Page count & rotation must match the original NSRP Form 2.",
+    "selected": "Selected",
+    "currentFile": "Current file",
+    "noCustomTemplate": "Using the bundled default template",
+    "lastUpdated": "Last updated {{date}}",
+    "upload": "Replace template and download filled sample",
+    "sample": "Download current filled sample",
+    "saved": "Template replaced. Check the downloaded sample before relying on this form.",
+    "error": "Could not update or download the NSRP form."
   }
 }

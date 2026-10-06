@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const SystemSettings = require("../models/SystemSettings");
+const { isSpesEligibleAge, isJobVacancyEligibleAge } = require("../utils/age");
 
 // ============================================
 // STANDARD AUTH (requires valid token)
@@ -24,7 +25,7 @@ exports.verifyToken = async (req, res, next) => {
     }
 
     const user = await User.findById(decoded.id).select(
-      "isActive role verificationStatus accountStatus suspensionReason suspendedAt tokenVersion"
+      "isActive role verificationStatus accountStatus suspensionReason suspendedAt tokenVersion dateOfBirth"
     );
 
     if (!user) {
@@ -83,6 +84,7 @@ exports.verifyToken = async (req, res, next) => {
       ...decoded,
       role: user.role,
       verificationStatus: user.verificationStatus,
+      dateOfBirth: user.dateOfBirth,
     };
     next();
   } catch (error) {
@@ -205,6 +207,37 @@ exports.authorizeRoles = (...roles) => {
 };
 
 // ============================================
+// AGE-BASED ACCESS (SPES / job vacancies)
+// Jobseeker-type accounts are split into bands by dateOfBirth: 15-17 gets
+// SPES + News only, 18-30 gets everything, 31+ loses new SPES applications
+// (existing ones stay viewable, since those endpoints aren't gated). Other
+// roles (employer/admin/superadmin) are never subject to either check.
+// ============================================
+const JOBSEEKER_ROLES = ["jobseeker", "employee", "resident"];
+
+exports.requireJobVacancyAge = (req, res, next) => {
+  if (!req.user || !JOBSEEKER_ROLES.includes(req.user.role)) return next();
+  if (!isJobVacancyEligibleAge(req.user.dateOfBirth)) {
+    return res.status(403).json({
+      code: "AGE_RESTRICTED",
+      message: "Job vacancy browsing and applications are not available for your age group.",
+    });
+  }
+  next();
+};
+
+exports.requireSpesAge = (req, res, next) => {
+  if (!req.user || !JOBSEEKER_ROLES.includes(req.user.role)) return next();
+  if (!isSpesEligibleAge(req.user.dateOfBirth)) {
+    return res.status(403).json({
+      code: "AGE_RESTRICTED",
+      message: "SPES applications are limited to applicants 30 years old and below.",
+    });
+  }
+  next();
+};
+
+// ============================================
 // OPTIONAL AUTH (does not reject on missing token)
 // ============================================
 exports.optionalAuth = async (req, res, next) => {
@@ -216,7 +249,7 @@ exports.optionalAuth = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select("isActive role verificationStatus tokenVersion");
+    const user = await User.findById(decoded.id).select("isActive role verificationStatus tokenVersion dateOfBirth");
 
     if (!user || user.isActive === false) {
       req.user = null;
@@ -232,6 +265,7 @@ exports.optionalAuth = async (req, res, next) => {
       ...decoded,
       role: user.role,
       verificationStatus: user.verificationStatus,
+      dateOfBirth: user.dateOfBirth,
     };
     next();
   } catch (error) {

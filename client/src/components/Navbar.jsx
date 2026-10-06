@@ -1,10 +1,34 @@
 ﻿import { useContext, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { FaEnvelope, FaUserCircle, FaBars, FaTimes, FaBell, FaCog } from "react-icons/fa";
+import {
+  FaEnvelope,
+  FaUserCircle,
+  FaBars,
+  FaTimes,
+  FaBell,
+  FaCog,
+  FaUserShield,
+  FaTachometerAlt,
+  FaChartBar,
+  FaUsersCog,
+  FaExclamationCircle,
+  FaBuilding,
+  FaBriefcase,
+  FaHistory,
+  FaNewspaper,
+  FaBullhorn,
+  FaGraduationCap,
+  FaPlusCircle,
+  FaFileAlt,
+  FaSearch,
+  FaSignOutAlt,
+} from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { messageAPI, notificationAPI, resolveAssetUrl } from "../services/api";
 import { useSocket } from "../context/SocketContext";
+import { useNavbarStylePreference } from "../hooks/useNavbarStylePreference";
+import { isJobVacancyEligibleAge, isSpesEligibleAge } from "../utils/age";
 import "../styles/navbar.css";
 import pesoLogo from "../assets/images/peso-logo.png";
 
@@ -22,33 +46,34 @@ const getLoggedInMenuItems = (userRole, t) => {
   // dashboard. News / announcements / SPES stay with PESO admins.
   if (userRole === "superadmin") {
     return [
+      { label: t("navbar.superadminConsole"), to: "/superadmin", icon: <FaUserShield aria-hidden="true" /> },
       {
         label: t("navbar.adminDashboard"),
         submenu: [
-          { label: t("navbar.dashboard"), to: "/admin" },
-          { label: t("navbar.reportsStatistics"), to: "/admin/reports" },
+          { label: t("navbar.dashboard"), to: "/admin", icon: <FaTachometerAlt aria-hidden="true" /> },
+          { label: t("navbar.reportsStatistics"), to: "/admin/reports", icon: <FaChartBar aria-hidden="true" /> },
         ],
       },
       {
         label: t("navbar.userManagement"),
         submenu: [
-          { label: t("navbar.userManagement"), to: "/admin/users" },
-          { label: t("navbar.reportsAppeals"), to: "/admin/users/moderation" },
+          { label: t("navbar.userManagement"), to: "/admin/users", icon: <FaUsersCog aria-hidden="true" /> },
+          { label: t("navbar.reportsAppeals"), to: "/admin/users/moderation", icon: <FaExclamationCircle aria-hidden="true" /> },
         ],
       },
       {
         label: t("navbar.employmentJobs"),
         submenu: [
-          { label: t("navbar.employerVerification"), to: "/admin/verification" },
-          { label: t("navbar.jobMonitoring"), to: "/admin/job-monitoring" },
+          { label: t("navbar.employerVerification"), to: "/admin/verification", icon: <FaBuilding aria-hidden="true" /> },
+          { label: t("navbar.jobMonitoring"), to: "/admin/job-monitoring", icon: <FaBriefcase aria-hidden="true" /> },
         ],
       },
       {
         label: t("navbar.systemLogs"),
-        submenu: [{ label: t("navbar.auditTrail"), to: "/admin/audit-logs" }],
+        submenu: [{ label: t("navbar.auditTrail"), to: "/admin/audit-logs", icon: <FaHistory aria-hidden="true" /> }],
       },
-      { label: t("navbar.myProfile"), to: "/profile" },
-      { label: t("navbar.settings"), to: "/settings" },
+      { label: t("navbar.myProfile"), to: "/profile", icon: <FaUserCircle aria-hidden="true" /> },
+      { label: t("navbar.settings"), to: "/settings", icon: <FaCog aria-hidden="true" /> },
     ];
   }
 
@@ -59,36 +84,36 @@ const getLoggedInMenuItems = (userRole, t) => {
       {
         label: t("navbar.adminDashboard"),
         submenu: [
-          { label: t("navbar.dashboard"), to: "/admin" },
-          { label: t("navbar.reportsStatistics"), to: "/admin/reports" },
+          { label: t("navbar.dashboard"), to: "/admin", icon: <FaTachometerAlt aria-hidden="true" /> },
+          { label: t("navbar.reportsStatistics"), to: "/admin/reports", icon: <FaChartBar aria-hidden="true" /> },
         ],
       },
       {
         label: t("navbar.newsManagement"),
         submenu: [
-          { label: t("navbar.newsFeed"), to: "/admin/news" },
-          { label: t("navbar.postAnnouncement"), to: "/admin/news/create" },
-          { label: t("navbar.spesApplications"), to: "/admin/spes" },
+          { label: t("navbar.newsFeed"), to: "/admin/news", icon: <FaNewspaper aria-hidden="true" /> },
+          { label: t("navbar.postAnnouncement"), to: "/admin/news/create", icon: <FaBullhorn aria-hidden="true" /> },
+          { label: t("navbar.spesApplications"), to: "/admin/spes", icon: <FaGraduationCap aria-hidden="true" /> },
         ],
       },
-      { label: t("navbar.employerVerification"), to: "/admin/verification" },
-      { label: t("navbar.jobMonitoring"), to: "/admin/job-monitoring" },
+      { label: t("navbar.employerVerification"), to: "/admin/verification", icon: <FaBuilding aria-hidden="true" /> },
+      { label: t("navbar.jobMonitoring"), to: "/admin/job-monitoring", icon: <FaBriefcase aria-hidden="true" /> },
       // No Audit Trail here (superadmin-only) — this group exists so
       // Notifications/Messages have a "System & Logs" home to pin to, same
       // as the superadmin menu above.
       { label: t("navbar.systemLogs"), submenu: [] },
-      { label: t("navbar.myProfile"), to: "/profile" },
-      { label: t("navbar.settings"), to: "/settings" },
+      { label: t("navbar.myProfile"), to: "/profile", icon: <FaUserCircle aria-hidden="true" /> },
+      { label: t("navbar.settings"), to: "/settings", icon: <FaCog aria-hidden="true" /> },
     ];
   }
 
   if (userRole === "employer") {
     return [
-      { label: t("navbar.employerDashboard"), to: "/employer" },
-      { label: t("navbar.postVacancy"), to: "/post-job" },
-      { label: t("navbar.newsFeed"), to: "/news" },
-      { label: t("navbar.myProfile"), to: "/profile" },
-      { label: t("navbar.settings"), to: "/settings" },
+      { label: t("navbar.employerDashboard"), to: "/employer", icon: <FaBuilding aria-hidden="true" /> },
+      { label: t("navbar.postVacancy"), to: "/post-job", icon: <FaPlusCircle aria-hidden="true" /> },
+      { label: t("navbar.newsFeed"), to: "/news", icon: <FaNewspaper aria-hidden="true" /> },
+      { label: t("navbar.myProfile"), to: "/profile", icon: <FaUserCircle aria-hidden="true" /> },
+      { label: t("navbar.settings"), to: "/settings", icon: <FaCog aria-hidden="true" /> },
     ];
   }
 
@@ -96,15 +121,15 @@ const getLoggedInMenuItems = (userRole, t) => {
     {
       label: t("navbar.myDashboard"),
       submenu: [
-        { label: t("navbar.dashboard"), to: "/dashboard" },
-        { label: t("navbar.yourApplications"), to: "/applications" },
-        { label: t("navbar.mySpes"), to: "/spes/applications" },
+        { label: t("navbar.dashboard"), to: "/dashboard", icon: <FaTachometerAlt aria-hidden="true" /> },
+        { label: t("navbar.yourApplications"), to: "/applications", icon: <FaFileAlt aria-hidden="true" /> },
+        { label: t("navbar.mySpes"), to: "/spes/applications", icon: <FaGraduationCap aria-hidden="true" /> },
       ],
     },
-    { label: t("navbar.browseJobs"), to: "/jobs" },
-    { label: t("navbar.newsFeed"), to: "/news" },
-    { label: t("navbar.myProfile"), to: "/profile" },
-    { label: t("navbar.settings"), to: "/settings" },
+    { label: t("navbar.browseJobs"), to: "/jobs", icon: <FaSearch aria-hidden="true" /> },
+    { label: t("navbar.newsFeed"), to: "/news", icon: <FaNewspaper aria-hidden="true" /> },
+    { label: t("navbar.myProfile"), to: "/profile", icon: <FaUserCircle aria-hidden="true" /> },
+    { label: t("navbar.settings"), to: "/settings", icon: <FaCog aria-hidden="true" /> },
   ];
 };
 
@@ -115,27 +140,46 @@ const getDefaultRouteByRole = (role) => {
   return "/dashboard";
 };
 
-const getJobseekerMenuGroups = (t) => [
-  {
-    label: t("navbar.overview"),
-    items: [{ label: t("navbar.dashboard"), to: "/dashboard" }],
-  },
-  {
-    label: t("navbar.career"),
-    items: [
-      { label: t("navbar.yourApplications"), to: "/applications" },
-      { label: t("navbar.mySpes"), to: "/spes/applications" },
-      { label: t("navbar.browseJobs"), to: "/jobs" },
-    ],
-  },
-  {
-    label: t("navbar.updates"),
-    items: [{ label: t("navbar.newsFeed"), to: "/news" }],
-  },
-];
+// 15-17 account holders can't browse/apply to jobs (only SPES + News); 31+
+// account holders can't submit new SPES applications (only jobs + News).
+// An unknown dateOfBirth fails closed on both, leaving just Dashboard + News.
+// See server/utils/age.js / client/src/utils/age.js for the matching
+// backend-enforced bands.
+const getJobseekerMenuGroups = (t, user) => {
+  const canViewJobs = isJobVacancyEligibleAge(user?.dateOfBirth);
+  const canApplySpes = isSpesEligibleAge(user?.dateOfBirth);
 
-const getJobseekerMobileMenuSections = (t) =>
-  getJobseekerMenuGroups(t).map((group) =>
+  const careerItems = [];
+  if (canViewJobs) {
+    careerItems.push({ label: t("navbar.yourApplications"), to: "/applications", icon: <FaFileAlt aria-hidden="true" /> });
+  }
+  if (canApplySpes) {
+    careerItems.push({
+      label: canViewJobs ? t("navbar.mySpes") : t("navbar.trackSpesApplications"),
+      to: "/spes/applications",
+      icon: <FaGraduationCap aria-hidden="true" />,
+    });
+  }
+  if (canViewJobs) careerItems.push({ label: t("navbar.browseJobs"), to: "/jobs", icon: <FaSearch aria-hidden="true" /> });
+
+  const groups = [
+    {
+      label: t("navbar.overview"),
+      items: [{ label: t("navbar.dashboard"), to: "/dashboard", icon: <FaTachometerAlt aria-hidden="true" /> }],
+    },
+  ];
+  if (careerItems.length > 0) {
+    groups.push({ label: t("navbar.career"), items: careerItems });
+  }
+  groups.push({
+    label: t("navbar.updates"),
+    items: [{ label: t("navbar.newsFeed"), to: "/news", icon: <FaNewspaper aria-hidden="true" /> }],
+  });
+  return groups;
+};
+
+const getJobseekerMobileMenuSections = (t, user) =>
+  getJobseekerMenuGroups(t, user).map((group) =>
     group.label === t("navbar.overview")
       ? { ...group, items: [...group.items, { label: t("navbar.myProfile"), to: "/profile" }] }
       : group
@@ -178,9 +222,10 @@ const SystemLogsQuickLinks = ({ t, isActiveLink, unreadCount, unreadNotification
         to="/messages"
         className={linkClassName(isActiveLink("/messages"))}
         onClick={onLinkClick}
+        title={t("navbar.messages")}
       >
         <FaEnvelope className="nav-link-icon" aria-hidden="true" />
-        <span>{t("navbar.messages")}</span>
+        <span className="nav-link-text">{t("navbar.messages")}</span>
         {unreadCount > 0 && (
           <span className="user-unread-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
         )}
@@ -189,9 +234,10 @@ const SystemLogsQuickLinks = ({ t, isActiveLink, unreadCount, unreadNotification
         to="/notifications"
         className={linkClassName(isActiveLink("/notifications"))}
         onClick={onLinkClick}
+        title={t("navbar.notifications")}
       >
         <FaBell className="nav-link-icon" aria-hidden="true" />
-        <span>{t("navbar.notifications")}</span>
+        <span className="nav-link-text">{t("navbar.notifications")}</span>
         {unreadNotifications > 0 && (
           <span className="user-unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
         )}
@@ -208,6 +254,9 @@ export default function Navbar() {
   const { socket, isConnected } = useSocket();
   const userRole = normalizeRole(user?.role);
   const isLoggedIn = Boolean(user);
+  const currentUserId = user?._id || user?.id || null;
+  const [navbarStyle] = useNavbarStylePreference(currentUserId);
+  const isCompactNav = navbarStyle === "icons";
   const loggedInMenuItems = getLoggedInMenuItems(userRole, t);
   const isAdminRole = userRole === "admin" || userRole === "superadmin";
   const showNotificationsTopAction = true;
@@ -228,8 +277,8 @@ export default function Navbar() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [openSubmenu, setOpenSubmenu] = useState(null);
 
-  const jobseekerMenuGroups = getJobseekerMenuGroups(t);
-  const jobseekerMobileMenuSections = getJobseekerMobileMenuSections(t);
+  const jobseekerMenuGroups = getJobseekerMenuGroups(t, user);
+  const jobseekerMobileMenuSections = getJobseekerMobileMenuSections(t, user);
   // Settings is dropped from the mobile list because the top bar already has a
   // gear-icon shortcut to it for every role. Profile has no such shortcut on
   // mobile (the sidebar's profile pill is desktop-only), so it must stay here
@@ -419,6 +468,16 @@ export default function Navbar() {
     return () => document.body.classList.remove(bodyClass);
   }, [isLoggedIn, isSetupRoute]);
 
+  // Mirrors the compact sidebar on the page body so its content offset
+  // (body.app-with-sidebar's padding-left) shrinks along with the sidebar
+  // instead of leaving a leftover gap sized for the full-width rail.
+  useEffect(() => {
+    const compactClass = "app-sidebar-compact";
+    if (isLoggedIn && !isSetupRoute && isCompactNav) document.body.classList.add(compactClass);
+    else document.body.classList.remove(compactClass);
+    return () => document.body.classList.remove(compactClass);
+  }, [isLoggedIn, isSetupRoute, isCompactNav]);
+
   // Prevents the page behind the mobile menu overlay from scrolling while
   // it's open (matches the lock ImageEditorModal.jsx/FeedbackProvider.jsx
   // already use for their own overlays).
@@ -438,7 +497,7 @@ export default function Navbar() {
 
   if (isLoggedIn) {
     return (
-      <nav className="navbar navbar--auth-sidebar">
+      <nav className={`navbar navbar--auth-sidebar${isCompactNav ? " is-compact" : ""}`}>
         <div className="auth-sidebar-top">
           <Link to={getDefaultRouteByRole(userRole)} className="nav-logo-section auth-sidebar-logo">
             <div className="nav-logo-icon">
@@ -481,10 +540,15 @@ export default function Navbar() {
           </div>
         ) : (
           <div className="auth-sidebar-profile">
-            <button type="button" className="user-pill-button" onClick={() => navigate("/profile")}>
+            <button
+              type="button"
+              className="user-pill-button"
+              onClick={() => navigate("/profile")}
+              title={user?.name}
+            >
               <span className="user-name">
                 <UserAvatar user={user} />
-                {user?.name}
+                <span className="nav-link-text">{user?.name}</span>
               </span>
             </button>
           </div>
@@ -501,18 +565,30 @@ export default function Navbar() {
                       key={`${group.label}-${item.to}`}
                       to={item.to}
                       className={isActiveLink(item.to) ? "nav-section-link is-active" : "nav-section-link"}
+                      title={item.label}
                     >
-                      {item.label}
+                      {item.icon}
+                      <span className="nav-link-text">{item.label}</span>
                     </Link>
                   ))}
                 </div>
               ))}
 
-              <Link to="/profile" className={isActiveLink("/profile") ? "nav-standalone-link is-active" : "nav-standalone-link"}>
-                {t("navbar.myProfile")}
+              <Link
+                to="/profile"
+                className={isActiveLink("/profile") ? "nav-standalone-link is-active" : "nav-standalone-link"}
+                title={t("navbar.myProfile")}
+              >
+                <FaUserCircle aria-hidden="true" />
+                <span className="nav-link-text">{t("navbar.myProfile")}</span>
               </Link>
-              <Link to="/settings" className={isActiveLink("/settings") ? "nav-standalone-link is-active" : "nav-standalone-link"}>
-                {t("navbar.settings")}
+              <Link
+                to="/settings"
+                className={isActiveLink("/settings") ? "nav-standalone-link is-active" : "nav-standalone-link"}
+                title={t("navbar.settings")}
+              >
+                <FaCog aria-hidden="true" />
+                <span className="nav-link-text">{t("navbar.settings")}</span>
               </Link>
             </>
           ) : (
@@ -528,8 +604,10 @@ export default function Navbar() {
                         key={`${item.label}-${subitem.to}`}
                         to={subitem.to}
                         className={isActiveLink(subitem.to) ? "nav-section-link is-active" : "nav-section-link"}
+                        title={subitem.label}
                       >
-                        {subitem.label}
+                        {subitem.icon}
+                        <span className="nav-link-text">{subitem.label}</span>
                       </Link>
                     ))}
                   </div>
@@ -541,17 +619,23 @@ export default function Navbar() {
                   key={item.to}
                   to={item.to}
                   className={isActiveLink(item.to) ? "nav-standalone-link is-active" : "nav-standalone-link"}
+                  title={item.label}
                 >
-                  {item.label}
+                  {item.icon}
+                  <span className="nav-link-text">{item.label}</span>
                 </Link>
               );
             })
           )}
 
           {showMessagesSidebarLink && (
-            <Link to="/messages" className={isActiveLink("/messages") ? "messages-link is-active" : "messages-link"}>
+            <Link
+              to="/messages"
+              className={isActiveLink("/messages") ? "messages-link is-active" : "messages-link"}
+              title={t("navbar.messages")}
+            >
               <FaEnvelope className="nav-link-icon" aria-hidden="true" />
-              <span>{t("navbar.messages")}</span>
+              <span className="nav-link-text">{t("navbar.messages")}</span>
               {unreadCount > 0 && (
                 <span className="user-unread-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
               )}
@@ -559,9 +643,13 @@ export default function Navbar() {
           )}
 
           {showNotificationsSidebarLink && (
-            <Link to="/notifications" className={isActiveLink("/notifications") ? "messages-link is-active" : "messages-link"}>
+            <Link
+              to="/notifications"
+              className={isActiveLink("/notifications") ? "messages-link is-active" : "messages-link"}
+              title={t("navbar.notifications")}
+            >
               <FaBell className="nav-link-icon" aria-hidden="true" />
-              <span>{t("navbar.notifications")}</span>
+              <span className="nav-link-text">{t("navbar.notifications")}</span>
               {unreadNotifications > 0 && (
                 <span className="user-unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
               )}
@@ -569,8 +657,9 @@ export default function Navbar() {
           )}
         </div>
 
-        <button className="logout-btn auth-sidebar-logout" onClick={openLogoutModal}>
-          {t("common.logout")}
+        <button className="logout-btn auth-sidebar-logout" onClick={openLogoutModal} title={t("common.logout")}>
+          <FaSignOutAlt aria-hidden="true" />
+          <span className="nav-link-text">{t("common.logout")}</span>
         </button>
 
         {/* Mobile menu panel */}

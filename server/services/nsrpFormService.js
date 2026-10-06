@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 const fieldMaps = require("./nsrpFormFieldMaps");
+const NsrpTemplate = require("../models/NsrpTemplate");
 
 const TEMPLATE_DIR = path.join(__dirname, "..", "assets", "templates");
 const FORM1_TEMPLATE = path.join(TEMPLATE_DIR, "NSRP-Form-1-Jobseeker-Reg-Form.pdf");
@@ -83,8 +84,42 @@ const drawRows = (page, items, rowCoordsList, getValues, font) => {
   });
 };
 
-const loadTemplate = async (templatePath) => {
-  const bytes = fs.readFileSync(templatePath);
+
+const TEMPLATE_PATHS = { form1: FORM1_TEMPLATE, form2: FORM2_TEMPLATE };
+
+const validateTemplate = async (form, bytes) => {
+  if (!TEMPLATE_PATHS[form]) throw Object.assign(new Error("Invalid NSRP form"), { status: 400 });
+  if (!Buffer.isBuffer(bytes) || bytes.subarray(0, 5).toString("latin1") !== "%PDF-") {
+    throw Object.assign(new Error("Upload a valid PDF file."), { status: 400 });
+  }
+  let doc;
+  try {
+    doc = await PDFDocument.load(bytes);
+  } catch {
+    throw Object.assign(new Error("Upload a valid, unencrypted PDF file."), { status: 400 });
+  }
+  const original = await PDFDocument.load(fs.readFileSync(TEMPLATE_PATHS[form]));
+  if (doc.getPageCount() !== original.getPageCount()) {
+    throw Object.assign(new Error("PDF page count must match the bundled NSRP template."), { status: 400 });
+  }
+  doc.getPages().forEach((page, index) => {
+    const expected = original.getPage(index);
+    const boxesMatch = ["getMediaBox", "getCropBox"].every((method) => {
+      const box = page[method]();
+      const reference = expected[method]();
+      return ["x", "y", "width", "height"].every((key) => Math.abs(box[key] - reference[key]) < 0.01);
+    });
+    if (!boxesMatch || page.getRotation().angle !== expected.getRotation().angle) {
+      throw Object.assign(new Error("PDF page " + (index + 1) + " dimensions and rotation must match the bundled NSRP template (" + expected.getWidth() + " x " + expected.getHeight() + " points)."), { status: 400 });
+    }
+  });
+};
+
+const loadTemplate = async (form, templateBytes) => {
+  if (templateBytes) return PDFDocument.load(templateBytes);
+  const saved = await NsrpTemplate.findOne({ form }).select("data");
+  // Database failures must surface rather than silently reverting an active form.
+  const bytes = saved ? saved.data : fs.readFileSync(TEMPLATE_PATHS[form]);
   return PDFDocument.load(bytes);
 };
 
@@ -112,8 +147,8 @@ const UNEMPLOYMENT_REASON_BOX = {
  * Fills NSRP Form I (jobseeker registration) with a JobseekerProfile + User
  * pair and returns the resulting PDF as a Buffer.
  */
-async function fillForm1(jobseekerProfile, user) {
-  const doc = await loadTemplate(FORM1_TEMPLATE);
+async function fillForm1(jobseekerProfile, user, templateBytes) {
+  const doc = await loadTemplate("form1", templateBytes);
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const [page1, page2] = doc.getPages();
   const map = fieldMaps.form1;
@@ -256,8 +291,8 @@ const WORKFORCE_SIZE_BOX = {
  * Title, Salary, Qualification Requirements, etc.) — it has no
  * EmployerProfile/User equivalent, so it is intentionally left blank.
  */
-async function fillForm2(employerProfile, user) {
-  const doc = await loadTemplate(FORM2_TEMPLATE);
+async function fillForm2(employerProfile, user, templateBytes) {
+  const doc = await loadTemplate("form2", templateBytes);
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const [page1] = doc.getPages();
   const map = fieldMaps.form2;
@@ -295,4 +330,4 @@ async function fillForm2(employerProfile, user) {
   return Buffer.from(bytes);
 }
 
-module.exports = { fillForm1, fillForm2, formatDateForForm };
+module.exports = { fillForm1, fillForm2, formatDateForForm, validateTemplate };

@@ -273,6 +273,13 @@ export const authAPI = {
 // Superadmin console — provisioning and lifecycle of LMDPESO admin accounts.
 // Every call requires the "superadmin" role server-side.
 export const superadminAPI = {
+  uploadNsrpTemplate: (form, file) => {
+    const fd = new FormData();
+    fd.append('template', file);
+    return api.put('/superadmin/system-settings/nsrp-templates/' + form, fd, { ...getAuthFormHeader(), responseType: 'blob' });
+  },
+  downloadNsrpSample: (form) => api.get('/superadmin/system-settings/nsrp-templates/' + form + '/sample', { ...getAuthHeader(), responseType: 'blob' }),
+  getNsrpTemplateMeta: (form) => api.get('/superadmin/system-settings/nsrp-templates/' + form + '/meta', getAuthHeader()),
   listAdmins: () => api.get('/superadmin/admins', getAuthHeader()),
   createAdmin: (payload) => api.post('/superadmin/admins', payload, getAuthHeader()),
   setAdminActive: (id, active) =>
@@ -332,6 +339,8 @@ export const jobseekerDocumentAPI = {
 };
 
 export const adminAPI = {
+  getJob: (id) => api.get(`/admin/jobs/${id}`, getAuthHeader()),
+  updateJob: (id, payload) => api.put(`/admin/jobs/${id}`, payload, getAuthHeader()),
   getUsers: async (params = {}) => {
     await delay(150);
     return api.get('/admin/users', { ...getAuthHeader(), params });

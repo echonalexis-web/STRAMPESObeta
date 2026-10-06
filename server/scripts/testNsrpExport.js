@@ -64,7 +64,8 @@ const mockJobseekerProfile = {
 };
 
 (async () => {
-  const buffer = await fillForm1(mockJobseekerProfile, mockUser);
+  const template = fs.readFileSync(path.join(__dirname, "..", "assets", "templates", "NSRP-Form-1-Jobseeker-Reg-Form.pdf"));
+  const buffer = await fillForm1(mockJobseekerProfile, mockUser, template);
   fs.writeFileSync(OUTPUT_PATH, buffer);
   console.log(`Wrote ${OUTPUT_PATH}`);
 })().catch((error) => {

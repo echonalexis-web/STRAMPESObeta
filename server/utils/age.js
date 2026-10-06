@@ -26,4 +26,30 @@ const isAdultAge = (dateOfBirth) => {
   return age !== null && age >= MIN_ACCOUNT_AGE;
 };
 
-module.exports = { MIN_ACCOUNT_AGE, getAgeFromDate, isAdultAge };
+// SPES (Special Program for Employment of Students) is a DOLE program for
+// applicants aged 15-30. The account-level floor above already guarantees
+// 15+; this only needs to enforce the 30-and-under ceiling. An unknown DOB
+// can't be proven eligible, so it fails closed (false).
+const SPES_MAX_AGE = 30;
+const isSpesEligibleAge = (dateOfBirth) => {
+  const age = getAgeFromDate(dateOfBirth);
+  return age !== null && age <= SPES_MAX_AGE;
+};
+
+// Job vacancy browsing/applying is restricted to 18+ jobseekers; 15-17
+// account holders are limited to SPES and News. An unknown DOB fails closed.
+const JOB_VACANCY_MIN_AGE = 18;
+const isJobVacancyEligibleAge = (dateOfBirth) => {
+  const age = getAgeFromDate(dateOfBirth);
+  return age !== null && age >= JOB_VACANCY_MIN_AGE;
+};
+
+module.exports = {
+  MIN_ACCOUNT_AGE,
+  SPES_MAX_AGE,
+  JOB_VACANCY_MIN_AGE,
+  getAgeFromDate,
+  isAdultAge,
+  isSpesEligibleAge,
+  isJobVacancyEligibleAge,
+};

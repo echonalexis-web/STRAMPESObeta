@@ -8,6 +8,8 @@ const {
   getAdminVacancies,
   getAdminVacancyStats,
   updateJobStatus,
+  getAdminJob,
+  adminUpdateJob,
   updateUserRole,
   deactivateUser,
   reactivateUser,
@@ -25,7 +27,9 @@ const {
   sanitizeRequestBody,
   sanitizeQueryParams,
   validateMongoId,
-  validateRequest
+  validateRequest,
+  validateJobPosting,
+  validateQualifications,
 } = require("../middleware/validation");
 const { detectMaliciousPayload } = require("../middleware/security");
 
@@ -79,5 +83,16 @@ router.get("/jobs/stats", sanitizeQueryParams, getAdminVacancyStats);
 router.get("/jobs/homepage-display", sanitizeQueryParams, getHomepageJobManagement);
 router.put("/jobs/:id/homepage-feature", validateMongoId("id"), sanitizeRequestBody, toggleHomepageFeature);
 router.put("/jobs/:id/status", validateMongoId("id"), sanitizeRequestBody, validateRequest, updateJobStatus);
+
+router.get("/jobs/:id", validateMongoId("id"), validateRequest, getAdminJob);
+router.put("/jobs/:id",
+  validateMongoId("id"),
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  validateJobPosting,
+  validateQualifications,
+  validateRequest,
+  adminUpdateJob
+);
 
 module.exports = router;

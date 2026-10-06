@@ -16,6 +16,14 @@ const {
   validateMongoId,
   validateRequest,
 } = require("../middleware/validation");
+const { singleFileUpload, validateFile } = require("../middleware/upload");
+const {
+  validateNsrpTemplate,
+  persistNsrpTemplate,
+  uploadNsrpTemplate,
+  downloadNsrpSample,
+  getNsrpTemplateMeta,
+} = require("../controllers/nsrpTemplateController");
 const { detectMaliciousPayload } = require("../middleware/security");
 
 // Every superadmin route requires a valid session AND the superadmin role.
@@ -63,5 +71,21 @@ router.put(
   detectMaliciousPayload,
   updateSystemSettings
 );
+
+router.put("/system-settings/nsrp-templates/:form",
+  (req, res, next) => singleFileUpload("template")(req, res, (error) => {
+    if (error) return res.status(400).json({ message: error.message });
+    return next();
+  }),
+  validateFile,
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  validateRequest,
+  validateNsrpTemplate,
+  persistNsrpTemplate,
+  uploadNsrpTemplate
+);
+router.get("/system-settings/nsrp-templates/:form/sample", validateRequest, downloadNsrpSample);
+router.get("/system-settings/nsrp-templates/:form/meta", validateRequest, getNsrpTemplateMeta);
 
 module.exports = router;

@@ -6,6 +6,7 @@ import { AuthContext } from "./context/AuthContext";
 import { SocketProvider, useSocket } from "./context/SocketContext";
 import { FeedbackProvider } from "./components/feedback/FeedbackProvider";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
+import { JobVacancyAgeGate } from "./routes/JobVacancyAgeGate";
 import AccountInactiveModal from "./components/AccountInactiveModal";
 import { claimAccountInactiveHandling } from "./services/api";
 
@@ -177,11 +178,11 @@ function AppRoutes() {
           <Route path="/profile/resume" element={<ProtectedRoute requiredRole="jobseeker"><ResumeStudio /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute requiredRole="jobseeker"><Dashboard /></ProtectedRoute>} />
-          <Route path="/applications" element={<ProtectedRoute requiredRole="jobseeker"><YourApplications /></ProtectedRoute>} />
+          <Route path="/applications" element={<ProtectedRoute requiredRole="jobseeker"><JobVacancyAgeGate><YourApplications /></JobVacancyAgeGate></ProtectedRoute>} />
           <Route path="/spes/applications" element={<ProtectedRoute><MySpesApplications /></ProtectedRoute>} />
-          <Route path="/jobs" element={<ProtectedRoute requiredRole="jobseeker"><JobBoard /></ProtectedRoute>} />
-          <Route path="/jobs/:id" element={<JobDetail />} />
-          <Route path="/jobs/:id/apply" element={<JobDetail />} />
+          <Route path="/jobs" element={<ProtectedRoute requiredRole="jobseeker"><JobVacancyAgeGate><JobBoard /></JobVacancyAgeGate></ProtectedRoute>} />
+          <Route path="/jobs/:id" element={<JobVacancyAgeGate><JobDetail /></JobVacancyAgeGate>} />
+          <Route path="/jobs/:id/apply" element={<JobVacancyAgeGate><JobDetail /></JobVacancyAgeGate>} />
           <Route path="/post-job" element={<ProtectedRoute requiredRole="employer"><PostJob /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute requiredRole={["admin", "superadmin"]}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/reports" element={<ProtectedRoute requiredRole={["admin", "superadmin"]}><Reports /></ProtectedRoute>} />

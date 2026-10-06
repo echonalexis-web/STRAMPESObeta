@@ -1,3 +1,4 @@
+const { applyJobUpdate } = require("./employerController");
 const User = require("../models/User");
 const JobVacancy = require("../models/JobVacancy");
 const JobApplication = require("../models/JobApplication");
@@ -1330,5 +1331,24 @@ exports.updateJobStatus = async (req, res) => {
     });
   } catch (error) {
     return sendError(res, error, "Failed to update job status");
+  }
+};
+exports.getAdminJob = async (req, res) => {
+  try {
+    const job = await JobVacancy.findById(req.params.id).populate("employer", "name companyName");
+    if (!job) return res.status(404).json({ message: "Job not found" });
+    return res.json(job);
+  } catch (error) {
+    return sendError(res, error, "Failed to fetch job");
+  }
+};
+
+exports.adminUpdateJob = async (req, res) => {
+  try {
+    const job = await JobVacancy.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: "Job not found" });
+    return await applyJobUpdate(req, res, job, req.user.role, "admin.job.updated");
+  } catch (error) {
+    return sendError(res, error, "Failed to update job");
   }
 };

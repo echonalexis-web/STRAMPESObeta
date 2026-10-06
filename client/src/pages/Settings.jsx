@@ -13,12 +13,13 @@ import {
   FaClipboardList,
   FaChevronRight,
   FaArrowRight,
+  FaArrowLeft,
   FaTrashAlt,
   FaRegClock,
 } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { employerAPI, authAPI, superadminAPI } from "../services/api";
-import { usePersistentState } from "../hooks/usePersistentState";
+import { useNavbarStylePreference } from "../hooks/useNavbarStylePreference";
 import { useToast, useConfirm } from "../components/feedback/context";
 import "../styles/settings.css";
 
@@ -50,9 +51,9 @@ const SYSTEM_DEFAULTS = {
 };
 
 const SECTIONS_BY_ROLE = {
-  jobseeker: ["account", "language", "notifications", "privacy", "about", "danger"],
-  employer: ["account", "language", "templates", "notifications", "about", "danger"],
-  admin: ["account", "notifications", "access", "about"],
+  jobseeker: ["account", "language", "notifications", "privacy", "system", "about", "danger"],
+  employer: ["account", "language", "templates", "notifications", "system", "about", "danger"],
+  admin: ["account", "notifications", "access", "system", "about"],
   superadmin: ["account", "system", "admin-tools", "about"],
 };
 
@@ -113,20 +114,19 @@ export default function Settings() {
   const role = normalizeRole(user?.role) || "jobseeker";
   const sections = SECTIONS_BY_ROLE[role] || SECTIONS_BY_ROLE.jobseeker;
 
-  // Scoped to the signed-in account — bare keys here would be shared by
-  // every account that ever uses this browser, so a different account
-  // signing in later could silently inherit someone else's unsaved
-  // preference toggles.
   const currentUserId = user?._id || user?.id || null;
-  const [activeSection, setActiveSection] = usePersistentState(
-    currentUserId ? `settingsActiveSection_${currentUserId}` : null,
-    { value: sections[0] }
-  );
-  const active = sections.includes(activeSection?.value)
-    ? activeSection.value
-    : sections[0];
+  const [navbarStyle, setNavbarStyle] = useNavbarStylePreference(currentUserId);
 
-  const go = (value) => setActiveSection({ value });
+  // List-first: entering Settings always shows the row list, never jumps
+  // straight into a remembered section — `null` is that list view. A
+  // section only becomes active once its row is tapped, and if it's no
+  // longer valid (e.g. the signed-in role changed) this falls back to the
+  // list instead of forcing some other section open.
+  const [activeSection, setActiveSection] = useState(null);
+  const active = activeSection && sections.includes(activeSection) ? activeSection : null;
+
+  const go = (key) => setActiveSection(key);
+  const goBack = () => setActiveSection(null);
 
   // ── Notification preferences + privacy (jobseeker / employer / admin) ──
   const hasAccountSettings = ["jobseeker", "employer", "admin"].includes(role);
@@ -225,6 +225,19 @@ export default function Settings() {
     [user?.firstName, user?.surname].filter(Boolean).join(" ") ||
     t("settings.account.yourAccount");
 
+  // "System Preferences" means something different depending on who's
+  // looking: a personal sidebar preference for everyone, plus portal-wide
+  // policy for superadmins only (see SystemSection below) — so its list-row
+  // blurb can't just reuse the same settings.system.subtitle every section
+  // otherwise gets, or non-superadmins would read a description of a
+  // section they can't even see.
+  const sectionSubtitle = (key) => {
+    if (key === "system") {
+      return role === "superadmin" ? t("settings.system.subtitle") : t("settings.system.navbarSubtitle");
+    }
+    return t(`settings.${SECTION_LABEL_KEY[key]}.subtitle`);
+  };
+
   return (
     <div className="set">
       <div className="set__main">
@@ -238,57 +251,65 @@ export default function Settings() {
           </div>
         </header>
 
-        <div className="set__layout">
-          <nav className="set__rail" aria-label={t("settings.railLabel")}>
+        {active ? (
+          <div className="set__detail">
+            <button type="button" className="set__back" onClick={goBack}>
+              <FaArrowLeft aria-hidden="true" /> {t("settings.backToList")}
+            </button>
+
+            <div className="set__panel">
+              {active === "account" && (
+                <AccountSection role={role} user={user} displayName={displayName} />
+              )}
+              {active === "language" && <LanguageSection />}
+              {active === "templates" && <TemplatesSection toast={toast} confirm={confirm} />}
+              {active === "notifications" && (
+                <NotificationsSection
+                  role={role}
+                  prefs={notifPrefs}
+                  loading={accountSettingsLoading}
+                  onToggle={saveNotificationPref}
+                />
+              )}
+              {active === "privacy" && (
+                <PrivacySection
+                  privacy={privacy}
+                  loading={accountSettingsLoading}
+                  onChange={savePrivacyField}
+                />
+              )}
+              {active === "access" && <AccessSection role={role} />}
+              {active === "system" && (
+                <SystemSection
+                  role={role}
+                  navbarStyle={navbarStyle}
+                  onNavbarStyleChange={setNavbarStyle}
+                  system={systemSettings}
+                  loading={systemLoading}
+                  onSave={saveSystemField}
+                />
+              )}
+              {active === "admin-tools" && <AdminToolsSection />}
+              {active === "about" && <AboutSection />}
+              {active === "danger" && (
+                <DangerSection confirm={confirm} toast={toast} logout={logout} navigate={navigate} />
+              )}
+            </div>
+          </div>
+        ) : (
+          <nav className="set__list" aria-label={t("settings.railLabel")}>
             {sections.map((key) => (
-              <button
-                key={key}
-                type="button"
-                className={`set__rail-item ${active === key ? "is-active" : ""}`}
-                onClick={() => go(key)}
-              >
-                <span className="set__rail-icon">{SECTION_ICON[key]}</span>
-                <span>{t(`settings.sections.${SECTION_LABEL_KEY[key]}`)}</span>
+              <button key={key} type="button" className="set__list-item" onClick={() => go(key)}>
+                <span className="set__list-icon">{SECTION_ICON[key]}</span>
+                <span className="set__list-text">
+                  <span className="set__list-title">{t(`settings.sections.${SECTION_LABEL_KEY[key]}`)}</span>
+                  <span className="set__list-desc">{sectionSubtitle(key)}</span>
+                </span>
+                <FaChevronRight className="set__list-chevron" aria-hidden="true" />
               </button>
             ))}
           </nav>
-
-          <div className="set__panel">
-            {active === "account" && (
-              <AccountSection role={role} user={user} displayName={displayName} />
-            )}
-            {active === "language" && <LanguageSection />}
-            {active === "templates" && <TemplatesSection toast={toast} confirm={confirm} />}
-            {active === "notifications" && (
-              <NotificationsSection
-                role={role}
-                prefs={notifPrefs}
-                loading={accountSettingsLoading}
-                onToggle={saveNotificationPref}
-              />
-            )}
-            {active === "privacy" && (
-              <PrivacySection
-                privacy={privacy}
-                loading={accountSettingsLoading}
-                onChange={savePrivacyField}
-              />
-            )}
-            {active === "access" && <AccessSection role={role} />}
-            {active === "system" && (
-              <SystemSection
-                system={systemSettings}
-                loading={systemLoading}
-                onSave={saveSystemField}
-              />
-            )}
-            {active === "admin-tools" && <AdminToolsSection />}
-            {active === "about" && <AboutSection />}
-            {active === "danger" && (
-              <DangerSection confirm={confirm} toast={toast} logout={logout} navigate={navigate} />
-            )}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -636,7 +657,7 @@ function AccessSection({ role }) {
   );
 }
 
-function SystemSection({ system, loading, onSave }) {
+function SystemSection({ role, navbarStyle, onNavbarStyleChange, system, loading, onSave }) {
   const { t } = useTranslation();
   // Local typing buffers for the two number fields, so keystrokes stay
   // smooth and the network save only fires once the field is committed
@@ -673,54 +694,93 @@ function SystemSection({ system, loading, onSave }) {
   return (
     <section className="set-card">
       <SectionHead
-        title={t("settings.system.title")}
-        subtitle={t("settings.system.subtitle")}
+        title={t("settings.system.navbarTitle")}
+        subtitle={t("settings.system.navbarSubtitle")}
       />
 
-      {loading && <p className="set-hint">{t("common.loading")}</p>}
-
-      <label className="set-field">
-        <span className="set-field__label">{t("settings.system.autoCloseLabel")}</span>
-        <div className="set-field__inline">
-          <input
-            type="number"
-            min="1"
-            max="365"
-            value={autoCloseDraft}
-            disabled={loading}
-            onChange={(e) => setAutoCloseDraft(e.target.value)}
-            onBlur={commitAutoClose}
-          />
-          <span>{t("settings.system.autoCloseSuffix")}</span>
-        </div>
-      </label>
-
-      <label className="set-field">
-        <span className="set-field__label">{t("settings.system.appealWindowLabel")}</span>
-        <div className="set-field__inline">
-          <input
-            type="number"
-            min="1"
-            max="90"
-            value={appealWindowDraft}
-            disabled={loading}
-            onChange={(e) => setAppealWindowDraft(e.target.value)}
-            onBlur={commitAppealWindow}
-          />
-          <span>{t("settings.system.appealWindowSuffix")}</span>
-        </div>
-      </label>
-
-      <div className="set-toggle-group">
-        <Toggle
-          id="s-verif"
-          checked={system.requireEmployerVerification}
-          disabled={loading}
-          onChange={(v) => onSave({ requireEmployerVerification: v })}
-          label={t("settings.system.requireVerification")}
-          hint={t("settings.system.requireVerificationHint")}
-        />
+      <div className="set-navstyle-options" role="radiogroup" aria-label={t("settings.system.navbarTitle")}>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={navbarStyle === "full"}
+          className={`set-navstyle-option${navbarStyle === "full" ? " is-selected" : ""}`}
+          onClick={() => onNavbarStyleChange("full")}
+        >
+          <span className="set-navstyle-option__radio" aria-hidden="true" />
+          <span>
+            <span className="set-navstyle-option__title">{t("settings.system.navbarFullTitle")}</span>
+            <span className="set-navstyle-option__desc">{t("settings.system.navbarFullDesc")}</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={navbarStyle === "icons"}
+          className={`set-navstyle-option${navbarStyle === "icons" ? " is-selected" : ""}`}
+          onClick={() => onNavbarStyleChange("icons")}
+        >
+          <span className="set-navstyle-option__radio" aria-hidden="true" />
+          <span>
+            <span className="set-navstyle-option__title">{t("settings.system.navbarIconsTitle")}</span>
+            <span className="set-navstyle-option__desc">{t("settings.system.navbarIconsDesc")}</span>
+          </span>
+        </button>
       </div>
+
+      {role === "superadmin" && (
+        <>
+          <hr className="set-divider" />
+          <SectionHead
+            title={t("settings.system.title")}
+            subtitle={t("settings.system.subtitle")}
+          />
+
+          {loading && <p className="set-hint">{t("common.loading")}</p>}
+
+          <label className="set-field">
+            <span className="set-field__label">{t("settings.system.autoCloseLabel")}</span>
+            <div className="set-field__inline">
+              <input
+                type="number"
+                min="1"
+                max="365"
+                value={autoCloseDraft}
+                disabled={loading}
+                onChange={(e) => setAutoCloseDraft(e.target.value)}
+                onBlur={commitAutoClose}
+              />
+              <span>{t("settings.system.autoCloseSuffix")}</span>
+            </div>
+          </label>
+
+          <label className="set-field">
+            <span className="set-field__label">{t("settings.system.appealWindowLabel")}</span>
+            <div className="set-field__inline">
+              <input
+                type="number"
+                min="1"
+                max="90"
+                value={appealWindowDraft}
+                disabled={loading}
+                onChange={(e) => setAppealWindowDraft(e.target.value)}
+                onBlur={commitAppealWindow}
+              />
+              <span>{t("settings.system.appealWindowSuffix")}</span>
+            </div>
+          </label>
+
+          <div className="set-toggle-group">
+            <Toggle
+              id="s-verif"
+              checked={system.requireEmployerVerification}
+              disabled={loading}
+              onChange={(v) => onSave({ requireEmployerVerification: v })}
+              label={t("settings.system.requireVerification")}
+              hint={t("settings.system.requireVerificationHint")}
+            />
+          </div>
+        </>
+      )}
     </section>
   );
 }

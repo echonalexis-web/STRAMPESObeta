@@ -1,3 +1,10 @@
+jest.mock("../models/NsrpTemplate", () => ({ findOne: jest.fn() }));
+const NsrpTemplate = require("../models/NsrpTemplate");
+
+beforeEach(() => {
+  NsrpTemplate.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(null) });
+});
+
 const { fillForm1, fillForm2 } = require("../services/nsrpFormService");
 
 const fixtureUser = {

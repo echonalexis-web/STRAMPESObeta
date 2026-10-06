@@ -50,8 +50,17 @@ body:not(.app-with-sidebar) .news-feed-page {
 .news-feed-header-wrap,
 .news-feed-controls-wrap,
 .news-feed-list-wrap {
-  width: min(1120px, 92vw);
+  width: 100%;
+  max-width: 1120px;
   margin: 0 auto;
+  /* A fixed-fraction vw width ignores the sidebar's reserved space (vw is
+     relative to the whole viewport, not the content area left after
+     body.app-with-sidebar's padding-left), so on common laptop widths the
+     1120px cap could exceed the actual remaining room and this block would
+     hug the sidebar with little/no gutter. Padding on the box itself
+     guarantees a minimum gutter no matter how much room is actually left. */
+  padding: 0 clamp(16px, 4vw, 32px);
+  box-sizing: border-box;
 }
 
 .news-feed-header {
@@ -192,7 +201,13 @@ body:not(.app-with-sidebar) .news-feed-header {
 
 /* ---- List area ---- */
 .news-feed-list-wrap {
-  padding: 12px 0 64px;
+  /* This used to be "padding: 12px 0 64px" (no horizontal padding), which
+     silently overrode the horizontal gutter set above (same specificity,
+     later in the cascade) and put the hero card / .news-grid cards right
+     back against the sidebar. Horizontal value must stay in sync with the
+     clamp() above. */
+  padding: 12px clamp(16px, 4vw, 32px) 64px;
+  box-sizing: border-box;
 }
 
 /* ---- Featured post ---- */
@@ -521,9 +536,11 @@ body:not(.app-with-sidebar) .news-article-page {
   left: 0;
   right: 0;
   bottom: 0;
-  width: min(1180px, 94vw);
+  width: 100%;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 0 0 30px;
+  padding: 0 clamp(16px, 4vw, 32px) 30px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -548,15 +565,21 @@ body:not(.app-with-sidebar) .news-article-page {
 
 /* Loading / error state wrapper */
 .news-article-col {
-  width: min(720px, 92vw);
+  width: 100%;
+  max-width: 720px;
   margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 32px);
+  box-sizing: border-box;
 }
 
 /* Two-column article: caption (title + body) on the left, the
    likes/comment strip and the comments section on the right. */
 .news-article-layout {
-  width: min(1180px, 94vw);
+  width: 100%;
+  max-width: 1180px;
   margin: 18px auto 0;
+  padding: 0 clamp(16px, 4vw, 32px);
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
   gap: 40px;

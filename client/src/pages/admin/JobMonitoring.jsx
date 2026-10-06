@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import JobPostingForm from "../../components/JobPostingForm";
 import { useEffect, useMemo, useState } from "react";
 import {
   FaBriefcase,
@@ -72,11 +74,15 @@ const JOB_EXPORT_COLUMNS = [
 
 export default function JobMonitoring() {
   const PAGE_SIZE = 10;
+  const { t } = useTranslation();
+  const [editingJob, setEditingJob] = useState(null);
+  const [loadingEditId, setLoadingEditId] = useState(null);
   const toast = useToast();
   const { user } = useAuth();
   // The superadmin gets a lean, monitoring-only view: no KPI cards, no charts,
   // no "post a listing" — but it can permanently take down policy-violating jobs.
   const isSuperadmin = user?.role === "superadmin";
+  const canEdit = ["admin", "superadmin"].includes(user?.role);
 
   const [jobs, setJobs] = useState([]);
   const [statsData, setStatsData] = useState(null);
@@ -140,7 +146,7 @@ export default function JobMonitoring() {
     return () => {
       isMounted = false;
     };
-  }, [currentPage, searchTerm, selectedMunicipality, selectedStatus]);
+  }, [currentPage, searchTerm, selectedMunicipality, selectedStatus, statsRefreshKey]);
 
   useEffect(() => {
     if (isSuperadmin) {
@@ -247,6 +253,19 @@ export default function JobMonitoring() {
 
   const maxChartValue = Math.max(...provinceSummary.map((item) => item.value), 1);
 
+  const openEdit = async (job) => {
+    setLoadingEditId(job.id);
+    try {
+      const { data } = await adminAPI.getJob(job.id);
+      setSelectedJob(null);
+      setEditingJob(data);
+    } catch (error) {
+      toast.error(error.response?.data?.message || t("jobEditing.loadError"));
+    } finally {
+      setLoadingEditId(null);
+    }
+  };
+
   const handleStatusUpdate = async (jobId, nextStatus) => {
     try {
       await adminAPI.updateJobStatus(jobId, nextStatus);
@@ -333,6 +352,12 @@ export default function JobMonitoring() {
       setExporting(false);
     }
   };
+
+  if (editingJob && canEdit) {
+    return <JobPostingForm key={editingJob._id} initialJob={editingJob}
+      onCancel={() => setEditingJob(null)}
+      onSaved={() => { setEditingJob(null); setStatsRefreshKey((key) => key + 1); }} />;
+  }
 
   return (
     <div className="jm-page">
@@ -537,6 +562,11 @@ export default function JobMonitoring() {
                               <FaEye />
                             </button>
                           </div>
+                          {canEdit && (
+                            <button type="button" className="jm-btn jm-btn--ghost" disabled={Boolean(loadingEditId)} onClick={() => openEdit(job)}>
+                              {loadingEditId === job.id ? t("common.loading") : t("common.edit")}
+                            </button>
+                          )}
                           <div className="jm-slots__meta">{job.applicants} applicants</div>
                         </div>
                       </td>

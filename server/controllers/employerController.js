@@ -380,6 +380,118 @@ exports.createJob = async (req, res) => {
   }
 };
 
+// Both routes share parsing; ownership stays in the employer controller.
+const applyJobUpdate = async (req, res, job, actorRole, action) => {
+  // Parse qualifications from JSON string if needed
+  let parsedQualifications = undefined;
+  if (req.body.qualifications !== undefined) {
+    try {
+      parsedQualifications = typeof req.body.qualifications === "string"
+        ? JSON.parse(req.body.qualifications)
+        : req.body.qualifications;
+    } catch (e) {
+      return res.status(400).json({ message: "Invalid qualifications format" });
+    }
+
+    if (!Array.isArray(parsedQualifications)) {
+      return res.status(400).json({ message: "Qualifications must be an array" });
+    }
+
+    parsedQualifications = parsedQualifications.map((q, index) => ({
+      ...q,
+      order: q.order !== undefined ? q.order : index,
+    }));
+  }
+
+  const allowedFields = ["title", "location", "description", "jobType", "slots", "status", "applicationDeadline"];
+  allowedFields.forEach((field) => {
+    if (req.body[field] !== undefined) {
+      job[field] = req.body[field];
+    }
+  });
+
+  if (req.body.industry !== undefined) {
+    job.industry = String(req.body.industry).trim();
+  }
+  if (req.body.workNature !== undefined) {
+    job.workNature = VALID_WORK_NATURES.includes(req.body.workNature) ? req.body.workNature : null;
+  }
+
+  const { salaryMin, salaryMax } = parseSalaryRange(req.body);
+  if (salaryMin != null && !Number.isFinite(salaryMin)) {
+    return res.status(400).json({ message: "Salary minimum must be a number" });
+  }
+  if (salaryMax != null && !Number.isFinite(salaryMax)) {
+    return res.status(400).json({ message: "Salary maximum must be a number" });
+  }
+  const nextMin = salaryMin !== undefined ? salaryMin : job.salaryMin;
+  const nextMax = salaryMax !== undefined ? salaryMax : job.salaryMax;
+  if (Number.isFinite(nextMin) && Number.isFinite(nextMax) && nextMin > nextMax) {
+    return res.status(400).json({ message: "Salary minimum cannot be greater than salary maximum" });
+  }
+  if (salaryMin !== undefined) job.salaryMin = salaryMin;
+  if (salaryMax !== undefined) job.salaryMax = salaryMax;
+
+  if (req.body.salary !== undefined) {
+    job.salary = String(req.body.salary).trim();
+  } else if (salaryMin !== undefined || salaryMax !== undefined) {
+    // No explicit display string provided, but the numeric range changed —
+    // regenerate the display string so it doesn't go stale.
+    job.salary = formatSalaryDisplay(job.salaryMin, job.salaryMax);
+  }
+
+  if (req.body.qualifications !== undefined) {
+    job.qualifications = parsedQualifications;
+  }
+
+  // Structured basic requirements (age / education / experience / language).
+  const basicRequirements = parseBasicRequirements(req.body);
+  if (Object.keys(basicRequirements).length > 0) {
+    const effective = {
+      minAge: "minAge" in basicRequirements ? basicRequirements.minAge : job.minAge,
+      maxAge: "maxAge" in basicRequirements ? basicRequirements.maxAge : job.maxAge,
+      minExperienceYears:
+        "minExperienceYears" in basicRequirements
+          ? basicRequirements.minExperienceYears
+          : job.minExperienceYears,
+    };
+    const basicReqError = validateBasicRequirements(effective);
+    if (basicReqError) {
+      return res.status(400).json({ message: basicReqError });
+    }
+    Object.entries(basicRequirements).forEach(([key, value]) => {
+      job[key] = value;
+    });
+  }
+
+  if (req.body.status === "closed") {
+    job.isActive = false;
+  }
+  if (req.body.status === "active") {
+    job.isActive = true;
+  }
+
+  job.updatedAt = new Date();
+
+  await job.save();
+  const jobObj = job.toObject();
+  jobObj.qualifications = formatQualifications(jobObj.qualifications);
+
+  await logAuditEvent({
+    req,
+    actorId: getUserId(req),
+    actorRole,
+    action,
+    targetType: "job",
+    targetId: String(job._id),
+    severity: "info",
+  });
+
+  return res.json(jobObj);
+};
+
+exports.applyJobUpdate = applyJobUpdate;
+
 // ---------------------------------------------------------------------
 // Update an existing job
 // ---------------------------------------------------------------------
@@ -397,112 +509,7 @@ exports.updateJob = async (req, res) => {
       return res.status(403).json({ message: "You can only update your own job" });
     }
 
-    // Parse qualifications from JSON string if needed
-    let parsedQualifications = undefined;
-    if (req.body.qualifications !== undefined) {
-      try {
-        parsedQualifications = typeof req.body.qualifications === "string" 
-          ? JSON.parse(req.body.qualifications) 
-          : req.body.qualifications;
-      } catch (e) {
-        return res.status(400).json({ message: "Invalid qualifications format" });
-      }
-      
-      if (!Array.isArray(parsedQualifications)) {
-        return res.status(400).json({ message: "Qualifications must be an array" });
-      }
-      
-      parsedQualifications = parsedQualifications.map((q, index) => ({
-        ...q,
-        order: q.order !== undefined ? q.order : index,
-      }));
-    }
-
-    const allowedFields = ["title", "location", "description", "jobType", "slots", "status", "applicationDeadline"];
-    allowedFields.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        job[field] = req.body[field];
-      }
-    });
-
-    if (req.body.industry !== undefined) {
-      job.industry = String(req.body.industry).trim();
-    }
-    if (req.body.workNature !== undefined) {
-      job.workNature = VALID_WORK_NATURES.includes(req.body.workNature) ? req.body.workNature : null;
-    }
-
-    const { salaryMin, salaryMax } = parseSalaryRange(req.body);
-    if (salaryMin != null && !Number.isFinite(salaryMin)) {
-      return res.status(400).json({ message: "Salary minimum must be a number" });
-    }
-    if (salaryMax != null && !Number.isFinite(salaryMax)) {
-      return res.status(400).json({ message: "Salary maximum must be a number" });
-    }
-    const nextMin = salaryMin !== undefined ? salaryMin : job.salaryMin;
-    const nextMax = salaryMax !== undefined ? salaryMax : job.salaryMax;
-    if (Number.isFinite(nextMin) && Number.isFinite(nextMax) && nextMin > nextMax) {
-      return res.status(400).json({ message: "Salary minimum cannot be greater than salary maximum" });
-    }
-    if (salaryMin !== undefined) job.salaryMin = salaryMin;
-    if (salaryMax !== undefined) job.salaryMax = salaryMax;
-
-    if (req.body.salary !== undefined) {
-      job.salary = String(req.body.salary).trim();
-    } else if (salaryMin !== undefined || salaryMax !== undefined) {
-      // No explicit display string provided, but the numeric range changed —
-      // regenerate the display string so it doesn't go stale.
-      job.salary = formatSalaryDisplay(job.salaryMin, job.salaryMax);
-    }
-
-    if (req.body.qualifications !== undefined) {
-      job.qualifications = parsedQualifications;
-    }
-
-    // Structured basic requirements (age / education / experience / language).
-    const basicRequirements = parseBasicRequirements(req.body);
-    if (Object.keys(basicRequirements).length > 0) {
-      const effective = {
-        minAge: "minAge" in basicRequirements ? basicRequirements.minAge : job.minAge,
-        maxAge: "maxAge" in basicRequirements ? basicRequirements.maxAge : job.maxAge,
-        minExperienceYears:
-          "minExperienceYears" in basicRequirements
-            ? basicRequirements.minExperienceYears
-            : job.minExperienceYears,
-      };
-      const basicReqError = validateBasicRequirements(effective);
-      if (basicReqError) {
-        return res.status(400).json({ message: basicReqError });
-      }
-      Object.entries(basicRequirements).forEach(([key, value]) => {
-        job[key] = value;
-      });
-    }
-
-    if (req.body.status === "closed") {
-      job.isActive = false;
-    }
-    if (req.body.status === "active") {
-      job.isActive = true;
-    }
-
-    job.updatedAt = new Date();
-
-    await job.save();
-    const jobObj = job.toObject();
-    jobObj.qualifications = formatQualifications(jobObj.qualifications);
-
-    await logAuditEvent({
-      req,
-      actorId: employerId,
-      actorRole: "employer",
-      action: "employer.job.updated",
-      targetType: "job",
-      targetId: String(job._id),
-      severity: "info",
-    });
-
-    return res.json(jobObj);
+    return await applyJobUpdate(req, res, job, "employer", "employer.job.updated");
   } catch (error) {
     return res.status(500).json({ message: "Failed to update job" });
   }

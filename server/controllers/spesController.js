@@ -4,6 +4,7 @@ const User = require("../models/User");
 const { createNotificationForUser, notifyManyUsers } = require("../services/notificationService");
 const { logAuditEvent } = require("../services/auditService");
 const { sendError } = require("../utils/sendError");
+const { isSpesEligibleAge } = require("../utils/age");
 
 const getUserId = (req) => req.user.id || req.user._id;
 
@@ -48,10 +49,18 @@ exports.applyToSpes = async (req, res) => {
       return res.status(400).json({ message: "The application deadline for this SPES program has passed." });
     }
 
-    const user = await User.findById(userId).select("role name hasCompletedOnboarding onboardingComplete");
+    const user = await User.findById(userId).select(
+      "role name hasCompletedOnboarding onboardingComplete dateOfBirth"
+    );
     if (!user) return res.status(404).json({ message: "User not found" });
     if (!["jobseeker", "employee", "resident"].includes(user.role)) {
       return res.status(403).json({ message: "Only jobseeker accounts can apply for SPES." });
+    }
+    if (!isSpesEligibleAge(user.dateOfBirth)) {
+      return res.status(403).json({
+        code: "AGE_RESTRICTED",
+        message: "SPES applications are limited to applicants 30 years old and below.",
+      });
     }
 
     const nsrpComplete = user.hasCompletedOnboarding === true || user.onboardingComplete === true;

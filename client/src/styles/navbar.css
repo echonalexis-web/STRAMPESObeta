@@ -39,6 +39,19 @@ body.app-with-sidebar {
   padding-top: 0;
   padding-left: 270px;
   background: linear-gradient(180deg, #f4f7f4 0%, #edf3ef 100%);
+  transition: padding-left 0.18s ease;
+}
+
+/* Icon-only sidebar preference (Settings → System Preferences → Navigation
+   Bar Style): the content offset has to shrink along with the sidebar
+   itself, or the page keeps a gap sized for the full 270px rail. Scoped to
+   where .navbar--auth-sidebar is actually the fixed left column — below
+   900px it collapses into a top bar instead (see the max-width:900px block
+   below), so this must not apply there. */
+@media (min-width: 901px) {
+  body.app-with-sidebar.app-sidebar-compact {
+    padding-left: 76px;
+  }
 }
 
 .nav-container {
@@ -334,6 +347,7 @@ body.app-with-sidebar {
   z-index: 1100;
   box-shadow: 8px 0 18px rgba(11, 43, 29, 0.18);
   overflow-y: auto;
+  transition: width 0.18s ease;
 }
 
 .auth-sidebar-top {
@@ -470,6 +484,9 @@ body.app-with-sidebar {
 .nav-section-link,
 .nav-standalone-link,
 .messages-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   color: #ffffff;
   text-decoration: none;
   padding: 0.6rem 0.7rem;
@@ -480,6 +497,13 @@ body.app-with-sidebar {
   transition: all 0.2s ease;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.02);
+}
+
+.nav-section-link svg,
+.nav-standalone-link svg {
+  flex-shrink: 0;
+  font-size: 0.95rem;
+  opacity: 0.9;
 }
 
 .nav-standalone-link {
@@ -577,6 +601,10 @@ body.app-with-sidebar {
 }
 
 .auth-sidebar-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   position: sticky;
   bottom: 0;
   margin-top: auto;
@@ -991,6 +1019,68 @@ body.app-with-sidebar {
 /* ============================================ */
 /* RESPONSIVE MEDIA QUERIES                     */
 /* ============================================ */
+/* ── Icon-only sidebar (Settings → System Preferences → Navigation Bar
+   Style) ──────────────────────────────────────────────────────────────
+   Desktop only: below 900px the sidebar is already replaced by a top bar
+   (see the max-width:900px block below), so this is scoped to min-width to
+   avoid fighting that layout. */
+@media (min-width: 901px) {
+  .navbar--auth-sidebar.is-compact {
+    width: 76px;
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+  }
+
+  .navbar--auth-sidebar.is-compact .nav-link-text,
+  .navbar--auth-sidebar.is-compact .nav-logo-text,
+  .navbar--auth-sidebar.is-compact .nav-section-label,
+  .navbar--auth-sidebar.is-compact .auth-sidebar-role {
+    display: none;
+  }
+
+  .navbar--auth-sidebar.is-compact .nav-section-link,
+  .navbar--auth-sidebar.is-compact .nav-standalone-link,
+  .navbar--auth-sidebar.is-compact .messages-link {
+    justify-content: center;
+    gap: 0;
+    padding: 0.65rem 0.35rem;
+  }
+
+  .navbar--auth-sidebar.is-compact .nav-section-link svg,
+  .navbar--auth-sidebar.is-compact .nav-standalone-link svg,
+  .navbar--auth-sidebar.is-compact .messages-link svg {
+    font-size: 1.05rem;
+  }
+
+  .navbar--auth-sidebar.is-compact .messages-link .user-unread-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+  }
+
+  .navbar--auth-sidebar.is-compact .nav-section-group {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 0.5rem;
+    margin-top: 0.35rem;
+  }
+
+  .navbar--auth-sidebar.is-compact .nav-section-group:first-child {
+    border-top: none;
+    padding-top: 0;
+    margin-top: 0;
+  }
+
+  .navbar--auth-sidebar.is-compact .auth-sidebar-profile {
+    display: flex;
+    justify-content: center;
+  }
+
+  .navbar--auth-sidebar.is-compact .user-name {
+    padding: 0.45rem;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 900px) {
   .nav-links {
     display: none;
