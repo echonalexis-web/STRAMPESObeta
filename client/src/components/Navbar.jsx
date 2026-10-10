@@ -34,6 +34,8 @@ import pesoLogo from "../assets/images/peso-logo.png";
 
 const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
+const cx = (...parts) => parts.filter(Boolean).join(" ");
+
 // Routes whose page renders its own dedicated setup rail (e.g. the applicant /
 // employer detail onboarding). The app sidebar is suppressed on these so it
 // doesn't compete with the flow's own step navigator.
@@ -210,17 +212,26 @@ const UserAvatar = ({ user }) => {
 // bottom-of-list links other roles get; `variant: "mobile"` matches the
 // plain-link styling the mobile panel's other submenu items already use
 // (the panel applies box styling via a parent descendant selector).
-const SystemLogsQuickLinks = ({ t, isActiveLink, unreadCount, unreadNotifications, variant, onLinkClick }) => {
-  const linkClassName = (active) => {
-    if (variant === "mobile") return active ? "is-active" : "";
-    return active ? "messages-link is-active" : "messages-link";
+const SystemLogsQuickLinks = ({
+  t,
+  isActiveLink,
+  unreadCount,
+  unreadNotifications,
+  variant,
+  onLinkClick,
+  hideMessagesWide,
+  hideNotificationsWide,
+}) => {
+  const linkClassName = (active, hideWideClass) => {
+    if (variant === "mobile") return cx(active ? "is-active" : "", hideWideClass);
+    return cx("messages-link", active ? "is-active" : "", hideWideClass);
   };
 
   return (
     <>
       <Link
         to="/messages"
-        className={linkClassName(isActiveLink("/messages"))}
+        className={linkClassName(isActiveLink("/messages"), hideMessagesWide)}
         onClick={onLinkClick}
         title={t("navbar.messages")}
       >
@@ -232,7 +243,7 @@ const SystemLogsQuickLinks = ({ t, isActiveLink, unreadCount, unreadNotification
       </Link>
       <Link
         to="/notifications"
-        className={linkClassName(isActiveLink("/notifications"))}
+        className={linkClassName(isActiveLink("/notifications"), hideNotificationsWide)}
         onClick={onLinkClick}
         title={t("navbar.notifications")}
       >
@@ -453,13 +464,39 @@ export default function Navbar() {
     setIsMobileMenuOpen(true);
   };
 
+  // Above 768px, the globally-mounted DashboardTopBar already has its own
+  // Messages/Notifications bells (with preview dropdowns), so the navbar's
+  // copies are now redundant there — Messages always hides above that width,
+  // Notifications only stays except on the few routes where DashboardTopBar
+  // itself is hidden (Settings, Profile, and the Messages page — see
+  // DashboardTopBar.jsx's own HIDDEN_PATH_PREFIXES), which would otherwise
+  // leave no way at all to reach notifications from those pages above 768px.
+  const isNotificationsPinnedRoute =
+    location.pathname === "/settings" ||
+    location.pathname === "/messages" ||
+    location.pathname.startsWith("/profile");
+  const hideMessagesWide = "nav-hide-wide";
+  const hideNotificationsWide = isNotificationsPinnedRoute ? "" : "nav-hide-wide";
+
   // Props for <SystemLogsQuickLinks> — pinned to the top of admin/superadmin's
   // "System & Logs" group (see getLoggedInMenuItems) instead of the plain
   // bottom-of-list placement job seekers/employers get.
-  const quickLinkProps = { t, isActiveLink, unreadCount, unreadNotifications, variant: "desktop" };
+  const quickLinkProps = {
+    t,
+    isActiveLink,
+    unreadCount,
+    unreadNotifications,
+    variant: "desktop",
+    hideMessagesWide,
+    hideNotificationsWide,
+  };
   const mobileQuickLinkProps = { ...quickLinkProps, variant: "mobile", onLinkClick: closeMobileMenu };
 
   const isSetupRoute = SETUP_PATHS.has(location.pathname);
+  // The login page now carries its own "Register as Applicant / Employer"
+  // entry points inside the auth card, so the navbar's copies would just be
+  // a duplicate right above them.
+  const isLoginRoute = location.pathname === "/login";
 
   useEffect(() => {
     const bodyClass = "app-with-sidebar";
@@ -507,11 +544,11 @@ export default function Navbar() {
           </Link>
 
           <div className="auth-sidebar-actions">
-            <Link to="/messages" className="auth-sidebar-action" aria-label={t("navbar.messages")}>
+            <Link to="/messages" className={cx("auth-sidebar-action", hideMessagesWide)} aria-label={t("navbar.messages")}>
               <FaEnvelope />
             </Link>
             {showNotificationsTopAction && (
-              <Link to="/notifications" className="auth-sidebar-action" aria-label={t("navbar.notifications")}>
+              <Link to="/notifications" className={cx("auth-sidebar-action", hideNotificationsWide)} aria-label={t("navbar.notifications")}>
                 <FaBell />
                 {unreadNotifications > 0 && (
                   <span className="user-unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
@@ -631,7 +668,7 @@ export default function Navbar() {
           {showMessagesSidebarLink && (
             <Link
               to="/messages"
-              className={isActiveLink("/messages") ? "messages-link is-active" : "messages-link"}
+              className={cx("messages-link", isActiveLink("/messages") && "is-active", hideMessagesWide)}
               title={t("navbar.messages")}
             >
               <FaEnvelope className="nav-link-icon" aria-hidden="true" />
@@ -645,7 +682,7 @@ export default function Navbar() {
           {showNotificationsSidebarLink && (
             <Link
               to="/notifications"
-              className={isActiveLink("/notifications") ? "messages-link is-active" : "messages-link"}
+              className={cx("messages-link", isActiveLink("/notifications") && "is-active", hideNotificationsWide)}
               title={t("navbar.notifications")}
             >
               <FaBell className="nav-link-icon" aria-hidden="true" />
@@ -723,7 +760,11 @@ export default function Navbar() {
                   })}
 
                 {showNotificationsSidebarLink && (
-                  <Link to="/notifications" className={isActiveLink("/notifications") ? "messages-link is-active" : "messages-link"} onClick={closeMobileMenu}>
+                  <Link
+                    to="/notifications"
+                    className={cx("messages-link", isActiveLink("/notifications") && "is-active", hideNotificationsWide)}
+                    onClick={closeMobileMenu}
+                  >
                     <FaBell className="nav-link-icon" aria-hidden="true" />
                     <span>{t("navbar.notifications")}</span>
                     {unreadNotifications > 0 && (
@@ -733,7 +774,11 @@ export default function Navbar() {
                 )}
 
                 {showMessagesSidebarLink && (
-                  <Link to="/messages" className={isActiveLink("/messages") ? "messages-link is-active" : "messages-link"} onClick={closeMobileMenu}>
+                  <Link
+                    to="/messages"
+                    className={cx("messages-link", isActiveLink("/messages") && "is-active", hideMessagesWide)}
+                    onClick={closeMobileMenu}
+                  >
                     <FaEnvelope className="nav-link-icon" aria-hidden="true" />
                     <span>{t("navbar.messages")}</span>
                     {unreadCount > 0 && (
@@ -799,12 +844,16 @@ export default function Navbar() {
           <Link to="/#available-jobs">{t("common.availableJobs")}</Link>
 
           <div className="nav-cta-group">
-            <Link to="/register" className="nav-cta-btn nav-cta-btn--secondary" onClick={closeMobileMenu}>
-              {t("common.applicant")}
-            </Link>
-            <Link to="/register-employer" className="nav-cta-btn nav-cta-btn--primary" onClick={closeMobileMenu}>
-              {t("common.employer")}
-            </Link>
+            {!isLoginRoute && (
+              <>
+                <Link to="/register" className="nav-cta-btn nav-cta-btn--secondary" onClick={closeMobileMenu}>
+                  {t("common.applicant")}
+                </Link>
+                <Link to="/register-employer" className="nav-cta-btn nav-cta-btn--primary" onClick={closeMobileMenu}>
+                  {t("common.employer")}
+                </Link>
+              </>
+            )}
             <Link to="/login" className="nav-cta-btn nav-cta-btn--login" onClick={closeMobileMenu}>
               {t("common.login")}
             </Link>
@@ -834,14 +883,18 @@ export default function Navbar() {
             </div>
 
             <div className="mobile-register-section">
-              <div className="mobile-register-label">{t("common.joinAs")}</div>
+              {!isLoginRoute && <div className="mobile-register-label">{t("common.joinAs")}</div>}
               <div className="mobile-register-buttons">
-                <Link to="/register" onClick={closeMobileMenu} className="mobile-register-link">
-                  {t("common.applicant")}
-                </Link>
-                <Link to="/register-employer" onClick={closeMobileMenu} className="mobile-register-link mobile-register-link--employer">
-                  {t("common.employer")}
-                </Link>
+                {!isLoginRoute && (
+                  <>
+                    <Link to="/register" onClick={closeMobileMenu} className="mobile-register-link">
+                      {t("common.applicant")}
+                    </Link>
+                    <Link to="/register-employer" onClick={closeMobileMenu} className="mobile-register-link mobile-register-link--employer">
+                      {t("common.employer")}
+                    </Link>
+                  </>
+                )}
                 <Link to="/login" onClick={closeMobileMenu} className="mobile-register-link mobile-register-link--login">
                   {t("common.login")}
                 </Link>

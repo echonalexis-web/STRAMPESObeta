@@ -49,7 +49,7 @@
 /* ─── Split Panel ─── */
 .auth-panel {
   width: 100%;
-  max-width: 960px;
+  max-width: 1040px;
   display: flex;
   border-radius: 24px;
   overflow: hidden;
@@ -220,7 +220,7 @@
 }
 
 .auth-card h2 {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.3rem;
   font-size: 1.8rem;
   color: #0f2540;
 }
@@ -230,6 +230,136 @@
   color: #4a5568;
   font-size: 0.95rem;
   line-height: 1.65;
+}
+
+/* ─── Card header: title + Secure Portal badge ─── */
+.auth-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.auth-card-header .auth-subtitle {
+  margin: 0;
+}
+
+.auth-secure-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ─── Integrated registration block ─── */
+.auth-register-block {
+  background: rgba(241, 245, 249, 0.75);
+  border: 1px solid rgba(203, 213, 225, 0.6);
+  border-radius: 16px;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.auth-register-block-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+
+.auth-register-block-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.auth-register-block-hint {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+.auth-register-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.auth-register-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  white-space: nowrap;
+}
+
+.auth-register-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.auth-register-btn-arrow {
+  margin-left: auto;
+  flex: none;
+  font-size: 0.8em;
+  opacity: 0.85;
+}
+
+.auth-register-btn--applicant {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #452c00;
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.25);
+}
+
+.auth-register-btn--employer {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(21, 128, 61, 0.28);
+}
+
+.auth-register-btn:hover,
+.auth-register-btn:focus-visible {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+/* ─── Divider between register block and sign-in form ─── */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1.5rem;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(148, 163, 184, 0.4);
 }
 
 .auth-form {
@@ -274,6 +404,99 @@
   background: #ffffff;
 }
 
+/* Icon-prefixed inputs (email / password) */
+.auth-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Extra class + !important: the global `input { margin: 0 auto; }` reset in
+   style.css (loaded after this file on some pages) otherwise wins the
+   padding-left tug-of-war against the plain `.auth-form input` rule above,
+   leaving the icon sitting on top of the placeholder text. */
+.auth-form .auth-input-wrap input {
+  padding-left: 2.9rem !important;
+  margin: 0 !important;
+}
+
+.auth-input-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 0.95rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.auth-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.auth-field-header label {
+  margin: 0;
+}
+
+.auth-forgot-link {
+  color: #16a34a;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.auth-forgot-link:hover {
+  text-decoration: underline;
+  color: #15803d;
+}
+
+.auth-checkbox-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.55rem;
+  margin: -0.3rem 0 0.1rem;
+  font-size: 0.88rem;
+  color: #475569;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* The global `input { width:100%; margin:0 auto; display:block; }` reset in
+   style.css otherwise turns this checkbox into a centered block, which eats
+   the flex row's free space and shoves the label text to the far right. */
+.auth-checkbox-row input[type="checkbox"] {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0 !important;
+  accent-color: #16a34a;
+  cursor: pointer;
+}
+
+.auth-terms-footer {
+  margin: 1.1rem 0 0;
+  text-align: center;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: #94a3b8;
+}
+
+.auth-terms-footer a {
+  color: #64748b;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.auth-terms-footer a:hover {
+  color: #16a34a;
+}
+
 .auth-button {
   width: 100%;
   padding: 1rem 1.15rem;
@@ -286,6 +509,10 @@
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
   letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
 }
 
 .auth-button:hover,
@@ -679,6 +906,27 @@ input.is-error:focus {
   .auth-button {
     font-size: 0.95rem;
     padding: 0.9rem 1rem;
+  }
+
+  .auth-card-header {
+    flex-wrap: wrap;
+  }
+
+  .auth-register-block {
+    padding: 0.95rem 1rem;
+  }
+
+  .auth-register-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-register-btn span {
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .auth-register-btn {
+    white-space: normal;
   }
 }
 

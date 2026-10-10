@@ -135,7 +135,7 @@ export default function YourApplications() {
 
   return (
     <div className="jobboard-container">
-      <section className="jobboard-hero jobboard-hero--slim">
+      <section className="jobboard-hero jobboard-hero--slim jobboard-hero--noimage">
         <div className="jobboard-hero-content">
           <h1>Your Applications</h1>
           <p>Track every job you have applied to and pick up where you left off.</p>

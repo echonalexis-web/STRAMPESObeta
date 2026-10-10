@@ -6,7 +6,17 @@ import GoogleSignInButton from "../components/GoogleSignInButton";
 import AccountInactiveModal from "../components/AccountInactiveModal";
 import { useToast } from "../components/feedback/context";
 import "../styles/auth.css";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
+import {
+  FaEye,
+  FaEyeSlash,
+  FaEnvelope,
+  FaLock,
+  FaUserGraduate,
+  FaBuilding,
+  FaArrowRight,
+  FaSignInAlt,
+  FaShieldAlt,
+} from "react-icons/fa";
 import pesoLogo from "../assets/images/peso-logo.png";
 import provincialSeal from "../assets/images/provincial-seal.png";
 
@@ -40,6 +50,7 @@ const formatApiError = (err, fallback = "Login failed") => {
 export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
+  const [keepSignedIn, setKeepSignedIn] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -327,8 +338,38 @@ export default function Login() {
 
         {/* ─── Form Side ─── */}
         <div className="auth-card">
-          <h2>Login</h2>
-          <p className="auth-subtitle">Access your account to view jobs and manage applications.</p>
+          <div className="auth-card-header">
+            <div>
+              <h2>Welcome Back</h2>
+              <p className="auth-subtitle">Access your account or create a new profile</p>
+            </div>
+            <span className="auth-secure-badge">
+              <FaShieldAlt aria-hidden="true" /> Secure Portal
+            </span>
+          </div>
+
+          <div className="auth-register-block">
+            <div className="auth-register-block-head">
+              <span className="auth-register-block-eyebrow">New to PESO Marinduque?</span>
+              <span className="auth-register-block-hint">Select your account type:</span>
+            </div>
+            <div className="auth-register-buttons">
+              <Link to="/register" className="auth-register-btn auth-register-btn--applicant">
+                <FaUserGraduate aria-hidden="true" />
+                <span>Register as Applicant</span>
+                <FaArrowRight className="auth-register-btn-arrow" aria-hidden="true" />
+              </Link>
+              <Link to="/register-employer" className="auth-register-btn auth-register-btn--employer">
+                <FaBuilding aria-hidden="true" />
+                <span>Register as Employer</span>
+                <FaArrowRight className="auth-register-btn-arrow" aria-hidden="true" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="auth-divider">
+            <span>Or sign in to existing account</span>
+          </div>
 
           {error && (
             <div className="error-message" role="alert" aria-live="polite">
@@ -347,23 +388,30 @@ export default function Login() {
           <form className="auth-form" onSubmit={handleSubmit} noValidate>
             <div className="form-group">
               <label htmlFor="email">Email Address</label>
-              <input
-                id="email"
-                type="email"
-                name="email"
-                placeholder="Enter your email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                disabled={loading || isRedirecting}
-                autoComplete="email"
-                className={touched.email && !formData.email.trim() ? "is-error" : ""}
-              />
+              <div className="auth-input-wrap">
+                <FaEnvelope className="auth-input-icon" aria-hidden="true" />
+                <input
+                  id="email"
+                  type="email"
+                  name="email"
+                  placeholder="name@example.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  disabled={loading || isRedirecting}
+                  autoComplete="email"
+                  className={touched.email && !formData.email.trim() ? "is-error" : ""}
+                />
+              </div>
             </div>
 
             <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <div className="password-container">
+              <div className="auth-field-header">
+                <label htmlFor="password">Password</label>
+                <Link to="/forgot-password" className="auth-forgot-link">Forgot password?</Link>
+              </div>
+              <div className="auth-input-wrap password-container">
+                <FaLock className="auth-input-icon" aria-hidden="true" />
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -388,16 +436,23 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="auth-forgot">
-              <Link to="/forgot-password">Forgot password?</Link>
-            </div>
+            <label className="auth-checkbox-row">
+              <input
+                type="checkbox"
+                checked={keepSignedIn}
+                onChange={(e) => setKeepSignedIn(e.target.checked)}
+                disabled={loading || isRedirecting}
+              />
+              Keep me signed in
+            </label>
 
             <button
               type="submit"
               className="auth-button"
               disabled={loading || isRedirecting}
             >
-              {loading ? "Logging in..." : isRedirecting ? "Redirecting..." : "Login"}
+              <FaSignInAlt aria-hidden="true" />
+              {loading ? "Logging in..." : isRedirecting ? "Redirecting..." : "Login to Account"}
             </button>
           </form>
 
@@ -405,6 +460,11 @@ export default function Login() {
 
           <p className="auth-link">
             Don't have an account? <Link to="/register">Register</Link>
+          </p>
+
+          <p className="auth-terms-footer">
+            By logging in, you agree to the{" "}
+            <Link to="/terms">Terms of Service</Link> &amp; <Link to="/privacy">Privacy Policy</Link> of PESO Marinduque.
           </p>
         </div>
       </div>

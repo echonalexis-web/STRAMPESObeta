@@ -8,6 +8,8 @@ import { FeedbackProvider } from "./components/feedback/FeedbackProvider";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { JobVacancyAgeGate } from "./routes/JobVacancyAgeGate";
 import AccountInactiveModal from "./components/AccountInactiveModal";
+import FloatingMessenger from "./components/FloatingMessenger";
+import DashboardTopBar from "./components/DashboardTopBar";
 import { claimAccountInactiveHandling } from "./services/api";
 
 import Navbar from "./components/Navbar";
@@ -16,6 +18,8 @@ import About from "./pages/About";
 import NewsFeed from "./pages/NewsFeed";
 import NewsFeedDetail from "./pages/NewsFeedDetail";
 import Login from "./pages/Login";
+import Terms from "./pages/Terms";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -149,14 +153,18 @@ function AppRoutes() {
     <SocketProvider userId={userId}>
       <BrowserRouter>
         <SiteChrome />
+        <DashboardTopBar />
         <TermsGate />
         <ForcedLogoutListener />
+        <FloatingMessenger />
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/about" element={<About />} />
           <Route path="/news" element={<NewsFeed />} />
           <Route path="/news/:id" element={<NewsFeedDetail />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />

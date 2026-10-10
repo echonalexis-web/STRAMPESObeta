@@ -1,0 +1,452 @@
+/* Shared content-area top bar for role dashboards — mounted once, globally
+   (see App.jsx), so it's a flush, edge-to-edge sticky strip rather than a
+   card nested inside any one page's own padded container. */
+.dtb-root {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1.5rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e9ebe3;
+  box-shadow: 0 1px 3px rgba(20, 30, 20, 0.04);
+  margin: 0 0 1.25rem;
+}
+
+/* Below 900px the main Navbar collapses into a fixed 76px top bar (see
+   navbar.css's own max-width:900px block) and body.app-with-sidebar only
+   keeps an 18px top padding — so this bar needs its own 58px of clearance
+   (76 - 18) to not render half-hidden underneath it, and its sticky offset
+   needs to match the navbar's height so it re-docks just below it on scroll
+   instead of back up at the very top of the viewport. */
+@media (max-width: 900px) {
+  .dtb-root {
+    margin-top: 58px;
+    top: 76px;
+  }
+}
+
+.dtb-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.dtb-icon {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #15803d;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.dtb-left-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.dtb-left-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.dtb-title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #0f2540;
+  white-space: nowrap;
+}
+
+.dtb-description {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.dtb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dtb-badge i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dtb-badge--success {
+  background: #e6f6e9;
+  color: #15803d;
+}
+.dtb-badge--success i { background: #22c55e; }
+
+.dtb-badge--warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+.dtb-badge--warning i { background: #f59e0b; }
+
+.dtb-badge--neutral {
+  background: #e2e8f0;
+  color: #334155;
+}
+.dtb-badge--neutral i { background: #64748b; }
+
+.dtb-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.dtb-menu-wrap {
+  position: relative;
+}
+
+.dtb-icon-btn {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  border: 1px solid #e9ebe3;
+  background: #f8fafc;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.dtb-icon-btn:hover {
+  background: #e6f6e9;
+  color: #15803d;
+  transform: translateY(-1px);
+}
+
+.dtb-badge-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ef4444;
+  color: #ffffff;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  min-width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border: 2px solid #ffffff;
+}
+
+.dtb-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 320px;
+  max-width: calc(100vw - 2rem);
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e9ebe3;
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.16);
+  overflow: hidden;
+  z-index: 60;
+  animation: dtbDropIn 0.15s ease-out;
+}
+
+@keyframes dtbDropIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dtb-dropdown-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.85rem 0.9rem;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #0f2540;
+  border-bottom: 1px solid #eef1f6;
+}
+
+.dtb-dropdown-head-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dtb-dropdown-head-icon {
+  color: #16a34a;
+  font-size: 0.95rem;
+}
+
+.dtb-mark-read,
+.dtb-open-chat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: none;
+  background: none;
+  color: #16a34a;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dtb-mark-read:hover,
+.dtb-open-chat:hover {
+  text-decoration: underline;
+}
+
+.dtb-dropdown-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.dtb-dropdown-empty {
+  margin: 0;
+  padding: 1.25rem 0.9rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.dtb-dropdown-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0.25rem;
+  padding: 0.75rem 0.9rem;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dtb-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dtb-dropdown-item:hover {
+  background: #f8fafc;
+}
+
+/* Unread notifications are marked by a small dot next to the title (see
+   .dtb-dropdown-item-title-row), not a tinted row background — a full-row
+   tint on every unread item read as a wall of green rather than a list. */
+.dtb-dropdown-item-title-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  text-align: left;
+}
+
+.dtb-unread-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+}
+
+.dtb-dropdown-item-title {
+  width: 100%;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-align: left;
+}
+
+.dtb-dropdown-item-message {
+  width: 100%;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.dtb-dropdown-item-time {
+  width: 100%;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-align: left;
+}
+
+.dtb-dropdown-item--message {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.dtb-dropdown-item--message .dtb-dropdown-item-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dtb-dropdown-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.dtb-dropdown-item-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dtb-dropdown-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+
+.dtb-dropdown-avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.75rem;
+}
+
+.dtb-dropdown-footer {
+  width: 100%;
+  text-align: center;
+  border: none;
+  border-top: 1px solid #eef1f6;
+  background: transparent;
+  color: #16a34a;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dtb-dropdown-footer:hover {
+  background: #f8fafc;
+  text-decoration: underline;
+}
+
+.dtb-user {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid #e9ebe3;
+  background: #f8fafc;
+  border-radius: 999px;
+  padding: 0.3rem 0.9rem 0.3rem 0.3rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dtb-user:hover {
+  background: #e6f6e9;
+}
+
+.dtb-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+
+.dtb-user-avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #16a34a;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.72rem;
+}
+
+.dtb-user-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.dtb-user-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.dtb-user-email {
+  font-size: 0.72rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+@media (max-width: 640px) {
+  .dtb-root {
+    padding: 0.75rem 0.9rem;
+  }
+
+  .dtb-title {
+    font-size: 1.1rem;
+  }
+
+  .dtb-user-text {
+    display: none;
+  }
+
+  .dtb-dropdown {
+    position: fixed;
+    top: auto;
+    left: 0.75rem;
+    right: 0.75rem;
+    width: auto;
+  }
+}

@@ -13,7 +13,6 @@ import {
 } from "react-icons/fa6";
 import NsrpTemplateSettings from "../../components/NsrpTemplateSettings";
 import { superadminAPI } from "../../services/api";
-import { useAuth } from "../../context/AuthContext";
 import "../../styles/superadmin-console.css";
 
 const NOTE_PRESETS = [
@@ -59,7 +58,6 @@ const STATUS_META = {
 };
 
 export default function SuperadminConsole() {
-  const { user } = useAuth();
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -237,22 +235,6 @@ export default function SuperadminConsole() {
   return (
     <div className="sac">
       <main className="sac__main">
-        <header className="sac__topbar">
-          <div className="sac__pagehead">
-            <span className="sac__pagehead-icon"><FaUserShield /></span>
-            <div>
-              <h1>Superadmin Console</h1>
-              <p>Provision and manage LMDPESO admin accounts & NSRP system settings</p>
-            </div>
-          </div>
-          <div className="sac__user-chip">
-            <span className="sac__user-chip-avatar" aria-hidden="true">SA</span>
-            <span className="sac__user-chip-text">
-              <strong>{user?.name || "System Superadmin"}</strong>
-              <span>{user?.email}</span>
-            </span>
-          </div>
-        </header>
 
         {error ? (
           <div className="sac__error" role="alert">

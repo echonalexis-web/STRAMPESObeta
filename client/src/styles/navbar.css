@@ -494,9 +494,9 @@ body.app-with-sidebar {
   font-weight: 700;
   font-size: 0.9rem;
   text-align: left;
-  transition: all 0.2s ease;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  border: none;
+  background: transparent;
 }
 
 .nav-section-link svg,
@@ -555,7 +555,7 @@ body.app-with-sidebar {
 .messages-link:hover,
 .nav-submenu-toggle:hover {
   background: rgba(255, 255, 255, 0.09);
-  transform: translateX(0);
+  transform: translateY(-2px);
 }
 
 .nav-submenu a {
@@ -581,12 +581,30 @@ body.app-with-sidebar {
 .nav-standalone-link.is-active,
 .nav-section-link.is-active {
   background: transparent !important;
-  color: #ffffff !important;
+  color: #ffcc00 !important;
   border-color: transparent !important;
   box-shadow: none !important;
   font-weight: 800;
-  padding-left: 0.7rem;
-  padding-right: 0.7rem;
+  position: relative;
+}
+
+/* A short, straight, rounded-cap bar rather than an inset box-shadow — a
+   box-shadow is clipped to the link's own border-radius, so it bends around
+   the rounded corners instead of staying flat. */
+.auth-sidebar-nav a.is-active::after,
+.nav-submenu a.is-active::after,
+.messages-link.is-active::after,
+.nav-standalone-link.is-active::after,
+.nav-section-link.is-active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 22px;
+  height: 2px;
+  border-radius: 2px;
+  background: #ffffff;
+  transform: translateX(-50%);
 }
 
 .messages-link {
@@ -1078,6 +1096,19 @@ body.app-with-sidebar {
   .navbar--auth-sidebar.is-compact .user-name {
     padding: 0.45rem;
     justify-content: center;
+  }
+}
+
+/* Forces an element hidden above 768px regardless of the navbar's own
+   900px desktop/mobile breakpoint below — used on the Messages/Notifications
+   entries (top icons, sidebar list links, mobile panel links) now that the
+   globally-mounted DashboardTopBar (see components/DashboardTopBar.jsx)
+   already covers them above that width. Only 769-900px actually changes
+   behavior here; outside that range the navbar's existing rules already
+   agree with this one. */
+@media (min-width: 769px) {
+  .nav-hide-wide {
+    display: none !important;
   }
 }
 
