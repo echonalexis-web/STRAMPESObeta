@@ -18,6 +18,7 @@ import { adminAPI } from "../../services/api";
 import "../../styles/admin.css";
 import AdminHeader from "./AdminHeader";
 import ProvincialAnalyticsOverview from "./ProvincialAnalyticsOverview";
+import MatchWeightDefaultsSettings from "../../components/MatchWeightDefaultsSettings";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -235,6 +236,8 @@ export default function AdminDashboard() {
           </div>
         </article>
       </section>
+
+      <MatchWeightDefaultsSettings />
     </div>
   );
 }

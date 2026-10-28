@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>STRAM PESO — Public navbar proposal</title>
+  <style>
+    @font-face { font-family: Inter; src: url('../../client/node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2'); font-weight: 400; }
+    @font-face { font-family: Inter; src: url('../../client/node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2'); font-weight: 600; }
+    @font-face { font-family: Jakarta; src: url('../../client/node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-800-normal.woff2'); font-weight: 800; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 44px 48px; background: #eef2ef; color: #14281d; font: 14px/1.6 Inter, sans-serif; }
+    button, a { font: inherit; }
+    button { cursor: pointer; }
+    a { text-decoration: none; color: inherit; }
+    button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid #facc15; outline-offset: 4px; }
+    .board { max-width: 1344px; margin: auto; }
+    .intro { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+    .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .17em; text-transform: uppercase; color: #4e6e5b; margin: 0 0 7px; }
+    h1 { font: 800 30px/1.3 Jakarta,sans-serif; letter-spacing: -.04em; margin: 0; }
+    .badge { border: 1px solid #cad6ce; background: #f9fbfa; border-radius: 30px; padding: 8px 14px; color: #52685a; font-size: 11px; }
+    .label { color: #5c7063; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; margin: 0 0 12px; }
+    .frame { border: 1px solid #d8e2da; border-radius: 16px; background: #fff; overflow: hidden; box-shadow: 0 8px 28px #163e2210; }
+    .navbar { height: 80px; padding: 0 28px; display: flex; align-items: center; justify-content: space-between; gap: 26px; color: white; background: linear-gradient(110deg,#103e24,#17613a); border-bottom: 3px solid #facc15; position: relative; z-index: 2; }
+    .brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .brand img { width: 46px; height: 46px; object-fit: contain; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px #ffffff12; }
+    .brand strong { display: block; font: 800 21px/1.35 Jakarta,sans-serif; letter-spacing: -.025em; }
+    .brand small { display: block; font-size: 9px; color: #c5dfce; letter-spacing: .2em; text-transform: uppercase; }
+    .links { display: flex; align-items: center; gap: 30px; margin-left: auto; }
+    .links a { display: flex; align-items: center; min-height: 48px; position: relative; font-size: 13px; color: #e0eee5; white-space: nowrap; }
+    .links .active { color: #fff; font-weight: 600; }
+    .links .active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: #facc15; border-radius: 2px; }
+    .actions { display: flex; align-items: center; gap: 10px; padding-left: 24px; border-left: 1px solid #ffffff25; }
+    .button { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; padding: 0 19px; border: 1px solid #ffffff60; border-radius: 9px; font-size: 13px; font-weight: 600; background: transparent; color: #fff; gap: 10px; white-space: nowrap; }
+    .gold { background: #facc15; color: #143523; border-color: #facc15; }
+    .chevron { width: 8px; height: 8px; border-right: 1.5px solid; border-bottom: 1.5px solid; transform: rotate(45deg); margin-top: -4px; }
+    details[open] .chevron { transform: rotate(225deg); margin-top: 4px; }
+    summary { list-style: none; cursor: pointer; }
+    summary::-webkit-details-marker { display: none; }
+    .register { position: relative; }
+    .dropdown { position: absolute; top: 57px; right: 0; width: 314px; padding: 18px 12px 12px; border: 1px solid #e0e7e2; border-radius: 12px; background: #fff; color: #183f29; box-shadow: 0 12px 35px #052e1622; }
+    .dropdown .caption { margin: 0 10px 8px; color: #6d7b72; font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+    .choice { display: flex; align-items: center; gap: 12px; padding: 12px 10px; border-radius: 8px; }
+    .choice:hover { background: #f0f7f2; }
+    .icon { width: 38px; height: 38px; border-radius: 9px; background: #edf5ef; display: grid; place-items: center; flex-shrink: 0; }
+    .icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .choice strong { display: block; font-size: 13px; font-weight: 600; }
+    .choice small { display: block; color: #68796e; font-size: 11px; margin-top: 2px; }
+    .arrow { margin-left: auto; color: #788d7e; }
+    .preview-content { height: 226px; padding: 40px 48px; background: linear-gradient(120deg,#f5faf6,#ecf4ee); position: relative; }
+    .preview-content::after { content: ''; position: absolute; width: 260px; height: 260px; border: 1px solid #dfece2; border-radius: 50%; left: 57%; top: 28px; }
+    .preview-content p { margin: 0 0 8px; font-size: 10px; color: #598066; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+    .preview-content h2 { margin: 0; font: 800 29px/1.4 Jakarta,sans-serif; letter-spacing: -.035em; color: #325a40; }
+    .preview-content .line { width: 235px; height: 7px; border-radius: 5px; background: #dce8df; margin-top: 20px; }
+    .bottom { display: grid; grid-template-columns: minmax(0,1fr) 390px 390px; gap: 30px; margin-top: 32px; align-items: start; }
+    .notes { padding: 9px 18px 0 0; }
+    .notes h2 { font: 800 23px/1.4 Jakarta,sans-serif; letter-spacing: -.03em; margin: 0 0 20px; }
+    .note { display: flex; gap: 13px; margin-bottom: 23px; }
+    .number { flex-shrink: 0; color: #5e7a67; font-size: 10px; padding-top: 4px; }
+    .note strong { font-weight: 600; font-size: 13px; }
+    .note p { color: #66776c; margin: 5px 0 0; font-size: 12px; line-height: 1.8; }
+    .notes .foot { font-size: 11px; color: #718277; padding-top: 14px; border-top: 1px solid #d3ded6; }
+    .mobile .navbar { height: 73px; padding: 0 18px; gap: 12px; }
+    .mobile .brand { gap: 10px; }
+    .mobile .brand img { width: 38px; height: 38px; }
+    .mobile .brand strong { font-size: 18px; }
+    .mobile .brand small { font-size: 8px; }
+    .menu-button { width: 44px; height: 44px; padding: 10px; border-radius: 9px; background: #ffffff0b; color: white; border: 1px solid #ffffff30; display: grid; place-items: center; }
+    .menu-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+    .mobile-content { height: 157px; background: #f5faf6; padding: 28px 24px; }
+    .mobile-content p { color: #6c8674; font-size: 9px; letter-spacing: .1em; margin: 0 0 9px; }
+    .mobile-content h3 { font: 800 21px/1.4 Jakarta,sans-serif; margin: 0; letter-spacing: -.03em; color: #325a40; }
+    .mobile-nav { padding: 16px; }
+    .mobile-nav[hidden] { display: none; }
+    .mobile-links { display: grid; gap: 2px; }
+    .mobile-links a { min-height: 46px; padding: 0 14px; display: flex; align-items: center; border-radius: 8px; color: #405b49; font-size: 13px; }
+    .mobile-links .active { background: #edf6ef; color: #166534; font-weight: 600; }
+    .mobile-links .active::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #16a34a; margin-left: auto; }
+    .mobile-auth { margin-top: 12px; border-top: 1px solid #e5ece7; padding-top: 16px; }
+    .mobile-auth .button { width: 100%; background: #166534; border-color: #166534; }
+    .mobile-auth .caption { text-align: center; margin: 18px 0 6px; font-size: 10px; letter-spacing: .1em; color: #718176; }
+    .mobile-auth .choice { padding: 10px; }
+    .mobile-auth .choice strong { font-size: 12px; }
+    .mobile-caption { font-size: 12px; line-height: 1.9; color: #6b7e71; padding: 18px 5px; }
+    @media(max-width:1100px) { body { padding: 24px; } .bottom { grid-template-columns: repeat(2,minmax(0,1fr)); } .notes { grid-column: 1 / -1; } .desktop { overflow-x: auto; } .desktop .navbar,.desktop .preview-content { min-width: 1100px; } }
+    @media(max-width:650px) { body { padding: 20px 14px; } .intro { display: block; } .badge { display: inline-block; margin-top: 14px; } h1 { font-size: 26px; } .bottom { grid-template-columns: minmax(0,1fr); } }
+  </style>
+</head>
+<body>
+<main class="board">
+  <header class="intro">
+    <div><p class="eyebrow">STRAM PESO / PUBLIC NAVIGATION</p><h1>A clearer welcome. One place to get started.</h1></div>
+    <span class="badge">Design proposal · No app changes</span>
+  </header>
+  <p class="label">01 / Desktop · Register dropdown open</p>
+  <section class="frame desktop">
+    <nav class="navbar" aria-label="Desktop mock navigation">
+      <a class="brand" href="#preview"><img src="../../client/src/assets/images/peso-logo.png" alt="PESO seal"><span><strong>STRAM PESO</strong><small>Marinduque</small></span></a>
+      <div class="links"><a class="active" href="#preview">Home</a><a href="#preview">About</a><a href="#preview">News</a><a href="#preview">Available Jobs</a></div>
+      <div class="actions"><a class="button" href="#preview">Log in</a><details class="register" open><summary class="button gold">Register <i class="chevron"></i></summary>
+        <div class="dropdown"><p class="caption">Create your account</p><div class="choices"></div></div>
+      </details></div>
+    </nav>
+    <div class="preview-content" id="preview"><p>Public Employment Service Office</p><h2>Trabaho para sa<br>Marinduqueño.</h2><div class="line"></div></div>
+  </section>
+  <div class="bottom">
+    <section class="notes"><p class="eyebrow">Recommended direction</p><h2>Familiar identity.<br>Clearer choices.</h2>
+      <div class="note"><span class="number">01</span><div><strong>Keep the green and gold.</strong><p>A clean gradient, one PESO seal, and quieter type connect the navbar to the new authentication pages.</p></div></div>
+      <div class="note"><span class="number">02</span><div><strong>One Register button.</strong><p>Applicant and Employer sit inside a labeled dropdown. Log in stays immediately visible.</p></div></div>
+      <div class="note"><span class="number">03</span><div><strong>Make the current page clear.</strong><p>A gold underline on desktop and a green highlight on mobile identify the active page.</p></div></div>
+      <p class="foot">Mock interactions: click Register or the mobile menu buttons. Navigation links stay within this preview.</p>
+    </section>
+    <section><p class="label">02 / Mobile · Collapsed</p><div class="frame mobile">
+      <nav class="navbar" aria-label="Mobile collapsed mock"><a class="brand" href="#preview"><img src="../../client/src/assets/images/peso-logo.png" alt="PESO seal"><span><strong>STRAM PESO</strong><small>Marinduque</small></span></a><button class="menu-button" aria-label="Open navigation" aria-expanded="false" aria-controls="mobile-menu-1"></button></nav>
+      <div class="mobile-nav" id="mobile-menu-1" hidden></div>
+      <div class="mobile-content"><p>PUBLIC EMPLOYMENT SERVICE OFFICE</p><h3>Your next opportunity<br>starts at home.</h3></div>
+    </div><p class="mobile-caption">The seal, name, and a 44px menu button stay visible. All navigation opens directly below the bar.</p></section>
+    <section><p class="label">03 / Mobile · Menu expanded</p><div class="frame mobile">
+      <nav class="navbar" aria-label="Mobile expanded mock"><a class="brand" href="#preview"><img src="../../client/src/assets/images/peso-logo.png" alt="PESO seal"><span><strong>STRAM PESO</strong><small>Marinduque</small></span></a><button class="menu-button" aria-label="Close navigation" aria-expanded="true" aria-controls="mobile-menu-2"></button></nav>
+      <div class="mobile-nav" id="mobile-menu-2"></div>
+    </div></section>
+  </div>
+</main>
+<script>
+  const applicantIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20v-2a7 7 0 0 1 14 0v2"/></svg>';
+  const employerIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 7h1m4 0h1M9 11h1m4 0h1m-5 10v-5h4v5"/></svg>';
+  const choices = `<a class="choice" href="#preview"><span class="icon">${applicantIcon}</span><span><strong>Register as Applicant</strong><small>Find work and explore opportunities</small></span><span class="arrow">→</span></a><a class="choice" href="#preview"><span class="icon">${employerIcon}</span><span><strong>Register as Employer</strong><small>Post openings and find local talent</small></span><span class="arrow">→</span></a>`;
+  document.querySelector('.choices').innerHTML = choices;
+  document.querySelectorAll('.mobile-nav').forEach(menu => menu.innerHTML = `<div class="mobile-links"><a class="active" href="#preview">Home</a><a href="#preview">About</a><a href="#preview">News</a><a href="#preview">Available Jobs</a></div><div class="mobile-auth"><a class="button" href="#preview">Log in to your account</a><p class="caption">NEW TO STRAM PESO?</p>${choices}</div>`);
+  const updateButton = button => { const open = button.getAttribute('aria-expanded') === 'true'; button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${open ? '<path d="m6 6 12 12M6 18 18 6"/>' : '<path d="M4 6h16M4 12h16M4 18h16"/>'}</svg>`; button.setAttribute('aria-label',open ? 'Close navigation' : 'Open navigation'); };
+  document.querySelectorAll('.menu-button').forEach(button => { updateButton(button); button.addEventListener('click',() => { const open = button.getAttribute('aria-expanded') === 'true'; button.setAttribute('aria-expanded',String(!open)); document.getElementById(button.getAttribute('aria-controls')).hidden = open; updateButton(button); }); });
+  document.addEventListener('keydown',event=>{if(event.key==='Escape') document.querySelector('details').open=false;});
+</script>
+</body>
+</html>

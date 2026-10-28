@@ -3,6 +3,7 @@ import "../styles/modal.css";
 import { FaTimes, FaMapMarkerAlt, FaMoneyBillWave, FaBuilding, FaBriefcase, FaCalendarAlt, FaEnvelope } from "react-icons/fa";
 import QualificationsDisplay from "./QualificationsDisplay";
 import { useModalA11y } from "../hooks/useModalA11y";
+import { legacyMatchClassForScore } from "../utils/qualifications";
 import "../styles/qualifications-editor.css";
 
 const formatAddress = (address) => {
@@ -18,12 +19,7 @@ const formatAddress = (address) => {
   return address;
 };
 
-const getMatchClass = (score) => {
-  const percent = Math.round((score || 0) * 100);
-  if (percent >= 60) return 'match-high';
-  if (percent >= 30) return 'match-medium';
-  return 'match-low';
-};
+const getMatchClass = legacyMatchClassForScore;
 
 export default function Modal({ isOpen, onClose, job, onMessageEmployer, applications = [], onViewApplication }) {
   const dialogRef = useRef(null);

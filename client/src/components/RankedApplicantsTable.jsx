@@ -1,38 +1,33 @@
 import { useState, useRef, useEffect } from "react";
 import { normalizeApplicationStatus, statusClass } from "../utils/helpers";
+import { tierForScore, legacyMatchClassForScore, DIMENSION_LABELS } from "../utils/qualifications";
 import { FaStar, FaCheck, FaTimes, FaClock, FaBan, FaEllipsisH, FaCalendarAlt } from "react-icons/fa";
 
 const getStatusIcon = (status) => {
   switch (normalizeApplicationStatus(status)) {
     case "shortlisted":
       return <FaStar className="status-icon" />;
+    case "approved":
     case "hired":
       return <FaCheck className="status-icon" />;
     case "rejected":
+    case "withdrawn":
       return <FaTimes className="status-icon" />;
     case "pending":
+    case "under_review":
       return <FaClock className="status-icon" />;
     default:
       return <FaBan className="status-icon" />;
   }
 };
 
+// Shares thresholds + label vocabulary (Strong/Good/Partial/Low) with every
+// other match badge in the app via tierForScore() — only the CSS class
+// family (match-high/match-medium/match-low, defined in
+// employer-dashboard.css) stays local to this table's existing markup.
 const matchTier = (score) => {
-  const percent = Math.round((score || 0) * 100);
-  if (percent >= 60) return { cls: "match-high", label: "High", percent };
-  if (percent >= 30) return { cls: "match-medium", label: "Medium", percent };
-  return { cls: "match-low", label: "Low", percent };
-};
-
-const DIMENSION_LABELS = {
-  skills: "Skills",
-  title: "Job title fit",
-  experience: "Experience",
-  education: "Education",
-  credentials: "Certifications / licenses",
-  industry: "Industry",
-  language: "Language",
-  salary: "Salary fit",
+  const t = tierForScore(score);
+  return { cls: legacyMatchClassForScore(score), label: t.tier, percent: t.percent };
 };
 
 // Turn the matchBreakdown object into a readable hover summary.
@@ -44,6 +39,19 @@ const breakdownSummary = (breakdown) => {
     .map(([key, label]) => `${label}: ${Math.round(breakdown[key] * 100)}%`);
   if (breakdown.ageUnknown) parts.push("Age: not on file");
   return parts.join("  •  ");
+};
+
+// The literal "how many must-haves does this applicant meet" count, as
+// opposed to the fuzzy relevanceScore gauge — null when the job states no
+// scoreable requirements at all (nothing to count), distinct from 0/0.
+const mustHavesInfo = (checklistMatch) => {
+  if (!checklistMatch || !checklistMatch.totalMustHaves) return null;
+  const { metMustHaves, totalMustHaves, missingRequired } = checklistMatch;
+  return {
+    label: `${metMustHaves}/${totalMustHaves}`,
+    allMet: metMustHaves === totalMustHaves,
+    missingHint: (missingRequired || []).map((q) => q.value).join(", "),
+  };
 };
 
 function RowMenu({ onShortlist, onReject, onScheduleInterview, scheduleInterviewLabel = "Schedule interview", onMarkNoShow, onViewProfile, onMessage }) {
@@ -163,6 +171,12 @@ export default function RankedApplicantsTable({
           const normalized = normalizeApplicationStatus(application.status);
           const isDisqualified = application.disqualified === "age";
           const matchHint = breakdownSummary(application.matchBreakdown);
+          const mustHaves = mustHavesInfo(application.checklistMatch);
+          // Promoted out of the hover tooltip (§B.3) — the job constrains
+          // age but this applicant has no date of birth on file, so the
+          // gate was never actually checked for them. Materially different
+          // from "passes" and shouldn't require a hover to discover.
+          const ageUnknown = !isDisqualified && Boolean(application.matchBreakdown?.ageUnknown);
 
           return (
             <article
@@ -203,6 +217,21 @@ export default function RankedApplicantsTable({
                 )}
               </div>
 
+              {!isDisqualified && mustHaves && (
+                <div
+                  className={`rt-mobile-musthaves ${mustHaves.allMet ? "is-met" : "is-partial"}`}
+                  title={mustHaves.missingHint ? `Missing: ${mustHaves.missingHint}` : undefined}
+                >
+                  Must-haves: <strong>{mustHaves.label}</strong>
+                </div>
+              )}
+
+              {ageUnknown && (
+                <div className="rt-age-unknown">
+                  Age not on file — not verified against this job's range
+                </div>
+              )}
+
               <div className="rt-mobile-status" onClick={(e) => e.stopPropagation()}>
                 {onQuickStatusChange ? (
                   <select
@@ -212,8 +241,9 @@ export default function RankedApplicantsTable({
                     aria-label={`Status for ${applicant.name || "applicant"}`}
                   >
                     <option value="pending">Pending</option>
-                    <option value="reviewed">Reviewed</option>
+                    <option value="under_review">Under Review</option>
                     <option value="shortlisted">Shortlisted</option>
+                    <option value="approved">Approved</option>
                     <option value="hired">Hired</option>
                     <option value="rejected">Rejected</option>
                   </select>
@@ -288,6 +318,7 @@ export default function RankedApplicantsTable({
           <colgroup>
             <col style={{ width: "40px" }} />
             <col style={{ width: "86px" }} />
+            <col style={{ width: "110px" }} />
             <col />
             <col style={{ width: "142px" }} />
             <col style={{ width: "196px" }} />
@@ -303,6 +334,7 @@ export default function RankedApplicantsTable({
                 />
               </th>
               <th scope="col" className="rt-c-match">Match</th>
+              <th scope="col" className="rt-c-musthaves">Must-haves</th>
               <th scope="col" className="rt-c-identity">Applicant</th>
               <th scope="col" className="rt-c-status">Status</th>
               <th scope="col" className="rt-c-actions">Actions</th>
@@ -316,6 +348,8 @@ export default function RankedApplicantsTable({
               const normalized = normalizeApplicationStatus(application.status);
               const isDisqualified = application.disqualified === "age";
               const matchHint = breakdownSummary(application.matchBreakdown);
+              const mustHaves = mustHavesInfo(application.checklistMatch);
+              const ageUnknown = !isDisqualified && Boolean(application.matchBreakdown?.ageUnknown);
 
               return (
                 <tr
@@ -349,6 +383,19 @@ export default function RankedApplicantsTable({
                     <span className="rt-rank">#{index + 1}</span>
                   </td>
 
+                  <td className="rt-c-musthaves">
+                    {!isDisqualified && mustHaves ? (
+                      <span
+                        className={`rt-musthaves-badge ${mustHaves.allMet ? "is-met" : "is-partial"}`}
+                        title={mustHaves.missingHint ? `Missing: ${mustHaves.missingHint}` : "Meets every required qualification"}
+                      >
+                        {mustHaves.label}
+                      </span>
+                    ) : (
+                      <span className="rt-musthaves-empty">—</span>
+                    )}
+                  </td>
+
                   <td className="rt-c-identity">
                     <div className="rt-identity">
                       <span className="rt-avatar">
@@ -361,6 +408,11 @@ export default function RankedApplicantsTable({
                         <span className="rt-email" title={applicant.email || "No email"}>
                           {applicant.email || "No email"}
                         </span>
+                        {ageUnknown && (
+                          <span className="rt-age-unknown">
+                            Age not on file — not verified against this job's range
+                          </span>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -375,8 +427,9 @@ export default function RankedApplicantsTable({
                           aria-label={`Status for ${applicant.name || "applicant"}`}
                         >
                           <option value="pending">Pending</option>
-                          <option value="reviewed">Reviewed</option>
+                          <option value="under_review">Under Review</option>
                           <option value="shortlisted">Shortlisted</option>
+                          <option value="approved">Approved</option>
                           <option value="hired">Hired</option>
                           <option value="rejected">Rejected</option>
                         </select>

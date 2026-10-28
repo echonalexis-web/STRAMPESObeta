@@ -54,8 +54,16 @@ const notifySubmissionReceived = async (user, req) => {
 // straight onto a response.
 const applyVerificationDecision = async ({ userId, verificationStatus, note, req }) => {
   const trimmedNote = typeof note === "string" ? note.trim().slice(0, 500) : "";
-  if (verificationStatus === "rejected" && !trimmedNote) {
-    return { error: { status: 400, message: "A reason is required when rejecting a submission." } };
+  if (["rejected", "resubmission_required"].includes(verificationStatus) && !trimmedNote) {
+    return {
+      error: {
+        status: 400,
+        message:
+          verificationStatus === "resubmission_required"
+            ? "A reason is required when requesting resubmission."
+            : "A reason is required when rejecting a submission.",
+      },
+    };
   }
 
   const update = {
@@ -63,7 +71,7 @@ const applyVerificationDecision = async ({ userId, verificationStatus, note, req
     verificationReviewedAt: new Date(),
     verificationReviewedBy: req.user.id,
   };
-  if (verificationStatus === "rejected") update.verificationNote = trimmedNote;
+  if (["rejected", "resubmission_required"].includes(verificationStatus)) update.verificationNote = trimmedNote;
   if (verificationStatus === "verified") update.verificationNote = null;
 
   // $set only these fields so validation on unrelated fields (companySize) is skipped.
@@ -88,7 +96,7 @@ const applyVerificationDecision = async ({ userId, verificationStatus, note, req
     targetUserId: user._id,
     targetType: "user",
     targetId: String(user._id),
-    severity: verificationStatus === "verified" ? "info" : "warning",
+    severity: ["verified", "under_review"].includes(verificationStatus) ? "info" : "warning",
     metadata: { verificationStatus, note: trimmedNote || undefined },
   });
 
@@ -96,6 +104,8 @@ const applyVerificationDecision = async ({ userId, verificationStatus, note, req
   const verificationMessages = {
     verified: "Your employer account has been verified. You can now post jobs.",
     rejected: `Your verification was not approved. Reason: ${trimmedNote} — update your documents in Profile → Verification and submit again.`,
+    resubmission_required: `Some changes are needed before your documents can be approved. Reason: ${trimmedNote} — update your documents in Profile → Verification and submit again.`,
+    under_review: "An admin has started reviewing your documents.",
     pending: "Your employer verification is under review.",
     unverified: "Your employer verification status was reset. Please re-submit your documents.",
   };
@@ -116,7 +126,8 @@ const applyVerificationDecision = async ({ userId, verificationStatus, note, req
   });
 
   // Deliver the decision into a message thread the employer can reply to.
-  if (["verified", "rejected"].includes(verificationStatus)) {
+  // under_review is a lightweight status ping, not a decision — no thread post.
+  if (["verified", "rejected", "resubmission_required"].includes(verificationStatus)) {
     try {
       await postSystemMessage({
         fromUserId: req.user.id,
@@ -159,7 +170,7 @@ exports.submitEmployerVerification = async (req, res) => {
     if (user.verificationStatus === "verified") {
       return res.status(400).json({ message: "Your account is already verified." });
     }
-    if (user.verificationStatus === "pending") {
+    if (user.verificationStatus === "pending" || user.verificationStatus === "under_review") {
       return res.status(400).json({ message: "Your documents are already under review." });
     }
 
@@ -254,7 +265,7 @@ exports.submitEmployerVerificationWithDocuments = async (req, res) => {
     if (user.verificationStatus === "verified") {
       return res.status(400).json({ message: "Your account is already verified." });
     }
-    if (user.verificationStatus === "pending") {
+    if (user.verificationStatus === "pending" || user.verificationStatus === "under_review") {
       return res.status(400).json({ message: "Your documents are already under review." });
     }
 
@@ -309,7 +320,7 @@ exports.submitEmployerVerificationWithDocuments = async (req, res) => {
 // the route guards, not here). Defaults to "pending" for backward
 // compatibility with existing callers that never pass ?status.
 // ---------------------------------------------------------------------------
-const QUEUE_STATUSES = ["pending", "verified", "rejected", "unverified"];
+const QUEUE_STATUSES = ["pending", "under_review", "verified", "resubmission_required", "rejected", "unverified"];
 
 exports.getVerificationQueue = async (req, res) => {
   try {
@@ -339,7 +350,7 @@ exports.getVerificationQueue = async (req, res) => {
     // already-decided employers (verified/rejected) surface the most
     // recently reviewed one first.
     const sort =
-      status === "pending" || status === "all"
+      status === "pending" || status === "under_review" || status === "all"
         ? { createdAt: -1 }
         : { verificationReviewedAt: -1, createdAt: -1 };
 
@@ -380,7 +391,7 @@ exports.reviewEmployerVerification = async (req, res) => {
     if (decision === "approved") verificationStatus = "verified";
     else if (decision === "rejected") verificationStatus = "rejected";
 
-    if (!["unverified", "pending", "verified", "rejected"].includes(verificationStatus)) {
+    if (!["unverified", "pending", "under_review", "verified", "resubmission_required", "rejected"].includes(verificationStatus)) {
       return res.status(400).json({ message: "Invalid verification status" });
     }
 
@@ -439,5 +450,61 @@ exports.rejectEmployerVerification = async (req, res) => {
     });
   } catch (error) {
     return sendError(res, error, "Failed to reject verification");
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Admin marks a pending submission as actively being reviewed — a lightweight
+// status ping distinct from a decision, no reason required.
+//   POST /admin/employers/:id/verification/under-review
+// ---------------------------------------------------------------------------
+exports.markEmployerVerificationUnderReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await applyVerificationDecision({
+      userId: id,
+      verificationStatus: "under_review",
+      note: "",
+      req,
+    });
+    if (result.error) return res.status(result.error.status).json({ message: result.error.message });
+
+    return res.json({ success: true, verificationStatus: "under_review" });
+  } catch (error) {
+    return sendError(res, error, "Failed to mark verification under review");
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Admin asks the employer to fix and resubmit a specific, fixable issue —
+// distinct from an outright rejection for audit-trail clarity. Requires a
+// reason, same as reject; the employer can resubmit immediately (see the
+// resubmission gate in submitEmployerVerification(WithDocuments) above).
+//   POST /admin/employers/:id/verification/resubmission-required  { reason }
+// ---------------------------------------------------------------------------
+exports.requestEmployerResubmission = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason || !String(reason).trim()) {
+      return res.status(400).json({ message: "A reason is required when requesting resubmission." });
+    }
+
+    const result = await applyVerificationDecision({
+      userId: id,
+      verificationStatus: "resubmission_required",
+      note: reason,
+      req,
+    });
+    if (result.error) return res.status(result.error.status).json({ message: result.error.message });
+
+    return res.json({
+      success: true,
+      verificationStatus: "resubmission_required",
+      verificationNote: result.note,
+    });
+  } catch (error) {
+    return sendError(res, error, "Failed to request resubmission");
   }
 };

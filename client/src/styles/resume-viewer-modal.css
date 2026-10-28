@@ -1,0 +1,95 @@
+.resume-viewer-modal {
+  background: #ffffff;
+  border-radius: 14px;
+  width: min(800px, 94vw);
+  height: min(85vh, 1000px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35);
+}
+
+.resume-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.resume-viewer-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1f2937;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-viewer-close {
+  border: none;
+  background: transparent;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.resume-viewer-close:hover {
+  background: #f1f5f9;
+  color: #1f2937;
+}
+
+.resume-viewer-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.resume-viewer-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.resume-viewer-status {
+  color: #64748b;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.resume-viewer-footer {
+  padding: 12px 18px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.resume-viewer-download {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: 1px dashed #d4e4d4;
+  border-radius: 12px;
+  color: #2e7d32;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  background: #f8fafc;
+}
+
+.resume-viewer-download:hover {
+  background: #f0fdf4;
+  border-color: #2e7d32;
+  border-style: solid;
+}

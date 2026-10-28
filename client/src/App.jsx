@@ -18,8 +18,7 @@ import About from "./pages/About";
 import NewsFeed from "./pages/NewsFeed";
 import NewsFeedDetail from "./pages/NewsFeedDetail";
 import Login from "./pages/Login";
-import Terms from "./pages/Terms";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
+import LegalCenter from "./pages/LegalCenter";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -29,6 +28,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import AccountSuspended from "./pages/AccountSuspended";
 import TermsGate from "./components/TermsGate";
+import CookieConsentBanner from "./components/CookieConsentBanner";
 import Dashboard from "./pages/Dashboard";
 import JobBoard from "./pages/JobBoard";
 import JobDetail from "./pages/JobDetail";
@@ -155,6 +155,7 @@ function AppRoutes() {
         <SiteChrome />
         <DashboardTopBar />
         <TermsGate />
+        <CookieConsentBanner />
         <ForcedLogoutListener />
         <FloatingMessenger />
         <Routes>
@@ -163,8 +164,9 @@ function AppRoutes() {
           <Route path="/news" element={<NewsFeed />} />
           <Route path="/news/:id" element={<NewsFeedDetail />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<LegalCenter />} />
+          <Route path="/privacy" element={<LegalCenter />} />
+          <Route path="/cookies" element={<LegalCenter />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />

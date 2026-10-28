@@ -292,6 +292,12 @@ export const superadminAPI = {
   // Settings → System Preferences
   getSystemSettings: () => api.get('/superadmin/system-settings', getAuthHeader()),
   updateSystemSettings: (payload) => api.put('/superadmin/system-settings', payload, getAuthHeader()),
+  // Configurable job-matching weights (§C.1) — per-criterion {min, max}
+  // bounds every employer/admin weight profile must fall within.
+  // NOTE: server endpoint not implemented yet — see
+  // markdowns/MATCH_WEIGHTS_BACKEND_HANDOFF.md for the contract this calls.
+  getMatchWeightBounds: () => api.get('/admin/match-weight-bounds', getAuthHeader()),
+  updateMatchWeightBounds: (payload) => api.put('/admin/match-weight-bounds', payload, getAuthHeader()),
 };
 
 // Suspension appeal — authenticated with the appeal-only token.
@@ -315,18 +321,27 @@ export const jobAPI = {
   getMyApplications: (params = {}, config = {}) => api.get('/jobs/applications/me', { ...getAuthHeader(), params, ...config }),
   updateApplication: (id, data) => api.put(`/jobs/applications/${id}`, data, getAuthFormHeader()),
   deleteApplication: (id) => api.delete(`/jobs/applications/${id}`, getAuthHeader()),
+  // Per-vacancy job-matching weight override (§C.1) — employer, own jobs
+  // only. `updateMatchWeights` saves/replaces the override;
+  // `resetMatchWeights` removes it so the job falls back to the employer's
+  // own default profile. NOTE: server endpoint not implemented yet — see
+  // markdowns/MATCH_WEIGHTS_BACKEND_HANDOFF.md for the contract this calls.
+  getMatchWeights: (id) => api.get(`/jobs/${id}/match-weights`, getAuthHeader()),
+  updateMatchWeights: (id, payload) => api.put(`/jobs/${id}/match-weights`, payload, getAuthHeader()),
+  resetMatchWeights: (id) => api.delete(`/jobs/${id}/match-weights`, getAuthHeader()),
 };
 
 // Jobseeker's private library of saved resumes / cover letters — never
 // visible to employers until one is attached to a submitted application.
 export const jobseekerDocumentAPI = {
   list: (kind) => api.get('/jobseeker/documents', { ...getAuthHeader(), params: kind ? { kind } : {} }),
-  upload: ({ file, kind, title, source, onProgress }) => {
+  upload: ({ file, kind, title, source, sourceJobId, onProgress }) => {
     const fd = new FormData();
     fd.append('file', file, file.name);
     fd.append('kind', kind);
     if (title) fd.append('title', title);
     if (source) fd.append('source', source);
+    if (sourceJobId) fd.append('sourceJobId', sourceJobId);
     return api.post('/jobseeker/documents/upload', fd, {
       ...getAuthFormHeader(),
       onUploadProgress: onProgress
@@ -380,6 +395,12 @@ export const adminAPI = {
     api.get('/admin/audit-logs', { ...getAuthHeader(), params }),
   deleteUser: (id) => api.delete(`/admin/users/${id}`, getAuthHeader()),
   generateInvite: () => api.post('/auth/invite', {}, getAuthHeader()),
+  // Platform-default job-matching weight profile (§C.1) — the reset target
+  // and starting point for every employer who hasn't customised their own.
+  // NOTE: server endpoint not implemented yet — see
+  // markdowns/MATCH_WEIGHTS_BACKEND_HANDOFF.md for the contract this calls.
+  getMatchWeightDefaults: () => api.get('/admin/match-weight-defaults', getAuthHeader()),
+  updateMatchWeightDefaults: (payload) => api.put('/admin/match-weight-defaults', payload, getAuthHeader()),
 };
 
 export const newsAPI = {
@@ -459,6 +480,15 @@ export const employerAPI = {
     api.put(`/employer/qualification-templates/${id}`, data, getAuthHeader()),
   deleteQualificationTemplate: (id) =>
     api.delete(`/employer/qualification-templates/${id}`, getAuthHeader()),
+  // Employer's default job-matching weight profile (§C.1) — applies to every
+  // job this employer posts, unless a per-vacancy override exists (see
+  // jobAPI.getMatchWeights/updateMatchWeights). `resetMatchWeights` removes
+  // the employer's custom profile so they fall back to the admin/platform
+  // default. NOTE: server endpoint not implemented yet — see
+  // markdowns/MATCH_WEIGHTS_BACKEND_HANDOFF.md for the contract this calls.
+  getMatchWeights: () => api.get('/employers/match-weights', getAuthHeader()),
+  updateMatchWeights: (payload) => api.put('/employers/match-weights', payload, getAuthHeader()),
+  resetMatchWeights: () => api.delete('/employers/match-weights', getAuthHeader()),
 };
 
 export const usersAPI = {
@@ -475,6 +505,19 @@ export const verificationAPI = {
   // Id-scoped approve/reject matching the documented admin API contract.
   approve: (id) => api.post(`/admin/employers/${id}/verification/approve`, {}, getAuthHeader()),
   reject: (id, reason) => api.post(`/admin/employers/${id}/verification/reject`, { reason }, getAuthHeader()),
+  markUnderReview: (id) => api.post(`/admin/employers/${id}/verification/under-review`, {}, getAuthHeader()),
+  requestResubmission: (id, reason) =>
+    api.post(`/admin/employers/${id}/verification/resubmission-required`, { reason }, getAuthHeader()),
+};
+
+// Admin-maintainable option catalogs (item 11) — industry, jobType,
+// governmentIdType. Reads are open to any authenticated role (the dropdowns
+// need them); writes are superadmin-only, enforced server-side.
+export const systemOptionsAPI = {
+  list: (category, params = {}) => api.get(`/system-options/${category}`, { ...getAuthHeader(), params }),
+  create: (payload) => api.post('/system-options', payload, getAuthHeader()),
+  update: (id, payload) => api.put(`/system-options/${id}`, payload, getAuthHeader()),
+  remove: (id) => api.delete(`/system-options/${id}`, getAuthHeader()),
 };
 
 // Employer self-service account endpoints (profile picture + the combined

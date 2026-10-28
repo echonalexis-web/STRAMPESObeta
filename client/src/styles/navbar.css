@@ -588,23 +588,47 @@ body.app-with-sidebar {
   position: relative;
 }
 
+/* The underline sits on the label text itself (shrink-to-fit as a flex
+   item), not the full-width link row — so its width below is a plain
+   100%, matched to however long that label happens to be, instead of a
+   fixed px value centered under the whole row regardless of text length. */
+.nav-link-text {
+  position: relative;
+  display: inline-block;
+}
+
 /* A short, straight, rounded-cap bar rather than an inset box-shadow — a
    box-shadow is clipped to the link's own border-radius, so it bends around
    the rounded corners instead of staying flat. */
-.auth-sidebar-nav a.is-active::after,
-.nav-submenu a.is-active::after,
-.messages-link.is-active::after,
-.nav-standalone-link.is-active::after,
-.nav-section-link.is-active::after {
+.auth-sidebar-nav a.is-active .nav-link-text::after,
+.nav-submenu a.is-active .nav-link-text::after,
+.messages-link.is-active .nav-link-text::after,
+.nav-standalone-link.is-active .nav-link-text::after,
+.nav-section-link.is-active .nav-link-text::after {
   content: "";
   position: absolute;
-  left: 50%;
-  bottom: 2px;
-  width: 22px;
+  left: 0;
+  bottom: -4px;
+  width: 100%;
   height: 2px;
   border-radius: 2px;
   background: #ffffff;
-  transform: translateX(-50%);
+  transform-origin: left;
+  /* Re-fires whenever .is-active newly matches this link (switching pages,
+     or the active link changing) — a quick left-to-right draw-in instead of
+     the bar just popping into existence at full width. */
+  animation: nav-underline-grow 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes nav-underline-grow {
+  from {
+    transform: scaleX(0);
+    opacity: 0.5;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
 }
 
 .messages-link {

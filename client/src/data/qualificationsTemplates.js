@@ -96,4 +96,26 @@ export const QUALIFICATION_TEMPLATES = {
     { type: "skill", value: "Compliance", optional: false },
     { type: "skill", value: "Communication", optional: false },
   ],
+  // Common entry-level roles — short lists on purpose, these are meant as a
+  // one-tap starting point (the "Start from a role" chips), not exhaustive.
+  Service_Crew: [
+    { type: "skill", value: "Customer Service", optional: false },
+    { type: "skill", value: "Food Preparation", optional: false },
+    { type: "skill", value: "Communication", optional: true },
+  ],
+  Cashier: [
+    { type: "skill", value: "Cash Handling", optional: false },
+    { type: "skill", value: "Customer Service", optional: false },
+    { type: "skill", value: "POS Systems", optional: true },
+  ],
+  Kitchen_Staff: [
+    { type: "skill", value: "Food Preparation", optional: false },
+    { type: "skill", value: "Cooking", optional: false },
+    { type: "certification", value: "Food Handler's Certificate", optional: true },
+  ],
+  Construction_Worker: [
+    { type: "skill", value: "Construction", optional: false },
+    { type: "skill", value: "Carpentry", optional: true },
+    { type: "certification", value: "Barangay Clearance", optional: true },
+  ],
 };

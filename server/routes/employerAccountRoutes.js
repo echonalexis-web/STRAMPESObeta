@@ -1,6 +1,6 @@
 const router = require("express").Router();
-const { verifyToken: protect } = require("../middleware/auth");
-const { sanitizeRequestBody, validateMongoId } = require("../middleware/validation");
+const { verifyToken: protect, isEmployer } = require("../middleware/auth");
+const { sanitizeRequestBody, validateMongoId, validateRequest } = require("../middleware/validation");
 const { detectMaliciousPayload } = require("../middleware/security");
 const {
   avatarUpload,
@@ -14,6 +14,11 @@ const {
   uploadEmployerAvatar,
   submitEmployerVerificationWithDocuments,
 } = require("../controllers/verificationController");
+const {
+  getEmployerMatchWeights,
+  updateEmployerMatchWeights,
+  resetEmployerMatchWeights,
+} = require("../controllers/matchWeightsController");
 
 // Self-service account endpoints for an employer whose account may not be
 // verified yet (profile picture, verification-document submission). These
@@ -44,5 +49,20 @@ router.post(
   detectMaliciousPayload,
   submitEmployerVerificationWithDocuments
 );
+
+// §C.1 — employer's own default job-matching weight profile. Role-gated
+// per-route (isEmployer) rather than at router.use() level, matching this
+// file's existing precedent of keeping the blanket `protect` loose and
+// applying narrower checks only where a route actually needs them.
+router.get("/match-weights", isEmployer, getEmployerMatchWeights);
+router.put(
+  "/match-weights",
+  isEmployer,
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  validateRequest,
+  updateEmployerMatchWeights
+);
+router.delete("/match-weights", isEmployer, resetEmployerMatchWeights);
 
 module.exports = router;

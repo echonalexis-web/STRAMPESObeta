@@ -309,6 +309,40 @@
   margin: 0;
 }
 
+.profile-completeness {
+  margin-bottom: 1.25rem;
+}
+
+.profile-completeness-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2e7d32;
+  margin-bottom: 6px;
+}
+
+.profile-completeness-fraction {
+  font-weight: 500;
+  color: #7a8a9a;
+}
+
+.profile-completeness-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #eef2f0;
+  overflow: hidden;
+}
+
+.profile-completeness-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4caf50, #2e7d32);
+  transition: width 0.3s ease;
+}
+
 .editprofile-card {
   width: 100%;
   background: #ffffff;
@@ -442,6 +476,49 @@
   font-size: 12px;
   font-weight: 700;
   color: #2e7d32;
+}
+
+.unit-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.unit-toggle {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.unit-toggle-btn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.unit-toggle-btn.active {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+
+.unit-toggle-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.unit-input-pair {
+  display: flex;
+  gap: 8px;
+}
+
+.unit-input-pair .number-input {
+  width: 100%;
 }
 
 .autosuggest {

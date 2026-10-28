@@ -20,13 +20,17 @@ const formatDate = (value) => {
 
 const STATUS_TABS = [
   { key: "pending", label: "Pending", dotTone: "pending" },
+  { key: "under_review", label: "Under Review", dotTone: "under_review" },
+  { key: "resubmission_required", label: "Resubmission Required", dotTone: "resubmission_required" },
   { key: "verified", label: "Verified", dotTone: "verified" },
   { key: "all", label: "All Records", dotTone: null },
 ];
 
 const STATUS_META = {
   pending: { label: "Pending Review", tone: "pending" },
+  under_review: { label: "Under Review", tone: "under_review" },
   verified: { label: "Verified", tone: "verified" },
+  resubmission_required: { label: "Resubmission Required", tone: "resubmission_required" },
   rejected: { label: "Rejected", tone: "rejected" },
   unverified: { label: "Unverified", tone: "unverified" },
 };
@@ -35,8 +39,9 @@ const statusMeta = (status) => STATUS_META[status] || STATUS_META.unverified;
 
 // Reviewed items show when they were decided; everything else shows when it
 // was submitted — one rule that works uniformly across every status tab.
+const REVIEWED_STATUSES = ["under_review", "verified", "resubmission_required", "rejected"];
 const dateMeta = (item) =>
-  item.verificationStatus === "verified" || item.verificationStatus === "rejected"
+  REVIEWED_STATUSES.includes(item.verificationStatus)
     ? { label: "Reviewed", value: item.verificationReviewedAt || item.createdAt }
     : { label: "Submitted", value: item.verificationSubmittedAt || item.createdAt };
 
@@ -74,7 +79,7 @@ export default function EmployerVerification() {
 
   const [statusTab, setStatusTab] = useState("pending");
   const [queue, setQueue] = useState([]);
-  const [counts, setCounts] = useState({ pending: 0, verified: 0 });
+  const [counts, setCounts] = useState({ pending: 0, under_review: 0, verified: 0, resubmission_required: 0 });
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -84,8 +89,10 @@ export default function EmployerVerification() {
   const [loadError, setLoadError] = useState("");
   const [busyId, setBusyId] = useState(null);
   const [actionToast, setActionToast] = useState(null);
-  const [rejectingId, setRejectingId] = useState(null);
-  const [rejectReason, setRejectReason] = useState("");
+  // One shared "needs a reason" panel for both Reject and Request
+  // Resubmission — same inline-input pattern, different action verb.
+  const [reasonPanel, setReasonPanel] = useState(null); // { userId, type: 'reject' | 'resubmit' }
+  const [reasonText, setReasonText] = useState("");
 
   useEffect(() => {
     if (!actionToast) return;
@@ -107,13 +114,17 @@ export default function EmployerVerification() {
   // of which tab is active, so they're loaded independently of the main list.
   const loadCounts = useCallback(async () => {
     try {
-      const [pendingRes, verifiedRes] = await Promise.all([
+      const [pendingRes, underReviewRes, verifiedRes, resubmissionRes] = await Promise.all([
         verificationAPI.getQueue({ page: 1, limit: 1, status: "pending" }),
+        verificationAPI.getQueue({ page: 1, limit: 1, status: "under_review" }),
         verificationAPI.getQueue({ page: 1, limit: 1, status: "verified" }),
+        verificationAPI.getQueue({ page: 1, limit: 1, status: "resubmission_required" }),
       ]);
       setCounts({
         pending: Number(pendingRes.data?.total || 0),
+        under_review: Number(underReviewRes.data?.total || 0),
         verified: Number(verifiedRes.data?.total || 0),
+        resubmission_required: Number(resubmissionRes.data?.total || 0),
       });
     } catch {
       // Non-fatal — badges just keep their last known value.
@@ -151,21 +162,28 @@ export default function EmployerVerification() {
     if (page > totalPages) setPage(totalPages);
   }, [totalPages, page]);
 
-  // Switching tabs can leave the reject panel pointed at a user no longer in view.
+  // Switching tabs can leave the reason panel pointed at a user no longer in view.
   useEffect(() => {
-    setRejectingId(null);
-    setRejectReason("");
+    setReasonPanel(null);
+    setReasonText("");
   }, [statusTab]);
 
   const pageList = useMemo(() => buildPageList(page, totalPages), [page, totalPages]);
 
-  const startReject = (userId) => {
-    setRejectingId(userId);
-    setRejectReason("");
+  const startReasonPanel = (userId, type) => {
+    setReasonPanel({ userId, type });
+    setReasonText("");
   };
-  const cancelReject = () => {
-    setRejectingId(null);
-    setRejectReason("");
+  const cancelReasonPanel = () => {
+    setReasonPanel(null);
+    setReasonText("");
+  };
+
+  const DECISION_LABELS = {
+    approved: "approved",
+    rejected: "rejected",
+    under_review: "marked under review",
+    resubmission_required: "sent back for resubmission",
   };
 
   const handleDecision = async (userId, payload) => {
@@ -173,13 +191,17 @@ export default function EmployerVerification() {
     try {
       if (payload.decision === "approved") {
         await verificationAPI.approve(userId);
-      } else {
+      } else if (payload.decision === "rejected") {
         await verificationAPI.reject(userId, payload.note);
+      } else if (payload.decision === "under_review") {
+        await verificationAPI.markUnderReview(userId);
+      } else if (payload.decision === "resubmission_required") {
+        await verificationAPI.requestResubmission(userId, payload.note);
       }
-      cancelReject();
+      cancelReasonPanel();
       setActionToast({
         type: "success",
-        message: `Verification ${payload.decision === "approved" ? "approved" : "rejected"}.`,
+        message: `Verification ${DECISION_LABELS[payload.decision] || "updated"}.`,
       });
       await loadQueue();
       loadCounts();
@@ -193,18 +215,20 @@ export default function EmployerVerification() {
     }
   };
 
-  const confirmReject = (userId) => {
-    const note = rejectReason.trim();
-    if (!note) return;
-    handleDecision(userId, { decision: "rejected", note });
+  const confirmReasonPanel = (userId) => {
+    const note = reasonText.trim();
+    if (!note || !reasonPanel) return;
+    const decision = reasonPanel.type === "resubmit" ? "resubmission_required" : "rejected";
+    handleDecision(userId, { decision, note });
   };
 
-  const emptyMessage =
-    statusTab === "pending"
-      ? "No pending verifications."
-      : statusTab === "verified"
-      ? "No verified employers yet."
-      : "No employer records found.";
+  const EMPTY_MESSAGES = {
+    pending: "No pending verifications.",
+    under_review: "No submissions currently under review.",
+    verified: "No verified employers yet.",
+    resubmission_required: "No submissions awaiting resubmission.",
+  };
+  const emptyMessage = EMPTY_MESSAGES[statusTab] || "No employer records found.";
 
   const rangeFrom = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeTo = Math.min(page * PAGE_SIZE, total);
@@ -296,7 +320,8 @@ export default function EmployerVerification() {
               const meta = statusMeta(item.verificationStatus);
               const when = dateMeta(item);
               const docs = DOC_FIELDS.filter((doc) => item[doc.key]);
-              const showActions = canAct && item.verificationStatus === "pending";
+              const showActions =
+                canAct && ["pending", "under_review"].includes(item.verificationStatus);
 
               return (
                 <article key={item._id} className="ev-card">
@@ -349,30 +374,44 @@ export default function EmployerVerification() {
                   ) : null}
 
                   {showActions ? (
-                    rejectingId === item._id ? (
+                    reasonPanel?.userId === item._id ? (
                       <div className="ev-card__reject">
                         <input
                           type="text"
-                          value={rejectReason}
-                          placeholder="Reason shown to the employer (required)"
-                          onChange={(e) => setRejectReason(e.target.value)}
+                          value={reasonText}
+                          placeholder={
+                            reasonPanel.type === "resubmit"
+                              ? "What needs to be fixed? Shown to the employer (required)"
+                              : "Reason shown to the employer (required)"
+                          }
+                          onChange={(e) => setReasonText(e.target.value)}
                         />
                         <div className="ev-card__reject-actions">
                           <button
                             type="button"
                             className="ev-btn ev-btn--danger"
-                            disabled={!rejectReason.trim() || busyId === item._id}
-                            onClick={() => confirmReject(item._id)}
+                            disabled={!reasonText.trim() || busyId === item._id}
+                            onClick={() => confirmReasonPanel(item._id)}
                           >
-                            Confirm rejection
+                            {reasonPanel.type === "resubmit" ? "Confirm resubmission request" : "Confirm rejection"}
                           </button>
-                          <button type="button" className="ev-btn ev-btn--ghost" onClick={cancelReject}>
+                          <button type="button" className="ev-btn ev-btn--ghost" onClick={cancelReasonPanel}>
                             Cancel
                           </button>
                         </div>
                       </div>
                     ) : (
                       <div className="ev-card__actions">
+                        {item.verificationStatus === "pending" && (
+                          <button
+                            type="button"
+                            className="ev-btn ev-btn--ghost"
+                            disabled={busyId === item._id}
+                            onClick={() => handleDecision(item._id, { decision: "under_review" })}
+                          >
+                            Start Review
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="ev-btn ev-btn--approve"
@@ -383,9 +422,17 @@ export default function EmployerVerification() {
                         </button>
                         <button
                           type="button"
+                          className="ev-btn ev-btn--ghost"
+                          disabled={busyId === item._id}
+                          onClick={() => startReasonPanel(item._id, "resubmit")}
+                        >
+                          Request Resubmission
+                        </button>
+                        <button
+                          type="button"
                           className="ev-btn ev-btn--reject"
                           disabled={busyId === item._id}
-                          onClick={() => startReject(item._id)}
+                          onClick={() => startReasonPanel(item._id, "reject")}
                         >
                           Reject
                         </button>

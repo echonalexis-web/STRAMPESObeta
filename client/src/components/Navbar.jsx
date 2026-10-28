@@ -31,6 +31,7 @@ import { useNavbarStylePreference } from "../hooks/useNavbarStylePreference";
 import { isJobVacancyEligibleAge, isSpesEligibleAge } from "../utils/age";
 import "../styles/navbar.css";
 import pesoLogo from "../assets/images/peso-logo.png";
+import PublicNavbar from "./PublicNavbar";
 
 const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
@@ -493,10 +494,6 @@ export default function Navbar() {
   const mobileQuickLinkProps = { ...quickLinkProps, variant: "mobile", onLinkClick: closeMobileMenu };
 
   const isSetupRoute = SETUP_PATHS.has(location.pathname);
-  // The login page now carries its own "Register as Applicant / Employer"
-  // entry points inside the auth card, so the navbar's copies would just be
-  // a duplicate right above them.
-  const isLoginRoute = location.pathname === "/login";
 
   useEffect(() => {
     const bodyClass = "app-with-sidebar";
@@ -815,94 +812,6 @@ export default function Navbar() {
     );
   }
 
-  // ─── PUBLIC NAVBAR ───
-  return (
-    <nav className="navbar">
-      <div className="nav-container">
-        <Link to="/" className="nav-logo-section">
-          <div className="nav-logo-icon">
-            <img src={pesoLogo} alt="PESO Marinduque Logo" />
-          </div>
-          <span className="nav-logo-text">{t("common.appName")}</span>
-        </Link>
-
-        <button
-          type="button"
-          className="mobile-menu-toggle mobile-menu-toggle--public"
-          onClick={toggleMobileMenu}
-          aria-label={isMobileMenuOpen ? t("navbar.closeNav") : t("navbar.openNav")}
-          aria-expanded={isMobileMenuOpen}
-          aria-controls="mobile-nav-panel"
-        >
-          {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
-        </button>
-
-        <div className="nav-links nav-links--public">
-          <Link to="/">{t("common.home")}</Link>
-          <Link to="/about">{t("common.about")}</Link>
-          <Link to="/news">{t("common.news")}</Link>
-          <Link to="/#available-jobs">{t("common.availableJobs")}</Link>
-
-          <div className="nav-cta-group">
-            {!isLoginRoute && (
-              <>
-                <Link to="/register" className="nav-cta-btn nav-cta-btn--secondary" onClick={closeMobileMenu}>
-                  {t("common.applicant")}
-                </Link>
-                <Link to="/register-employer" className="nav-cta-btn nav-cta-btn--primary" onClick={closeMobileMenu}>
-                  {t("common.employer")}
-                </Link>
-              </>
-            )}
-            <Link to="/login" className="nav-cta-btn nav-cta-btn--login" onClick={closeMobileMenu}>
-              {t("common.login")}
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {isMobileMenuOpen && (
-        <div className="mobile-menu-overlay" onClick={closeMobileMenu}>
-          <aside
-            id="mobile-nav-panel"
-            className="mobile-menu-panel mobile-menu-panel--bottom"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <Link to="/" className="mobile-menu-brand" onClick={closeMobileMenu}>
-              <span className="mobile-menu-brand-icon">
-                <img src={pesoLogo} alt="PESO Marinduque Logo" />
-              </span>
-              <span className="mobile-menu-brand-text">{t("common.appName")}</span>
-            </Link>
-
-            <div className="mobile-menu-links">
-              <Link to="/" onClick={closeMobileMenu}>{t("common.home")}</Link>
-              <Link to="/about" onClick={closeMobileMenu}>{t("common.about")}</Link>
-              <Link to="/news" onClick={closeMobileMenu}>{t("common.news")}</Link>
-              <Link to="/#available-jobs" onClick={closeMobileMenu}>{t("common.availableJobs")}</Link>
-            </div>
-
-            <div className="mobile-register-section">
-              {!isLoginRoute && <div className="mobile-register-label">{t("common.joinAs")}</div>}
-              <div className="mobile-register-buttons">
-                {!isLoginRoute && (
-                  <>
-                    <Link to="/register" onClick={closeMobileMenu} className="mobile-register-link">
-                      {t("common.applicant")}
-                    </Link>
-                    <Link to="/register-employer" onClick={closeMobileMenu} className="mobile-register-link mobile-register-link--employer">
-                      {t("common.employer")}
-                    </Link>
-                  </>
-                )}
-                <Link to="/login" onClick={closeMobileMenu} className="mobile-register-link mobile-register-link--login">
-                  {t("common.login")}
-                </Link>
-              </div>
-            </div>
-          </aside>
-        </div>
-      )}
-    </nav>
-  );
+  // Remount disclosures on navigation, including hash and browser history changes.
+  return <PublicNavbar key={location.key} />;
 }

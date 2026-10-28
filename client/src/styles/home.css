@@ -1183,13 +1183,39 @@ body, html {
   margin: 24px auto 0;
   padding: 16px 20px 0;
   border-top: 1px solid rgba(255, 255, 255, 0.15);
-  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .footer-v2-copyright p {
   color: rgba(255, 255, 255, 0.75);
   font-size: 0.8rem;
   margin: 0;
+}
+
+.footer-v2-legal-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.footer-v2-legal-links a {
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+}
+
+.footer-v2-legal-links a:hover,
+.footer-v2-legal-links a:focus-visible {
+  color: var(--marinduque-gold);
+  text-decoration: underline;
+}
+
+.footer-v2-legal-links span {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* ─── Mobile Redesign Breakdown (<= 768px) ─── */
@@ -1247,6 +1273,7 @@ body, html {
   }
 
   .footer-v2-copyright {
+    justify-content: center;
     text-align: center;
     margin-top: 18px;
   }

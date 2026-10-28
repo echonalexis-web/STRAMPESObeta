@@ -9,7 +9,8 @@
       "Bash(node -e \"require\\('./routes/authRoutes'\\); require\\('./routes/adminRoutes'\\); console.log\\('routes OK'\\);\")",
       "Bash(timeout 8 node server.js)",
       "Bash(echo \"---exit $?---\")",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(node scripts/seedSystemOptions.js --dry-run)"
     ]
   }
 }

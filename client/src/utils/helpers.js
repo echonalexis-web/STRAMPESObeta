@@ -25,9 +25,13 @@ export const normalizeApplicationStatus = (status) => {
   const normalized = String(status || "").toLowerCase();
   if (normalized === "applied") return "pending";
   if (normalized === "accepted") return "hired";
-  if (normalized === "reviewed") return "reviewed";
+  // "reviewed" is the pre-cleanup name for "under_review" — tolerated here
+  // for any row not yet migrated by server/scripts/migrateApplicationStatuses.js.
+  if (normalized === "reviewed") return "under_review";
   if (normalized === "rejected") return "rejected";
   if (normalized === "shortlisted") return "shortlisted";
+  if (normalized === "approved") return "approved";
+  if (normalized === "withdrawn") return "withdrawn";
   return normalized || "pending";
 };
 
@@ -37,11 +41,13 @@ export const normalizeApplicationStatus = (status) => {
  * @returns {string} CSS class name.
  */
 export const statusClass = (status) => {
-  const normalized = String(status || "").toLowerCase();
+  const normalized = normalizeApplicationStatus(status);
   if (["active", "hired"].includes(normalized)) return "green";
-  if (["pending", "applied"].includes(normalized)) return "gray";
-  if (["reviewed"].includes(normalized)) return "blue";
+  if (["pending"].includes(normalized)) return "gray";
+  if (["under_review"].includes(normalized)) return "blue";
   if (["shortlisted"].includes(normalized)) return "amber";
+  if (["approved"].includes(normalized)) return "teal";
   if (["rejected", "closed"].includes(normalized)) return "red";
+  if (["withdrawn"].includes(normalized)) return "purple";
   return "gray";
 };

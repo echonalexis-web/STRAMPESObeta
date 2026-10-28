@@ -220,6 +220,196 @@ body:not(.app-with-sidebar) .job-hero {
   background: #2e7d42;
 }
 
+/* ---- "Why this match?" breakdown disclosure (§A.3) ---- */
+.job-why-match summary {
+  cursor: pointer;
+  color: #16241c;
+  font-family: var(--heading, 'Poppins', sans-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  list-style: none;
+}
+.job-why-match summary::-webkit-details-marker { display: none; }
+.job-why-match summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 0.5rem;
+  color: #2e7d42;
+  transition: transform 0.15s ease;
+}
+.job-why-match[open] summary::before { transform: rotate(90deg); }
+.job-why-match .match-breakdown-panel { margin-top: 1rem; }
+
+/* ---- Merged Requirements card: basic eligibility + required/preferred ---- */
+.job-req-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.job-req-group-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7a70;
+  margin-bottom: 0.5rem;
+}
+
+.job-req-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid #eef1ee;
+  font-size: 0.9rem;
+}
+
+.job-req-row:last-child {
+  border-bottom: none;
+}
+
+.job-req-row-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font-size: 0.65rem;
+}
+
+.job-req-row.is-met .job-req-row-icon {
+  background: #e4f5e9;
+  color: #1f7a3f;
+}
+
+.job-req-row.is-missing .job-req-row-icon {
+  background: #fdf2f2;
+  color: #c0392b;
+}
+
+.job-req-row-label {
+  flex: 1;
+  min-width: 0;
+  color: #16241c;
+}
+
+.job-req-row-status {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.job-req-row.is-met .job-req-row-status {
+  color: #1f7a3f;
+}
+
+.job-req-row.is-missing .job-req-row-status {
+  color: #c0392b;
+}
+
+/* ---- "Your match" panel inside the apply card ---- */
+.job-match-panel {
+  border: 1px solid #e4e9e4;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin: -0.3rem 0 1rem;
+  background: #f8fbf8;
+}
+
+.job-match-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.job-match-tier {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #16241c;
+}
+
+.job-match-panel.tier-high .job-match-tier { color: #1f7a3f; }
+.job-match-panel.tier-mid .job-match-tier { color: #a5601b; }
+.job-match-panel.tier-low .job-match-tier { color: #6b7a70; }
+
+.job-match-percent {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #16241c;
+}
+
+.job-match-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: #e4e9e4;
+  overflow: hidden;
+}
+
+.job-match-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.job-match-bar-fill.tier-high { background: #1a5c2a; }
+.job-match-bar-fill.tier-mid { background: #d08a2e; }
+.job-match-bar-fill.tier-low { background: #9aa4b0; }
+
+.job-match-musthaves {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: #5a6672;
+}
+
+/* ---- Apply + Save row ---- */
+.job-apply-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.job-apply-actions-row .btn-apply {
+  flex: 1;
+}
+
+.job-save-job-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.job-save-job-wrap .btn-favorite-icon {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 10px;
+  border: 1px solid #e4e9e4 !important;
+  background: #fff;
+  color: #6b7a70;
+}
+
+.job-save-job-wrap .btn-favorite-icon.btn-favorite-active {
+  background: #fef2f2;
+  border-color: #fecaca !important;
+  color: #dc2626;
+}
+
+.job-save-job-label {
+  display: none;
+}
+
+@media (min-width: 420px) {
+  .job-save-job-label {
+    display: inline;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #5a6672;
+  }
+}
+
 .job-info-chips {
   display: flex;
   flex-wrap: wrap;
@@ -653,6 +843,18 @@ textarea.form-control {
   font-size: 0.92rem;
   color: #24303d;
   word-break: break-word;
+}
+
+.app-cover-letter-text {
+  margin: 0;
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  background: #f6f8f6;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  line-height: 1.5;
 }
 
 .app-employer-note {

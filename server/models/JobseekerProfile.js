@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { getActiveValues } = require("../services/systemOptionService");
 
 const jobseekerProfileSchema = new mongoose.Schema(
   {
@@ -10,7 +11,7 @@ const jobseekerProfileSchema = new mongoose.Schema(
     // Personal Identity
     civilStatus: {
       type: String,
-      enum: ["Single", "Married", "Widowed", "Separated", "Divorced", "Live-in"],
+      enum: ["Divorced", "Live-in", "Married", "Separated", "Single", "Widowed", "Prefer not to say"],
       default: null,
     },
     placeOfBirth: { type: String, default: null },
@@ -42,11 +43,19 @@ const jobseekerProfileSchema = new mongoose.Schema(
       region: { type: String, default: "" },
     },
     // Demographic Trackers
+    // "None" and "Prefer not to say" are explicit sentinels so an empty
+    // array (never asked / draft not saved yet) stays distinguishable from
+    // "asked and the answer was no disability" or "asked and declined" —
+    // the UI (EditProfile.jsx) enforces these two as mutually exclusive
+    // with the actual disability types and with each other.
     disability: {
       type: [String],
-      enum: ["Visual", "Hearing", "Speech", "Physical", "Others"],
+      enum: ["Hearing", "Physical", "Speech", "Visual", "Others", "None", "Prefer not to say"],
       default: [],
     },
+    // Free text shown only when "Others" is checked above — items 14/15's
+    // "Other, please specify" fallback.
+    disabilityOther: { type: String, default: null },
     is4psBeneficiary: { type: Boolean, default: false },
     _4psHouseholdId: { type: String, default: null },
     isOfw: { type: Boolean, default: false },
@@ -57,7 +66,7 @@ const jobseekerProfileSchema = new mongoose.Schema(
     // Current Status
     employmentStatus: {
       type: String,
-      enum: ["employed", "unemployed"],
+      enum: ["employed", "unemployed", "Prefer not to say"],
       default: null,
     },
     employmentType: {
@@ -94,10 +103,23 @@ const jobseekerProfileSchema = new mongoose.Schema(
         message: "You can select a maximum of 10 preferred industries.",
       },
     },
+    // Validated dynamically against the admin-maintainable SystemOption
+    // catalog (category "jobType") — item 11,
+    // markdowns/MOCK_DEFENSE_REVISION_STATUS.md. Deliberately does not
+    // accept "Remote" — see server/data/jobTypes.js: that's expressed via
+    // preferredWorkNature instead.
     preferredJobTypes: {
       type: [String],
-      enum: ["Full-time", "Part-time", "Contract", "Temporary", "Internship"],
       default: [],
+      validate: {
+        validator: async function (values) {
+          if (!Array.isArray(values) || values.length === 0) return true;
+          const active = await getActiveValues("jobType");
+          if (active.size === 0) return true; // see JobVacancy.jobType for why
+          return values.every((v) => active.has(v));
+        },
+        message: "Contains an invalid or inactive job type.",
+      },
     },
     preferredWorkNature: {
       type: [String],

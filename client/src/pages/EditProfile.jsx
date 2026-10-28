@@ -1,5 +1,5 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI, jobseekerDocumentAPI, resolveAssetUrl, verificationAPI } from "../services/api";
 import "../styles/profile.css";
@@ -13,7 +13,8 @@ import EmailChangeCard from "../components/EmailChangeCard";
 import { useToast, useConfirm } from "../components/feedback/context";
 import { SUGGESTED_SKILLS, INDUSTRY_SKILLS } from "../data/skills";
 import { usePersistentState } from "../hooks/usePersistentState";
-import { parseHeightToCm, parseWeightToKg, wasConverted } from "../utils/unitConversion";
+import HeightInput from "../components/HeightInput";
+import WeightInput from "../components/WeightInput";
 import { ALL_LOCATIONS } from "../utils/philippineLocations";
 import { parseLocationValue } from "../utils/locationParser";
 import marinduqueSchools from "../data/marinduque_schools.json";
@@ -21,6 +22,19 @@ import collegeCourses from "../data/philippine_college_courses.json";
 import countriesData from "../data/countries.json";
 import PH_JOB_TITLES from "../data/ph_job_titles_complete.json";
 import { WORKFORCE_SIZE_OPTIONS } from "../data/employerProfile";
+import { JOB_TYPES as JOB_TYPES_FALLBACK, JOB_TYPE_LABELS } from "../constants/jobTypes";
+import { GOVERNMENT_ID_TYPES as GOVERNMENT_ID_TYPES_FALLBACK, GOVERNMENT_ID_TYPE_OTHER } from "../constants/governmentIdTypes";
+import { VALID_INDUSTRIES as INDUSTRY_OPTIONS_FALLBACK } from "../constants/industries";
+import { useSystemOptions } from "../hooks/useSystemOptions";
+import { GENDER_OPTIONS } from "../constants/gender";
+import { CIVIL_STATUS_OPTIONS } from "../constants/civilStatus";
+import { UNEMPLOYMENT_REASON_OPTIONS } from "../constants/unemploymentReasons";
+import { WORK_HISTORY_STATUS_OPTIONS } from "../constants/workHistoryStatus";
+import {
+  OFFICE_TYPE_OPTIONS,
+  CLASSIFICATION_TYPE_OPTIONS,
+  CLASSIFICATION_SUBTYPE_OPTIONS,
+} from "../constants/employerClassification";
 
 const COUNTRY_OPTIONS = countriesData.countries || [];
 
@@ -64,14 +78,8 @@ const LANGUAGE_SKILLS = [
 const OTHER_OPTION = "__other__";
 const emptyLanguageRow = () => ({ read: false, write: false, speak: false, understand: false });
 
-const INDUSTRY_OPTIONS = [
-  "Information Technology (IT)", "Healthcare", "Finance & Banking", "Education",
-  "Construction & Engineering", "Manufacturing", "Retail & Wholesale", "Hospitality & Tourism",
-  "Transportation & Logistics", "Agriculture", "Media & Communications", "Real Estate",
-  "Government & Public Administration", "Legal Services", "Telecommunications",
-  "Marketing & Advertising", "Arts & Entertainment", "Human Resources", "Customer Service",
-  "Environmental Services", "Others"
-];
+// Matches JobseekerProfile.preferredWorkNature's enum exactly.
+const WORK_NATURE_OPTIONS = ["Onsite", "Remote", "Hybrid"];
 
 // Shared by the always-visible grid (desktop) and the picker modal (mobile)
 // so both stay in sync with a single source of truth for the button markup.
@@ -147,11 +155,15 @@ const initialFormData = {
   sssGsisNo: "",
   pagibigNo: "",
   philhealthNo: "",
+  governmentIdType: "",
+  governmentIdNumber: "",
+  governmentIdTypeOther: "",
   landline: "",
   mobileSecondary: "",
   presentAddress: { street: "", barangay: "", municipality: "", province: "", region: "" },
   permanentAddress: { street: "", barangay: "", municipality: "", province: "", region: "" },
   disability: [],
+  disabilityOther: "",
   is4psBeneficiary: false,
   _4psHouseholdId: "",
   isOfw: false,
@@ -167,6 +179,8 @@ const initialFormData = {
   preferredOccupations: [],
   preferredWorkLocationLocal: [],
   preferredWorkLocationOverseas: [],
+  preferredJobTypes: [],
+  preferredWorkNature: [],
   expectedSalaryMin: "",
   expectedSalaryMax: "",
   workExperience: "",
@@ -226,6 +240,8 @@ const mapMergedToFormData = (merged) => ({
   preferredOccupations: Array.isArray(merged.preferredOccupations) ? merged.preferredOccupations : [],
   preferredWorkLocationLocal: Array.isArray(merged.preferredWorkLocationLocal) ? merged.preferredWorkLocationLocal : [],
   preferredWorkLocationOverseas: Array.isArray(merged.preferredWorkLocationOverseas) ? merged.preferredWorkLocationOverseas : [],
+  preferredJobTypes: Array.isArray(merged.preferredJobTypes) ? merged.preferredJobTypes : [],
+  preferredWorkNature: Array.isArray(merged.preferredWorkNature) ? merged.preferredWorkNature : [],
   expectedSalaryMin: merged.expectedSalaryMin ?? "",
   expectedSalaryMax: merged.expectedSalaryMax ?? "",
   workExperience: merged.workExperience || "",
@@ -259,11 +275,15 @@ const mapMergedToFormData = (merged) => ({
   sssGsisNo: merged.sssGsisNo || "",
   pagibigNo: merged.pagibigNo || "",
   philhealthNo: merged.philhealthNo || "",
+  governmentIdType: merged.governmentIdType || "",
+  governmentIdNumber: merged.governmentIdNumber || "",
+  governmentIdTypeOther: merged.governmentIdTypeOther || "",
   landline: merged.landline || "",
   mobileSecondary: merged.mobileSecondary || "",
   presentAddress: merged.presentAddress || { street: "", barangay: "", municipality: "", province: "", region: "" },
   permanentAddress: merged.permanentAddress || { street: "", barangay: "", municipality: "", province: "", region: "" },
   disability: merged.disability || [],
+  disabilityOther: merged.disabilityOther || "",
   is4psBeneficiary: merged.is4psBeneficiary || false,
   _4psHouseholdId: merged._4psHouseholdId || "",
   isOfw: merged.isOfw || false,
@@ -331,11 +351,23 @@ export default function EditProfile() {
   const toast = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isEmployer = user?.role === "employer";
   const isSuperadmin = user?.role === "superadmin";
   // The superadmin shares the admin's minimal edit form (name, phone, password) —
   // no NSRP / career / documents tabs.
   const isAdmin = user?.role === "admin" || isSuperadmin;
+
+  // Admin-maintainable catalogs (item 11) — live from the server, with the
+  // old hardcoded lists as a fallback for first paint / offline.
+  const { options: JOB_TYPES } = useSystemOptions("jobType", { fallback: JOB_TYPES_FALLBACK });
+  const { options: GOVERNMENT_ID_TYPES } = useSystemOptions("governmentIdType", {
+    fallback: GOVERNMENT_ID_TYPES_FALLBACK,
+  });
+  // Used for both the jobseeker preferred-industries pills and the employer
+  // "Industry / Sector" select below — previously two independently
+  // hardcoded lists (one of them never alphabetized); now one live source.
+  const { options: INDUSTRY_OPTIONS } = useSystemOptions("industry", { fallback: INDUSTRY_OPTIONS_FALLBACK });
 
   // Persistent state
   const normalizeFormData = (data) => {
@@ -349,6 +381,8 @@ export default function EditProfile() {
       preferredOccupations: Array.isArray(data?.preferredOccupations) ? data.preferredOccupations : [],
       preferredWorkLocationLocal: Array.isArray(data?.preferredWorkLocationLocal) ? data.preferredWorkLocationLocal : [],
       preferredWorkLocationOverseas: Array.isArray(data?.preferredWorkLocationOverseas) ? data.preferredWorkLocationOverseas : [],
+      preferredJobTypes: Array.isArray(data?.preferredJobTypes) ? data.preferredJobTypes : [],
+      preferredWorkNature: Array.isArray(data?.preferredWorkNature) ? data.preferredWorkNature : [],
       workHistory: Array.isArray(data?.workHistory) ? data.workHistory : [],
       vocationalTrainings: Array.isArray(data?.vocationalTrainings) ? data.vocationalTrainings : [],
       eligibilities: Array.isArray(data?.eligibilities) ? data.eligibilities : [],
@@ -386,10 +420,6 @@ export default function EditProfile() {
     baselineRef.current = JSON.stringify(snapshot);
   };
 
-  const heightCm = useMemo(() => parseHeightToCm(formData.height), [formData.height]);
-  const heightConverted = heightCm !== null && wasConverted(formData.height, heightCm) ? heightCm : null;
-  const weightKg = useMemo(() => parseWeightToKg(formData.weight), [formData.weight]);
-  const weightConverted = weightKg !== null && wasConverted(formData.weight, weightKg) ? weightKg : null;
   const schoolOptions = useMemo(() => getSchoolOptions(formData.educationalAttainment), [formData.educationalAttainment]);
   const showCourseField = COURSE_ATTAINMENTS.includes(formData.educationalAttainment);
   const courseSuggestions = useMemo(
@@ -398,6 +428,37 @@ export default function EditProfile() {
   );
   const courseUnknown = formData.course === COURSE_UNKNOWN_VALUE;
   const toggleCourseUnknown = (checked) => setFormData((prev) => ({ ...prev, course: checked ? COURSE_UNKNOWN_VALUE : "" }));
+
+  const toggleJobType = (jt) => setFormData((prev) => ({
+    ...prev,
+    preferredJobTypes: prev.preferredJobTypes.includes(jt)
+      ? prev.preferredJobTypes.filter((item) => item !== jt)
+      : [...prev.preferredJobTypes, jt],
+  }));
+  const toggleWorkNature = (wn) => setFormData((prev) => ({
+    ...prev,
+    preferredWorkNature: prev.preferredWorkNature.includes(wn)
+      ? prev.preferredWorkNature.filter((item) => item !== wn)
+      : [...prev.preferredWorkNature, wn],
+  }));
+
+  // "None" and "Prefer not to say" are mutually exclusive with the actual
+  // disability types and with each other — selecting one clears the rest.
+  const DISABILITY_SENTINELS = ["None", "Prefer not to say"];
+  const toggleDisabilityType = (d) => setFormData((prev) => {
+    const withoutSentinels = prev.disability.filter((item) => !DISABILITY_SENTINELS.includes(item));
+    const next = withoutSentinels.includes(d)
+      ? withoutSentinels.filter((item) => item !== d)
+      : [...withoutSentinels, d];
+    // Unchecking "Others" leaves nothing for the "please specify" text to describe.
+    const disabilityOther = next.includes("Others") ? prev.disabilityOther : "";
+    return { ...prev, disability: next, disabilityOther };
+  });
+  const setDisabilitySentinel = (sentinel) => setFormData((prev) => ({
+    ...prev,
+    disability: prev.disability.includes(sentinel) ? [] : [sentinel],
+    disabilityOther: "",
+  }));
 
   const industrySuggestions = useMemo(() => {
     const fromIndustries = preferredIndustries.flatMap((ind) => INDUSTRY_SKILLS[ind] || []);
@@ -432,6 +493,21 @@ export default function EditProfile() {
     return { ...prev, activeTab: newVal };
   });
 
+  // Deep-link support: a link from elsewhere in the app (e.g. the "Why this
+  // match?" breakdown on a job's detail page, §A.3) can open this page
+  // already on the relevant tab via /profile/edit?tab=career. Runs once on
+  // mount only — after that, the tab switcher's own clicks (and the
+  // persisted activeTab from a previous visit) own the state, so an open
+  // profile page doesn't keep snapping back to the link's tab on every
+  // re-render.
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+    if (requestedTab && ["profile", "career", "training", "nsrp", "documents"].includes(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Purely a UI affordance (not persisted) — checking it copies the current
   // Company Profile business address into the structured NSRP fields below;
   // it doesn't keep the two permanently linked, so editing one afterward
@@ -443,6 +519,9 @@ export default function EditProfile() {
   const [registrationDocFile, setRegistrationDocFile] = useState(null);
   const [existingResume, setExistingResume] = useState("");
   const [existingValidId, setExistingValidId] = useState("");
+  // { percent, filled, total } for jobseekers, null otherwise — sits outside
+  // mergeProfileData's {user, profile} merge, so it needs its own state.
+  const [profileCompleteness, setProfileCompleteness] = useState(null);
   const [existingBusinessPermit, setExistingBusinessPermit] = useState("");
   const [existingRegistrationDoc, setExistingRegistrationDoc] = useState("");
   const [documentClearFlags, setDocumentClearFlags] = useState({
@@ -531,6 +610,7 @@ export default function EditProfile() {
       try {
         const { data } = await authAPI.getProfile();
         const merged = mergeProfileData(data);
+        setProfileCompleteness(data.profileCompleteness || null);
 
         // Always populate form from API on component mount
         // This ensures fresh data from server is displayed, not stale persisted state
@@ -751,21 +831,27 @@ export default function EditProfile() {
         data.append("skills", JSON.stringify(skills));
         data.append("preferredIndustries", JSON.stringify(preferredIndustries));
         data.append("industryPreferenceLevel", industryPreferenceLevel);
+        data.append("preferredJobTypes", JSON.stringify(formData.preferredJobTypes));
+        data.append("preferredWorkNature", JSON.stringify(formData.preferredWorkNature));
         data.append("civilStatus", formData.civilStatus);
         data.append("placeOfBirth", formData.placeOfBirth);
         data.append("citizenship", formData.citizenship);
-        data.append("height", heightCm ?? "");
-        data.append("weight", weightKg ?? "");
+        data.append("height", formData.height || "");
+        data.append("weight", formData.weight || "");
         data.append("religion", formData.religion);
         data.append("tin", formData.tin);
         data.append("sssGsisNo", formData.sssGsisNo);
         data.append("pagibigNo", formData.pagibigNo);
         data.append("philhealthNo", formData.philhealthNo);
+        data.append("governmentIdType", formData.governmentIdType);
+        data.append("governmentIdNumber", formData.governmentIdNumber);
+        data.append("governmentIdTypeOther", formData.governmentIdTypeOther);
         data.append("landline", formData.landline);
         data.append("mobileSecondary", formData.mobileSecondary);
         data.append("presentAddress", JSON.stringify(formData.presentAddress));
         data.append("permanentAddress", JSON.stringify(formData.permanentAddress));
         data.append("disability", JSON.stringify(formData.disability));
+        data.append("disabilityOther", formData.disabilityOther);
         data.append("is4psBeneficiary", formData.is4psBeneficiary ? "true" : "false");
         data.append("_4psHouseholdId", formData._4psHouseholdId);
         data.append("isOfw", formData.isOfw ? "true" : "false");
@@ -819,7 +905,8 @@ export default function EditProfile() {
       setConfirmPassword("");
       setDocumentClearFlags({ resume: false, validId: false, businessPermit: false, registrationDoc: false });
       login(localStorage.getItem("token"), response.user);
-      
+      setProfileCompleteness(response.profileCompleteness || null);
+
       // Update form with fresh server response to keep fields populated
       const merged = mergeProfileData(response);
       const savedFormData = mapMergedToFormData(merged);
@@ -994,6 +1081,23 @@ export default function EditProfile() {
             <p className="editprofile-panel-subtitle">Update your personal information and preferences</p>
           </div>
 
+          {!isAdmin && !isEmployer && profileCompleteness && (
+            <div className="profile-completeness">
+              <div className="profile-completeness-row">
+                <span>Profile {profileCompleteness.percent}% complete</span>
+                <span className="profile-completeness-fraction">
+                  {profileCompleteness.filled} of {profileCompleteness.total}
+                </span>
+              </div>
+              <div className="profile-completeness-bar" role="presentation">
+                <div
+                  className="profile-completeness-bar-fill"
+                  style={{ width: `${Math.min(100, Math.max(0, profileCompleteness.percent))}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {error && <div className="alert alert-error">{error}</div>}
           {emailChangeNotice && (
             <div className="alert alert-warning">
@@ -1095,9 +1199,9 @@ export default function EditProfile() {
                       <label htmlFor="gender">Gender</label>
                       <select id="gender" name="gender" value={formData.gender} onChange={handleChange}>
                         <option value="">Select</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Prefer not to say">Prefer not to say</option>
+                        {GENDER_OPTIONS.map((g) => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -1219,6 +1323,47 @@ export default function EditProfile() {
                         >
                           Strict (Only show these industries)
                         </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="profile-field-group">
+                    <h3 className="profile-section-title">Preferred Work Arrangement</h3>
+                    <p className="profile-section-hint">
+                      Used to match you with jobs that fit how you want to work. Optional — leave blank if you're open to anything.
+                    </p>
+
+                    <div className="profile-field">
+                      <span className="profile-label">Job type</span>
+                      <div className="pill-row">
+                        {JOB_TYPES.map((jt) => (
+                          <button
+                            key={jt}
+                            type="button"
+                            className={`pill-btn ${formData.preferredJobTypes.includes(jt) ? "active" : ""}`}
+                            onClick={() => toggleJobType(jt)}
+                            disabled={loading}
+                          >
+                            {JOB_TYPE_LABELS[jt] || jt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="profile-field">
+                      <span className="profile-label">Work setup</span>
+                      <div className="pill-row">
+                        {WORK_NATURE_OPTIONS.map((wn) => (
+                          <button
+                            key={wn}
+                            type="button"
+                            className={`pill-btn ${formData.preferredWorkNature.includes(wn) ? "active" : ""}`}
+                            onClick={() => toggleWorkNature(wn)}
+                            disabled={loading}
+                          >
+                            {wn}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -1618,10 +1763,9 @@ export default function EditProfile() {
                       <label>Status</label>
                       <select value={entry.status || ""} onChange={(e) => updateListItem("workHistory", i, "status", e.target.value)}>
                         <option value="">Select</option>
-                        <option value="Permanent">Permanent</option>
-                        <option value="Contractual">Contractual</option>
-                        <option value="Part-time">Part-time</option>
-                        <option value="Probationary">Probationary</option>
+                        {WORK_HISTORY_STATUS_OPTIONS.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -1749,6 +1893,14 @@ export default function EditProfile() {
           {activeTab === "nsrp" && !isAdmin && (
             <div className="profile-field-group">
               <h3 className="profile-section-title">NSRP Form Details</h3>
+              {!isEmployer && (
+                <p className="profile-section-hint">
+                  Civil status, citizenship, and place of birth are required to complete this section.
+                  Everything else here — including religion and government ID numbers, which are
+                  sensitive personal information — is optional; you can leave it blank. See our{" "}
+                  <Link to="/privacy">Privacy Policy</Link> for how this data is used and protected.
+                </p>
+              )}
               {isEmployer ? (
                 <div className="profile-field-group">
                   <div className="profile-field">
@@ -1767,8 +1919,9 @@ export default function EditProfile() {
                     <label htmlFor="officeType">Office Type</label>
                     <select id="officeType" name="officeType" value={formData.officeType} onChange={handleChange}>
                       <option value="">Select</option>
-                      <option value="main">Main</option>
-                      <option value="branch">Branch</option>
+                      {OFFICE_TYPE_OPTIONS.map(({ value, label }) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="profile-field-grid">
@@ -1776,19 +1929,18 @@ export default function EditProfile() {
                       <label htmlFor="employerClassificationType">Classification Type</label>
                       <select id="employerClassificationType" name="employerClassificationType" value={formData.employerClassificationType} onChange={handleChange}>
                         <option value="">Select</option>
-                        <option value="public">Public</option>
-                        <option value="private">Private</option>
+                        {CLASSIFICATION_TYPE_OPTIONS.map(({ value, label }) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
                       </select>
                     </div>
                     <div className="profile-field">
                       <label htmlFor="employerClassificationSubtype">Subtype</label>
                       <select id="employerClassificationSubtype" name="employerClassificationSubtype" value={formData.employerClassificationSubtype} onChange={handleChange}>
                         <option value="">Select</option>
-                        {formData.employerClassificationType === "public" ? (
-                          ["NGA", "LGU", "GOCC", "SUC/LUC"].map(s => <option key={s} value={s}>{s}</option>)
-                        ) : formData.employerClassificationType === "private" ? (
-                          ["Direct Hire", "Local Recruitment Agency", "Overseas Recruitment Agency", "D.O. 174 Contractor"].map(s => <option key={s} value={s}>{s}</option>)
-                        ) : null}
+                        {(CLASSIFICATION_SUBTYPE_OPTIONS[formData.employerClassificationType] || []).map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -1913,12 +2065,9 @@ export default function EditProfile() {
                     <label htmlFor="civilStatus">Civil Status</label>
                     <select id="civilStatus" name="civilStatus" value={formData.civilStatus} onChange={handleChange}>
                       <option value="">Select</option>
-                      <option value="Single">Single</option>
-                      <option value="Married">Married</option>
-                      <option value="Live-in">Live-in</option>
-                      <option value="Widowed">Widowed</option>
-                      <option value="Separated">Separated</option>
-                      <option value="Divorced">Divorced</option>
+                      {CIVIL_STATUS_OPTIONS.map((cs) => (
+                        <option key={cs} value={cs}>{cs}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="profile-field">
@@ -1935,7 +2084,7 @@ export default function EditProfile() {
                     <input id="citizenship" type="text" name="citizenship" value={formData.citizenship} onChange={handleChange} />
                   </div>
                   <div className="profile-field">
-                    <label htmlFor="religion">Religion</label>
+                    <label htmlFor="religion">Religion (optional)</label>
                     <Autosuggest
                       id="religion"
                       value={formData.religion}
@@ -1947,34 +2096,38 @@ export default function EditProfile() {
                   <h3 className="profile-section-title">Government IDs</h3>
                   <div className="profile-field-grid">
                     <div className="profile-field">
-                      <label htmlFor="tin">TIN</label>
+                      <label htmlFor="tin">TIN (optional)</label>
                       <input id="tin" type="text" name="tin" value={formData.tin} onChange={handleChange} />
                     </div>
                     <div className="profile-field">
-                      <label htmlFor="sssGsisNo">GSIS/SSS ID No.</label>
+                      <label htmlFor="sssGsisNo">GSIS/SSS ID No. (optional)</label>
                       <input id="sssGsisNo" type="text" name="sssGsisNo" value={formData.sssGsisNo} onChange={handleChange} />
                     </div>
                   </div>
                   <div className="profile-field-grid">
                     <div className="profile-field">
-                      <label htmlFor="pagibigNo">PAG-IBIG No.</label>
+                      <label htmlFor="pagibigNo">PAG-IBIG No. (optional)</label>
                       <input id="pagibigNo" type="text" name="pagibigNo" value={formData.pagibigNo} onChange={handleChange} />
                     </div>
                     <div className="profile-field">
-                      <label htmlFor="philhealthNo">PhilHealth No.</label>
+                      <label htmlFor="philhealthNo">PhilHealth No. (optional)</label>
                       <input id="philhealthNo" type="text" name="philhealthNo" value={formData.philhealthNo} onChange={handleChange} />
                     </div>
                   </div>
                   <div className="profile-field-grid">
                     <div className="profile-field">
-                      <label htmlFor="height">Height</label>
-                      <input id="height" type="text" inputMode="decimal" name="height" placeholder={`e.g. 170 or 5'8"`} value={formData.height} onChange={handleChange} className="number-input" />
-                      {heightConverted !== null && <span className="unit-hint">≈ {heightConverted} cm</span>}
+                      <label>Height</label>
+                      <HeightInput
+                        value={formData.height}
+                        onChange={(next) => setFormData((prev) => ({ ...prev, height: next }))}
+                      />
                     </div>
                     <div className="profile-field">
-                      <label htmlFor="weight">Weight</label>
-                      <input id="weight" type="text" inputMode="decimal" name="weight" placeholder="e.g. 65 or 143 lbs" value={formData.weight} onChange={handleChange} className="number-input" />
-                      {weightConverted !== null && <span className="unit-hint">≈ {weightConverted} kg</span>}
+                      <label>Weight</label>
+                      <WeightInput
+                        value={formData.weight}
+                        onChange={(next) => setFormData((prev) => ({ ...prev, weight: next }))}
+                      />
                     </div>
                   </div>
                   <div className="profile-field">
@@ -2055,22 +2208,45 @@ export default function EditProfile() {
                   <div className="profile-field">
                     <label>Disability (select all that apply)</label>
                     <div className="checkbox-group">
-                      {["Visual", "Hearing", "Speech", "Physical", "Others"].map((d) => (
+                      {["Hearing", "Physical", "Speech", "Visual", "Others"].map((d) => (
                         <label key={d} className="custom-checkbox-label">
                           <input
                             type="checkbox"
                             checked={formData.disability.includes(d)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setFormData((prev) => ({ ...prev, disability: [...prev.disability, d] }));
-                              } else {
-                                setFormData((prev) => ({ ...prev, disability: prev.disability.filter((item) => item !== d) }));
-                              }
-                            }}
+                            onChange={() => toggleDisabilityType(d)}
                             className="custom-checkbox-input"
                           />
                           <span className="custom-checkbox-box"></span>
                           <span className="custom-checkbox-text">{d}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {formData.disability.includes("Others") && (
+                      <div className="profile-field" style={{ marginTop: "8px" }}>
+                        <label htmlFor="disabilityOther">Please specify</label>
+                        <input
+                          id="disabilityOther"
+                          type="text"
+                          name="disabilityOther"
+                          value={formData.disabilityOther}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    )}
+                    {/* Explicit "no disability" / "declined to answer" — kept apart
+                        from the checkboxes above so an empty disability array only
+                        ever means "not asked yet", never "asked and the answer was no". */}
+                    <div className="checkbox-group" style={{ marginTop: "8px" }}>
+                      {["None", "Prefer not to say"].map((sentinel) => (
+                        <label key={sentinel} className="custom-checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={formData.disability.includes(sentinel)}
+                            onChange={() => setDisabilitySentinel(sentinel)}
+                            className="custom-checkbox-input"
+                          />
+                          <span className="custom-checkbox-box"></span>
+                          <span className="custom-checkbox-text">{sentinel === "None" ? "No disability" : sentinel}</span>
                         </label>
                       ))}
                     </div>
@@ -2130,6 +2306,7 @@ export default function EditProfile() {
                     <div className="pill-row">
                       <button type="button" className={`pill-btn ${formData.employmentStatus === "employed" ? "active" : ""}`} onClick={() => setFormData((prev) => ({ ...prev, employmentStatus: "employed" }))}>Employed</button>
                       <button type="button" className={`pill-btn ${formData.employmentStatus === "unemployed" ? "active" : ""}`} onClick={() => setFormData((prev) => ({ ...prev, employmentStatus: "unemployed" }))}>Unemployed</button>
+                      <button type="button" className={`pill-btn ${formData.employmentStatus === "Prefer not to say" ? "active" : ""}`} onClick={() => setFormData((prev) => ({ ...prev, employmentStatus: "Prefer not to say" }))}>Prefer not to say</button>
                     </div>
                   </div>
                   {formData.employmentStatus === "employed" && (
@@ -2147,12 +2324,9 @@ export default function EditProfile() {
                         <label htmlFor="unemploymentReason">Reason for Unemployment</label>
                         <select id="unemploymentReason" name="unemploymentReason" value={formData.unemploymentReason} onChange={handleChange}>
                           <option value="">Select</option>
-                          <option value="fresh_grad">Fresh Graduate</option>
-                          <option value="finished_contract">Finished Contract</option>
-                          <option value="resigned">Resigned</option>
-                          <option value="retired">Retired</option>
-                          <option value="laidoff_local">Laid off (Local)</option>
-                          <option value="laidoff_abroad">Laid off (Abroad)</option>
+                          {UNEMPLOYMENT_REASON_OPTIONS.map(({ value, label }) => (
+                            <option key={value} value={value}>{label}</option>
+                          ))}
                         </select>
                       </div>
                       {formData.unemploymentReason === "laidoff_abroad" && (
@@ -2219,19 +2393,25 @@ export default function EditProfile() {
                     <p className="profile-hint">
                       Current status: <strong>{user?.verificationStatus || "unverified"}</strong>
                     </p>
-                    {user?.verificationStatus === "rejected" && user?.verificationNote ? (
+                    {["rejected", "resubmission_required"].includes(user?.verificationStatus) && user?.verificationNote ? (
                       <p className="profile-error-text">Admin note: {user.verificationNote}</p>
                     ) : null}
                     {user?.verificationStatus === "pending" ? (
                       <p className="profile-hint">
                         Your documents are under review by LMD Admin. You&apos;ll be notified and messaged with the result.
                       </p>
+                    ) : user?.verificationStatus === "under_review" ? (
+                      <p className="profile-hint">
+                        An admin has started actively reviewing your documents. You&apos;ll be notified and messaged with the result.
+                      </p>
                     ) : user?.verificationStatus === "verified" ? (
                       <p className="profile-hint">Your account is verified — you can post job vacancies.</p>
                     ) : (
                       <>
                         <p className="profile-hint">
-                          Save your profile after adding both documents, then submit them for admin review.
+                          {user?.verificationStatus === "resubmission_required"
+                            ? "Update your documents per the note above, then resubmit for admin review."
+                            : "Save your profile after adding both documents, then submit them for admin review."}
                         </p>
                         <button
                           type="button"
@@ -2263,6 +2443,42 @@ export default function EditProfile() {
                       setDocumentClearFlags((prev) => ({ ...prev, resume: true }));
                     }}
                   />
+                  <div className="profile-field-grid">
+                    <div className="profile-field">
+                      <label htmlFor="governmentIdType">Government ID Type (optional)</label>
+                      <select id="governmentIdType" name="governmentIdType" value={formData.governmentIdType} onChange={handleChange}>
+                        <option value="">Select</option>
+                        {GOVERNMENT_ID_TYPES.map((idType) => (
+                          <option key={idType} value={idType}>{idType}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="profile-field">
+                      <label htmlFor="governmentIdNumber">ID Number</label>
+                      <input
+                        id="governmentIdNumber"
+                        type="text"
+                        name="governmentIdNumber"
+                        value={formData.governmentIdNumber}
+                        onChange={handleChange}
+                        disabled={!formData.governmentIdType}
+                        placeholder={formData.governmentIdType ? "" : "Select an ID type first"}
+                      />
+                    </div>
+                  </div>
+                  {formData.governmentIdType === GOVERNMENT_ID_TYPE_OTHER && (
+                    <div className="profile-field">
+                      <label htmlFor="governmentIdTypeOther">Please specify</label>
+                      <input
+                        id="governmentIdTypeOther"
+                        type="text"
+                        name="governmentIdTypeOther"
+                        value={formData.governmentIdTypeOther}
+                        onChange={handleChange}
+                        placeholder="Name of the government ID"
+                      />
+                    </div>
+                  )}
                   <FileDropzone
                     id="supportingUpload"
                     label="Valid ID / Supporting Documents"
@@ -2276,6 +2492,10 @@ export default function EditProfile() {
                     onRemove={() => {
                       setSupportingDocumentFile(null);
                       setDocumentClearFlags((prev) => ({ ...prev, validId: true }));
+                      // The type/number describe the file being removed —
+                      // clear them too so the form doesn't keep showing
+                      // metadata for an ID that's about to be deleted.
+                      setFormData((prev) => ({ ...prev, governmentIdType: "", governmentIdNumber: "", governmentIdTypeOther: "" }));
                     }}
                   />
                 </>

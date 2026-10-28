@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FaArrowRight, FaSearch } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { jobAPI } from "../services/api";
@@ -120,8 +120,10 @@ export default function Home() {
       });
     };
     handleScroll();
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    // The page actually scrolls via `body` (see App.css's html/body overflow-y:
+    // auto setup), not `window`, so the listener needs the capture phase to see it.
+    document.addEventListener("scroll", handleScroll, true);
+    return () => document.removeEventListener("scroll", handleScroll, true);
   }, []);
 
   const scrollToAvailableJobs = () => {
@@ -482,7 +484,16 @@ export default function Home() {
             </a>
           </div>
         </div>
-        <div className="footer-v2-copyright"><p>© 2025 Provincial Government of Marinduque. All Rights Reserved.</p></div>
+        <div className="footer-v2-copyright">
+          <p>© 2025 Provincial Government of Marinduque. All Rights Reserved.</p>
+          <nav className="footer-v2-legal-links" aria-label="Legal">
+            <Link to="/terms">Terms of Service</Link>
+            <span aria-hidden="true">•</span>
+            <Link to="/privacy">Privacy Policy</Link>
+            <span aria-hidden="true">•</span>
+            <Link to="/cookies">Cookie Policy</Link>
+          </nav>
+        </div>
       </footer>
     </div>
   );

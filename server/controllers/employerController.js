@@ -33,7 +33,7 @@ const getUserId = (req) => req.user._id || req.user.id;
 // Statuses (including legacy capitalized variants still present on older
 // documents) past which an application is closed — scheduling or
 // rescheduling an interview no longer makes sense.
-const CLOSED_APPLICATION_STATUSES = ["rejected", "Rejected", "hired", "Accepted"];
+const CLOSED_APPLICATION_STATUSES = ["rejected", "Rejected", "hired", "Accepted", "withdrawn"];
 
 const autoCloseOverdueJobsForEmployer = async (employerId, io = null) => {
   const now = new Date();
@@ -171,6 +171,16 @@ const formatQualifications = (qualifications) => {
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 };
 
+// Mirrors the client-side cap in utils/qualifications.js (MAX_SKILL_QUALIFICATIONS)
+// — enforced here too so the limit can't be bypassed by calling the API directly.
+const MAX_SKILL_QUALIFICATIONS = 8;
+const isSkillQualification = (q) => {
+  const type = String(q?.type || "").trim().toLowerCase();
+  return type === "skill" || type === "other" || !type;
+};
+const countSkillQualifications = (list) =>
+  (Array.isArray(list) ? list : []).filter(isSkillQualification).length;
+
 const VALID_WORK_NATURES = ["remote", "onsite", "hybrid"];
 
 // Builds a human-readable "PHP X - Y" (or "PHP X") string from numeric
@@ -286,6 +296,14 @@ exports.getEmployerJobs = async (req, res) => {
   }
 };
 
+// Normalizes `industry` into a deduped array of trimmed strings — the client
+// sends an array (multi-industry selection), but a single string is still
+// tolerated for any older caller.
+const parseIndustries = (value) => {
+  const list = Array.isArray(value) ? value : (value ? [value] : []);
+  return [...new Set(list.map((v) => String(v).trim()).filter(Boolean))];
+};
+
 // ---------------------------------------------------------------------
 // Create a new job
 // ---------------------------------------------------------------------
@@ -313,6 +331,9 @@ exports.createJob = async (req, res) => {
     // Validate qualifications
     if (!Array.isArray(parsedQualifications)) {
       return res.status(400).json({ message: "Qualifications must be an array" });
+    }
+    if (countSkillQualifications(parsedQualifications) > MAX_SKILL_QUALIFICATIONS) {
+      return res.status(400).json({ message: `You can add up to ${MAX_SKILL_QUALIFICATIONS} skills` });
     }
 
     // Set order if not provided
@@ -354,7 +375,7 @@ exports.createJob = async (req, res) => {
       employer: employerId,
       status: "active",
       isActive: true,
-      industry: industry ? String(industry).trim() : "",
+      industry: parseIndustries(industry),
       workNature: VALID_WORK_NATURES.includes(workNature) ? workNature : null,
       ...basicRequirements,
       updatedAt: new Date(),
@@ -396,6 +417,9 @@ const applyJobUpdate = async (req, res, job, actorRole, action) => {
     if (!Array.isArray(parsedQualifications)) {
       return res.status(400).json({ message: "Qualifications must be an array" });
     }
+    if (countSkillQualifications(parsedQualifications) > MAX_SKILL_QUALIFICATIONS) {
+      return res.status(400).json({ message: `You can add up to ${MAX_SKILL_QUALIFICATIONS} skills` });
+    }
 
     parsedQualifications = parsedQualifications.map((q, index) => ({
       ...q,
@@ -411,7 +435,7 @@ const applyJobUpdate = async (req, res, job, actorRole, action) => {
   });
 
   if (req.body.industry !== undefined) {
-    job.industry = String(req.body.industry).trim();
+    job.industry = parseIndustries(req.body.industry);
   }
   if (req.body.workNature !== undefined) {
     job.workNature = VALID_WORK_NATURES.includes(req.body.workNature) ? req.body.workNature : null;
@@ -617,7 +641,7 @@ exports.updateApplicationStatus = async (req, res) => {
     const { applicationId } = req.params;
     const { status, employerNote } = req.body;
 
-    const allowed = ["pending", "reviewed", "shortlisted", "rejected", "hired"];
+    const allowed = ["pending", "under_review", "shortlisted", "approved", "rejected", "hired"];
     if (!allowed.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
@@ -642,8 +666,9 @@ exports.updateApplicationStatus = async (req, res) => {
     await application.save();
 
     const STATUS_AUDIT_ACTIONS = {
-      reviewed: "employer.application.reviewed",
+      under_review: "employer.application.under_review",
       shortlisted: "employer.application.shortlisted",
+      approved: "employer.application.approved",
       rejected: "employer.application.rejected",
       hired: "employer.application.hired",
     };
@@ -677,7 +702,7 @@ exports.updateApplicationStatus = async (req, res) => {
     });
 
     // Send automated status update message to jobseeker
-    if (["reviewed", "shortlisted", "rejected", "hired"].includes(status)) {
+    if (["under_review", "shortlisted", "approved", "rejected", "hired"].includes(status)) {
       const conversation = await ensureConversationBetweenUsers(employerId, application.applicant);
 
       const applicantName = application.applicant?.name || "there";
@@ -686,11 +711,14 @@ exports.updateApplicationStatus = async (req, res) => {
 
       // Customize message based on status
       switch (status) {
-        case "reviewed":
+        case "under_review":
           autoContent = `Hi ${applicantName}, we've reviewed your application for ${jobTitle}. We're impressed and would like to learn more about you!`;
           break;
         case "shortlisted":
           autoContent = `Great news, ${applicantName}! Your application for ${jobTitle} has been shortlisted. We'd love to move forward with you to the next stage.`;
+          break;
+        case "approved":
+          autoContent = `Great news, ${applicantName}! Your application for ${jobTitle} has been approved. We'll be in touch with next steps soon.`;
           break;
         case "hired":
           autoContent = `Congratulations, ${applicantName}! We're pleased to offer you the position of ${jobTitle}. Please review the details and let us know if you have any questions.`;
@@ -1059,7 +1087,7 @@ exports.bulkUpdateApplicationStatuses = async (req, res) => {
       return res.status(400).json({ message: "applicationIds must be a non-empty array" });
     }
 
-    const allowed = ["pending", "reviewed", "shortlisted", "rejected", "hired"];
+    const allowed = ["pending", "under_review", "shortlisted", "approved", "rejected", "hired"];
     if (!allowed.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
@@ -1111,7 +1139,7 @@ exports.bulkUpdateApplicationStatuses = async (req, res) => {
       });
 
       // Send automated status update message for status changes
-      if (["reviewed", "shortlisted", "rejected", "hired"].includes(status)) {
+      if (["under_review", "shortlisted", "approved", "rejected", "hired"].includes(status)) {
         const conversation = await ensureConversationBetweenUsers(employerId, application.applicant);
 
         const applicantName = application.applicant?.name || "there";
@@ -1119,11 +1147,14 @@ exports.bulkUpdateApplicationStatuses = async (req, res) => {
         let autoContent = "";
 
         switch (status) {
-          case "reviewed":
+          case "under_review":
             autoContent = `Hi ${applicantName}, we've reviewed your application for ${jobTitle}. We're impressed and would like to learn more about you!`;
             break;
           case "shortlisted":
             autoContent = `Great news, ${applicantName}! Your application for ${jobTitle} has been shortlisted. We'd love to move forward with you to the next stage.`;
+            break;
+          case "approved":
+            autoContent = `Great news, ${applicantName}! Your application for ${jobTitle} has been approved. We'll be in touch with next steps soon.`;
             break;
           case "hired":
             autoContent = `Congratulations, ${applicantName}! We're pleased to offer you the position of ${jobTitle}. Please review the details and let us know if you have any questions.`;

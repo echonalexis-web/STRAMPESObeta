@@ -12,6 +12,8 @@ import {
   FaTriangleExclamation,
 } from "react-icons/fa6";
 import NsrpTemplateSettings from "../../components/NsrpTemplateSettings";
+import MatchWeightBoundsSettings from "../../components/MatchWeightBoundsSettings";
+import SystemOptionsSettings from "../../components/SystemOptionsSettings";
 import { superadminAPI } from "../../services/api";
 import "../../styles/superadmin-console.css";
 
@@ -414,6 +416,8 @@ export default function SuperadminConsole() {
           )}
         </section>
         <NsrpTemplateSettings />
+        <MatchWeightBoundsSettings />
+        <SystemOptionsSettings />
       </main>
 
       {/* ── Slide-over: provisioning form ─────────────────────── */}

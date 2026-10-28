@@ -19,6 +19,18 @@
     "login": "Login",
     "joinAs": "Join as:"
   },
+  "publicNavbar": {
+    "navigation": "Main navigation",
+    "login": "Log in",
+    "register": "Register",
+    "createAccount": "Create your account",
+    "applicant": "Register as Applicant",
+    "employer": "Register as Employer",
+    "applicantDescription": "Find work and explore opportunities",
+    "employerDescription": "Post openings and find local talent",
+    "loginAccount": "Log in to your account",
+    "newHere": "New to STRAM PESO?"
+  },
   "navbar": {
     "superadminConsole": "Superadmin Console",
     "adminDashboard": "Admin Dashboard",

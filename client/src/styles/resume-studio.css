@@ -408,6 +408,17 @@
   resize: vertical;
 }
 
+.rstudio-target-job-banner {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #065f46;
+  margin-bottom: 14px;
+}
+
 /* ---- Cover letter tone picker ---- */
 .rstudio-tone-list {
   display: flex;

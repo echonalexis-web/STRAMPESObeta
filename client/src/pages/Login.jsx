@@ -6,6 +6,8 @@ import GoogleSignInButton from "../components/GoogleSignInButton";
 import AccountInactiveModal from "../components/AccountInactiveModal";
 import { useToast } from "../components/feedback/context";
 import "../styles/auth.css";
+import "@fontsource/plus-jakarta-sans/800.css";
+import "../styles/login.css";
 import {
   FaEye,
   FaEyeSlash,
@@ -13,12 +15,8 @@ import {
   FaLock,
   FaUserGraduate,
   FaBuilding,
-  FaArrowRight,
   FaSignInAlt,
-  FaShieldAlt,
 } from "react-icons/fa";
-import pesoLogo from "../assets/images/peso-logo.png";
-import provincialSeal from "../assets/images/provincial-seal.png";
 
 const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
@@ -70,23 +68,6 @@ export default function Login() {
     setError(message);
     if (message) toast.error(message);
   };
-
-  /* ─── Spotlight mouse tracking ─── */
-  useEffect(() => {
-    const container = document.querySelector(".auth-container");
-    if (!container) return;
-
-    const handleMouseMove = (e) => {
-      const rect = container.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      container.style.setProperty("--x", `${x}%`);
-      container.style.setProperty("--y", `${y}%`);
-    };
-
-    container.addEventListener("mousemove", handleMouseMove);
-    return () => container.removeEventListener("mousemove", handleMouseMove);
-  }, []);
 
   // One-time notice left behind by the API interceptor when a session was
   // ended mid-visit — self-deactivation, a staff account disabled, or the
@@ -315,159 +296,147 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-container">
+    <main className="login-page">
       {inactiveNotice && <AccountInactiveModal onDismiss={() => setInactiveNotice(false)} />}
-      <div className="auth-panel">
+      <div className="login-layout">
         {/* ─── Branding Side ─── */}
-        <div className="auth-branding">
-          <div className="auth-branding-content">
-            <img src={pesoLogo} alt="PESO Marinduque Logo" className="auth-branding-logo" />
-            <h1 className="auth-branding-title">TRABAHO MANDIN!</h1>
-            <p className="auth-branding-tagline">Trabaho para sa Marinduqueño</p>
-            <p className="auth-branding-desc">
+        <section className="login-branding" aria-labelledby="login-brand-title">
+          <div className="login-branding-content">
+            <p className="login-eyebrow">PUBLIC EMPLOYMENT SERVICE OFFICE</p>
+            <h1 id="login-brand-title" className="login-branding-title">Trabaho<br />Mandin!</h1>
+            <p className="login-branding-tagline">Trabaho para sa Marinduqueño</p>
+            <p className="login-branding-desc">
               Marinduque, the Heart of the Philippines. Connect with local employers,
               discover livelihood opportunities, and build your future right here at home.
             </p>
-            <img src={provincialSeal} alt="Provincial Seal of Marinduque" className="auth-branding-seal" />
-            <div className="auth-branding-footer">
-              PUBLIC EMPLOYMENT SERVICE OFFICE<br />
-              Lalawigan ng Marinduque
+            <div className="login-branding-chips">
+              <span>Local Employers</span>
+              <span>Smart Job Matching</span>
+            </div>
+            <div className="login-branding-footer">
+              LALAWIGAN NG MARINDUQUE
             </div>
           </div>
-        </div>
+        </section>
 
         {/* ─── Form Side ─── */}
-        <div className="auth-card">
-          <div className="auth-card-header">
-            <div>
-              <h2>Welcome Back</h2>
-              <p className="auth-subtitle">Access your account or create a new profile</p>
-            </div>
-            <span className="auth-secure-badge">
-              <FaShieldAlt aria-hidden="true" /> Secure Portal
-            </span>
-          </div>
+        <section className="login-form-panel" aria-labelledby="login-form-title">
+          <div className="login-form-content">
+            <header className="login-form-header">
+              <h2 id="login-form-title">Sign in to STRAM PESO</h2>
+              <p>Access your account to find work or post openings.</p>
+            </header>
 
-          <div className="auth-register-block">
-            <div className="auth-register-block-head">
-              <span className="auth-register-block-eyebrow">New to PESO Marinduque?</span>
-              <span className="auth-register-block-hint">Select your account type:</span>
-            </div>
-            <div className="auth-register-buttons">
-              <Link to="/register" className="auth-register-btn auth-register-btn--applicant">
-                <FaUserGraduate aria-hidden="true" />
-                <span>Register as Applicant</span>
-                <FaArrowRight className="auth-register-btn-arrow" aria-hidden="true" />
-              </Link>
-              <Link to="/register-employer" className="auth-register-btn auth-register-btn--employer">
-                <FaBuilding aria-hidden="true" />
-                <span>Register as Employer</span>
-                <FaArrowRight className="auth-register-btn-arrow" aria-hidden="true" />
-              </Link>
-            </div>
-          </div>
-
-          <div className="auth-divider">
-            <span>Or sign in to existing account</span>
-          </div>
-
-          {error && (
-            <div className="error-message" role="alert" aria-live="polite">
-              {error}
-            </div>
-          )}
-
-          {unverifiedEmail && (
-            <p className="auth-link">
-              <button type="button" onClick={handleResendVerification} disabled={resending}>
-                {resending ? "Resending…" : "Resend verification email"}
-              </button>
-            </p>
-          )}
-
-          <form className="auth-form" onSubmit={handleSubmit} noValidate>
-            <div className="form-group">
-              <label htmlFor="email">Email Address</label>
-              <div className="auth-input-wrap">
-                <FaEnvelope className="auth-input-icon" aria-hidden="true" />
-                <input
-                  id="email"
-                  type="email"
-                  name="email"
-                  placeholder="name@example.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  disabled={loading || isRedirecting}
-                  autoComplete="email"
-                  className={touched.email && !formData.email.trim() ? "is-error" : ""}
-                />
+            {error && (
+              <div className="error-message" role="alert" aria-live="polite">
+                {error}
               </div>
-            </div>
+            )}
 
-            <div className="form-group">
-              <div className="auth-field-header">
-                <label htmlFor="password">Password</label>
-                <Link to="/forgot-password" className="auth-forgot-link">Forgot password?</Link>
-              </div>
-              <div className="auth-input-wrap password-container">
-                <FaLock className="auth-input-icon" aria-hidden="true" />
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  disabled={loading || isRedirecting}
-                  autoComplete="current-password"
-                  className={touched.password && !formData.password ? "is-error" : ""}
-                />
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={togglePasswordVisibility}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  disabled={loading || isRedirecting}
-                >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+            {unverifiedEmail && (
+              <p className="auth-link">
+                <button type="button" onClick={handleResendVerification} disabled={resending}>
+                  {resending ? "Resending…" : "Resend verification email"}
                 </button>
+              </p>
+            )}
+
+            <form className="auth-form" onSubmit={handleSubmit} noValidate>
+              <div className="form-group">
+                <label htmlFor="email">Email Address</label>
+                <div className="auth-input-wrap">
+                  <FaEnvelope className="auth-input-icon" aria-hidden="true" />
+                  <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    placeholder="name@example.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    disabled={loading || isRedirecting}
+                    autoComplete="email"
+                    className={touched.email && !formData.email.trim() ? "is-error" : ""}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <div className="auth-field-header">
+                  <label htmlFor="password">Password</label>
+                  <Link to="/forgot-password" className="auth-forgot-link">Forgot password?</Link>
+                </div>
+                <div className="auth-input-wrap password-container">
+                  <FaLock className="auth-input-icon" aria-hidden="true" />
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    disabled={loading || isRedirecting}
+                    autoComplete="current-password"
+                    className={touched.password && !formData.password ? "is-error" : ""}
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={togglePasswordVisibility}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    disabled={loading || isRedirecting}
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
+              </div>
+
+              <label className="auth-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={keepSignedIn}
+                  onChange={(e) => setKeepSignedIn(e.target.checked)}
+                  disabled={loading || isRedirecting}
+                />
+                Keep me signed in
+              </label>
+
+              <button
+                type="submit"
+                className="auth-button"
+                disabled={loading || isRedirecting}
+              >
+                <FaSignInAlt aria-hidden="true" />
+                {loading ? "Logging in..." : isRedirecting ? "Redirecting..." : "Login to Account"}
+              </button>
+            </form>
+
+            <GoogleSignInButton onCredential={handleGoogleCredential} text="signin_with" fullWidth />
+
+            <div className="login-register">
+              <p className="login-register-label">NEW TO PESO MARINDUQUE?</p>
+              <div className="login-register-buttons">
+                <Link to="/register" className="login-register-btn login-register-btn--applicant">
+                  <FaUserGraduate aria-hidden="true" />
+                  <span>Register as Applicant</span>
+                </Link>
+                <Link to="/register-employer" className="login-register-btn login-register-btn--employer">
+                  <FaBuilding aria-hidden="true" />
+                  <span>Register as Employer</span>
+                </Link>
               </div>
             </div>
 
-            <label className="auth-checkbox-row">
-              <input
-                type="checkbox"
-                checked={keepSignedIn}
-                onChange={(e) => setKeepSignedIn(e.target.checked)}
-                disabled={loading || isRedirecting}
-              />
-              Keep me signed in
-            </label>
-
-            <button
-              type="submit"
-              className="auth-button"
-              disabled={loading || isRedirecting}
-            >
-              <FaSignInAlt aria-hidden="true" />
-              {loading ? "Logging in..." : isRedirecting ? "Redirecting..." : "Login to Account"}
-            </button>
-          </form>
-
-          <GoogleSignInButton onCredential={handleGoogleCredential} text="signin_with" />
-
-          <p className="auth-link">
-            Don't have an account? <Link to="/register">Register</Link>
-          </p>
-
-          <p className="auth-terms-footer">
-            By logging in, you agree to the{" "}
-            <Link to="/terms">Terms of Service</Link> &amp; <Link to="/privacy">Privacy Policy</Link> of PESO Marinduque.
-          </p>
-        </div>
+            <p className="auth-terms-footer">
+              By logging in, you agree to the{" "}
+              <Link to="/terms">Terms of Service</Link>,{" "}
+              <Link to="/privacy">Privacy Policy</Link>, and{" "}
+              <Link to="/cookies">Cookie Policy</Link> of PESO Marinduque.
+            </p>
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

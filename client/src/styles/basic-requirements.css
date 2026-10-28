@@ -137,17 +137,18 @@
 
 .br-cards {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.9rem;
 }
 
 @media (min-width: 768px) {
   .br-cards {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 .br-card {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--br-border);
@@ -225,8 +226,10 @@
   text-align: center;
 }
 
-.br-num-wide {
-  max-width: 110px;
+.br-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .br-select:focus,
@@ -267,7 +270,7 @@
   cursor: not-allowed;
 }
 
-/* ---- Language cards --------------------------------------------------- */
+/* ---- Language requirement rows ---------------------------------------- */
 
 .br-lang {
   margin-top: 1.15rem;
@@ -282,21 +285,16 @@
 
 .br-lang-cards {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.7rem;
 }
 
-@media (min-width: 640px) {
-  .br-lang-cards {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
 .br-lang-card {
+  min-width: 0;
   border: 1px solid var(--br-border);
-  border-radius: 12px;
-  background: #fbfdfc;
-  padding: 0.8rem 0.85rem 0.85rem;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 0.75rem 1rem;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
@@ -306,38 +304,71 @@
 }
 
 .br-lang-card-head {
-  display: flex;
+  display: grid;
+  grid-template-columns: 56px minmax(120px, 136px) minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.6rem;
+  gap: 1rem;
 }
 
 .br-lang-name {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--br-ink);
 }
 
 .br-lang-switch {
-  font-family: var(--font-body, "Inter", sans-serif);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: #64748b;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  position: relative;
+  width: 56px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
   border-radius: 999px;
-  padding: 0.3rem 0.65rem;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.br-lang-switch.is-on {
-  color: #ffffff;
+.br-lang-switch::before {
+  content: "";
+  position: absolute;
+  inset: 6px 0;
+  border-radius: inherit;
+  background: #a1b6ab;
+  transition: background 0.15s ease;
+}
+
+.br-lang-switch.is-on::before {
   background: var(--br-brand-700);
-  border-color: var(--br-brand-700);
+}
+
+.br-lang-switch-thumb {
+  position: absolute;
+  top: 10px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 0.15s ease;
+}
+
+.br-lang-switch.is-on .br-lang-switch-thumb {
+  transform: translateX(24px);
+}
+
+.br-lang-switch:focus-visible {
+  outline: 3px solid var(--br-brand-700);
+  outline-offset: 3px;
+}
+
+.br-lang-status {
+  font-size: 0.88rem;
+  color: var(--br-muted);
+}
+
+.br-lang > .br-card-hint {
+  margin-top: 0.7rem;
+  color: var(--br-muted);
+  font-size: 0.8rem;
 }
 
 .br-lang-switch:disabled {
@@ -349,11 +380,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  transition: opacity 0.15s ease;
-}
-
-.br-lang-card:not(.is-on) .br-lang-modes {
-  opacity: 0.45;
+  margin-top: 0.65rem;
+  padding-left: 72px;
 }
 
 .br-pill {
@@ -397,6 +425,25 @@
   line-height: 1.5;
 }
 
+@media (max-width: 767px) {
+  .br-block {
+    padding: 1rem;
+  }
+
+  .br-pill,
+  .br-quick-btn {
+    min-height: 44px;
+  }
+
+  .pj-field .br-num,
+  .pj-field .br-select,
+  .br-num,
+  .br-select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+}
+
 @media (max-width: 560px) {
   .br-block-head {
     flex-direction: column;
@@ -404,9 +451,25 @@
   .br-quick-btn {
     align-self: flex-start;
   }
-  /* Prevent iOS Safari auto-zoom-on-focus */
-  .br-num,
-  .br-select {
-    font-size: 16px;
+  .br-lang-card {
+    padding: 0.75rem;
+  }
+
+  .br-lang-card-head {
+    grid-template-columns: 56px minmax(0, 1fr);
+    column-gap: 0.75rem;
+    row-gap: 0.2rem;
+  }
+
+  .br-lang-switch {
+    grid-row: 1 / span 2;
+  }
+
+  .br-lang-status {
+    grid-column: 2;
+  }
+
+  .br-lang-modes {
+    padding-left: 0;
   }
 }

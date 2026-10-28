@@ -266,12 +266,140 @@
   color: #6b7a70;
 }
 
-/* Action — one button, right-aligned, at the card bottom */
-.vac-actions {
+/* ---- Match panel: tier label, percent, bar, must-haves, missing ---- */
+.vac-match-panel {
+  border: 1px solid #e6e9ec;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fbfcfb;
+}
+
+.vac-match-head {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.vac-match-tier {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.vac-match-tier.tier-high { color: #1f7a3f; }
+.vac-match-tier.tier-mid { color: #a5601b; }
+.vac-match-tier.tier-low { color: #6b7a70; }
+
+.vac-match-percent {
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #1a2a3a;
+}
+
+.vac-match-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: #e6e9ec;
+  overflow: hidden;
+}
+
+.vac-match-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.vac-match-bar-fill.tier-high { background: #2e7d32; }
+.vac-match-bar-fill.tier-mid { background: #d08a2e; }
+.vac-match-bar-fill.tier-low { background: #9aa4b0; }
+
+.vac-match-musthaves {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: #5a6672;
+}
+
+.vac-match-missing {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: #c0392b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Required-qualification preview pills (first 3) ---- */
+.vac-req-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.vac-req-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vac-req-pill svg {
+  font-size: 9px;
+  flex-shrink: 0;
+}
+
+.vac-req-pill.is-met {
+  background: #e4f5e9;
+  color: #1f7a3f;
+  border: 1px solid #bfe3c9;
+}
+
+.vac-req-pill.is-missing {
+  background: #fdf2f2;
+  color: #c0392b;
+  border: 1px dashed #f0b4b4;
+}
+
+/* ---- Footer: applicant count + posted-ago on the left, actions on the right ---- */
+.vac-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: auto;
   padding-top: 4px;
+}
+
+.vac-footer-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #7a8a7d;
+  min-width: 0;
+}
+
+.vac-footer-meta svg {
+  color: #9aa4b0;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* Action buttons */
+.vac-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .btn-vac {
@@ -298,12 +426,28 @@
   cursor: not-allowed;
 }
 
+.btn-vac--outline {
+  background: #ffffff;
+  color: #2e7d32;
+  border-color: #cfe0d4;
+}
+
+.btn-vac--outline:hover {
+  background: #f1f8f2;
+}
+
 @media (max-width: 480px) {
+  .vac-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .vac-actions {
     justify-content: stretch;
   }
 
   .btn-vac {
+    flex: 1;
     width: 100%;
   }
 }

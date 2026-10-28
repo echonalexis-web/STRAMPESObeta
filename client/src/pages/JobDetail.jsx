@@ -8,13 +8,24 @@ import AppModal from "../components/AppModal";
 import EmployerAvatar from "../components/EmployerAvatar";
 import EmployerModal from "../components/EmployerModal";
 import ReportButton from "../components/ReportButton";
+import JobFavoriteButton from "../components/JobFavoriteButton";
 import QualificationsDisplay from "../components/QualificationsDisplay";
 import SecureFileLink from "../components/SecureFileLink";
 import ApplyModal from "../components/ApplyModal";
 import VacancyCard from "../components/VacancyCard";
+import MatchBreakdownPanel from "../components/MatchBreakdownPanel";
 import { useFollow } from "../hooks/useFollow";
-import { FaPlus, FaCheck, FaExclamationTriangle } from "react-icons/fa";
+import { FaPlus, FaCheck, FaTimes, FaExclamationTriangle } from "react-icons/fa";
+import { MATCH_TIER_CLASS } from "../utils/qualifications";
 import "../styles/qualifications-editor.css";
+
+const RequirementRow = ({ met, label }) => (
+  <div className={`job-req-row ${met ? "is-met" : "is-missing"}`}>
+    <span className="job-req-row-icon">{met ? <FaCheck /> : <FaTimes />}</span>
+    <span className="job-req-row-label">{label}</span>
+    <span className="job-req-row-status">{met ? "You have this" : "Missing"}</span>
+  </div>
+);
 
 const STATUS_META = {
   pending:     { label: "Pending review", tone: "pending" },
@@ -92,6 +103,18 @@ export default function JobDetail() {
     load();
     return () => { cancelled = true; };
   }, [id, isJobseeker, userId]);
+
+  // Reopens Apply after a round trip to the Resume & Cover Letter Studio to
+  // tailor a cover letter for this job (see ApplyModal's "Tailor a cover
+  // letter for this job" link and ResumeStudio's handleSaveToLibrary, which
+  // sends the jobseeker back here with ?apply=1). The param is stripped
+  // right away so refreshing or navigating back here later doesn't reopen it.
+  useEffect(() => {
+    if (loading || !job || searchParams.get("apply") !== "1") return;
+    setApplyModalOpen(true);
+    navigate(`/jobs/${id}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, job, searchParams]);
 
   // When the job turns out to be unavailable, back the replacement page with
   // a short list of matching openings so the dead end still leads somewhere.
@@ -265,6 +288,7 @@ export default function JobDetail() {
           isOpen={Boolean(recApplyJobId)}
           onClose={() => setRecApplyJobId(null)}
           jobId={recApplyJobId}
+          job={recommendedJobs.find((recJob) => recJob._id === recApplyJobId) || null}
           onSuccess={() => {
             toast.success("Application submitted!");
             setRecApplyJobId(null);
@@ -278,11 +302,22 @@ export default function JobDetail() {
   if (!job) return <div className="report-container"><p>Job not found.</p></div>;
 
   const openings = Number(job.slots || 1);
-  const hasApplied = Boolean(myApplication);
+  // A withdrawn application no longer counts as "applied" — the apply form
+  // reappears so the jobseeker can resubmit, which reactivates the same
+  // (withdrawn) row server-side instead of creating a duplicate.
+  const hasApplied = Boolean(myApplication) && myApplication.status !== "withdrawn";
   const showEditForm = isJobseeker && editMode && hasApplied;
   const showApplyForm = isJobseeker && !hasApplied && !editMode;
   const showStatusCard = isJobseeker && hasApplied && !editMode;
   const status = hasApplied ? statusMeta(myApplication.status) : null;
+
+  // "Your match" — only present for a jobseeker viewer, and only when the
+  // job states something scoreable (see server: jobController.getJobById /
+  // semanticService.computeChecklistMatch).
+  const checklist = job.checklistMatch || null;
+  const requiredReqItems = checklist?.items?.filter((item) => !item.optional) || [];
+  const preferredReqItems = checklist?.items?.filter((item) => item.optional) || [];
+  const matchTierClass = checklist ? MATCH_TIER_CLASS[checklist.tier] || "low" : "na";
 
   return (
     <div className="job-detail-page">
@@ -338,9 +373,67 @@ export default function JobDetail() {
           </section>
 
           <section className="job-section">
-            <h3>Qualifications / Requirements</h3>
-            <QualificationsDisplay qualifications={job.qualifications || []} />
+            <h3>Requirements</h3>
+            {checklist ? (
+              <div className="job-req-card">
+                {(checklist.basicEligibility?.education ||
+                  checklist.basicEligibility?.experience ||
+                  checklist.basicEligibility?.languages?.length > 0) && (
+                  <div className="job-req-group">
+                    <div className="job-req-group-label">Basic eligibility</div>
+                    {checklist.basicEligibility.education && (
+                      <RequirementRow
+                        met={checklist.basicEligibility.education.met}
+                        label={`Education: ${checklist.basicEligibility.education.label}`}
+                      />
+                    )}
+                    {checklist.basicEligibility.experience && (
+                      <RequirementRow
+                        met={checklist.basicEligibility.experience.met}
+                        label={`Experience: ${checklist.basicEligibility.experience.label}`}
+                      />
+                    )}
+                    {checklist.basicEligibility.languages?.map((lang) => (
+                      <RequirementRow key={lang.language} met={lang.met} label={`${lang.language} proficiency`} />
+                    ))}
+                  </div>
+                )}
+
+                {requiredReqItems.length > 0 && (
+                  <div className="job-req-group">
+                    <div className="job-req-group-label">Required</div>
+                    {requiredReqItems.map((item) => (
+                      <RequirementRow key={`${item.type}-${item.value}`} met={item.met} label={item.value} />
+                    ))}
+                  </div>
+                )}
+
+                {preferredReqItems.length > 0 && (
+                  <div className="job-req-group">
+                    <div className="job-req-group-label">Preferred</div>
+                    {preferredReqItems.map((item) => (
+                      <RequirementRow key={`${item.type}-${item.value}`} met={item.met} label={item.value} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <QualificationsDisplay qualifications={job.qualifications || []} />
+            )}
           </section>
+
+          {job.matchBreakdown && (
+            <section className="job-section">
+              <details className="job-why-match">
+                <summary>Why this match?</summary>
+                <MatchBreakdownPanel
+                  breakdown={job.matchBreakdown}
+                  disqualified={job.disqualified}
+                  audience="applicant"
+                />
+              </details>
+            </section>
+          )}
         </main>
 
         <aside className="job-apply-column">
@@ -386,7 +479,9 @@ export default function JobDetail() {
                 </dd>
                 <dt>Cover letter</dt>
                 <dd>
-                  {myApplication.coverLetterFile ? (
+                  {myApplication.coverLetter ? (
+                    <p className="app-cover-letter-text">{myApplication.coverLetter}</p>
+                  ) : myApplication.coverLetterFile ? (
                     <SecureFileLink value={myApplication.coverLetterFile} className="resume-link">
                       {displayFileName(myApplication.coverLetterFile) || "View cover letter"}
                     </SecureFileLink>
@@ -408,13 +503,39 @@ export default function JobDetail() {
           ) : (showApplyForm || showEditForm) ? (
             <div className="apply-card">
               <h3>{showEditForm ? "Update your application" : "Apply for this position"}</h3>
+
+              {showApplyForm && checklist && (
+                <div className={`job-match-panel tier-${matchTierClass}`}>
+                  <div className="job-match-head">
+                    <span className="job-match-tier">{checklist.tier} match</span>
+                    <span className="job-match-percent">{checklist.percent}%</span>
+                  </div>
+                  <div className="job-match-bar">
+                    <div className={`job-match-bar-fill tier-${matchTierClass}`} style={{ width: `${checklist.percent}%` }} />
+                  </div>
+                  {checklist.totalMustHaves > 0 && (
+                    <p className="job-match-musthaves">
+                      You meet {checklist.metMustHaves} of {checklist.totalMustHaves} must-haves
+                    </p>
+                  )}
+                </div>
+              )}
+
               {showEditForm && (
                 <p className="apply-card-note">Attach a new file only for what you want to change.</p>
               )}
               <div className="form-group">
-                <button type="button" className="btn-apply" onClick={handleApplyClick}>
-                  {showEditForm ? "Edit application" : "Apply now"}
-                </button>
+                <div className="job-apply-actions-row">
+                  <button type="button" className="btn-apply" onClick={handleApplyClick}>
+                    {showEditForm ? "Edit application" : "Apply now"}
+                  </button>
+                  {showApplyForm && (
+                    <span className="job-save-job-wrap" title="Save this job">
+                      <JobFavoriteButton jobId={job._id} hideCount variant="ribbon" />
+                      <span className="job-save-job-label">Save job</span>
+                    </span>
+                  )}
+                </div>
                 {showEditForm && (
                   <button
                     type="button"
@@ -444,6 +565,10 @@ export default function JobDetail() {
               <div className="job-detail-item">
                 <span className="job-detail-label">Number of Vacancies</span>
                 <strong>{openings}</strong>
+              </div>
+              <div className="job-detail-item">
+                <span className="job-detail-label">Remaining Slots</span>
+                <strong>{Number(job.remainingSlots ?? openings)}</strong>
               </div>
               <div className="job-detail-item">
                 <span className="job-detail-label">Applications</span>
@@ -501,6 +626,7 @@ export default function JobDetail() {
         isOpen={applyModalOpen}
         onClose={() => setApplyModalOpen(false)}
         jobId={id}
+        job={job}
         editMode={showEditForm}
         existingApplication={myApplication}
         onSuccess={handleApplySuccess}

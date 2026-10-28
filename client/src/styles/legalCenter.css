@@ -1,0 +1,672 @@
+/* Legal & Compliance Center — unified Terms / Privacy / Cookie Policy page.
+   Plain CSS (this codebase doesn't use a utility framework); class names
+   below describe the same layout a Tailwind build would (4-col grid,
+   bg-slate-100 page, bg-white rounded-2xl shadow-sm card, etc.) by hand. */
+
+:root {
+  --legal-brand-800: #004b23;
+  --legal-brand-700: #0a6b36;
+  --legal-accent-500: #ffb703;
+  --legal-bg: #f1f5f9;
+  --legal-border: #e2e8f0;
+  --legal-text: #0f2540;
+  --legal-muted: #64748b;
+
+  --legal-emerald-bg: #d1fae5;
+  --legal-emerald-text: #065f46;
+  --legal-blue-bg: #dbeafe;
+  --legal-blue-text: #1e40af;
+  --legal-amber-bg: #fef3c7;
+  --legal-amber-text: #92400e;
+}
+
+.legal-center-page {
+  min-height: 100vh;
+  background: var(--legal-bg);
+  /* Matches the authenticated .navbar's min-height: 70px (see navbar.css) —
+     the logged-out .public-navbar is 73px, 3px taller, so it gets its own
+     override below using the same body:has() pattern home.css already uses
+     for this exact dual-navbar height problem. */
+  padding-top: 70px;
+  box-sizing: border-box;
+}
+
+body:has(.public-navbar) .legal-center-page {
+  padding-top: 73px;
+}
+
+.legal-center-page * {
+  box-sizing: border-box;
+}
+
+/* ---------- Hero banner ---------- */
+
+.legal-hero {
+  background: linear-gradient(135deg, var(--legal-brand-800) 0%, #013a1b 100%);
+  padding: 2.5rem 1.5rem 3rem;
+}
+
+.legal-hero-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Content (back link / badge / title / description) on the left, search on
+   the right — stacks to a single column once they can no longer sit side by
+   side (see the max-width: 900px block below). */
+.legal-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.legal-hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.9rem;
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.legal-hero-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #c5e8d3;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.legal-hero-back:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.legal-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #0f2540;
+  background: var(--legal-accent-500);
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+}
+
+.legal-hero h1 {
+  margin: 0;
+  font-size: clamp(1.9rem, 4.2vw, 2.6rem);
+  font-weight: 800;
+  color: #fff;
+}
+
+.legal-hero-content p {
+  margin: 0;
+  max-width: 560px;
+  color: #d4e9dc;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.legal-hero-search-wrap {
+  position: relative;
+  flex: 1 1 300px;
+  max-width: 320px;
+  align-self: center;
+}
+
+.legal-hero-search {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  background: #fff;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.legal-hero-search svg {
+  color: var(--legal-muted);
+  flex: none;
+}
+
+.legal-hero-search input {
+  border: none;
+  outline: none;
+  flex: 1;
+  font-size: 0.95rem;
+  color: var(--legal-text);
+  background: transparent;
+  width: 100%;
+}
+
+/* ---------- FAQ search suggestions ---------- */
+
+.legal-faq-suggestions {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  width: 100%;
+  max-height: 340px;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 12px;
+  padding: 0.6rem;
+  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.22);
+  z-index: 5;
+}
+
+.legal-faq-suggestions-label {
+  margin: 0.2rem 0.5rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--legal-muted);
+}
+
+.legal-faq-suggestion {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0.6rem;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 0.5rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.legal-faq-suggestion:hover,
+.legal-faq-suggestion:focus-visible {
+  background: #f1f5f9;
+}
+
+.legal-faq-suggestion:hover span,
+.legal-faq-suggestion:focus-visible span {
+  color: var(--legal-brand-800);
+}
+
+.legal-faq-suggestion svg {
+  flex: none;
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  color: var(--legal-muted);
+}
+
+.legal-faq-suggestion span {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--legal-text);
+}
+
+/* ---------- Policy selector cards ---------- */
+
+.legal-selector-wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.legal-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  /* Still overlaps the hero's own bottom padding a little (the cards'
+     signature "hangs over the green" look) but leaves a modest gap under
+     the description text instead of nearly touching it. */
+  margin-top: -1.25rem;
+  margin-bottom: 1rem;
+}
+
+.legal-selector-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--legal-border);
+  border-radius: 16px;
+  padding: 1.25rem 1.3rem;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(15, 37, 64, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  font-family: inherit;
+}
+
+.legal-selector-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(15, 37, 64, 0.12);
+}
+
+.legal-selector-card.is-active {
+  border-color: var(--legal-brand-800);
+  box-shadow: 0 0 0 2px var(--legal-brand-800), 0 14px 30px rgba(15, 37, 64, 0.14);
+}
+
+.legal-selector-icon {
+  font-size: 1.3rem;
+  color: var(--legal-brand-800);
+}
+
+.legal-selector-title {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: var(--legal-text);
+}
+
+.legal-selector-desc {
+  font-size: 0.82rem;
+  color: var(--legal-muted);
+  line-height: 1.4;
+}
+
+/* ---------- Badges ---------- */
+
+.legal-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+}
+
+.legal-badge--terms {
+  background: var(--legal-emerald-bg);
+  color: var(--legal-emerald-text);
+}
+
+.legal-badge--privacy {
+  background: var(--legal-blue-bg);
+  color: var(--legal-blue-text);
+}
+
+.legal-badge--cookies {
+  background: var(--legal-amber-bg);
+  color: var(--legal-amber-text);
+}
+
+/* ---------- Main two-column grid ---------- */
+
+.legal-main-grid {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.75rem;
+}
+
+@media (min-width: 1024px) {
+  .legal-main-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .legal-toc {
+    grid-column: span 1 / span 1;
+  }
+  .legal-doc-card {
+    grid-column: span 3 / span 3;
+  }
+  /* Sticky-with-a-stop only makes sense once the TOC is actually a sidebar
+     next to a taller column (see the .legal-toc comment above) — below this
+     breakpoint everything stacks in one column, so the TOC just stays in
+     normal flow above the document instead of floating. */
+  .legal-toc-inner {
+    position: sticky;
+    top: 85px;
+  }
+}
+
+/* ---------- TOC sidebar ---------- */
+
+/* Deliberately NOT align-self: start — left to the grid's default
+   align-items: stretch, .legal-toc stretches to the full height of the row
+   (set by the taller .legal-doc-card sibling). That gives the sticky box
+   inside it a containing block exactly as tall as the document, so it stops
+   scrolling with the page the instant the document ends — right before the
+   DPO footer below — instead of trailing past it.
+
+   `position` itself is NOT set here (it's `static` by default, which is what
+   we want below 1024px) — it's set to `sticky` only inside the
+   @media (min-width: 1024px) block above. Setting `position: static` here
+   unconditionally would win over that media query (same specificity, later
+   in the cascade) and silently cancel the sticky behavior at every width —
+   that was the actual bug the first time around. */
+.legal-toc-inner {
+  background: #fff;
+  border: 1px solid var(--legal-border);
+  border-radius: 16px;
+  padding: 1.1rem 1.1rem 1.3rem;
+}
+
+.legal-toc-inner h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--legal-muted);
+}
+
+.legal-toc-inner nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.legal-toc-inner nav a {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.45rem 0.4rem;
+  border-radius: 8px;
+  color: #334155;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.legal-toc-inner nav a:hover {
+  background: #f1f5f9;
+  color: var(--legal-brand-800);
+}
+
+.legal-toc-num {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.legal-toc-num--terms { background: var(--legal-emerald-bg); color: var(--legal-emerald-text); }
+.legal-toc-num--privacy { background: var(--legal-blue-bg); color: var(--legal-blue-text); }
+.legal-toc-num--cookies { background: var(--legal-amber-bg); color: var(--legal-amber-text); }
+
+.legal-toc-empty {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--legal-muted);
+}
+
+/* ---------- Document card ---------- */
+
+.legal-doc-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  border: 1px solid var(--legal-border);
+  padding: 2rem 2.2rem 2.4rem;
+}
+
+.legal-doc-header {
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
+  border-bottom: 1px solid var(--legal-border);
+}
+
+.legal-doc-header h1 {
+  margin: 0.7rem 0 0.4rem;
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+  font-weight: 800;
+  color: var(--legal-text);
+}
+
+.legal-doc-updated {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--legal-muted);
+}
+
+.legal-doc-intro {
+  margin: 0;
+  color: #334155;
+  font-size: 0.97rem;
+  line-height: 1.7;
+}
+
+/* ---------- Numbered clause cards ---------- */
+
+.legal-clause-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1.3rem;
+  margin-bottom: 1rem;
+  background: #f8fafc;
+  border: 1px solid #eef2f6;
+  border-radius: 14px;
+  scroll-margin-top: 97px;
+}
+
+.legal-clause-card:last-child {
+  margin-bottom: 0;
+}
+
+.legal-clause-number {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #fff;
+  background: var(--legal-brand-800);
+}
+
+.legal-clause-number--terms { background: #059669; }
+.legal-clause-number--privacy { background: #2563eb; }
+.legal-clause-number--cookies { background: #d97706; }
+
+.legal-clause-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.legal-clause-body h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--legal-text);
+}
+
+.legal-clause-body h4 {
+  margin: 1rem 0 0.4rem;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--legal-brand-800);
+}
+
+.legal-clause-body h4:first-of-type {
+  margin-top: 0;
+}
+
+.legal-clause-body p {
+  margin: 0 0 0.75rem;
+  color: #334155;
+  font-size: 0.93rem;
+  line-height: 1.7;
+}
+
+.legal-clause-body p:last-child {
+  margin-bottom: 0;
+}
+
+.legal-clause-body ul {
+  margin: 0 0 0.75rem;
+  padding-left: 1.2rem;
+  color: #334155;
+  font-size: 0.93rem;
+  line-height: 1.7;
+}
+
+.legal-clause-body ul:last-child {
+  margin-bottom: 0;
+}
+
+.legal-clause-body li {
+  margin-bottom: 0.35rem;
+}
+
+.legal-clause-body a {
+  color: var(--legal-brand-800);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.legal-clause-body strong {
+  color: var(--legal-text);
+}
+
+.legal-no-results {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--legal-muted);
+  background: #f8fafc;
+  border: 1px dashed var(--legal-border);
+  border-radius: 14px;
+}
+
+.legal-clear-search {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--legal-brand-800);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* ---------- Unified DPO footer ---------- */
+
+.legal-dpo-footer {
+  max-width: 1080px;
+  margin: 2.5rem auto 3rem;
+  padding: 0 1.5rem;
+}
+
+.legal-dpo-footer-inner {
+  background: #f0fdf4;
+  border: 1px solid #bbf0cf;
+  border-left: 5px solid var(--legal-accent-500);
+  border-radius: 16px;
+  padding: 1.75rem 2rem;
+}
+
+.legal-dpo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--legal-brand-800);
+  background: #fff;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  margin-bottom: 0.8rem;
+}
+
+.legal-dpo-footer-inner h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--legal-text);
+}
+
+.legal-dpo-footer-inner p {
+  margin: 0 0 0.6rem;
+  color: #335540;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.legal-dpo-footer-inner p:last-of-type {
+  margin-bottom: 1rem;
+}
+
+.legal-dpo-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+.legal-dpo-links a {
+  color: var(--legal-brand-800);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+  .legal-hero-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .legal-hero-search-wrap {
+    max-width: none;
+    align-self: stretch;
+  }
+
+  .legal-selector-grid {
+    grid-template-columns: 1fr;
+    margin-top: -0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .legal-hero {
+    padding: 1.75rem 1.25rem 2.25rem;
+  }
+  .legal-hero-top {
+    gap: 1.5rem;
+  }
+  .legal-selector-wrap,
+  .legal-main-grid,
+  .legal-dpo-footer {
+    padding-left: 1.1rem;
+    padding-right: 1.1rem;
+  }
+  .legal-selector-card {
+    padding: 1.1rem;
+  }
+  .legal-toc-inner {
+    padding: 1rem;
+  }
+  .legal-doc-card {
+    padding: 1.4rem 1.2rem 1.75rem;
+  }
+  .legal-clause-card {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+  .legal-dpo-footer-inner {
+    padding: 1.4rem;
+  }
+}

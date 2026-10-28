@@ -12,18 +12,31 @@ const jobApplicationSchema = new mongoose.Schema({
   coverLetter: { type: String, default: "", required: false },
   coverLetterFile: { type: String, default: "", required: false },
   coverLetterDocumentId: { type: mongoose.Schema.Types.ObjectId, ref: "JobseekerDocument", default: null },
+  // Canonical set going forward is the first 7: pending, under_review,
+  // shortlisted, approved, rejected, hired, withdrawn. "under_review"
+  // replaces the never-actually-settable "reviewed" (the employer UI never
+  // offered it); "approved" and "withdrawn" are new. No controller ever
+  // writes "Applied"/"Reviewed"/"Accepted"/"Rejected"/"reviewed" anymore —
+  // they're kept in the enum ONLY so Mongoose's full-document validation
+  // doesn't reject an unrelated save() (e.g. updateMyApplication editing a
+  // resume) on a legacy document whose status hasn't been migrated yet via
+  // server/scripts/migrateApplicationStatuses.js. Once that migration has
+  // been run in every environment, these five can be removed.
   status: {
     type: String,
     enum: [
       "pending",
-      "reviewed",
+      "under_review",
       "shortlisted",
+      "approved",
       "rejected",
       "hired",
+      "withdrawn",
       "Applied",
       "Reviewed",
       "Accepted",
       "Rejected",
+      "reviewed",
     ],
     default: "pending"
   },

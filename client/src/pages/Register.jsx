@@ -1,13 +1,11 @@
-﻿import { useState, useContext, useEffect } from "react";
+﻿import { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 import { useToast } from "../components/feedback/context";
-import "../styles/auth.css";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
-import pesoLogo from "../assets/images/peso-logo.png";
-import provincialSeal from "../assets/images/provincial-seal.png";
+import RegistrationLayout from "../components/RegistrationLayout";
+import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaUserPlus } from "react-icons/fa";
 
 const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
@@ -84,6 +82,7 @@ export default function Register() {
     email: "",
     password: "",
   });
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState([]);
@@ -106,23 +105,6 @@ export default function Register() {
     setError(message);
     if (message) toast.error(message);
   };
-
-  /* ─── Spotlight mouse tracking ─── */
-  useEffect(() => {
-    const container = document.querySelector(".auth-container");
-    if (!container) return;
-
-    const handleMouseMove = (e) => {
-      const rect = container.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      container.style.setProperty("--x", `${x}%`);
-      container.style.setProperty("--y", `${y}%`);
-    };
-
-    container.addEventListener("mousemove", handleMouseMove);
-    return () => container.removeEventListener("mousemove", handleMouseMove);
-  }, []);
 
   const getDefaultRouteByRole = (role) => {
     const normalizedRole = normalizeRole(role);
@@ -204,6 +186,11 @@ export default function Register() {
     // Name validation
     if (formData.surname.trim().length < 2 || formData.firstName.trim().length < 2) {
       showError("Please enter your full name.");
+      return;
+    }
+
+    if (!agreedToTerms) {
+      showError("Please agree to the Terms of Service and Privacy Policy to continue.");
       return;
     }
 
@@ -299,191 +286,192 @@ export default function Register() {
   const showPasswordSuccess = touched.password && passwordErrors.length === 0 && formData.password.length > 0;
 
   return (
-    <div className="auth-container">
-      <div className="auth-panel">
-        {/* ─── Branding Side ─── */}
-        <div className="auth-branding">
-          <div className="auth-branding-content">
-            <img src={pesoLogo} alt="PESO Marinduque Logo" className="auth-branding-logo" />
-            <h1 className="auth-branding-title">TRABAHO MANDIN!</h1>
-            <p className="auth-branding-tagline">Trabaho para sa Marinduqueño</p>
-            <p className="auth-branding-desc">
-              Marinduque, the Heart of the Philippines. Connect with local employers,
-              discover livelihood opportunities, and build your future right here at home.
+    <RegistrationLayout>
+      {error && (
+        <div className="error-message" role="alert">
+          {error}
+        </div>
+      )}
+
+      {success ? (
+        <div className="auth-notice" role="status" aria-live="polite">
+          <p>{success}</p>
+          {devVerifyUrl && (
+            <p className="auth-notice__dev">
+              <strong>Dev:</strong> email isn&rsquo;t wired up yet &mdash;{" "}
+              <a href={devVerifyUrl}>open the verification link</a>.
             </p>
-            <img src={provincialSeal} alt="Provincial Seal of Marinduque" className="auth-branding-seal" />
-            <div className="auth-branding-footer">
-              PUBLIC EMPLOYMENT SERVICE OFFICE<br />
-              Ialawigan ng Marinduque
-            </div>
+          )}
+        </div>
+      ) : (
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="surname">Surname</label>
+            <input
+              id="surname"
+              type="text"
+              name="surname"
+              placeholder="Dela Cruz"
+              value={formData.surname}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              onFocus={handleFocus}
+              required
+              disabled={loading}
+              autoComplete="family-name"
+              className={touched.surname && !formData.surname.trim() ? "is-error" : ""}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="firstName">First Name</label>
+            <input
+              id="firstName"
+              type="text"
+              name="firstName"
+              placeholder="Juan"
+              value={formData.firstName}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              onFocus={handleFocus}
+              required
+              disabled={loading}
+              autoComplete="given-name"
+              className={touched.firstName && !formData.firstName.trim() ? "is-error" : ""}
+            />
           </div>
         </div>
 
-        {/* ─── Form Side ─── */}
-        <div className="auth-card">
-          <h2>Create Account</h2>
-          <p className="auth-subtitle">Register now to discover local jobs and join the STRAM PESO community.</p>
-
-          {error && (
-            <div className="error-message" role="alert">
-              {error}
-            </div>
-          )}
-
-          {success ? (
-            <div className="auth-notice" role="status" aria-live="polite">
-              <p>{success}</p>
-              {devVerifyUrl && (
-                <p className="auth-notice__dev">
-                  <strong>Dev:</strong> email isn&rsquo;t wired up yet &mdash;{" "}
-                  <a href={devVerifyUrl}>open the verification link</a>.
-                </p>
-              )}
-            </div>
-          ) : (
-          <form className="auth-form" onSubmit={handleSubmit} noValidate>
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="surname">Surname</label>
-                <input
-                  id="surname"
-                  type="text"
-                  name="surname"
-                  placeholder="Dela Cruz"
-                  value={formData.surname}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  onFocus={handleFocus}
-                  required
-                  disabled={loading}
-                  autoComplete="family-name"
-                  className={touched.surname && !formData.surname.trim() ? "is-error" : ""}
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="firstName">First Name</label>
-                <input
-                  id="firstName"
-                  type="text"
-                  name="firstName"
-                  placeholder="Juan"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  onFocus={handleFocus}
-                  required
-                  disabled={loading}
-                  autoComplete="given-name"
-                  className={touched.firstName && !formData.firstName.trim() ? "is-error" : ""}
-                />
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="middleName">Middle Name <span className="optional-label">(optional)</span></label>
-                <input
-                  id="middleName"
-                  type="text"
-                  name="middleName"
-                  placeholder="Santos"
-                  value={formData.middleName}
-                  onChange={handleChange}
-                  disabled={loading}
-                  autoComplete="additional-name"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="suffix">Suffix <span className="optional-label">(optional)</span></label>
-                <input
-                  id="suffix"
-                  type="text"
-                  name="suffix"
-                  placeholder="Jr., III, etc."
-                  value={formData.suffix}
-                  onChange={handleChange}
-                  disabled={loading}
-                  autoComplete="honorific-suffix"
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="email">Email Address</label>
-              <input
-                id="email"
-                type="email"
-                name="email"
-                placeholder="Enter your email"
-                value={formData.email}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                onFocus={handleFocus}
-                required
-                disabled={loading}
-                autoComplete="email"
-                className={touched.email && !formData.email.trim() ? "is-error" : ""}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <div className="password-wrapper">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  placeholder="Create a password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  onFocus={handleFocus}
-                  required
-                  disabled={loading}
-                  autoComplete="new-password"
-                  className={touched.password && !formData.password ? "is-error" : ""}
-                />
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                  tabIndex="-1"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  disabled={loading}
-                >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
-                </button>
-              </div>
-
-              {showPasswordRequirements && (
-                <div className="password-requirements">
-                  <span className="password-requirements-title">Password must contain:</span>
-                  {passwordErrors.map((err, index) => (
-                    <span key={index} className="password-error">• {err}</span>
-                  ))}
-                </div>
-              )}
-
-              {showPasswordSuccess && (
-                <span className="password-valid">✓ Password meets all requirements</span>
-              )}
-            </div>
-
-            <button type="submit" className="auth-button" disabled={loading}>
-              {loading ? "Creating Account..." : "Create Account"}
-            </button>
-          </form>
-          )}
-
-          {!success && <GoogleSignInButton onCredential={handleGoogleCredential} text="signup_with" />}
-
-          <p className="auth-link">
-            Already have an account? <Link to="/login" onClick={(e) => {
-              if (loading) e.preventDefault();
-            }}>Log in</Link>
-          </p>
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="middleName">Middle Name <span className="optional-label">(optional)</span></label>
+            <input
+              id="middleName"
+              type="text"
+              name="middleName"
+              placeholder="Santos"
+              value={formData.middleName}
+              onChange={handleChange}
+              disabled={loading}
+              autoComplete="additional-name"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="suffix">Suffix <span className="optional-label">(optional)</span></label>
+            <input
+              id="suffix"
+              type="text"
+              name="suffix"
+              placeholder="Jr., III, etc."
+              value={formData.suffix}
+              onChange={handleChange}
+              disabled={loading}
+              autoComplete="honorific-suffix"
+            />
+          </div>
         </div>
-      </div>
-    </div>
+
+        <div className="form-group">
+          <label htmlFor="email">Email Address</label>
+          <div className="auth-input-wrap">
+            <FaEnvelope className="auth-input-icon" aria-hidden="true" />
+            <input
+              id="email"
+              type="email"
+              name="email"
+              placeholder="Enter your email"
+              value={formData.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              onFocus={handleFocus}
+              required
+              disabled={loading}
+              autoComplete="email"
+              className={touched.email && !formData.email.trim() ? "is-error" : ""}
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="password">Password</label>
+          <div className="auth-input-wrap password-wrapper">
+            <FaLock className="auth-input-icon" aria-hidden="true" />
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              name="password"
+              placeholder="Create a password"
+              value={formData.password}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              onFocus={handleFocus}
+              required
+              disabled={loading}
+              autoComplete="new-password"
+              className={touched.password && !formData.password ? "is-error" : ""}
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              disabled={loading}
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
+
+          {showPasswordRequirements && (
+            <div className="password-requirements">
+              <span className="password-requirements-title">Password must contain:</span>
+              {passwordErrors.map((err, index) => (
+                <span key={index} className="password-error">• {err}</span>
+              ))}
+            </div>
+          )}
+
+          {showPasswordSuccess && (
+            <span className="password-valid">✓ Password meets all requirements</span>
+          )}
+        </div>
+
+        <label className="auth-checkbox-row">
+          <input
+            type="checkbox"
+            checked={agreedToTerms}
+            onChange={(e) => setAgreedToTerms(e.target.checked)}
+            disabled={loading}
+          />
+          <span>
+            I have read and agree to the{" "}
+            <Link to="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</Link>,{" "}
+            <Link to="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</Link>, and{" "}
+            <Link to="/cookies" target="_blank" rel="noopener noreferrer">Cookie Policy</Link>.
+          </span>
+        </label>
+
+        <button type="submit" className="auth-button" disabled={loading || !agreedToTerms}>
+          <FaUserPlus aria-hidden="true" />
+          {loading ? "Creating Account..." : "Create Account"}
+        </button>
+      </form>
+      )}
+
+      {!success && <GoogleSignInButton onCredential={handleGoogleCredential} text="signup_with" fullWidth />}
+
+      {!success && (
+        <p className="auth-terms-footer">
+          By continuing with Google, you agree to the{" "}
+          <Link to="/terms">Terms of Service</Link> &amp; <Link to="/privacy">Privacy Policy</Link>.
+        </p>
+      )}
+
+      <p className="auth-link">
+        Already have an account? <Link to="/login" onClick={(e) => {
+          if (loading) e.preventDefault();
+        }}>Log in</Link>
+      </p>
+    </RegistrationLayout>
   );
 }

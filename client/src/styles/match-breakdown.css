@@ -1,0 +1,98 @@
+/* Shared per-dimension match breakdown panel — used on the job detail page
+   ("Why this match?") and the employer applicant review modal. Deliberately
+   self-contained (no dependency on vacancy-card.css / employer-dashboard.css
+   scoping) since it renders inside several different page contexts. */
+
+.match-breakdown-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.match-breakdown-flag {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.match-breakdown-flag--dq {
+  background: #fdecec;
+  color: #b42318;
+}
+.match-breakdown-flag--age-unknown {
+  background: #fff7ed;
+  color: #b45309;
+}
+
+.match-breakdown-coverage {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.match-breakdown-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.match-breakdown-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+
+.match-breakdown-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.match-breakdown-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: #e8ecef;
+  overflow: hidden;
+}
+
+.match-breakdown-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #2e7d32;
+}
+
+.match-breakdown-pct {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #1f2937;
+  text-align: right;
+}
+
+.match-breakdown-row--unknown {
+  grid-template-columns: 140px 1fr;
+}
+
+.match-breakdown-unknown {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.match-breakdown-unknown a {
+  color: #2e7d32;
+  font-weight: 700;
+  font-style: normal;
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .match-breakdown-row,
+  .match-breakdown-row--unknown {
+    grid-template-columns: 110px 1fr 36px;
+  }
+  .match-breakdown-row--unknown {
+    grid-template-columns: 110px 1fr;
+  }
+}

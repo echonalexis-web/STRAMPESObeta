@@ -119,9 +119,16 @@ const createLimiter = (options) => {
 };
 
 // Global limiter
+// 500/15min is a per-IP budget, but PH mobile carriers (Globe/Smart/DITO) and
+// shared office/kiosk networks route many unrelated users through the same
+// public IP via carrier-grade NAT — on a public-facing job board like this
+// one, that shared budget gets exhausted by other people's traffic long
+// before any single visitor has made anywhere near 500 requests themselves.
+// Raised well above normal per-user usage so it still catches real abuse
+// without routinely tripping on legitimate shared-IP traffic.
 const globalLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 500,
+  max: 2000,
   message: { message: "Too many requests from this IP, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -390,6 +397,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   const jobseekerDocumentRoutes = require("./routes/jobseekerDocumentRoutes");
   console.log("✅ Jobseeker document routes loaded");
 
+  const systemOptionRoutes = require("./routes/systemOptionRoutes");
+  console.log("✅ System option routes loaded");
+
   const mountApiRoutes = (basePath) => {
     console.log(`📁 Mounting routes at ${basePath}...`);
     
@@ -528,6 +538,13 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       console.log(`✅ ${basePath}/verification mounted`);
     } catch (e) {
       logger.error(`Failed to mount ${basePath}/verification`, { error: e.message });
+    }
+
+    try {
+      app.use(`${basePath}/system-options`, systemOptionRoutes);
+      console.log(`✅ ${basePath}/system-options mounted`);
+    } catch (e) {
+      logger.error(`Failed to mount ${basePath}/system-options`, { error: e.message });
     }
 
     try {

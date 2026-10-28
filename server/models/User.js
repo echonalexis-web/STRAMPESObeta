@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { getActiveValues } = require("../services/systemOptionService");
 
 const userSchema = new mongoose.Schema(
   {
@@ -127,9 +128,14 @@ const userSchema = new mongoose.Schema(
     businessAddress: { type: String, default: "" },
 
     // ===== Verification & status =====
+    // under_review: an admin has started actively reviewing (distinct from
+    // "pending" = submitted, not yet looked at). resubmission_required: a
+    // fixable issue was found — distinct from "rejected" for audit-trail
+    // clarity on a government system; both still allow the employer to
+    // resubmit (see verificationController.js's resubmission gate).
     verificationStatus: {
       type: String,
-      enum: ["unverified", "pending", "verified", "rejected"],
+      enum: ["unverified", "pending", "under_review", "verified", "resubmission_required", "rejected"],
       default: "unverified",
     },
     businessPermitUrl: { type: String, default: null },
@@ -141,6 +147,33 @@ const userSchema = new mongoose.Schema(
     verificationReviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     resumeFile: { type: String, default: null },
     validIdFile: { type: String, default: null },
+    // Metadata describing validIdFile above — which government ID the
+    // applicant submitted and its number. Verification status is
+    // deliberately out of scope here; this only covers the data-entry side
+    // the revision document asks for (ID type, number, and the already-
+    // existing upload itself). submittedAt is set server-side whenever a
+    // new validIdFile is uploaded, never from client input.
+    // Validated dynamically against the admin-maintainable SystemOption
+    // catalog (category "governmentIdType") rather than a static enum —
+    // item 11, markdowns/MOCK_DEFENSE_REVISION_STATUS.md.
+    governmentIdType: {
+      type: String,
+      default: null,
+      validate: {
+        validator: async function (value) {
+          if (!value) return true;
+          const active = await getActiveValues("governmentIdType");
+          if (active.size === 0) return true; // see JobVacancy.jobType for why
+          return active.has(value);
+        },
+        message: (props) => `"${props.value}" is not a valid or active government ID type.`,
+      },
+    },
+    governmentIdNumber: { type: String, default: null },
+    // Free text shown only when governmentIdType is the catalog's "Other"
+    // entry — items 14/15's "Other, please specify" fallback.
+    governmentIdTypeOther: { type: String, default: null },
+    governmentIdSubmittedAt: { type: Date, default: null },
     isActive: { type: Boolean, default: true },
 
     // ===== Moderation / suspension =====

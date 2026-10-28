@@ -16,7 +16,9 @@ export const fullNameOf = (user) =>
     .filter((part) => part && String(part).trim())
     .join(" ") || user?.name || "Your Name";
 
-const buildSkillsList = (user, profile) => {
+// Exported so coverLetterDerivation.js can derive the same skills list for
+// the cover letter's auto-fill instead of re-implementing this merge.
+export const buildSkillsList = (user, profile) => {
   const merged = new Set([...(profile?.skills || []), ...(user?.skills || [])]);
   return Array.from(merged);
 };

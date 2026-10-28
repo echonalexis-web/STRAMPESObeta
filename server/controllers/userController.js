@@ -3,7 +3,7 @@ const JobseekerProfile = require("../models/JobseekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
 const authController = require("./authController");
 const { sendError } = require("../utils/sendError");
-const VALID_INDUSTRIES = require("../data/industries"); // Import industry validation list
+const { getActiveValues } = require("../services/systemOptionService");
 const { isAdultAge, MIN_ACCOUNT_AGE } = require("../utils/age");
 const { logAuditEvent } = require("../services/auditService");
 
@@ -90,9 +90,15 @@ exports.completeOnboarding = async (req, res) => {
       if (req.body.preferredIndustries) {
         const industries = parseJSON(req.body.preferredIndustries, []);
         if (Array.isArray(industries) && industries.length > 0) {
-          // Filter out any invalid industries submitted by the client
-          const validSelectedIndustries = industries.filter((ind) => VALID_INDUSTRIES.includes(ind));
-          
+          // Filter out any invalid industries submitted by the client —
+          // validated dynamically against the SystemOption catalog (item 11)
+          // rather than a static list.
+          const activeIndustries = await getActiveValues("industry");
+          const validSelectedIndustries =
+            activeIndustries.size === 0
+              ? industries
+              : industries.filter((ind) => activeIndustries.has(ind));
+
           // If user submitted industries but none were valid, throw an error
           if (validSelectedIndustries.length === 0) {
             return res.status(400).json({ message: "Please select at least one valid industry." });

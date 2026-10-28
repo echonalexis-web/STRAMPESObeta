@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { getActiveValues } = require("../services/systemOptionService");
 
 // Qualification sub-schema
 const qualificationSchema = new mongoose.Schema({
@@ -51,10 +52,26 @@ const jobVacancySchema = new mongoose.Schema({
   },
   
   applicationDeadline: { type: Date, default: null, required: false },
+  // Validated dynamically against the admin-maintainable SystemOption
+  // catalog (category "jobType") rather than a static enum — item 11,
+  // markdowns/MOCK_DEFENSE_REVISION_STATUS.md. "Remote" is a legacy value
+  // kept valid here but not admin-managed — see server/data/jobTypes.js
+  // (still the seed source, server/scripts/seedSystemOptions.js) for why.
   jobType: {
     type: String,
-    enum: ["Full-time", "Part-time", "Contract", "Internship", "Temporary", "Remote"],
     default: "Full-time",
+    validate: {
+      validator: async function (value) {
+        if (!value || value === "Remote") return true;
+        const active = await getActiveValues("jobType");
+        // An empty catalog means "not configured yet" (e.g. the seed script
+        // hasn't run) or "an admin deactivated everything" — either way,
+        // reject nothing rather than locking out every job posting.
+        if (active.size === 0) return true;
+        return active.has(value);
+      },
+      message: (props) => `"${props.value}" is not a valid or active job type.`,
+    },
   },
   slots: { type: Number, default: 1 },
   employer: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -66,9 +83,26 @@ const jobVacancySchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 
   // ===== NEW: Fields for filtering (semantic recommendation) =====
+  // Array as of the multi-industry change — an employer can operate in (and
+  // tag a vacancy with) more than one industry. Legacy documents may still
+  // have this stored as a plain string until the migration script
+  // (server/scripts/migrateIndustryToArray.js) runs; code reading this field
+  // elsewhere normalizes defensively rather than assuming the migration has
+  // already happened everywhere.
+  // Validated dynamically against the admin-maintainable SystemOption
+  // catalog (category "industry") — item 11.
   industry: {
-    type: String,
-    default: "",
+    type: [String],
+    default: [],
+    validate: {
+      validator: async function (values) {
+        if (!Array.isArray(values) || values.length === 0) return true;
+        const active = await getActiveValues("industry");
+        if (active.size === 0) return true; // see jobType validator above
+        return values.every((v) => active.has(v));
+      },
+      message: "Contains an invalid or inactive industry.",
+    },
   },
   workNature: {
     type: String,

@@ -30,6 +30,11 @@ const {
 } = require("../middleware/validation");
 const { detectMaliciousPayload } = require("../middleware/security");
 const { jobAttachmentUpload, persistFields, cleanupUploadedFiles } = require("../middleware/upload");
+const {
+  getJobMatchWeights,
+  updateJobMatchWeights,
+  resetJobMatchWeights,
+} = require("../controllers/matchWeightsController");
 
 // Multipart parser for job-application attachments (buffers only; persisted by persistFields)
 const upload = jobAttachmentUpload;
@@ -51,6 +56,37 @@ router.get("/:id", optionalAuth, requireJobVacancyAge, getJobById);
 router.post("/:id/close", verifyToken, isEmployer, isVerifiedEmployer, closeJob);
 router.post("/:id/archive", verifyToken, isEmployer, isVerifiedEmployer, archiveJob);
 router.post("/:id/reopen", verifyToken, isEmployer, isVerifiedEmployer, reopenJob);
+
+// §C.1 — per-vacancy job-matching weight override. Ownership (does this
+// employer actually own :id) is re-verified inside the controller, not
+// assumed from the route — see matchWeightsController.loadOwnedJob.
+router.get(
+  "/:id/match-weights",
+  verifyToken,
+  isEmployer,
+  isVerifiedEmployer,
+  validateMongoId("id"),
+  getJobMatchWeights
+);
+router.put(
+  "/:id/match-weights",
+  verifyToken,
+  isEmployer,
+  isVerifiedEmployer,
+  validateMongoId("id"),
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  validateRequest,
+  updateJobMatchWeights
+);
+router.delete(
+  "/:id/match-weights",
+  verifyToken,
+  isEmployer,
+  isVerifiedEmployer,
+  validateMongoId("id"),
+  resetJobMatchWeights
+);
 
 // Job applications - Employer viewing (also verified)
 router.get("/:id/applications", verifyToken, isEmployer, isVerifiedEmployer, getApplicationsForJob);

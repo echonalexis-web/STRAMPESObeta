@@ -15,8 +15,14 @@ import {
 } from "../utils/basicRequirements";
 import "../styles/qualifications-editor.css";
 import RankedApplicantsTable from "../components/RankedApplicantsTable";
+import MatchBreakdownPanel from "../components/MatchBreakdownPanel";
+import MatchWeightsEditor from "../components/MatchWeightsEditor";
+import { CODE_FALLBACK_WEIGHTS } from "../utils/qualifications";
+import { JOB_TYPES as JOB_TYPES_FALLBACK, JOB_TYPE_LABELS } from "../constants/jobTypes";
+import { useSystemOptions } from "../hooks/useSystemOptions";
 import InterviewScheduleModal from "../components/InterviewScheduleModal";
 import SecureFileLink from "../components/SecureFileLink";
+import ResumeViewerModal from "../components/ResumeViewerModal";
 import { useRankedApplicants } from "../hooks/useRankedApplicants";
 import { useSwipeable } from "react-swipeable";
 import {
@@ -83,7 +89,7 @@ const SALARY_GRADES = [
   { grade: 33, label: "SG 33 – ₱131,124",  value: "SG 33 - ₱131,124" },
 ];
 
-const tabList = ["overview", "jobs", "applicants", "archived"];
+const tabList = ["overview", "jobs", "applicants", "matchWeights", "archived"];
 
 const formatSalaryPreview = (min, max) => {
   const hasMin = min !== "" && min !== null && min !== undefined && Number.isFinite(Number(min));
@@ -197,14 +203,14 @@ const daysUntilDeadline = (value) => {
 
 const normalizeRecentApplicantStatus = (value) => {
   const normalized = normalizeApplicationStatus(value);
-  if (["active", "hired", "shortlisted", "rejected"].includes(normalized)) return normalized;
+  if (["active", "hired", "shortlisted", "approved", "under_review", "rejected", "withdrawn"].includes(normalized)) return normalized;
   return "pending";
 };
 
 const recentApplicantStatusClass = (value) => `recent-${normalizeRecentApplicantStatus(value)}`;
 
 const recentApplicantStatusLabel = (value) => {
-  const normalized = normalizeRecentApplicantStatus(value);
+  const normalized = normalizeRecentApplicantStatus(value).replace(/_/g, " ");
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 };
 
@@ -355,6 +361,10 @@ export default function EmployerDashboard() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
+  // Admin-maintainable catalog (item 11) — live from the server, with the
+  // old hardcoded list as a fallback for first paint / offline.
+  const { options: JOB_TYPES } = useSystemOptions("jobType", { fallback: JOB_TYPES_FALLBACK, extra: ["Remote"] });
+
   const [activeTab, setActiveTab] = useState("overview");
   const [stats, setStats] = useState({
     totalJobs: 0,
@@ -377,7 +387,20 @@ export default function EmployerDashboard() {
   const [error, setError] = useState("");
   const [successToast, setSuccessToast] = useState("");
 
-  const { applicants: rankedApplicants, loading: loadingRanked, refetch: refetchRanked } = useRankedApplicants(selectedJobId);
+  // Declared here (ahead of their other uses below) because the ranked-
+  // applicants fetch below needs their current values — sort and the
+  // must-haves filter are resolved server-side now, not re-sorted client-side.
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("match");
+  const [onlyMustHaves, setOnlyMustHaves] = useState(false);
+
+  const {
+    applicants: rankedApplicants,
+    loading: loadingRanked,
+    filteredTotal: rankedFilteredTotal,
+    disqualifiedCount: rankedDisqualifiedCount,
+    refetch: refetchRanked,
+  } = useRankedApplicants(selectedJobId, { sortBy, onlyMeetsRequired: onlyMustHaves });
 
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
@@ -386,6 +409,7 @@ export default function EmployerDashboard() {
   const [modalActiveSection, setModalActiveSection] = useState("details");
 
   const [selectedApplication, setSelectedApplication] = useState(null);
+  const [resumeToView, setResumeToView] = useState(null);
   const [drawerStatus, setDrawerStatus] = useState("pending");
   const [drawerNote, setDrawerNote] = useState("");
   const [isSavingApplication, setIsSavingApplication] = useState(false);
@@ -407,9 +431,6 @@ export default function EmployerDashboard() {
   const [selectedApplicants, setSelectedApplicants] = useState([]);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [rejectDialog, setRejectDialog] = useState(null);
-
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("match");
 
   // Swipe state: which job card is open
   const [openSwipeId, setOpenSwipeId] = useState(null);
@@ -464,6 +485,75 @@ export default function EmployerDashboard() {
     const timer = window.setTimeout(() => setSuccessToast(""), 2500);
     return () => window.clearTimeout(timer);
   }, [successToast]);
+
+  // §C.1 — employer's default job-matching weight profile. The backend for
+  // this (GET/PUT /api/employers/match-weights) doesn't exist yet — see
+  // markdowns/MATCH_WEIGHTS_BACKEND_HANDOFF.md — so this fetch will 404
+  // until it ships; the catch below surfaces that as a plain inline
+  // message rather than a crash. Loaded lazily, only once the employer
+  // actually opens the tab.
+  const [matchWeights, setMatchWeights] = useState(null);
+  const [matchWeightsIsCustom, setMatchWeightsIsCustom] = useState(false);
+  const [matchWeightBounds, setMatchWeightBounds] = useState(null);
+  const [matchWeightsLoaded, setMatchWeightsLoaded] = useState(false);
+  const [matchWeightsLoading, setMatchWeightsLoading] = useState(false);
+  const [matchWeightsSaving, setMatchWeightsSaving] = useState(false);
+  const [matchWeightsError, setMatchWeightsError] = useState("");
+
+  useEffect(() => {
+    if (activeTab !== "matchWeights" || matchWeightsLoaded) return;
+    let cancelled = false;
+    setMatchWeightsLoading(true);
+    setMatchWeightsError("");
+    employerAPI.getMatchWeights()
+      .then((res) => {
+        if (cancelled) return;
+        setMatchWeights(res.data?.weights || CODE_FALLBACK_WEIGHTS);
+        setMatchWeightsIsCustom(Boolean(res.data?.isCustom));
+        setMatchWeightBounds(res.data?.bounds || null);
+        setMatchWeightsLoaded(true);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setMatchWeightsError(
+          err.response?.status === 404
+            ? "Matching Preferences isn't available yet — this feature's backend is still being built."
+            : err.response?.data?.message || "Failed to load matching preferences."
+        );
+      })
+      .finally(() => { if (!cancelled) setMatchWeightsLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeTab, matchWeightsLoaded]);
+
+  const handleSaveMatchWeights = async (weights) => {
+    setMatchWeightsSaving(true);
+    setMatchWeightsError("");
+    try {
+      const res = await employerAPI.updateMatchWeights({ weights });
+      setMatchWeights(res.data?.weights || weights);
+      setMatchWeightsIsCustom(true);
+      setSuccessToast("Matching preferences saved");
+    } catch (err) {
+      setMatchWeightsError(err.response?.data?.message || "Failed to save matching preferences.");
+    } finally {
+      setMatchWeightsSaving(false);
+    }
+  };
+
+  const handleResetMatchWeights = async () => {
+    setMatchWeightsSaving(true);
+    setMatchWeightsError("");
+    try {
+      const res = await employerAPI.resetMatchWeights();
+      setMatchWeights(res.data?.weights || CODE_FALLBACK_WEIGHTS);
+      setMatchWeightsIsCustom(false);
+      setSuccessToast("Reset to platform default");
+    } catch (err) {
+      setMatchWeightsError(err.response?.data?.message || "Failed to reset matching preferences.");
+    } finally {
+      setMatchWeightsSaving(false);
+    }
+  };
 
   const selectedJobApplicants = selectedJobId ? jobApplicants[selectedJobId] || [] : [];
   const selectedJob = useMemo(
@@ -789,16 +879,30 @@ export default function EmployerDashboard() {
 
   const openApplicantDrawer = (application) => {
     if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
+    // The drawer re-fetches from a separate (unranked) endpoint for full
+    // profile/resume detail, which carries no match data. Merge in the
+    // checklist/relevance info already held in memory from the ranked list
+    // instead of issuing a second ranking request just for this.
+    const rankedMatch = rankedApplicants.find((a) => String(a._id) === String(application._id));
+    const withMatch = (app) => (rankedMatch
+      ? {
+          ...app,
+          relevanceScore: rankedMatch.relevanceScore,
+          matchBreakdown: rankedMatch.matchBreakdown,
+          checklistMatch: rankedMatch.checklistMatch,
+          disqualified: rankedMatch.disqualified,
+        }
+      : app);
     (async () => {
       try {
         const resp = await employerAPI.getApplicantsForJob(selectedJobId);
         const apps = resp.data || [];
         const found = apps.find(a => String(a._id) === String(application._id)) || application;
-        setSelectedApplication(found);
+        setSelectedApplication(withMatch(found));
         setDrawerStatus(normalizeDrawerStatus(found.status));
         setDrawerNote(found.employerNote || "");
       } catch (err) {
-        setSelectedApplication(application);
+        setSelectedApplication(withMatch(application));
         setDrawerStatus(normalizeDrawerStatus(application.status));
         setDrawerNote(application.employerNote || "");
       }
@@ -1075,33 +1179,15 @@ export default function EmployerDashboard() {
     }
   };
 
+  // `rankedApplicants` already arrives sorted (and, when onlyMustHaves is
+  // on, filtered) by the server — see useRankedApplicants / semanticService
+  // rankApplicantsByJob(). Re-sorting here would only reorder whatever page
+  // the server returned, not the applicant's full pool, so the only
+  // transformation left on the client is the status funnel.
   const filteredAndSortedApplicants = useMemo(() => {
-    let filtered = [...rankedApplicants];
-
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(app => {
-        const normalizedStatus = normalizeApplicationStatus(app.status);
-        return normalizedStatus === statusFilter;
-      });
-    }
-
-    const sorted = [...filtered].sort((a, b) => {
-      switch (sortBy) {
-        case "match":
-          return (b.relevanceScore || 0) - (a.relevanceScore || 0);
-        case "date":
-          return new Date(b.appliedAt || b.createdAt || 0) - new Date(a.appliedAt || a.createdAt || 0);
-        case "name":
-          const nameA = (a.applicant?.name || "").toLowerCase();
-          const nameB = (b.applicant?.name || "").toLowerCase();
-          return nameA.localeCompare(nameB);
-        default:
-          return 0;
-      }
-    });
-
-    return sorted;
-  }, [rankedApplicants, statusFilter, sortBy]);
+    if (statusFilter === "all") return rankedApplicants;
+    return rankedApplicants.filter(app => normalizeApplicationStatus(app.status) === statusFilter);
+  }, [rankedApplicants, statusFilter]);
 
   // Counts per status for the funnel/filter segments (from the full list, so
   // the numbers don't move when a filter is applied).
@@ -1122,7 +1208,7 @@ export default function EmployerDashboard() {
 
   useEffect(() => {
     setApplicantsPage(1);
-  }, [selectedJobId, statusFilter, sortBy]);
+  }, [selectedJobId, statusFilter, sortBy, onlyMustHaves]);
 
   useEffect(() => {
     if (applicantsPage > applicantsTotalPages) setApplicantsPage(applicantsTotalPages);
@@ -1168,6 +1254,7 @@ export default function EmployerDashboard() {
     overview: { label: "Overview", badge: null },
     jobs: { label: "Job Postings", badge: liveJobs.length || null },
     applicants: { label: "Applicants", badge: stats.totalApplicants || null },
+    matchWeights: { label: "Matching Preferences", badge: null },
     archived: { label: "Archived", badge: archivedJobs.length || null },
   };
 
@@ -1970,6 +2057,12 @@ export default function EmployerDashboard() {
                       {selectedJob && (
                         <span className="emp-appbar-sub">
                           {filteredAndSortedApplicants.length} of {rankedApplicants.length} shown
+                          {rankedDisqualifiedCount > 0 && (
+                            <>
+                              {" · "}
+                              {rankedDisqualifiedCount} outside the age range
+                            </>
+                          )}
                         </span>
                       )}
                     </div>
@@ -2003,9 +2096,24 @@ export default function EmployerDashboard() {
                         <span>Sort</span>
                         <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="emp-select">
                           <option value="match">Best match</option>
+                          <option value="mustHaves">Most qualified</option>
                           <option value="date">Newest</option>
                           <option value="name">Name A–Z</option>
                         </select>
+                      </label>
+                    )}
+
+                    {selectedJob && (
+                      <label className="emp-musthaves-toggle" title="Only show applicants who meet every required qualification">
+                        <input
+                          type="checkbox"
+                          checked={onlyMustHaves}
+                          onChange={(e) => setOnlyMustHaves(e.target.checked)}
+                        />
+                        <span>
+                          Meets all must-haves
+                          {onlyMustHaves && ` (${rankedFilteredTotal})`}
+                        </span>
                       </label>
                     )}
                   </div>
@@ -2139,6 +2247,42 @@ export default function EmployerDashboard() {
                 )}
               </div>
             )}
+
+            {/* -------- MATCHING PREFERENCES TAB (§C.1) -------- */}
+            {activeTab === "matchWeights" && (
+              <div className="employer-tab-panel">
+                <div className="emp-match-weights-panel">
+                  <h2>Matching Preferences</h2>
+                  <p className="emp-match-weights-intro">
+                    Set how much each factor counts toward an applicant's match percentage on
+                    your job postings. Weights must add up to exactly 100%. Individual jobs can
+                    still override this from their own edit page.
+                  </p>
+                  {matchWeightsIsCustom && (
+                    <p className="emp-match-weights-status">Using your own custom weights.</p>
+                  )}
+
+                  {matchWeightsLoading && !matchWeightsLoaded ? (
+                    <p className="loading">Loading matching preferences...</p>
+                  ) : matchWeightsError && !matchWeightsLoaded ? (
+                    <div className="error-message" role="alert">{matchWeightsError}</div>
+                  ) : (
+                    <>
+                      {matchWeightsError && (
+                        <div className="error-message" role="alert">{matchWeightsError}</div>
+                      )}
+                      <MatchWeightsEditor
+                        initialWeights={matchWeights || CODE_FALLBACK_WEIGHTS}
+                        bounds={matchWeightBounds}
+                        onSave={handleSaveMatchWeights}
+                        onReset={matchWeightsIsCustom ? handleResetMatchWeights : undefined}
+                        busy={matchWeightsSaving}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
       </section>
@@ -2252,11 +2396,73 @@ export default function EmployerDashboard() {
                   )}
                 </div>
 
+                {selectedApplication.checklistMatch && (
+                  <>
+                    <h4 style={{ marginTop: 12 }}>Must-haves</h4>
+                    {selectedApplication.checklistMatch.disqualified === "age" ? (
+                      <p className="applicant-musthaves-note is-dq">Outside this job's age requirement</p>
+                    ) : (
+                      <>
+                        {selectedApplication.checklistMatch.totalMustHaves > 0 && (
+                          <p className="applicant-musthaves-note">
+                            Meets {selectedApplication.checklistMatch.metMustHaves} of{" "}
+                            {selectedApplication.checklistMatch.totalMustHaves} required qualifications
+                          </p>
+                        )}
+                        {selectedApplication.checklistMatch.missingRequired?.length > 0 && (
+                          <div className="applicant-skills-section">
+                            {selectedApplication.checklistMatch.missingRequired.map((q) => (
+                              <span key={`${q.type}-${q.value}`} className="is-missing">{q.value}</span>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+
+                {selectedApplication.matchBreakdown && (
+                  <>
+                    <h4 style={{ marginTop: 12 }}>Match breakdown</h4>
+                    <MatchBreakdownPanel
+                      breakdown={selectedApplication.matchBreakdown}
+                      disqualified={selectedApplication.disqualified}
+                      audience="employer"
+                    />
+                  </>
+                )}
+
                 {selectedApplication.resume && (
-                  <SecureFileLink className="applicant-resume-link" value={selectedApplication.resume}>
-                    <span>↓</span>
-                    <span>Download Resume</span>
-                  </SecureFileLink>
+                  <div className="applicant-resume-actions">
+                    <button
+                      type="button"
+                      className="applicant-resume-link"
+                      onClick={() => setResumeToView(selectedApplication.resume)}
+                    >
+                      <span>👁</span>
+                      <span>View Resume</span>
+                    </button>
+                    <SecureFileLink className="applicant-resume-link" value={selectedApplication.resume}>
+                      <span>↓</span>
+                      <span>Download Resume</span>
+                    </SecureFileLink>
+                  </div>
+                )}
+
+                {(selectedApplication.coverLetter || selectedApplication.coverLetterFile) && (
+                  <>
+                    <h4 style={{ marginTop: 12 }}>Cover Letter</h4>
+                    {selectedApplication.coverLetter ? (
+                      <p className="applicant-cover-letter-text">{selectedApplication.coverLetter}</p>
+                    ) : (
+                      <div className="applicant-resume-actions">
+                        <SecureFileLink className="applicant-resume-link" value={selectedApplication.coverLetterFile}>
+                          <span>👁</span>
+                          <span>View Cover Letter</span>
+                        </SecureFileLink>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -2272,7 +2478,9 @@ export default function EmployerDashboard() {
                     disabled={isSavingApplication}
                   >
                     <option value="pending">Pending</option>
+                    <option value="under_review">Under Review</option>
                     <option value="shortlisted">Shortlisted</option>
+                    <option value="approved">Approved</option>
                     <option value="hired">Hired</option>
                     <option value="rejected">Rejected</option>
                   </select>
@@ -2310,6 +2518,10 @@ export default function EmployerDashboard() {
             </footer>
           </div>
         </div>
+      )}
+
+      {resumeToView && (
+        <ResumeViewerModal value={resumeToView} onClose={() => setResumeToView(null)} />
       )}
 
       {/* ===== JOB FORM MODAL ===== */}
@@ -2510,12 +2722,9 @@ export default function EmployerDashboard() {
                             onChange={(e) => setJobForm({ ...jobForm, jobType: e.target.value })}
                             disabled={isSavingJob}
                           >
-                            <option>Full-time</option>
-                            <option>Part-time</option>
-                            <option>Contract</option>
-                            <option>Internship</option>
-                            <option>Temporary</option>
-                            <option>Remote</option>
+                            {JOB_TYPES.map((jt) => (
+                              <option key={jt} value={jt}>{JOB_TYPE_LABELS[jt] || jt}</option>
+                            ))}
                           </select>
                         </div>
                       </div>

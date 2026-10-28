@@ -2,15 +2,20 @@
    Design tokens — STRAM PESO onboarding
    ============================================================= */
 :root {
-  --ob-green-50: #f0fdf4;
-  --ob-green-100: #dcfce7;
-  --ob-green-200: #bbf7d0;
-  --ob-green-300: #86efac;
-  --ob-green-500: #22a25a;
-  --ob-green-600: #16a34a;
-  --ob-green-700: #15803d;
-  --ob-green-800: #166534;
-  --ob-green-900: #14532d;
+  /* PESO brand — every --ob-green-* below is derived from these two so the
+     whole flow retones from one place instead of hunting down each rule. */
+  --ob-brand-800: #004b23;
+  --ob-accent-500: #ffb703;
+
+  --ob-green-50: #eafaf1;
+  --ob-green-100: #d3f3e1;
+  --ob-green-200: #abe4c4;
+  --ob-green-300: #7dd2a4;
+  --ob-green-500: #0a6b36;
+  --ob-green-600: #065c2d;
+  --ob-green-700: var(--ob-brand-800);
+  --ob-green-800: #003a1b;
+  --ob-green-900: #012710;
 
   --ob-accent: #0f766e;
   --ob-accent-soft: #f0fdfa;
@@ -82,10 +87,10 @@
   background: var(--ob-neutral-50);
 }
 
-/* ---- Left rail: step navigator ---- */
+/* ---- Left rail: step navigator (w-full md:w-80 bg-brand-800) ---- */
 .onboarding-rail {
-  flex: 0 0 280px;
-  background: linear-gradient(160deg, var(--ob-green-700) 0%, var(--ob-green-900) 100%);
+  flex: 0 0 320px;
+  background: linear-gradient(160deg, var(--ob-brand-800) 0%, var(--ob-green-900) 100%);
   color: #fff;
   padding: 2.25rem 1.75rem;
   display: flex;
@@ -119,7 +124,7 @@
 .onboarding-rail-progress-fill {
   height: 100%;
   border-radius: var(--ob-radius-full);
-  background: linear-gradient(90deg, var(--ob-green-300), #fff);
+  background: linear-gradient(90deg, var(--ob-green-300), var(--ob-accent-500));
   transition: width 0.35s var(--ob-ease);
 }
 
@@ -202,10 +207,10 @@
 }
 
 .onboarding-step-item.current .onboarding-step-index {
-  border-color: #fff;
+  border-color: var(--ob-accent-500);
   background: #fff;
-  color: var(--ob-green-700);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.14);
+  color: var(--ob-brand-800);
+  box-shadow: 0 0 0 4px rgba(255, 183, 3, 0.22);
 }
 
 .onboarding-step-item.done {
@@ -241,40 +246,64 @@
   border-radius: 50%;
   background: var(--ob-green-300);
   margin-right: 0.5rem;
-  box-shadow: 0 0 0 3px rgba(134, 239, 172, 0.25);
+  box-shadow: 0 0 0 3px rgba(125, 210, 164, 0.3);
 }
 
-/* ---- Right panel: form content ---- */
+/* ---- Right panel: full-bleed canvas, flex-1 bg-slate-50 ----
+   A 3-row flex column, not a single scrolling box: the topbar and footer
+   nav are normal (non-scrolling) flex items and only the middle
+   .onboarding-scroll area scrolls. That's what makes the header/footer
+   "sticky" here, rather than literal `position: sticky` — this codebase
+   already tried sticky for the nav bar once (see the removed comment that
+   used to sit on .onboarding-nav) and hit exactly the class of bug a flex
+   app-shell sidesteps for free: a sticky element's stuck position is
+   computed against its scrolling ancestor, so on a short step with nothing
+   to scroll it ended up overlapping the last field instead of sitting below
+   it. Giving the header/footer their own fixed-height flex rows and parking
+   all scrolling in one dedicated middle child removes that ambiguity
+   entirely, on every step and every screen height. */
 .onboarding-panel {
   flex: 1;
   min-width: 0;
   height: 100vh;
   height: 100dvh;
-  overflow-y: auto;
   display: flex;
-  justify-content: center;
-  padding: 2.75rem 1.5rem;
+  flex-direction: column;
+  background: var(--ob-neutral-50);
 }
 
-.onboarding-card {
-  width: 100%;
-  max-width: 700px;
+/* Sticky header: "Step X of 9", step title, progress fill. */
+.onboarding-topbar {
+  flex: none;
   background: var(--ob-neutral-0);
-  border: 1px solid var(--ob-neutral-200);
-  border-radius: var(--ob-radius-lg);
-  box-shadow: var(--ob-shadow-md);
-  padding: var(--ob-space-8);
-  position: relative;
-  height: fit-content;
+  border-bottom: 1px solid var(--ob-neutral-200);
+  padding: 1.1rem 1.75rem;
 }
 
-/* Compact progress indicator shown only when the rail is hidden (mobile) */
-.onboarding-progress-mobile {
-  display: none;
+.onboarding-topbar-title {
+  margin: 0.15rem 0 0.7rem;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--ob-neutral-900);
 }
 
+.onboarding-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Full-bleed form canvas, max-w-5xl mx-auto px-6 py-10 */
+.onboarding-canvas {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
+}
+
+/* Step-jump pills — only needed where the rail is hidden (< 900px); see the
+   responsive block below. */
 .onboarding-mobile-step-pills {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 0.45rem;
   flex-wrap: nowrap;
@@ -317,7 +346,7 @@
   background: var(--ob-green-700);
   border-color: var(--ob-green-700);
   color: #fff;
-  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.12);
+  box-shadow: 0 0 0 3px rgba(0, 75, 35, 0.14);
 }
 
 .onboarding-mobile-step-pill:disabled {
@@ -339,12 +368,14 @@
   border-radius: var(--ob-radius-full);
   background: var(--ob-neutral-200);
   overflow: hidden;
-  margin-bottom: 1.25rem;
+  /* No margin-bottom here — .onboarding-topbar's own padding closes it out
+     on desktop, and .onboarding-mobile-step-pills already carries its own
+     margin-top for when it's visible below this track on mobile. */
 }
 
 .onboarding-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--ob-green-600), var(--ob-green-500));
+  background: linear-gradient(90deg, var(--ob-brand-800), var(--ob-accent-500));
   transition: width 0.3s var(--ob-ease);
 }
 
@@ -365,16 +396,20 @@
 /* =============================================================
    Section grouping (used to break dense steps into blocks)
    ============================================================= */
+/* bg-white rounded-xl border — each field group is its own card sitting on
+   the slate-50 canvas, rather than a border-top divider inside one big
+   outer card (there's no outer card anymore; see .onboarding-canvas). */
 .onboarding-section {
-  padding-top: var(--ob-space-6);
-  margin-top: var(--ob-space-6);
-  border-top: 1px solid var(--ob-neutral-200);
+  background: var(--ob-neutral-0);
+  border: 1px solid var(--ob-neutral-200);
+  border-radius: var(--ob-radius-md);
+  box-shadow: var(--ob-shadow-xs);
+  padding: 1.5rem 1.75rem;
+  margin-top: var(--ob-space-5);
 }
 
 .onboarding-section:first-of-type {
-  padding-top: 0;
-  margin-top: 0;
-  border-top: none;
+  margin-top: 1.5rem;
 }
 
 .onboarding-section-title {
@@ -437,6 +472,56 @@
   color: var(--ob-green-700);
 }
 
+.unit-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.unit-toggle {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.unit-toggle-btn {
+  border: 1.5px solid var(--ob-neutral-300);
+  background: var(--ob-neutral-0);
+  color: var(--ob-neutral-700);
+  border-radius: var(--ob-radius-full);
+  padding: 2px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s var(--ob-ease), border-color 0.2s var(--ob-ease), color 0.2s var(--ob-ease);
+}
+
+.unit-toggle-btn.active {
+  background: var(--ob-green-600);
+  border-color: var(--ob-green-600);
+  color: #fff;
+}
+
+.unit-toggle-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.unit-input-pair {
+  display: flex;
+  gap: 8px;
+}
+
+.number-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .onboarding-fields input,
 .onboarding-fields select,
 .onboarding-fields textarea,
@@ -444,7 +529,7 @@
   width: 100%;
   margin-top: 0.4rem;
   border: 1px solid var(--ob-neutral-300);
-  border-radius: var(--ob-radius-sm);
+  border-radius: var(--ob-radius-md);
   padding: 12px 16px;
   font-size: 15px;
   color: var(--ob-neutral-900);
@@ -471,8 +556,8 @@
 .onboarding-fields textarea:focus,
 .skills-entry-row input:focus {
   outline: none;
-  border-color: var(--ob-green-600);
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.16);
+  border-color: var(--ob-brand-800);
+  box-shadow: 0 0 0 2px rgba(0, 75, 35, 0.22);
 }
 
 .onboarding-fields select {
@@ -489,6 +574,19 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--ob-space-4);
+}
+
+/* grid-cols-1 md:grid-cols-4 — used by Step 1 (Personal Details) */
+.onboarding-field-grid-4 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--ob-space-4);
+}
+
+@media (min-width: 768px) {
+  .onboarding-field-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .onboarding-textarea {
@@ -555,7 +653,7 @@
   background: var(--ob-green-600);
   border-color: var(--ob-green-600);
   color: #fff;
-  box-shadow: 0 3px 10px rgba(22, 163, 74, 0.28);
+  box-shadow: 0 3px 10px rgba(0, 75, 35, 0.3);
 }
 
 .pill-btn.active::before {
@@ -570,6 +668,17 @@
   flex-wrap: wrap;
   gap: 0.55rem;
   margin-bottom: var(--ob-space-4);
+}
+
+.onboarding-catalog-empty {
+  margin: 0 0 var(--ob-space-4);
+  padding: 0.875rem 1rem;
+  border: 1px solid #fcd34d;
+  border-radius: var(--ob-radius-sm);
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .industry-pill {
@@ -599,7 +708,7 @@
   background: var(--ob-green-600);
   color: #fff;
   border-color: var(--ob-green-600);
-  box-shadow: 0 3px 10px rgba(22, 163, 74, 0.28);
+  box-shadow: 0 3px 10px rgba(0, 75, 35, 0.3);
 }
 
 .industry-pill.active::before {
@@ -650,7 +759,7 @@
   font-size: var(--ob-font-sm);
   font-weight: 600;
   border: 1px solid var(--ob-green-600);
-  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.22);
+  box-shadow: 0 2px 6px rgba(0, 75, 35, 0.24);
   animation: onboardingCheckPop 0.25s var(--ob-ease);
 }
 
@@ -778,15 +887,6 @@
    Nav / buttons
    ============================================================= */
 .onboarding-nav {
-  /* Was `position: sticky; bottom: 16px`, anchored to .onboarding-panel (the
-     actual overflow-y:auto scroll container) rather than the visible
-     .onboarding-card (height: fit-content, no overflow of its own). On any
-     step short enough that the card doesn't fill the panel's full 100vh —
-     e.g. Company Information — the panel has nothing to scroll, so the
-     "stuck" 16px-from-bottom position was computed against the full
-     viewport instead of the card's actual bottom edge, pulling this bar
-     down to overlap the last field row instead of sitting after it. Normal
-     flow avoids the mismatch entirely, on every step and screen size. */
   margin-top: var(--ob-space-6);
   display: flex;
   justify-content: space-between;
@@ -797,6 +897,32 @@
   border-radius: 18px;
   box-shadow: 0 10px 24px rgba(20, 32, 28, 0.08);
   padding: 0.85rem 0.9rem;
+}
+
+/* Sticky footer bar: Back / Next / Finish Setup. A flex:none row of
+   .onboarding-panel's column (see the comment on .onboarding-panel above)
+   rather than a floating pill bar, so it resets the decorative chrome
+   .onboarding-nav otherwise carries (used standalone, e.g. the success
+   step's "View Profile / Browse Jobs" row, where that floating-pill look is
+   still exactly what's wanted). */
+.onboarding-footer-bar {
+  flex: none;
+  background: var(--ob-neutral-0);
+  border-top: 1px solid var(--ob-neutral-200);
+  box-shadow: 0 -8px 20px rgba(20, 32, 28, 0.05);
+  padding: 1rem 1.75rem;
+}
+
+.onboarding-footer-bar .onboarding-nav {
+  margin-top: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  max-width: 1024px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .onboarding-primary,
@@ -814,7 +940,7 @@
   border: none;
   background: var(--ob-green-600);
   color: #fff;
-  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.28);
+  box-shadow: 0 6px 18px rgba(0, 75, 35, 0.3);
   min-width: 128px;
 }
 
@@ -1349,23 +1475,35 @@
    Responsive
    ============================================================= */
 @media (max-width: 900px) {
+  /* The rail is the step navigator on desktop; below this width it's
+     replaced by the topbar's step-jump pills instead (shown only here). */
   .onboarding-rail {
     display: none;
   }
 
-  .onboarding-progress-mobile {
-    display: block;
-    margin-bottom: 1rem;
+  .onboarding-mobile-step-pills {
+    display: flex;
   }
 
-  .onboarding-panel {
-    padding: 1.25rem 1rem;
+  .onboarding-topbar,
+  .onboarding-canvas {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
   }
 }
 
 @media (max-width: 640px) {
-  .onboarding-card {
-    padding: 22px;
+  .onboarding-canvas {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .onboarding-footer-bar {
+    padding: 0.85rem 1.1rem;
+  }
+
+  .onboarding-section {
+    padding: 1.1rem;
   }
 
   .onboarding-field-grid {
@@ -1373,8 +1511,6 @@
   }
 
   .onboarding-nav {
-    margin: 1.5rem -22px -22px;
-    padding: 1rem 22px;
     flex-direction: column-reverse;
   }
 

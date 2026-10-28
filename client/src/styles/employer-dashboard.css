@@ -160,6 +160,32 @@
   min-width: 0;
 }
 
+/* §C.1 — Matching Preferences tab */
+.emp-match-weights-panel {
+  background: #fff;
+  border: 1px solid var(--emp-border);
+  border-radius: var(--emp-radius);
+  box-shadow: var(--emp-shadow);
+  padding: 20px 22px;
+  max-width: 640px;
+}
+.emp-match-weights-panel h2 {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  color: var(--emp-ink);
+}
+.emp-match-weights-intro {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  color: var(--emp-muted);
+}
+.emp-match-weights-status {
+  margin: 0 0 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #166534;
+}
+
 /* Stats Grid - now fluid */
 .stats-grid {
   display: grid;
@@ -518,6 +544,18 @@
   border: 1px solid #cbd5e1;
 }
 
+.status-pill.teal {
+  background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
+  color: #0f766e;
+  border: 1px solid #5eead4;
+}
+
+.status-pill.purple {
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+  color: #6d28d9;
+  border: 1px solid #c4b5fd;
+}
+
 .status-pill.recent-active {
   background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
   color: #166534;
@@ -546,6 +584,24 @@
   background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
   color: #dc2626;
   border: 1px solid #fca5a5;
+}
+
+.status-pill.recent-under_review {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
+.status-pill.recent-approved {
+  background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
+  color: #0f766e;
+  border: 1px solid #5eead4;
+}
+
+.status-pill.recent-withdrawn {
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+  color: #6d28d9;
+  border: 1px solid #c4b5fd;
 }
 
 /* ============================================ */
@@ -1943,20 +1999,41 @@
   border-color: #e2e8f0;
   font-style: italic;
 }
+.applicant-skills-section span.is-missing {
+  background: #fff7ed;
+  color: #b45309;
+  border-color: #fde68a;
+}
+.applicant-musthaves-note {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #475569;
+  font-weight: 600;
+}
+.applicant-musthaves-note.is-dq {
+  color: #b42318;
+}
+.applicant-resume-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
 .applicant-resume-link {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  flex: 1;
   width: 100%;
   padding: 12px;
-  margin-top: 8px;
   border: 1px dashed #d4e4d4;
   border-radius: 12px;
   color: #2e7d32;
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
   transition: all 0.2s ease;
   background: #f8fafc;
 }
@@ -1964,6 +2041,19 @@
   background: #f0fdf4;
   border-color: #2e7d32;
   border-style: solid;
+}
+.applicant-cover-letter-text {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #334155;
 }
 .applicant-modal-field {
   display: flex;
@@ -2007,9 +2097,17 @@
   background: #fffbeb;
   color: #b45309;
 }
+.applicant-modal-field select.status-under_review {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
 .applicant-modal-field select.status-shortlisted {
   background: #eff6ff;
   color: #1d4ed8;
+}
+.applicant-modal-field select.status-approved {
+  background: #f0fdfa;
+  color: #0f766e;
 }
 .applicant-modal-field select.status-hired {
   background: #f0fdf4;
@@ -2234,6 +2332,8 @@
 .rt-status-wrap.amber .rt-interview-icon-overlay { color: #b45309; }
 .rt-status-wrap.red .rt-interview-icon-overlay { color: #dc2626; }
 .rt-status-wrap.gray .rt-interview-icon-overlay { color: #475569; }
+.rt-status-wrap.teal .rt-interview-icon-overlay { color: #0f766e; }
+.rt-status-wrap.purple .rt-interview-icon-overlay { color: #6d28d9; }
 
 /* ============================================ */
 /* JOB FORM MODAL - REDESIGNED (PostJob Style)  */
@@ -5310,7 +5410,7 @@
   border: 1px solid var(--emp-border); border-radius: var(--emp-radius);
   box-shadow: var(--emp-shadow); background: #fff;
 }
-.rt-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: .875rem; }
+.rt-table { width: 100%; min-width: 840px; border-collapse: collapse; font-size: .875rem; }
 .rt-table thead th {
   text-align: left; padding: 11px 14px;
   font-size: .7rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
@@ -5319,6 +5419,7 @@
 }
 .rt-c-check { width: 44px; text-align: center !important; }
 .rt-c-match { width: 96px; text-align: center !important; }
+.rt-c-musthaves { width: 110px; text-align: center !important; }
 .rt-c-date { width: 120px; }
 .rt-c-status { width: 150px; }
 .rt-c-actions { width: 228px; }
@@ -5347,6 +5448,20 @@
 .rt-gauge.match-medium { --ring: #d97706; }
 .rt-gauge.match-low { --ring: #94a3b8; }
 .rt-rank { display: block; margin-top: 3px; font-size: .7rem; font-weight: 700; color: var(--emp-muted); }
+
+/* Literal "requirements met" count — distinct from the fuzzy match gauge. */
+.rt-musthaves-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 800;
+  cursor: default;
+}
+.rt-musthaves-badge.is-met { background: #f0fdf4; color: #166534; }
+.rt-musthaves-badge.is-partial { background: #fff7ed; color: #b45309; }
+.rt-musthaves-empty { color: var(--emp-muted); font-size: .8rem; }
 
 /* Applicant disqualified by a hard gate (e.g. outside the job's age range) */
 .rt-dq-badge {
@@ -5380,6 +5495,15 @@
 .rt-email {
   font-size: .78rem; color: var(--emp-muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;
+}
+/* Promoted out of the hover tooltip (§B.3) — visible without hovering. */
+.rt-age-unknown {
+  display: block;
+  margin-top: 2px;
+  font-size: .72rem;
+  font-weight: 700;
+  color: #b45309;
+  white-space: normal;
 }
 .rt-skills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .rt-skill {
@@ -5484,6 +5608,14 @@
     width: 38px;
     height: 38px;
   }
+  .rt-mobile-musthaves {
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--emp-muted);
+  }
+  .rt-mobile-musthaves strong { color: var(--emp-ink); }
+  .rt-mobile-musthaves.is-met strong { color: #166534; }
+  .rt-mobile-musthaves.is-partial strong { color: #b45309; }
   .rt-mobile-status {
     display: flex;
     align-items: center;
@@ -5799,6 +5931,18 @@
 
 .emp-sort { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--emp-muted); font-weight: 600; }
 .emp-sort .emp-select { height: 34px; }
+
+.emp-musthaves-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .8rem;
+  color: var(--emp-muted);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.emp-musthaves-toggle input { width: 15px; height: 15px; cursor: pointer; }
 
 /* sticky column header while scrolling the list */
 .rt-table thead th { position: sticky; top: 0; z-index: 3; }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useContext } from "react";
+import { useEffect, useMemo, useRef, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { jobAPI } from "../services/api";
 import "../styles/jobboard.css";
@@ -8,6 +8,7 @@ import ApplyModal from "../components/ApplyModal";
 import { AuthContext } from "../context/AuthContext";
 import phLocationsRaw from "../data/philippine_provinces_cities_municipalities_and_barangays_2019v2.json";
 import { FaBriefcase } from "react-icons/fa";
+import { jobMatchesAnyIndustry } from "../utils/industries";
 
 export default function JobBoard() {
   const navigate = useNavigate();
@@ -19,6 +20,11 @@ export default function JobBoard() {
   const [error, setError] = useState("");
   const [applications, setApplications] = useState([]);
   const [hasSkills, setHasSkills] = useState(true);
+  // How many jobs the "only show jobs I fully qualify for" toggle is
+  // currently hiding — §A.4: a filter that empties the board should say so,
+  // not just show zero results. 0 whenever the toggle is off (server
+  // reports `unfilteredTotal === total` in that case).
+  const [hiddenByMustHaves, setHiddenByMustHaves] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalJobs, setTotalJobs] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -40,7 +46,8 @@ export default function JobBoard() {
     try {
       const sanitizedFilters = { ...filters };
       Object.keys(sanitizedFilters).forEach((key) => {
-        if (sanitizedFilters[key] === '' || sanitizedFilters[key] === null || sanitizedFilters[key] === undefined) {
+        const value = sanitizedFilters[key];
+        if (value === '' || value === null || value === undefined || (Array.isArray(value) && value.length === 0)) {
           delete sanitizedFilters[key];
         }
       });
@@ -86,6 +93,9 @@ export default function JobBoard() {
       }
 
       setHasSkills(jobsResponse.data.hasSkills !== undefined ? jobsResponse.data.hasSkills : true);
+      const unfilteredTotal = Number(jobsResponse.data.unfilteredTotal ?? jobsResponse.data.total ?? 0);
+      const visibleTotal = Number(jobsResponse.data.total ?? 0);
+      setHiddenByMustHaves(Math.max(0, unfilteredTotal - visibleTotal));
       setApplications(applicationsResponse.data || []);
 
       // Sync preferredIndustries from backend to user context
@@ -113,8 +123,11 @@ export default function JobBoard() {
     setActiveFilters(newFilters);
   };
 
-  const handleSearch = () => {
-    fetchJobs(activeFilters, 1);
+  // Accepts an optional override so a caller that just changed a filter
+  // (e.g. the must-haves toggle) can search with the fresh value immediately
+  // instead of racing React's async state update to `activeFilters`.
+  const handleSearch = (overrideFilters) => {
+    fetchJobs(overrideFilters || activeFilters, 1);
   };
 
   const handleReset = () => {
@@ -125,6 +138,27 @@ export default function JobBoard() {
   const isJobAlreadyApplied = (jobId) => {
     return applications.some((app) => String(app.vacancy?._id) === String(jobId));
   };
+
+  // §A.4 — jobs missing exactly one required qualification are the
+  // highest-value ones to surface, and today they're buried wherever
+  // relevance ordering happens to put them. Scoped to the current page of
+  // results (the board already paginates server-side); the main list below
+  // excludes whatever shows up here so nothing renders twice.
+  const closeMatchJobs = useMemo(
+    () => jobs.filter((job) => {
+      const m = job.checklistMatch;
+      // metMustHaves > 0 keeps this bucket meaning "almost there" — without
+      // it, a job with a single must-have the applicant meets NONE of (a 0%
+      // match) still reads as "missing exactly 1" and gets mislabeled close.
+      return Boolean(m && m.totalMustHaves > 0 && m.metMustHaves > 0 && m.totalMustHaves - m.metMustHaves === 1);
+    }),
+    [jobs]
+  );
+  const closeMatchIds = useMemo(() => new Set(closeMatchJobs.map((job) => job._id)), [closeMatchJobs]);
+  const mainListJobs = useMemo(
+    () => jobs.filter((job) => !closeMatchIds.has(job._id)),
+    [jobs, closeMatchIds]
+  );
 
   return (
     <div className="jobboard-container">
@@ -144,6 +178,7 @@ export default function JobBoard() {
             onReset={handleReset}
             phLocationsData={phLocationsRaw}
             preferredIndustries={preferredIndustries}
+            mustHaveHiddenCount={hiddenByMustHaves}
           />
         </div>
 
@@ -173,14 +208,36 @@ export default function JobBoard() {
           </div>
         ) : (
           <>
+            {closeMatchJobs.length > 0 && (
+              <section className="jobboard-close-matches">
+                <h2 className="jobboard-close-matches-heading">
+                  Close matches — 1 requirement away
+                </h2>
+                <div className="jobboard-list">
+                  {closeMatchJobs.map((job) => (
+                    <VacancyCard
+                      key={job._id}
+                      job={job}
+                      applied={isJobAlreadyApplied(job._id)}
+                      followed={Boolean(job.isFollowedEmployer)}
+                      preferred={jobMatchesAnyIndustry(job, preferredIndustries)}
+                      matchAvailable={hasSkills}
+                      onOpen={() => navigate(`/jobs/${job._id}`)}
+                      onApply={() => setApplyModalJobId(job._id)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
             <div className="jobboard-list">
-              {jobs.map((job) => (
+              {mainListJobs.map((job) => (
                 <VacancyCard
                   key={job._id}
                   job={job}
                   applied={isJobAlreadyApplied(job._id)}
                   followed={Boolean(job.isFollowedEmployer)}
-                  preferred={preferredIndustries.includes(job.industry)}
+                  preferred={jobMatchesAnyIndustry(job, preferredIndustries)}
                   matchAvailable={hasSkills}
                   onOpen={() => navigate(`/jobs/${job._id}`)}
                   onApply={() => setApplyModalJobId(job._id)}
@@ -192,6 +249,7 @@ export default function JobBoard() {
               isOpen={Boolean(applyModalJobId)}
               onClose={() => setApplyModalJobId(null)}
               jobId={applyModalJobId}
+              job={jobs.find((j) => j._id === applyModalJobId) || null}
               onSuccess={() => {
                 setApplyModalJobId(null);
                 fetchJobs(activeFilters, currentPage);

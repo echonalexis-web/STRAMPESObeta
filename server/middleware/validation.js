@@ -344,15 +344,15 @@ const validateJobApplication = (req, res, next) => {
   if (coverLetter !== undefined && coverLetter !== null) {
     const trimmed = coverLetter.trim();
     const length = trimmed.length;
-    
+
     if (length > 1000) {
       errors.push(`Cover letter cannot exceed 1000 characters (currently ${length})`);
     }
-    
+
     if (length > 0 && length < 10) {
       errors.push('Cover letter must be at least 10 characters');
     }
-    
+
     const suspiciousPatterns = [
       /<script/i,
       /javascript:/i,
@@ -427,18 +427,30 @@ const validateJobPosting = (req, res, next) => {
     errors.push('Location is required and must be between 2 and 100 characters');
   }
   
-  const validJobTypes = ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Internship', 'Remote'];
-  if (!jobType || !validJobTypes.includes(jobType)) {
+  // Shape-only check here (matches how `industry` below is handled in this
+  // same function) — membership against the admin-maintainable SystemOption
+  // catalog (item 11) is the model's job (JobVacancy.js's async validator),
+  // which is the single authoritative, always-enforced check. Duplicating a
+  // DB-backed membership check in this middleware would mean every route/
+  // test exercising job posting needs a live DB or a SystemOption mock just
+  // to pass request-shape validation, for no real safety gain.
+  if (!jobType || typeof jobType !== 'string') {
     errors.push('Invalid job type');
   }
-  
+
   if (salary && salary.length > 50) {
     errors.push('Salary format too long');
   }
 
   // --- NEW VALIDATIONS for filter fields ---
-  if (req.body.industry !== undefined && typeof req.body.industry !== 'string') {
-    errors.push('Industry must be a string');
+  // `industry` is an array of strings as of the multi-industry change; a
+  // single string is still tolerated here (employerController normalizes
+  // either shape before saving).
+  if (req.body.industry !== undefined) {
+    const industries = Array.isArray(req.body.industry) ? req.body.industry : [req.body.industry];
+    if (!industries.every((v) => typeof v === 'string')) {
+      errors.push('Industry must be a string or an array of strings');
+    }
   }
   if (req.body.workNature !== undefined && !['remote','onsite','hybrid'].includes(req.body.workNature)) {
     errors.push('Invalid work nature');

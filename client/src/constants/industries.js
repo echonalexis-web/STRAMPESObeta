@@ -1,0 +1,25 @@
+// client/src/constants/industries.js
+// Canonical industry list for job postings. Mirrors server/data/industries.js.
+export const VALID_INDUSTRIES = [
+  "Agriculture",
+  "Arts & Entertainment",
+  "Construction & Engineering",
+  "Customer Service",
+  "Education",
+  "Environmental Services",
+  "Finance & Banking",
+  "Government & Public Administration",
+  "Healthcare",
+  "Hospitality & Tourism",
+  "Human Resources",
+  "Information Technology (IT)",
+  "Legal Services",
+  "Manufacturing",
+  "Marketing & Advertising",
+  "Media & Communications",
+  "Real Estate",
+  "Retail & Wholesale",
+  "Telecommunications",
+  "Transportation & Logistics",
+  "Others",
+];

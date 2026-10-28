@@ -18,6 +18,8 @@ function DocumentPicker({
   uploadFile,
   onUploadFile,
   currentFileHint,
+  nonEmptyHint,
+  emptyExtra,
 }) {
   const inputRef = useRef(null);
 
@@ -28,33 +30,39 @@ function DocumentPicker({
       </div>
 
       {documents.length === 0 ? (
-        <p className="apply-modal-empty">You haven't saved any {label.toLowerCase()} yet.</p>
+        <>
+          <p className="apply-modal-empty">You haven't saved any {label.toLowerCase()} yet.</p>
+          {emptyExtra}
+        </>
       ) : (
-        <div className="apply-modal-doc-grid">
-          {!required && (
-            <button
-              type="button"
-              className={`apply-modal-doc-card ${selection === NONE ? "is-selected" : ""}`}
-              onClick={() => onSelect(NONE)}
-            >
-              <span className="apply-modal-doc-title">None</span>
-            </button>
-          )}
-          {documents.map((doc) => (
-            <button
-              key={doc._id}
-              type="button"
-              className={`apply-modal-doc-card ${selection === doc._id ? "is-selected" : ""}`}
-              onClick={() => onSelect(doc._id)}
-            >
-              {selection === doc._id && <FaCheckCircle className="apply-modal-doc-check" />}
-              <span className="apply-modal-doc-title" title={doc.title}>{doc.title}</span>
-              <SecureFileLink value={doc.storedValue} className="apply-modal-doc-preview">
-                Preview
-              </SecureFileLink>
-            </button>
-          ))}
-        </div>
+        <>
+          {nonEmptyHint && <p className="apply-modal-picker-hint">{nonEmptyHint}</p>}
+          <div className="apply-modal-doc-grid">
+            {!required && (
+              <button
+                type="button"
+                className={`apply-modal-doc-card ${selection === NONE ? "is-selected" : ""}`}
+                onClick={() => onSelect(NONE)}
+              >
+                <span className="apply-modal-doc-title">None</span>
+              </button>
+            )}
+            {documents.map((doc) => (
+              <button
+                key={doc._id}
+                type="button"
+                className={`apply-modal-doc-card ${selection === doc._id ? "is-selected" : ""}`}
+                onClick={() => onSelect(doc._id)}
+              >
+                {selection === doc._id && <FaCheckCircle className="apply-modal-doc-check" />}
+                <span className="apply-modal-doc-title" title={doc.title}>{doc.title}</span>
+                <SecureFileLink value={doc.storedValue} className="apply-modal-doc-preview">
+                  Preview
+                </SecureFileLink>
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
       <div className="apply-modal-upload-row">
@@ -94,18 +102,39 @@ DocumentPicker.propTypes = {
   uploadFile: PropTypes.instanceOf(File),
   onUploadFile: PropTypes.func.isRequired,
   currentFileHint: PropTypes.string,
+  // Shown above the document grid when there's at least one — e.g. telling
+  // the applicant the single cover letter offered here is the one tailored
+  // for this specific job, not their whole library.
+  nonEmptyHint: PropTypes.string,
+  // Rendered below the "you haven't saved any..." message when the list is
+  // empty — e.g. a CTA to go create one, instead of just the plain text.
+  emptyExtra: PropTypes.node,
 };
 
-export default function ApplyModal({ isOpen, onClose, jobId, editMode = false, existingApplication = null, onSuccess }) {
+export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMode = false, existingApplication = null, onSuccess }) {
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [resumes, setResumes] = useState([]);
   const [coverLetters, setCoverLetters] = useState([]);
   const [resumeSelection, setResumeSelection] = useState("");
-  const [coverLetterSelection, setCoverLetterSelection] = useState(NONE);
+  const [coverLetterSelection, setCoverLetterSelection] = useState("");
   const [resumeUploadFile, setResumeUploadFile] = useState(null);
   const [coverLetterUploadFile, setCoverLetterUploadFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  const effectiveJobId = job?._id || jobId;
+
+  // The one saved cover letter (if any) actually generated from the Studio's
+  // "tailor for this job" flow (JobseekerDocument.sourceJobId) — never the
+  // whole library, so a fresh apply can't offer a letter the server would
+  // reject as untailored for this specific posting (see applyToJob's check).
+  const tailoredCoverLetter = effectiveJobId
+    ? coverLetters.find((d) => String(d.sourceJobId || "") === String(effectiveJobId))
+    : null;
+  // Editing an existing application isn't gated on tailoring — see
+  // handleSubmit — so its picker can keep showing the whole library,
+  // including whatever was already attached before this feature existed.
+  const coverLetterDocuments = editMode ? coverLetters : tailoredCoverLetter ? [tailoredCoverLetter] : [];
 
   useEffect(() => {
     if (!isOpen) return;
@@ -132,14 +161,16 @@ export default function ApplyModal({ isOpen, onClose, jobId, editMode = false, e
         const preselectedCover = existingApplication?.coverLetterDocumentId
           ? coverLetterDocs.find((d) => d._id === String(existingApplication.coverLetterDocumentId))
           : null;
+        const tailored = effectiveJobId
+          ? coverLetterDocs.find((d) => String(d.sourceJobId || "") === String(effectiveJobId))
+          : null;
 
         // Default to the applicant's designated primary document, falling
         // back to the most recently saved one when none is marked primary.
         const defaultResume = resumeDocs.find((d) => d.isPrimary) || resumeDocs[0];
-        const defaultCoverLetter = coverLetterDocs.find((d) => d.isPrimary);
 
         setResumeSelection(preselectedResume ? preselectedResume._id : defaultResume?._id || "");
-        setCoverLetterSelection(preselectedCover ? preselectedCover._id : defaultCoverLetter?._id || NONE);
+        setCoverLetterSelection(preselectedCover ? preselectedCover._id : tailored ? tailored._id : "");
       } catch {
         if (isCurrent) setError("Failed to load your saved documents.");
       } finally {
@@ -151,7 +182,7 @@ export default function ApplyModal({ isOpen, onClose, jobId, editMode = false, e
     return () => {
       isCurrent = false;
     };
-  }, [isOpen, existingApplication]);
+  }, [isOpen, existingApplication, effectiveJobId]);
 
   const handleSubmit = async () => {
     setError("");
@@ -159,6 +190,12 @@ export default function ApplyModal({ isOpen, onClose, jobId, editMode = false, e
     const hasResume = Boolean(resumeUploadFile) || (resumeSelection && resumeSelection !== NONE);
     if (!editMode && !hasResume) {
       setError("Please attach a resume before applying.");
+      return;
+    }
+
+    const hasCoverLetter = Boolean(coverLetterUploadFile) || Boolean(coverLetterSelection);
+    if (!editMode && !hasCoverLetter) {
+      setError("Please tailor a cover letter for this job before applying.");
       return;
     }
 
@@ -220,7 +257,8 @@ export default function ApplyModal({ isOpen, onClose, jobId, editMode = false, e
           <DocumentPicker
             label="Cover Letter"
             icon={<FaEnvelopeOpenText />}
-            documents={coverLetters}
+            required
+            documents={coverLetterDocuments}
             selection={coverLetterUploadFile ? "" : coverLetterSelection}
             onSelect={(id) => {
               setCoverLetterUploadFile(null);
@@ -235,6 +273,18 @@ export default function ApplyModal({ isOpen, onClose, jobId, editMode = false, e
               editMode && existingApplication?.coverLetterFile && !existingApplication?.coverLetterDocumentId
                 ? `Keep current: ${displayFileName(existingApplication.coverLetterFile)}`
                 : undefined
+            }
+            nonEmptyHint={!editMode ? "Tailored for this job:" : undefined}
+            emptyExtra={
+              !editMode && effectiveJobId ? (
+                <Link
+                  className="apply-modal-tailor-cta"
+                  to={`/profile/resume?mode=coverLetter&jobId=${effectiveJobId}`}
+                  onClick={onClose}
+                >
+                  <FaMagic /> Tailor a cover letter for this job
+                </Link>
+              ) : null
             }
           />
 
@@ -265,6 +315,12 @@ ApplyModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   jobId: PropTypes.string,
+  // The job being applied to — only its _id is used here, to find a saved
+  // cover letter tailored for this specific posting (JobseekerDocument.
+  // sourceJobId) and to link to the Studio's "tailor for this job" flow.
+  job: PropTypes.shape({
+    _id: PropTypes.string,
+  }),
   editMode: PropTypes.bool,
   existingApplication: PropTypes.shape({
     _id: PropTypes.string,

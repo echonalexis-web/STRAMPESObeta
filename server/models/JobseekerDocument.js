@@ -47,6 +47,17 @@ const jobseekerDocumentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Set only when this document was generated from the Resume & Cover
+    // Letter Studio's "tailor for this job" flow (ResumeStudio.jsx, reached
+    // from ApplyModal). Lets ApplyModal tell a cover letter actually written
+    // for THIS vacancy apart from a generic one saved for something else —
+    // never set for a plain upload or a Studio save started without a job
+    // target.
+    sourceJobId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "JobVacancy",
+      default: null,
+    },
   },
   { timestamps: true }
 );

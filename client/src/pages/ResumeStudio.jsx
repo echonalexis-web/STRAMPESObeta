@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   FaDownload,
   FaEnvelopeOpenText,
@@ -20,7 +20,7 @@ import {
   FaPalette,
   FaHighlighter,
 } from "react-icons/fa";
-import { authAPI, jobseekerDocumentAPI } from "../services/api";
+import { authAPI, jobAPI, jobseekerDocumentAPI } from "../services/api";
 import { useToast } from "../components/feedback/context";
 import { exportHtmlNodeToPdf, renderHtmlNodeToPdfBlob } from "../utils/exportUtils";
 import {
@@ -31,6 +31,7 @@ import {
   RESUME_SECTION_PRESETS,
 } from "../utils/resumeDerivation";
 import { applyTemplate as applyLetterTextTemplate, combineSections } from "../utils/coverLetterTemplates";
+import { buildProfileCoverLetterReplacements, buildJobMatchedCoverLetterReplacements } from "../utils/coverLetterDerivation";
 import { DOCUMENT_TEMPLATES, DEFAULT_TEMPLATE_KEY, getTemplateClassName } from "../data/resumeTemplates";
 import "../styles/resume-studio.css";
 
@@ -38,6 +39,7 @@ const LETTER_TONES = [
   { key: "professional", label: "Professional & Formal", description: "Standard government/corporate tone" },
   { key: "enthusiastic", label: "Enthusiastic & Passionate", description: "Highlights drive and community commitment" },
   { key: "concise", label: "Concise & Direct", description: "Brief, high-impact bullet style" },
+  { key: "firstTime", label: "First Job / No Experience", description: "For fresh graduates and first-time jobseekers — leads with education and eagerness to learn" },
 ];
 
 // Mirrors the section ids buildInitialResumeSections() always returns, so the
@@ -128,9 +130,13 @@ const setSectionDraftText = (sectionEl, text) => {
   sectionEl.dataset.generated = "true";
 };
 
-const buildLetterHtml = ({ name, contactLine, todayLabel, companyName, tone, jobTitle }) => {
+const buildLetterHtml = ({ name, contactLine, todayLabel, companyName, tone, jobTitle, extraReplacements = {} }) => {
   const applied = tone
-    ? applyLetterTextTemplate(tone, { "{position}": jobTitle || "this position", "{company}": companyName || "your company" })
+    ? applyLetterTextTemplate(tone, {
+        "{position}": jobTitle || "this position",
+        "{company}": companyName || "your company",
+        ...extraReplacements,
+      })
     : null;
   const combined = applied ? combineSections(applied) : "";
   const paragraphs = combined
@@ -154,10 +160,16 @@ const buildLetterHtml = ({ name, contactLine, todayLabel, companyName, tone, job
 
 export default function ResumeStudio() {
   const toast = useToast();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  // Present only when reached via ApplyModal's "Tailor a cover letter for
+  // this job" link — drives the auto-fill below and, once saved, where
+  // "Save to Library" sends the jobseeker back to (see handleSaveToLibrary).
+  const targetJobId = searchParams.get("jobId") || "";
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [targetJob, setTargetJob] = useState(null);
 
   const [mode, setMode] = useState(() => (searchParams.get("mode") === "coverLetter" ? "coverLetter" : "resume"));
   const [templateKey, setTemplateKey] = useState(DEFAULT_TEMPLATE_KEY);
@@ -197,14 +209,20 @@ export default function ResumeStudio() {
 
   useEffect(() => {
     let mounted = true;
-    authAPI
-      .getProfile()
-      .then(({ data }) => {
+    Promise.all([
+      authAPI.getProfile(),
+      // A bad/stale jobId shouldn't block loading the Studio itself — just
+      // fall back to the generic (non-job-aware) cover letter draft below.
+      targetJobId ? jobAPI.getJobById(targetJobId).catch(() => null) : Promise.resolve(null),
+    ])
+      .then(([{ data }, jobRes]) => {
         if (!mounted) return;
         const loadedUser = data?.user || null;
         const loadedProfile = data?.profile || null;
+        const loadedJob = jobRes?.data || null;
         setUser(loadedUser);
         setProfile(loadedProfile);
+        setTargetJob(loadedJob);
 
         const sections = buildInitialResumeSections(loadedUser, loadedProfile);
         // No hand-written "about" bio yet — seed a draft summary instead of
@@ -233,13 +251,29 @@ export default function ResumeStudio() {
           contactLine: derivedContact,
           sections,
         });
+
+        // Arriving with a target job pre-fills and auto-generates the letter
+        // body right away (company/position/tone), instead of waiting for
+        // the jobseeker to fill in the side panel and pick a tone by hand —
+        // the whole reason ApplyModal sent them here.
+        const letterCompany = loadedJob?.employer?.companyName || loadedJob?.employer?.name || "";
+        const letterTitle = loadedJob?.title || "";
+        const letterToneValue = loadedJob ? "professional" : "";
+        setLetterCompanyName(letterCompany);
+        setLetterJobTitle(letterTitle);
+        setLetterTone(letterToneValue);
+
         letterHtmlRef.current = buildLetterHtml({
           name: derivedName,
           contactLine: derivedContact,
           todayLabel,
-          companyName: "",
-          tone: "",
-          jobTitle: "",
+          companyName: letterCompany,
+          tone: letterToneValue,
+          jobTitle: letterTitle,
+          extraReplacements: {
+            ...buildProfileCoverLetterReplacements(loadedUser, loadedProfile),
+            ...buildJobMatchedCoverLetterReplacements(loadedJob),
+          },
         });
       })
       .finally(() => mounted && setLoading(false));
@@ -367,7 +401,12 @@ export default function ResumeStudio() {
      --------------------------------------------------------------- */
   const applyLetterTone = (tone) => {
     setLetterTone(tone);
-    const html = buildLetterHtml({ name, contactLine, todayLabel, companyName: letterCompanyName, tone, jobTitle: letterJobTitle });
+    // Picking a tone is the one click that also auto-fills the letter with
+    // the jobseeker's own skills/experience from their profile, instead of
+    // leaving generic "[list your key skills]" bracket placeholders to be
+    // filled in by hand.
+    const extraReplacements = buildProfileCoverLetterReplacements(user, profile);
+    const html = buildLetterHtml({ name, contactLine, todayLabel, companyName: letterCompanyName, tone, jobTitle: letterJobTitle, extraReplacements });
     letterHtmlRef.current = html;
     if (mode === "coverLetter" && canvasRef.current) canvasRef.current.innerHTML = html;
   };
@@ -502,7 +541,18 @@ export default function ResumeStudio() {
         kind: mode === "resume" ? "resume" : "coverLetter",
         title: filename,
         source: "builder",
+        // Tags this cover letter as tailored for the job that sent the
+        // jobseeker here, so ApplyModal's picker can offer it back — see
+        // JobseekerDocument.sourceJobId.
+        sourceJobId: mode === "coverLetter" && targetJobId ? targetJobId : undefined,
       });
+
+      if (mode === "coverLetter" && targetJobId) {
+        toast.success("Cover letter saved — taking you back to finish applying.");
+        navigate(`/jobs/${targetJobId}?apply=1`);
+        return;
+      }
+
       toast.success("Saved to your document library.");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save to your library.");
@@ -643,6 +693,15 @@ export default function ResumeStudio() {
               </section>
             ) : (
               <>
+                {targetJob && (
+                  <div className="rstudio-target-job-banner">
+                    Tailoring your cover letter for <strong>{targetJob.title}</strong>
+                    {targetJob.employer?.companyName || targetJob.employer?.name
+                      ? ` at ${targetJob.employer?.companyName || targetJob.employer?.name}`
+                      : ""}
+                    . Edit freely, then <strong>Save to Library</strong> to attach it and return to applying.
+                  </div>
+                )}
                 <section className="rstudio-section">
                   <h4>Writing Tone</h4>
                   <div className="rstudio-tone-list">

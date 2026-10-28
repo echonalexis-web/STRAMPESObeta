@@ -1,0 +1,79 @@
+/* Public navigation is isolated from the logged-in sidebar and its overlays. */
+.public-navbar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 1000;
+  height: 73px;
+  border-bottom: 3px solid #facc15;
+  background: linear-gradient(110deg, #103e24, #17613a);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+}
+
+.public-navbar * { box-sizing: border-box; }
+.public-navbar [hidden] { display: none; }
+.public-navbar a { text-decoration: none; }
+.public-navbar a:hover { opacity: 1; }
+.public-navbar :is(a, button):focus-visible { outline: 3px solid #facc15; outline-offset: 3px; }
+.public-nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; width: 100%; max-width: 1550px; height: 70px; margin: 0 auto; padding: 0 28px; }
+.public-nav-brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; min-height: 44px; color: #fff; border-radius: 6px; }
+.public-nav-brand img { width: 46px; height: 46px; object-fit: contain; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px #ffffff12; }
+.public-nav-brand strong { display: block; color: #fff; font: 800 21px/1.35 'Plus Jakarta Sans', sans-serif; letter-spacing: -.025em; }
+.public-nav-brand small { display: block; font-size: 9px; line-height: 1.6; color: #c5dfce; letter-spacing: .2em; text-transform: uppercase; }
+.public-nav-desktop { display: flex; align-items: center; gap: 26px; }
+.public-nav-links { display: flex; align-items: center; gap: clamp(18px, 2vw, 30px); }
+.public-nav-link { display: flex; align-items: center; position: relative; min-height: 48px; color: #e0eee5; font-size: 13px; line-height: 1.5; white-space: nowrap; }
+.public-nav-link:hover { color: #fff; }
+.public-nav-link[aria-current="page"] { color: #fff; font-weight: 600; }
+.public-nav-desktop .public-nav-link[aria-current="page"]::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: #facc15; border-radius: 2px; }
+.public-nav-actions { display: flex; align-items: center; gap: 10px; padding-left: 24px; border-left: 1px solid #ffffff25; }
+.public-nav-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; padding: 10px 19px; border: 1px solid #ffffff60; border-radius: 9px; background: transparent; color: #fff; font: 600 13px/1.5 'Inter', sans-serif; white-space: nowrap; cursor: pointer; }
+.public-nav-button:hover { background: #ffffff12; }
+.public-nav-button[aria-current="page"] { border-color: #facc15; }
+.public-nav-button--gold { background: #facc15; color: #143523; border-color: #facc15; }
+.public-nav-button--gold:hover { background: #fde047; }
+.public-nav-button--gold svg { width: 10px; transition: transform .15s ease; }
+.public-nav-button--gold[aria-expanded="true"] svg { transform: rotate(180deg); }
+.public-nav-register { position: relative; }
+.public-nav-dropdown { position: absolute; top: calc(100% + 12px); right: 0; width: 330px; max-height: calc(100dvh - 90px); overflow-y: auto; overscroll-behavior: contain; padding: 18px 12px 12px; border: 1px solid #e0e7e2; border-radius: 12px; background: #fff; color: #183f29; box-shadow: 0 12px 35px #052e1622; }
+.public-navbar .public-nav-caption { margin: 0 10px 8px; color: #5b6e61; font-size: 10px; font-weight: 600; line-height: 1.6; letter-spacing: .12em; text-transform: uppercase; }
+.public-nav-choice { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 12px 10px; border-radius: 8px; color: #183f29; }
+.public-nav-choice:hover, .public-nav-choice[aria-current="page"] { background: #f0f7f2; }
+.public-nav-choice-icon { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 9px; background: #edf5ef; color: #245739; }
+.public-nav-choice-icon svg { width: 18px; height: 18px; }
+.public-nav-choice-text { min-width: 0; }
+.public-nav-choice strong { display: block; color: #183f29; font-size: 13px; font-weight: 600; line-height: 1.5; }
+.public-nav-choice small { display: block; color: #586e60; font-size: 11px; line-height: 1.6; margin-top: 2px; }
+.public-nav-choice-arrow { margin-left: auto; width: 10px; flex-shrink: 0; color: #607b69; }
+.public-navbar :is(.public-nav-dropdown, .public-nav-mobile) :is(a, button):focus-visible { outline-color: #15803d; }
+.public-nav-toggle, .public-nav-mobile { display: none; }
+
+/* The fixed bar is 73px at every width; clear it on the existing home hero. */
+body:has(.public-navbar) .video-hero-section { margin-top: 73px; min-height: calc(100dvh - 73px); }
+body:has(.public-navbar) #available-jobs { scroll-margin-top: 85px; }
+
+@media (max-width: 1100px) {
+  .public-nav-inner { padding: 0 18px; gap: 12px; }
+  .public-nav-desktop { display: none; }
+  .public-nav-brand { gap: 10px; }
+  .public-nav-brand img { width: 38px; height: 38px; }
+  .public-nav-brand strong { font-size: 18px; }
+  .public-nav-brand small { font-size: 8px; }
+  .public-nav-toggle { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; padding: 10px; border: 1px solid #ffffff30; border-radius: 9px; background: #ffffff0b; color: #fff; font-size: 18px; }
+  .public-nav-toggle:hover { background: #ffffff18; }
+  .public-nav-mobile { display: block; position: absolute; top: 73px; left: 0; right: 0; max-height: calc(100dvh - 73px); overflow-y: auto; overscroll-behavior: contain; padding: 16px max(16px, calc((100% - 600px) / 2)) max(16px, env(safe-area-inset-bottom)); background: #fff; border-bottom: 1px solid #d8e2da; box-shadow: 0 12px 28px #052e1622; }
+  .public-nav-mobile-links { display: grid; gap: 2px; }
+  .public-nav-mobile .public-nav-link { min-height: 46px; padding: 10px 14px; border-radius: 8px; color: #405b49; white-space: normal; }
+  .public-nav-mobile .public-nav-link:hover { background: #f0f7f2; }
+  .public-nav-mobile .public-nav-link[aria-current="page"] { background: #edf6ef; color: #166534; font-weight: 600; }
+  .public-nav-mobile .public-nav-link[aria-current="page"]::after { content: ''; width: 6px; height: 6px; flex-shrink: 0; margin-left: auto; border-radius: 50%; background: #15803d; }
+  .public-nav-mobile-auth { margin-top: 12px; padding-top: 16px; border-top: 1px solid #e5ece7; }
+  .public-nav-button--green { width: 100%; background: #166534; border-color: #166534; color: #fff; white-space: normal; }
+  .public-nav-button--green:hover { background: #14532d; }
+  .public-nav-mobile .public-nav-caption { text-align: center; margin: 18px 0 6px; }
+  .public-nav-mobile .public-nav-choice { padding: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-navbar :is(a, button, svg) { transition: none; }
+}

@@ -1,0 +1,60 @@
+/* Registration uses the login design, with space for the longer applicant form. */
+.registration-role-switch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px;
+  margin-bottom: 28px;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.registration-role-switch a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: 8px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.registration-role-switch a:hover { background: #e2e8f0; }
+.registration-role-switch a[aria-current="page"] { background: #166534; color: #fff; }
+.registration-page .form-row { gap: 14px; }
+.registration-page .form-group { display: flex; flex-direction: column; gap: 0; }
+.registration-page .optional-label { color: #64748b; opacity: 1; font-size: 11px; }
+
+.registration-page .auth-form input {
+  height: 48px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.registration-page .auth-form input::placeholder { color: #64748b; }
+.registration-page .auth-form input:focus { border-color: #16a34a; box-shadow: 0 0 0 3px #16a34a26; }
+.registration-page .password-wrapper input { padding-right: 52px; }
+.registration-page .password-requirements { margin-top: 10px; backdrop-filter: none; }
+.registration-page .password-valid { color: #15803d; }
+.registration-page .auth-link { margin: 24px 0 0; border-top: 1px solid #e2e8f0; padding-top: 16px; color: #475569; font-size: 13px; }
+.registration-page .auth-link a { display: inline-flex; align-items: center; min-height: 44px; color: #15803d; font-weight: 700; }
+.registration-page :is(.auth-notice, .success-message) { padding: 16px; border: 1px solid #bbf7d0; border-radius: 10px; background: #f0fdf4; color: #166534; overflow-wrap: anywhere; }
+.registration-page .auth-notice p { color: #166534; font-size: 14px; }
+.registration-page :is(.auth-notice, .success-message) a { color: #166534; text-decoration: underline; }
+
+@media (min-width: 901px) and (max-width: 1100px) {
+  .registration-page .login-form-panel { padding-inline: 28px; }
+}
+
+@media (max-width: 480px) {
+  .registration-page .form-row { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .registration-role-switch { margin-bottom: 24px; }
+}

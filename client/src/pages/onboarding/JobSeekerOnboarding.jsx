@@ -1,5 +1,5 @@
 import { useContext, useMemo, useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { authAPI } from "../../services/api";
 import "../../styles/onboarding.css";
@@ -16,7 +16,14 @@ import collegeCourses from "../../data/philippine_college_courses.json";
 import PH_JOB_TITLES from "../../data/ph_job_titles_complete.json";
 import countriesData from "../../data/countries.json";
 import { ALL_LOCATIONS } from "../../utils/philippineLocations";
-import { parseHeightToCm, parseWeightToKg, wasConverted } from "../../utils/unitConversion";
+import HeightInput from "../../components/HeightInput";
+import WeightInput from "../../components/WeightInput";
+import { useSystemOptions } from "../../hooks/useSystemOptions";
+import { VALID_INDUSTRIES as INDUSTRY_OPTIONS_FALLBACK } from "../../constants/industries";
+import { GENDER_OPTIONS } from "../../constants/gender";
+import { CIVIL_STATUS_OPTIONS } from "../../constants/civilStatus";
+import { UNEMPLOYMENT_REASON_OPTIONS } from "../../constants/unemploymentReasons";
+import { WORK_HISTORY_STATUS_OPTIONS } from "../../constants/workHistoryStatus";
 
 // STRAM PESO accounts are for ages 15 and up (SPES applicants may be 15–30).
 const MIN_AGE = 15;
@@ -35,15 +42,6 @@ const RELIGIONS = [
   "Jehovah's Witnesses", "Members Church of God International (Ang Dating Daan)", "United Pentecostal Church",
   "Church of Jesus Christ of Latter-day Saints", "Baptist", "United Methodist Church", "Born Again Christian",
   "Buddhist", "Philippine Benevolent Missionaries Association (PBMA)", "Others",
-];
-
-const INDUSTRY_OPTIONS = [
-  "Information Technology (IT)", "Healthcare", "Finance & Banking", "Education",
-  "Construction & Engineering", "Manufacturing", "Retail & Wholesale", "Hospitality & Tourism",
-  "Transportation & Logistics", "Agriculture", "Media & Communications", "Real Estate",
-  "Government & Public Administration", "Legal Services", "Telecommunications",
-  "Marketing & Advertising", "Arts & Entertainment", "Human Resources", "Customer Service",
-  "Environmental Services", "Others"
 ];
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -269,6 +267,10 @@ export default function JobSeekerOnboarding() {
   const { user, login, setUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  // Admin-maintainable catalog (item 11) — live from the server, with the
+  // old hardcoded list as a fallback for first paint / offline.
+  const { options: INDUSTRY_OPTIONS } = useSystemOptions("industry", { fallback: INDUSTRY_OPTIONS_FALLBACK });
+
   const defaultState = {
     form: getInitialForm(user),
     preferredIndustries: [],
@@ -431,10 +433,6 @@ export default function JobSeekerOnboarding() {
   const courseUnknown = form.course === COURSE_UNKNOWN_VALUE;
   const toggleCourseUnknown = (checked) => setForm(prev => ({ ...prev, course: checked ? COURSE_UNKNOWN_VALUE : "" }));
 
-  const heightCm = useMemo(() => parseHeightToCm(form.height), [form.height]);
-  const heightConverted = heightCm !== null && wasConverted(form.height, heightCm) ? heightCm : null;
-  const weightKg = useMemo(() => parseWeightToKg(form.weight), [form.weight]);
-  const weightConverted = weightKg !== null && wasConverted(form.weight, weightKg) ? weightKg : null;
 
   const updateField = (name, value) => setForm(prev => ({ ...prev, [name]: value }));
 
@@ -639,8 +637,8 @@ export default function JobSeekerOnboarding() {
       data.append("civilStatus", form.civilStatus || "");
       data.append("placeOfBirth", form.placeOfBirth || "");
       data.append("citizenship", form.citizenship || "");
-      data.append("height", heightCm ?? "");
-      data.append("weight", weightKg ?? "");
+      data.append("height", form.height || "");
+      data.append("weight", form.weight || "");
       data.append("religion", form.religion || "");
       data.append("tin", form.tin || "");
       data.append("sssGsisNo", form.sssGsisNo || "");
@@ -720,10 +718,11 @@ export default function JobSeekerOnboarding() {
       </aside>
 
       <div className="onboarding-panel">
-        <section className="onboarding-card">
+        <header className="onboarding-topbar">
           {step <= LAST_STEP && (
-            <div className="onboarding-progress-mobile">
-              <div className="onboarding-progress-meta">Step {step} of {LAST_STEP} · {STEP_LABELS[step - 1]}</div>
+            <>
+              <div className="onboarding-progress-meta">Step {step} of {LAST_STEP}</div>
+              <h1 className="onboarding-topbar-title">{STEP_LABELS[step - 1]}</h1>
               <div className="onboarding-progress-track"><div className="onboarding-progress-fill" style={{ width: `${progress}%` }}></div></div>
               <div className="onboarding-mobile-step-pills" aria-label="Jump to setup step">
                 {STEP_LABELS.map((label, i) => {
@@ -745,27 +744,28 @@ export default function JobSeekerOnboarding() {
                   );
                 })}
               </div>
-            </div>
+            </>
           )}
+        </header>
+
+        <div className="onboarding-scroll">
+          <div className="onboarding-canvas">
       {step === 1 && (
         <div className="onboarding-step">
-          <h2>Personal Details</h2>
           <p className="onboarding-subtitle">Tell us about yourself so employers can get to know you.</p>
           <div className="onboarding-fields">
-            <div className="onboarding-field-grid">
+            <div className="onboarding-field-grid-4">
               <label>Surname <input type="text" value={form.surname || ""} onChange={e => updateField("surname", e.target.value)} disabled={saving} /></label>
               <label>First Name <input type="text" value={form.firstName || ""} onChange={e => updateField("firstName", e.target.value)} disabled={saving} /></label>
-            </div>
-            <div className="onboarding-field-grid">
               <label>Middle Name <span className="onboarding-optional">(optional)</span><input type="text" value={form.middleName || ""} onChange={e => updateField("middleName", e.target.value)} disabled={saving} /></label>
               <label>Suffix <span className="onboarding-optional">(optional)</span><input type="text" placeholder="Jr., III, etc." value={form.suffix || ""} onChange={e => updateField("suffix", e.target.value)} disabled={saving} /></label>
+              <label>Phone Number <input type="tel" value={form.phone || ""} onChange={e => updateField("phone", e.target.value)} disabled={saving} /></label>
+              <label>Date of Birth <input type="date" value={form.dateOfBirth || ""} onChange={e => updateField("dateOfBirth", e.target.value)} disabled={saving} /></label>
             </div>
-            <label>Phone Number <input type="tel" value={form.phone || ""} onChange={e => updateField("phone", e.target.value)} disabled={saving} /></label>
-            <label>Date of Birth <input type="date" value={form.dateOfBirth || ""} onChange={e => updateField("dateOfBirth", e.target.value)} disabled={saving} /></label>
             <div>
               <span className="onboarding-label">Gender</span>
               <div className="pill-row">
-                {["Male", "Female", "Prefer not to say"].map(opt => (
+                {GENDER_OPTIONS.map(opt => (
                   <button key={opt} type="button" className={`pill-btn ${form.gender === opt ? "active" : ""}`} onClick={() => updateField("gender", opt)} disabled={saving}>{opt}</button>
                 ))}
               </div>
@@ -785,7 +785,6 @@ export default function JobSeekerOnboarding() {
 
       {step === 2 && (
         <div className="onboarding-step">
-          <h2>Preferred Industries</h2>
           <p className="onboarding-subtitle">Select the industries you are most interested in working in.</p>
           <div className="industry-pills-grid">
             {INDUSTRY_OPTIONS.map(ind => (
@@ -800,6 +799,12 @@ export default function JobSeekerOnboarding() {
               </button>
             ))}
           </div>
+
+          {INDUSTRY_OPTIONS.length === 0 && (
+            <p className="onboarding-catalog-empty" role="status">
+              No industries are available right now. Please contact PESO support.
+            </p>
+          )}
 
           <div style={{ marginTop: '1.5rem' }}>
             <span className="onboarding-label">Preference Mode</span>
@@ -827,7 +832,6 @@ export default function JobSeekerOnboarding() {
 
       {step === 3 && (
         <div className="onboarding-step">
-          <h2>What are your skills?</h2>
           <p className="onboarding-subtitle">Add skills that showcase your abilities and experience.</p>
           <div className="skills-entry-row">
             <input type="text" value={skillInput} placeholder="Type a skill and press Enter" onChange={e => setSkillInput(e.target.value)} onKeyDown={handleSkillKeyDown} disabled={saving} />
@@ -859,7 +863,6 @@ export default function JobSeekerOnboarding() {
 
       {step === 4 && (
         <div className="onboarding-step">
-          <h2>Job Preferences</h2>
           <p className="onboarding-subtitle">Tell us what kind of work, location, and pay you're looking for.</p>
 
           <div className="onboarding-section">
@@ -943,7 +946,6 @@ export default function JobSeekerOnboarding() {
 
       {step === 5 && (
         <div className="onboarding-step">
-          <h2>Work Background</h2>
           <p className="onboarding-subtitle">Your education, language skills, and work history.</p>
 
           <div className="onboarding-section">
@@ -1097,10 +1099,9 @@ export default function JobSeekerOnboarding() {
                   <label>Status
                     <select value={entry.status || ""} onChange={e => updateListItem("workHistory", i, "status", e.target.value)} disabled={saving}>
                       <option value="">Select</option>
-                      <option value="Permanent">Permanent</option>
-                      <option value="Contractual">Contractual</option>
-                      <option value="Part-time">Part-time</option>
-                      <option value="Probationary">Probationary</option>
+                      {WORK_HISTORY_STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
                     </select>
                   </label>
                 </div>
@@ -1117,7 +1118,6 @@ export default function JobSeekerOnboarding() {
 
       {step === 6 && (
         <div className="onboarding-step">
-          <h2>Technical/Vocational Training &amp; Eligibility</h2>
           <p className="onboarding-subtitle">Optional — add any training, civil service eligibility, or professional licenses you have. You can skip this step and add these later from your profile.</p>
 
           <div className="onboarding-section">
@@ -1187,8 +1187,14 @@ export default function JobSeekerOnboarding() {
 
       {step === 7 && (
         <div className="onboarding-step">
-          <h2>NSRP Demographic Details</h2>
           <p className="onboarding-subtitle">Complete the NSRP Form 1 profile.</p>
+          <p className="onboarding-subtitle">
+            Civil status, citizenship, and place of birth are required. Everything else on this step
+            — including religion and government ID numbers, which are sensitive personal information
+            — is optional; feel free to leave it blank. See our{" "}
+            <Link to="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</Link>{" "}
+            for how this data is used and protected.
+          </p>
 
           <div className="onboarding-section">
             <h3 className="onboarding-section-title">
@@ -1200,12 +1206,9 @@ export default function JobSeekerOnboarding() {
                 <label>Civil Status
                   <select value={form.civilStatus || ""} onChange={e => updateField("civilStatus", e.target.value)} disabled={saving}>
                     <option value="">Select</option>
-                    <option value="Single">Single</option>
-                    <option value="Married">Married</option>
-                    <option value="Live-in">Live-in</option>
-                    <option value="Widowed">Widowed</option>
-                    <option value="Separated">Separated</option>
-                    <option value="Divorced">Divorced</option>
+                    {CIVIL_STATUS_OPTIONS.map((cs) => (
+                      <option key={cs} value={cs}>{cs}</option>
+                    ))}
                   </select>
                 </label>
                 <label>Citizenship <input type="text" value={form.citizenship || ""} onChange={e => updateField("citizenship", e.target.value)} disabled={saving} /></label>
@@ -1239,12 +1242,12 @@ export default function JobSeekerOnboarding() {
             </h3>
             <div className="onboarding-fields">
               <div className="onboarding-field-grid">
-                <label>TIN <input type="text" value={form.tin || ""} onChange={e => updateField("tin", e.target.value)} disabled={saving} /></label>
-                <label>GSIS/SSS ID No. <input type="text" value={form.sssGsisNo || ""} onChange={e => updateField("sssGsisNo", e.target.value)} disabled={saving} /></label>
+                <label>TIN <span className="onboarding-optional">(optional)</span> <input type="text" value={form.tin || ""} onChange={e => updateField("tin", e.target.value)} disabled={saving} /></label>
+                <label>GSIS/SSS ID No. <span className="onboarding-optional">(optional)</span> <input type="text" value={form.sssGsisNo || ""} onChange={e => updateField("sssGsisNo", e.target.value)} disabled={saving} /></label>
               </div>
               <div className="onboarding-field-grid">
-                <label>PAG-IBIG No. <input type="text" value={form.pagibigNo || ""} onChange={e => updateField("pagibigNo", e.target.value)} disabled={saving} /></label>
-                <label>PhilHealth No. <input type="text" value={form.philhealthNo || ""} onChange={e => updateField("philhealthNo", e.target.value)} disabled={saving} /></label>
+                <label>PAG-IBIG No. <span className="onboarding-optional">(optional)</span> <input type="text" value={form.pagibigNo || ""} onChange={e => updateField("pagibigNo", e.target.value)} disabled={saving} /></label>
+                <label>PhilHealth No. <span className="onboarding-optional">(optional)</span> <input type="text" value={form.philhealthNo || ""} onChange={e => updateField("philhealthNo", e.target.value)} disabled={saving} /></label>
               </div>
             </div>
           </div>
@@ -1256,14 +1259,14 @@ export default function JobSeekerOnboarding() {
             </h3>
             <div className="onboarding-fields">
               <div className="onboarding-field-grid">
-                <label>Height
-                  <input type="text" inputMode="decimal" placeholder={`e.g. 170 or 5'8"`} value={form.height || ""} onChange={e => updateField("height", e.target.value)} disabled={saving} />
-                  {heightConverted !== null && <span className="onboarding-unit-hint">≈ {heightConverted} cm</span>}
-                </label>
-                <label>Weight
-                  <input type="text" inputMode="decimal" placeholder="e.g. 65 or 143 lbs" value={form.weight || ""} onChange={e => updateField("weight", e.target.value)} disabled={saving} />
-                  {weightConverted !== null && <span className="onboarding-unit-hint">≈ {weightConverted} kg</span>}
-                </label>
+                <div>
+                  <label>Height</label>
+                  <HeightInput value={form.height} onChange={(next) => updateField("height", next)} disabled={saving} />
+                </div>
+                <div>
+                  <label>Weight</label>
+                  <WeightInput value={form.weight} onChange={(next) => updateField("weight", next)} disabled={saving} />
+                </div>
               </div>
             </div>
           </div>
@@ -1399,7 +1402,6 @@ export default function JobSeekerOnboarding() {
 
       {step === 8 && (
         <div className="onboarding-step">
-          <h2>Additional Demographics & Current Status</h2>
           <p className="onboarding-subtitle">A few last details to complete your profile.</p>
 
           <div className="onboarding-section">
@@ -1496,12 +1498,9 @@ export default function JobSeekerOnboarding() {
                   <label>Reason for Unemployment
                     <select value={form.unemploymentReason || ""} onChange={e => updateField("unemploymentReason", e.target.value)} disabled={saving}>
                       <option value="">Select</option>
-                      <option value="fresh_grad">Fresh Graduate</option>
-                      <option value="finished_contract">Finished Contract</option>
-                      <option value="resigned">Resigned</option>
-                      <option value="retired">Retired</option>
-                      <option value="laidoff_local">Laid off (Local)</option>
-                      <option value="laidoff_abroad">Laid off (Abroad)</option>
+                      {UNEMPLOYMENT_REASON_OPTIONS.map(({ value, label }) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
                     </select>
                   </label>
                   {form.unemploymentReason === "laidoff_abroad" && (
@@ -1516,7 +1515,6 @@ export default function JobSeekerOnboarding() {
 
       {step === 9 && (
         <div className="onboarding-step">
-          <h2>Add a profile photo</h2>
           <p className="onboarding-subtitle">
             Optional — a photo helps employers recognize you. You can skip this and add one later from your profile.
           </p>
@@ -1541,17 +1539,21 @@ export default function JobSeekerOnboarding() {
         </div>
       )}
 
-      {step <= LAST_STEP && (
-        <div className="onboarding-nav">
-          <button type="button" className="onboarding-secondary" onClick={handleBack} disabled={step === 1 || saving}>Back</button>
-          {step < LAST_STEP ? (
-            <button type="button" className="onboarding-primary" onClick={handleNext} disabled={saving}>Next</button>
-          ) : (
-            <button type="button" className="onboarding-primary" onClick={submitProfile} disabled={saving}>{saving ? "Finishing..." : "Finish Setup"}</button>
-          )}
+          </div>
         </div>
-      )}
-        </section>
+
+        {step <= LAST_STEP && (
+          <footer className="onboarding-footer-bar">
+            <div className="onboarding-nav">
+              <button type="button" className="onboarding-secondary" onClick={handleBack} disabled={step === 1 || saving}>Back</button>
+              {step < LAST_STEP ? (
+                <button type="button" className="onboarding-primary" onClick={handleNext} disabled={saving}>Next</button>
+              ) : (
+                <button type="button" className="onboarding-primary" onClick={submitProfile} disabled={saving}>{saving ? "Finishing..." : "Finish Setup"}</button>
+              )}
+            </div>
+          </footer>
+        )}
       </div>
     </div>
 

@@ -21,7 +21,15 @@ const { adminExportForm1, adminExportForm2 } = require("../controllers/nsrpFormC
 const {
   approveEmployerVerification,
   rejectEmployerVerification,
+  markEmployerVerificationUnderReview,
+  requestEmployerResubmission,
 } = require("../controllers/verificationController");
+const {
+  getMatchWeightDefaults,
+  updateMatchWeightDefaults,
+  getMatchWeightBounds,
+  updateMatchWeightBounds,
+} = require("../controllers/matchWeightsController");
 const { verifyToken: protect, isAdmin, isSuperadmin, authorizeRoles } = require("../middleware/auth");
 const {
   sanitizeRequestBody,
@@ -76,6 +84,20 @@ router.post(
   detectMaliciousPayload,
   rejectEmployerVerification
 );
+router.post(
+  "/employers/:id/verification/under-review",
+  authorizeRoles("admin"),
+  validateMongoId("id"),
+  markEmployerVerificationUnderReview
+);
+router.post(
+  "/employers/:id/verification/resubmission-required",
+  authorizeRoles("admin"),
+  validateMongoId("id"),
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  requestEmployerResubmission
+);
 
 // Job management
 router.get("/jobs", sanitizeQueryParams, getAdminVacancies);
@@ -93,6 +115,31 @@ router.put("/jobs/:id",
   validateQualifications,
   validateRequest,
   adminUpdateJob
+);
+
+// §C.1 — configurable job-matching weights. The platform-default profile
+// is reachable by admin and superadmin alike (this router's blanket isAdmin
+// above already lets both through); the per-criterion bounds are
+// superadmin-only, re-narrowed per-route exactly like /users/:id/role above
+// — and re-checked again inside the controller itself, since this is the
+// one surface in this feature that must never be reachable by a plain admin.
+router.get("/match-weight-defaults", getMatchWeightDefaults);
+router.put(
+  "/match-weight-defaults",
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  validateRequest,
+  updateMatchWeightDefaults
+);
+
+router.get("/match-weight-bounds", isSuperadmin, getMatchWeightBounds);
+router.put(
+  "/match-weight-bounds",
+  isSuperadmin,
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  validateRequest,
+  updateMatchWeightBounds
 );
 
 module.exports = router;

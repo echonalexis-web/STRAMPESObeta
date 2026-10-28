@@ -51,4 +51,8 @@ STRAMPESO_Mock_Defense_Revision_Document.pdf
 *.sw?
 *.local
 
+# Project-specific VS Code settings
+.vscode/settings.json
 
+# Claude local settings
+.claude/settings.local.json

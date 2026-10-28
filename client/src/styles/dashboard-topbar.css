@@ -17,16 +17,37 @@
   margin: 0 0 1.25rem;
 }
 
-/* Below 900px the main Navbar collapses into a fixed 76px top bar (see
-   navbar.css's own max-width:900px block) and body.app-with-sidebar only
-   keeps an 18px top padding — so this bar needs its own 58px of clearance
-   (76 - 18) to not render half-hidden underneath it, and its sticky offset
-   needs to match the navbar's height so it re-docks just below it on scroll
-   instead of back up at the very top of the viewport. */
+/* Below 900px the main Navbar collapses into its own compact mobile bar
+   with the same notification/message/settings icons this bar duplicates
+   (see navbar.css's own max-width:900px block) — redundant chrome on a
+   screen that's already tight on space, so its visible content is dropped
+   here.
+
+   It still has to stay in the DOM flow as an (invisible, collapsed) box
+   rather than `display: none`, though: its margin-top: 58px is quietly
+   load-bearing. The mobile navbar is a fixed 76px bar (see navbar.css),
+   while body.app-with-sidebar only adds 18px of its own clearance at this
+   width (76 - 58 = 18) — pages that render this bar (most of them) have no
+   top clearance of their own and depend on that combined 76px to not start
+   underneath the fixed navbar. Pages that skip this bar entirely (Settings,
+   Messages, Notifications, …) already add their own clearance instead, so
+   they're unaffected either way. Collapsing to zero visible height instead
+   of removing the box keeps that math intact while still getting rid of
+   the bar itself. */
 @media (max-width: 900px) {
   .dtb-root {
+    padding: 0;
     margin-top: 58px;
-    top: 76px;
+    margin-bottom: 0;
+    border-bottom: none;
+    box-shadow: none;
+    background: none;
+    min-height: 0;
+  }
+
+  .dtb-left,
+  .dtb-right {
+    display: none;
   }
 }
 
@@ -429,24 +450,3 @@
   max-width: 160px;
 }
 
-@media (max-width: 640px) {
-  .dtb-root {
-    padding: 0.75rem 0.9rem;
-  }
-
-  .dtb-title {
-    font-size: 1.1rem;
-  }
-
-  .dtb-user-text {
-    display: none;
-  }
-
-  .dtb-dropdown {
-    position: fixed;
-    top: auto;
-    left: 0.75rem;
-    right: 0.75rem;
-    width: auto;
-  }
-}

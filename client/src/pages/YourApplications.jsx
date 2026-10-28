@@ -34,13 +34,18 @@ const locationLine = (address) => {
 };
 
 const STATUS_META = {
-  pending:     { label: "Pending",      tone: "pending" },
-  applied:     { label: "Pending",      tone: "pending" },
-  reviewed:    { label: "Reviewed",     tone: "pending" },
-  shortlisted: { label: "Shortlisted",  tone: "shortlisted" },
-  accepted:    { label: "Accepted",     tone: "accepted" },
-  hired:       { label: "Hired",        tone: "accepted" },
-  rejected:    { label: "Not selected", tone: "rejected" },
+  pending:      { label: "Pending",      tone: "pending" },
+  applied:      { label: "Pending",      tone: "pending" },
+  // "reviewed" tolerated here for any row not yet migrated by
+  // server/scripts/migrateApplicationStatuses.js.
+  reviewed:     { label: "Under Review", tone: "under-review" },
+  under_review: { label: "Under Review", tone: "under-review" },
+  shortlisted:  { label: "Shortlisted",  tone: "shortlisted" },
+  approved:     { label: "Approved",     tone: "approved" },
+  accepted:     { label: "Accepted",     tone: "accepted" },
+  hired:        { label: "Hired",        tone: "accepted" },
+  rejected:     { label: "Not selected", tone: "rejected" },
+  withdrawn:    { label: "Withdrawn",    tone: "withdrawn" },
 };
 
 const statusMeta = (status) =>
@@ -49,10 +54,12 @@ const statusMeta = (status) =>
 const TABS = [
   { key: "all", label: "All", match: () => true },
   { key: "pending", label: "Pending", match: (s) => s === "pending" || s === "applied" },
-  { key: "reviewed", label: "Reviewed", match: (s) => s === "reviewed" },
+  { key: "under_review", label: "Under Review", match: (s) => s === "under_review" || s === "reviewed" },
   { key: "shortlisted", label: "Shortlisted", match: (s) => s === "shortlisted" },
+  { key: "approved", label: "Approved", match: (s) => s === "approved" },
   { key: "accepted", label: "Accepted", match: (s) => s === "accepted" || s === "hired" },
   { key: "rejected", label: "Rejected", match: (s) => s === "rejected" },
+  { key: "withdrawn", label: "Withdrawn", match: (s) => s === "withdrawn" },
 ];
 
 export default function YourApplications() {
@@ -259,6 +266,7 @@ export default function YourApplications() {
                         >
                           <FaRegEye /> View
                         </button>
+                        {application.status !== "withdrawn" && (
                         <button
                           type="button"
                           className="app-act app-act-edit"
@@ -267,6 +275,8 @@ export default function YourApplications() {
                         >
                           <FaPen /> Edit
                         </button>
+                        )}
+                        {!["withdrawn", "hired"].includes(String(application.status || "").toLowerCase()) && (
                         <button
                           type="button"
                           className="app-act app-act-withdraw"
@@ -274,6 +284,7 @@ export default function YourApplications() {
                         >
                           <FaTrashAlt /> Withdraw
                         </button>
+                        )}
                       </div>
                     </div>
                   );

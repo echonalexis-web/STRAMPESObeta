@@ -1264,3 +1264,180 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* §C.1 — Matching Weight Bounds (MatchWeightBoundsSettings.jsx) */
+.mwb {
+  margin-top: 1.5rem;
+}
+
+.mwb__head {
+  margin-bottom: 1rem;
+}
+
+.mwb__head h2 {
+  margin: 0 0 4px;
+  color: var(--sac-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.mwb__subtitle {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--sac-muted);
+  max-width: 640px;
+}
+
+.mwb__message {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.mwb__message.is-ok {
+  background: var(--sac-emerald-bg);
+  color: var(--sac-emerald-fg);
+}
+.mwb__message.is-error {
+  background: var(--sac-danger-bg);
+  color: var(--sac-danger);
+}
+
+.mwb__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.mwb__row {
+  display: grid;
+  grid-template-columns: 1fr 90px 90px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--sac-border);
+}
+.mwb__row--header {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sac-muted);
+  border-bottom: 2px solid var(--sac-border-strong);
+}
+.mwb__row.is-invalid {
+  background: var(--sac-danger-bg);
+}
+
+.mwb__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--sac-text);
+}
+
+.mwb__row input[type="number"] {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--sac-border-strong);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+.mwb__row input[type="number"]:disabled {
+  opacity: 0.6;
+}
+
+@media (max-width: 520px) {
+  .mwb__row {
+    grid-template-columns: 1fr 70px 70px;
+    gap: 8px;
+  }
+}
+
+/* ── System options catalog (industries / job types / government ID types) ── */
+.so__tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.so__tab {
+  padding: 8px 14px;
+  border: 1px solid var(--sac-border-strong);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #475569;
+}
+.so__tab.is-active {
+  background: #1a2a3a;
+  border-color: #1a2a3a;
+  color: #fff;
+}
+
+.so__add-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.so__add-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--sac-border-strong);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.so__empty {
+  color: #7a8a9a;
+  font-size: 0.9rem;
+}
+
+.so__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.so__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--sac-border);
+  border-radius: 8px;
+}
+.so__item.is-inactive {
+  opacity: 0.6;
+  background: #f8fafc;
+}
+.so__value {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a2a3a;
+}
+.so__badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #b45309;
+  background: #fff4e2;
+  border: 1px solid #fcd34d;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.so__item-actions {
+  display: flex;
+  gap: 6px;
+}
+.so__delete {
+  color: #b91c1c;
+  border-color: #fecaca;
+}

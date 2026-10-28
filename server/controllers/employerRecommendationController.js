@@ -3,6 +3,8 @@ const JobApplication = require('../models/JobApplication');
 const User = require('../models/User');
 const JobseekerProfile = require('../models/JobseekerProfile');
 const { rankApplicantsByJob } = require('../services/semanticService');
+const { SEEKER_USER_FIELDS, SEEKER_PROFILE_FIELDS } = require('../services/matchProfileService');
+const { resolveJobWeightsForScoring } = require('../services/matchWeightsService');
 
 /**
  * GET /api/employer/jobs/:jobId/applicants/ranked
@@ -11,7 +13,9 @@ const { rankApplicantsByJob } = require('../services/semanticService');
 exports.getRankedApplicants = async (req, res) => {
   try {
     const { jobId } = req.params;
-    const { limit = 50, skip = 0 } = req.query;
+    const { limit = 50, skip = 0, sortBy, onlyMeetsRequired } = req.query;
+    const normalizedSortBy = ['mustHaves', 'date', 'name'].includes(sortBy) ? sortBy : 'match';
+    const requireAllMustHaves = onlyMeetsRequired === 'true' || onlyMeetsRequired === true;
 
     // 1. Find the job (with the employer's industry, used as a fallback when
     //    the job itself has no industry set).
@@ -26,11 +30,18 @@ exports.getRankedApplicants = async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    // 3. Fetch applications with applicant user and profile
-    let applications = await JobApplication.find({ vacancy: jobId })
+    // 3. Fetch applications with applicant user and profile. The matching
+    //    fields (SEEKER_USER_FIELDS) are combined with display-only fields
+    //    this controller's own response formatting needs — see
+    //    server/services/matchProfileService.js for why the matching subset
+    //    is centralized rather than hand-typed here.
+    // An employer should never see an application the candidate withdrew
+    // from — same as before withdrawal had its own status, when the row
+    // simply didn't exist.
+    let applications = await JobApplication.find({ vacancy: jobId, status: { $ne: 'withdrawn' } })
       .populate({
         path: 'applicant',
-        select: 'name email phone address about desiredJobTitle workExperience educationalAttainment skills dateOfBirth isActive',
+        select: `name email phone address about isActive ${SEEKER_USER_FIELDS}`,
       })
       .lean();
 
@@ -38,7 +49,7 @@ exports.getRankedApplicants = async (req, res) => {
     applications = applications.filter(app => app.applicant && app.applicant.isActive !== false);
 
     if (!applications.length) {
-      return res.json({ applicants: [], total: 0 });
+      return res.json({ applicants: [], total: 0, filteredTotal: 0, disqualifiedCount: 0 });
     }
 
     // 4. Fetch jobseeker profiles for these applicants. Pull the NSRP Form 1
@@ -46,11 +57,7 @@ exports.getRankedApplicants = async (req, res) => {
     //    work history, trainings, eligibilities, licenses, industry prefs).
     const applicantIds = applications.map(app => app.applicant._id);
     const profiles = await JobseekerProfile.find({ userId: { $in: applicantIds } })
-      .select(
-        'userId skills expectedSalaryMin expectedSalaryMax preferredIndustries ' +
-        'preferredOccupations course schoolAttended yearGraduated workHistory ' +
-        'vocationalTrainings eligibilities professionalLicenses languageProficiency'
-      )
+      .select(`userId ${SEEKER_PROFILE_FIELDS}`)
       .lean();
 
     const profileMap = {};
@@ -87,12 +94,26 @@ exports.getRankedApplicants = async (req, res) => {
           eligibilities: Array.isArray(profile.eligibilities) ? profile.eligibilities : [],
           professionalLicenses: Array.isArray(profile.professionalLicenses) ? profile.professionalLicenses : [],
           languageProficiency: profile.languageProficiency || null,
+          presentAddress: profile.presentAddress && typeof profile.presentAddress === 'object' ? profile.presentAddress : null,
+          preferredWorkLocationLocal: Array.isArray(profile.preferredWorkLocationLocal) ? profile.preferredWorkLocationLocal : [],
+          preferredJobTypes: Array.isArray(profile.preferredJobTypes) ? profile.preferredJobTypes : [],
+          preferredWorkNature: Array.isArray(profile.preferredWorkNature) ? profile.preferredWorkNature : [],
         },
       };
     });
 
-    // 6. Rank
-    const ranked = rankApplicantsByJob(job, applicantsForRanking, { limit: Number(limit), skip: Number(skip) });
+    // 6. Rank — §C.1: resolve this job's effective weights (per-vacancy
+    //    override → employer default → admin default → code fallback)
+    //    once, up front. At most 3 small indexed lookups, never one per
+    //    applicant.
+    const weights = await resolveJobWeightsForScoring(job);
+    const { items: ranked, total, filteredTotal, disqualifiedCount } = rankApplicantsByJob(job, applicantsForRanking, {
+      limit: Number(limit),
+      skip: Number(skip),
+      sortBy: normalizedSortBy,
+      onlyMeetsRequired: requireAllMustHaves,
+      weights,
+    });
 
     // 7. Format response (clean up)
     const formatted = ranked.map(item => ({
@@ -114,12 +135,20 @@ exports.getRankedApplicants = async (req, res) => {
       interview: item.interview || null,
       relevanceScore: item.relevanceScore,
       matchBreakdown: item.matchBreakdown || null,
+      checklistMatch: item.checklistMatch || null,
       disqualified: item.disqualified || null,
     }));
 
     res.json({
       applicants: formatted,
-      total: applications.length,
+      // `total` is every applicant to this job, unaffected by the
+      // must-haves filter; `filteredTotal` is the count pagination is
+      // actually computed against once onlyMeetsRequired narrows it.
+      total,
+      filteredTotal,
+      // Count of applicants outside this job's age range — see §B.3: a hard
+      // gate should never be a silent deletion from the list.
+      disqualifiedCount,
       limit: Number(limit),
       skip: Number(skip),
     });

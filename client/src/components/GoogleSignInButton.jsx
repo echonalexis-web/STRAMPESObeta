@@ -30,8 +30,9 @@ const loadGis = () => {
  * @param {(credential: string) => void} onCredential  called with the ID token
  * @param {(err: Error) => void} [onError]
  * @param {string} [text]  GIS button text: "signin_with" | "signup_with" | "continue_with"
+ * @param {boolean} [fullWidth]  Fit the official button to its container (up to 400px).
  */
-export default function GoogleSignInButton({ onCredential, onError, text = "continue_with" }) {
+export default function GoogleSignInButton({ onCredential, onError, text = "continue_with", fullWidth = false }) {
   const targetRef = useRef(null);
   // Keep the latest callbacks without re-running the init effect.
   const onCredentialRef = useRef(onCredential);
@@ -42,6 +43,7 @@ export default function GoogleSignInButton({ onCredential, onError, text = "cont
   useEffect(() => {
     if (!CLIENT_ID) return;
     let cancelled = false;
+    let resizeObserver;
 
     loadGis()
       .then(() => {
@@ -52,21 +54,35 @@ export default function GoogleSignInButton({ onCredential, onError, text = "cont
             if (response?.credential) onCredentialRef.current?.(response.credential);
           },
         });
-        window.google.accounts.id.renderButton(targetRef.current, {
-          theme: "outline",
-          size: "large",
-          shape: "pill",
-          text,
-          logo_alignment: "left",
-          width: 320,
-        });
+        const target = targetRef.current;
+        let lastWidth;
+        const renderButton = () => {
+          if (cancelled) return;
+          const width = fullWidth ? Math.min(400, Math.floor(target.clientWidth)) : 320;
+          if (!width || width === lastWidth) return;
+          lastWidth = width;
+          window.google.accounts.id.renderButton(target, {
+            theme: "outline",
+            size: "large",
+            shape: fullWidth ? "rectangular" : "pill",
+            text,
+            logo_alignment: "left",
+            width,
+          });
+        };
+        renderButton();
+        if (fullWidth) {
+          resizeObserver = new ResizeObserver(renderButton);
+          resizeObserver.observe(target);
+        }
       })
       .catch((err) => onErrorRef.current?.(err));
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
     };
-  }, [text]);
+  }, [text, fullWidth]);
 
   if (!CLIENT_ID) return null;
 

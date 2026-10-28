@@ -332,16 +332,28 @@ exports.getProvincialAnalytics = async (req, res) => {
         },
       ]),
       JobVacancy.aggregate([
+        { $match: { ...vacancyFilter, isActive: true } },
+        // `industry` is an array (a job can be tagged with more than one) —
+        // normalize to a clean array (wrapping a not-yet-migrated plain
+        // string, and dropping null/"" entries either way) before unwinding
+        // so each industry gets its own count instead of grouping by the
+        // whole array value or counting a blank as a category.
         {
-          $match: {
-            ...vacancyFilter,
-            isActive: true,
-            industry: { $ne: "" },
+          $addFields: {
+            industryList: {
+              $filter: {
+                input: { $cond: [{ $isArray: "$industry" }, "$industry", ["$industry"]] },
+                as: "ind",
+                cond: { $and: [{ $ne: ["$ind", null] }, { $ne: ["$ind", ""] }] },
+              },
+            },
           },
         },
+        { $match: { industryList: { $ne: [] } } },
+        { $unwind: "$industryList" },
         {
           $group: {
-            _id: "$industry",
+            _id: "$industryList",
             vacancies: { $sum: { $max: ["$slots", 1] } },
           },
         },
@@ -769,7 +781,9 @@ exports.getAdminVacancies = async (req, res) => {
         description: job.description,
         location: job.location,
         municipality: municipalityLabel,
-        industry: job.industry || "General",
+        // `job.industry` is an array; join for display (also tolerates a
+        // not-yet-migrated plain string).
+        industry: (Array.isArray(job.industry) ? job.industry : [job.industry]).filter(Boolean).join(", ") || "General",
         jobType: job.jobType,
         salary: job.salary || (job.salaryMin && job.salaryMax ? `₱${job.salaryMin} - ₱${job.salaryMax}` : "Not specified"),
         salaryMin: job.salaryMin,

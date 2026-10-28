@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
-import { useState, useContext, useEffect, useCallback } from "react";
+import { useState, useContext, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { employerAPI, adminAPI } from "../services/api";
+import { employerAPI, adminAPI, jobAPI } from "../services/api";
 import "../styles/post-job.css";
 import {
   FaBriefcase,
@@ -20,14 +20,19 @@ import {
   FaClipboardList,
   FaCoins,
   FaUsers,
-  FaClock,
   FaInfoCircle,
+  FaMinus,
+  FaPlus,
+  FaCheck,
+  FaSlidersH,
 } from "react-icons/fa";
 import LocationSelect from "../components/LocationSelect";
 import QualificationsEditor from "../components/QualificationsEditor";
 import BasicRequirements from "../components/BasicRequirements";
 import Autosuggest from "../components/Autosuggest";
+import MatchWeightsEditor from "../components/MatchWeightsEditor";
 import { useToast } from "../components/feedback/context";
+import { CODE_FALLBACK_WEIGHTS } from "../utils/qualifications";
 import PH_JOB_TITLES from "../data/ph_job_titles_complete.json";
 import {
   EMPTY_BASIC_REQUIREMENTS,
@@ -37,46 +42,35 @@ import {
 } from "../utils/basicRequirements";
 import VacancyCard from "../components/VacancyCard";
 import { usePersistentState } from "../hooks/usePersistentState";
-
-const VALID_INDUSTRIES = [
-  "Information Technology (IT)",
-  "Healthcare",
-  "Finance & Banking",
-  "Education",
-  "Construction & Engineering",
-  "Manufacturing",
-  "Retail & Wholesale",
-  "Hospitality & Tourism",
-  "Transportation & Logistics",
-  "Agriculture",
-  "Media & Communications",
-  "Real Estate",
-  "Government & Public Administration",
-  "Legal Services",
-  "Telecommunications",
-  "Marketing & Advertising",
-  "Arts & Entertainment",
-  "Human Resources",
-  "Customer Service",
-  "Environmental Services",
-  "Others"
-];
-
-const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship", "Temporary", "Remote"];
-const JOB_TYPE_ICONS = {
-  "Full-time": "💼",
-  "Part-time": "⏰",
-  Contract: "📋",
-  Internship: "🎓",
-  Temporary: "📅",
-  Remote: "🌐",
-};
+import { useSystemOptions } from "../hooks/useSystemOptions";
+import { VALID_INDUSTRIES as INDUSTRIES_FALLBACK } from "../constants/industries";
+import { JOB_TYPES as JOB_TYPES_FALLBACK, JOB_TYPE_LABELS } from "../constants/jobTypes";
 
 const WORK_NATURES = [
   { value: "onsite", label: "Onsite" },
   { value: "remote", label: "Remote" },
   { value: "hybrid", label: "Hybrid" },
 ];
+
+const TITLE_QUICK_FILLS = ["Service Crew", "Cashier", "Kitchen Staff", "Delivery Rider"];
+
+const DEADLINE_QUICK_PICKS = [
+  { id: "1w", label: "1 week", days: 7 },
+  { id: "2w", label: "2 weeks", days: 14 },
+  { id: "1m", label: "1 month", days: 30 },
+];
+
+const DESCRIPTION_SECTIONS = [
+  { id: "responsibilities", label: "Responsibilities", heading: "Responsibilities", lines: ["", ""] },
+  { id: "schedule", label: "Work schedule", heading: "Work Schedule", lines: [""] },
+  { id: "benefits", label: "Benefits", heading: "Benefits", lines: ["", ""] },
+];
+
+const addDaysIso = (days) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+};
 
 const formatSalaryPreview = (min, max) => {
   const hasMin = min !== "" && min !== null && min !== undefined && Number.isFinite(Number(min));
@@ -93,7 +87,7 @@ const getInitialFormData = () => ({
   location: "",
   salaryMin: "",
   salaryMax: "",
-  industry: "",
+  industry: [],
   jobType: "Full-time",
   workNature: "",
   slots: 1,
@@ -109,17 +103,30 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
   const navigate = useNavigate();
   const toast = useToast();
 
+  // Admin-maintainable catalogs (item 11) — live from the server, with the
+  // old hardcoded lists as a fallback for first paint / offline.
+  const { options: VALID_INDUSTRIES } = useSystemOptions("industry", { fallback: INDUSTRIES_FALLBACK });
+  const { options: JOB_TYPES } = useSystemOptions("jobType", {
+    fallback: JOB_TYPES_FALLBACK,
+    extra: ["Remote"],
+  });
+
+  // Tolerates a not-yet-migrated vacancy where `industry` is still a plain
+  // string (server/scripts/migrateIndustryToArray.js backfills these).
+  const normalizeIndustry = (value) => (Array.isArray(value) ? value : (value ? [value] : []));
+
   const defaultState = {
     formData: initialJob ? {
       ...getInitialFormData(),
       ...initialJob,
       salaryMin: initialJob.salaryMin ?? "",
       salaryMax: initialJob.salaryMax ?? "",
+      industry: normalizeIndustry(initialJob.industry),
       workNature: initialJob.workNature || "",
       applicationDeadline: initialJob.applicationDeadline ? initialJob.applicationDeadline.slice(0, 10) : "",
       ...pickBasicRequirements(initialJob),
     } : getInitialFormData(),
-    activeSection: "details",
+    activeSection: "basics",
   };
 
   // Normalize form data to ensure arrays exist
@@ -127,6 +134,7 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
     return {
       ...getInitialFormData(),
       ...data,
+      industry: normalizeIndustry(data?.industry),
       qualifications: Array.isArray(data?.qualifications) ? data.qualifications : [],
       languageRequirements: Array.isArray(data?.languageRequirements) ? data.languageRequirements : [],
     };
@@ -176,6 +184,76 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
   const [postTemplateName, setPostTemplateName] = useState("");
   const [savingPostTemplate, setSavingPostTemplate] = useState(false);
   const [postTemplateMsg, setPostTemplateMsg] = useState("");
+
+  // §C.1 — per-vacancy job-matching weight override. A separate resource
+  // (GET/PUT/DELETE /api/jobs/:id/match-weights) from the job's own CRUD
+  // endpoint, so it only applies — and only has an id to save against — once
+  // the job itself already exists; a brand-new, not-yet-posted job has
+  // nowhere to save an override to, so this section only renders while
+  // editing. NOTE: that backend endpoint doesn't exist yet — see
+  // markdowns/MATCH_WEIGHTS_BACKEND_HANDOFF.md for the contract this calls.
+  const [matchWeightsOverride, setMatchWeightsOverride] = useState(null); // null = no override saved
+  const [matchWeightsEmployerDefault, setMatchWeightsEmployerDefault] = useState(null);
+  const [matchWeightBounds, setMatchWeightBounds] = useState(null);
+  const [useCustomMatchWeights, setUseCustomMatchWeights] = useState(false);
+  const [matchWeightsLoaded, setMatchWeightsLoaded] = useState(false);
+  const [matchWeightsLoading, setMatchWeightsLoading] = useState(false);
+  const [matchWeightsSaving, setMatchWeightsSaving] = useState(false);
+  const [matchWeightsError, setMatchWeightsError] = useState("");
+
+  useEffect(() => {
+    if (!isEditing || !initialJob?._id || matchWeightsLoaded) return;
+    let cancelled = false;
+    setMatchWeightsLoading(true);
+    jobAPI.getMatchWeights(initialJob._id)
+      .then((res) => {
+        if (cancelled) return;
+        setMatchWeightsOverride(res.data?.weights || null);
+        setMatchWeightsEmployerDefault(res.data?.employerDefault || null);
+        setMatchWeightBounds(res.data?.bounds || null);
+        setUseCustomMatchWeights(Boolean(res.data?.isCustom));
+        setMatchWeightsLoaded(true);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setMatchWeightsError(
+          err.response?.status === 404
+            ? "Custom matching weights aren't available yet — this feature's backend is still being built."
+            : err.response?.data?.message || "Failed to load this job's matching weights."
+        );
+      })
+      .finally(() => { if (!cancelled) setMatchWeightsLoading(false); });
+    return () => { cancelled = true; };
+  }, [isEditing, initialJob?._id, matchWeightsLoaded]);
+
+  const handleSaveMatchWeightsOverride = async (weights) => {
+    setMatchWeightsSaving(true);
+    setMatchWeightsError("");
+    try {
+      const res = await jobAPI.updateMatchWeights(initialJob._id, { weights });
+      setMatchWeightsOverride(res.data?.weights || weights);
+      toast.success("Custom matching weights saved for this job");
+    } catch (err) {
+      setMatchWeightsError(err.response?.data?.message || "Failed to save this job's matching weights.");
+    } finally {
+      setMatchWeightsSaving(false);
+    }
+  };
+
+  const handleRemoveMatchWeightsOverride = async () => {
+    setMatchWeightsSaving(true);
+    setMatchWeightsError("");
+    try {
+      await jobAPI.resetMatchWeights(initialJob._id);
+      setMatchWeightsOverride(null);
+      setUseCustomMatchWeights(false);
+      toast.success("Reverted to your default matching weights");
+    } catch (err) {
+      setMatchWeightsError(err.response?.data?.message || "Failed to remove this job's custom weights.");
+    } finally {
+      setMatchWeightsSaving(false);
+    }
+  };
 
   const loadQualTemplates = async () => {
     try {
@@ -229,7 +307,7 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
         if (!value || value.length === 0) errors.qualifications = "At least one qualification is required";
         break;
       case "industry":
-        if (!value.trim()) errors.industry = "Industry is required";
+        if (!Array.isArray(value) || value.length === 0) errors.industry = "Select at least one industry";
         break;
       case "slots":
         if (value < 1) errors.slots = "Min 1 slot";
@@ -323,63 +401,53 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
     return "";
   })();
 
-  const [useRegisteredBusinessAddress, setUseRegisteredBusinessAddress] = useState(false);
+  // Defaults to the registered address (per-section "Pay & location" uses a
+  // summary card, not a checkbox) — "Use a different location" switches to
+  // the cascading picker below. A brand-new (create-mode) draft with no
+  // location yet and a usable registered address auto-adopts it once.
+  const [useRegisteredBusinessAddress, setUseRegisteredBusinessAddress] = useState(
+    () => !isEditing && Boolean(registeredBusinessAddress) && !defaultState.formData.location
+  );
   const [locationSelectResetKey, setLocationSelectResetKey] = useState(0);
+  const appliedDefaultAddressRef = useRef(false);
 
-  // Update location when checkbox state or registered address changes
   useEffect(() => {
-    if (!useRegisteredBusinessAddress) return;
-
-    const nextLocation = registeredBusinessAddress || "";
-    if (formData.location !== nextLocation) {
-      setFormData((prev) => ({ ...prev, location: nextLocation }));
+    if (isEditing || appliedDefaultAddressRef.current) return;
+    if (!useRegisteredBusinessAddress || !registeredBusinessAddress) return;
+    if (formData.location) {
+      appliedDefaultAddressRef.current = true;
+      return;
     }
+    appliedDefaultAddressRef.current = true;
+    setFormData((prev) => ({ ...prev, location: registeredBusinessAddress }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useRegisteredBusinessAddress, registeredBusinessAddress, isEditing]);
 
-    const nextError = registeredBusinessAddress
-      ? ""
-      : "No registered business address found. Please update your profile.";
+  const handleUseRegisteredAddress = () => {
+    setUseRegisteredBusinessAddress(true);
+    if (registeredBusinessAddress) {
+      setFormData((prev) => ({ ...prev, location: registeredBusinessAddress }));
+      setValidationErrors((prev) => ({ ...prev, location: "" }));
+    } else {
+      setValidationErrors((prev) => ({ ...prev, location: "No registered business address found. Please update your profile." }));
+    }
+    setTouched((prev) => ({ ...prev, location: true }));
+  };
 
-    setValidationErrors((prev) => {
-      if (prev.location === nextError) return prev;
-      return { ...prev, location: nextError };
-    });
-  }, [useRegisteredBusinessAddress, registeredBusinessAddress, formData.location, setFormData]);
+  const handleUseDifferentLocation = () => {
+    setUseRegisteredBusinessAddress(false);
+    setFormData((prev) => ({ ...prev, location: "" }));
+    setLocationSelectResetKey((prev) => prev + 1);
+    setTouched((prev) => ({ ...prev, location: true }));
+    setValidationErrors((prev) => ({ ...prev, location: "Location is required" }));
+  };
 
   const handleLocationChange = (nextLocation) => {
-    setUseRegisteredBusinessAddress(false);
     setFormData((prev) => ({ ...prev, location: nextLocation }));
     if (touched.location) {
       const errs = validateField("location", nextLocation);
       setValidationErrors((prev) => ({ ...prev, ...errs }));
     }
-  };
-
-  const handleUseRegisteredBusinessAddressToggle = (nextValue) => {
-    setUseRegisteredBusinessAddress(nextValue);
-
-    if (!nextValue) {
-      setPersistedState((prev) => ({
-        ...prev,
-        formData: {
-          ...prev.formData,
-          location: "",
-        },
-      }));
-      setFormData((prev) => ({ ...prev, location: "" }));
-      setLocationSelectResetKey((prev) => prev + 1);
-      setTouched((prev) => ({ ...prev, location: true }));
-      setValidationErrors((prev) => ({ ...prev, location: "Location is required" }));
-      return;
-    }
-
-    if (registeredBusinessAddress) {
-      setFormData((prev) => ({ ...prev, location: registeredBusinessAddress }));
-      setValidationErrors((prev) => ({ ...prev, location: "" }));
-    } else {
-      setFormData((prev) => ({ ...prev, location: "" }));
-      setValidationErrors((prev) => ({ ...prev, location: "No registered business address found. Please update your profile." }));
-    }
-    setTouched((prev) => ({ ...prev, location: true }));
   };
 
   const handleQualificationsChange = (newQuals) => {
@@ -388,6 +456,76 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
       const errs = validateField("qualifications", newQuals);
       setValidationErrors((prev) => ({ ...prev, ...errs }));
     }
+  };
+
+  // ---- Job basics: title quick-fill, job-type chips, slots stepper, description sections ----
+  const applyTitleQuickFill = (title) => {
+    setFormData((prev) => ({ ...prev, title }));
+    setTouched((prev) => ({ ...prev, title: true }));
+    setValidationErrors((prev) => ({ ...prev, ...validateField("title", title) }));
+  };
+
+  const setJobType = (jobType) => setFormData((prev) => ({ ...prev, jobType }));
+
+  const toggleIndustry = (industry) => {
+    setFormData((prev) => ({
+      ...prev,
+      industry: prev.industry.includes(industry)
+        ? prev.industry.filter((item) => item !== industry)
+        : [...prev.industry, industry],
+    }));
+    setTouched((prev) => ({ ...prev, industry: true }));
+    setValidationErrors((prev) => ({
+      ...prev,
+      ...validateField("industry", formData.industry.includes(industry)
+        ? formData.industry.filter((item) => item !== industry)
+        : [...formData.industry, industry]),
+    }));
+  };
+
+  const adjustSlots = (delta) => {
+    setFormData((prev) => {
+      const next = Math.min(100, Math.max(1, (Number(prev.slots) || 1) + delta));
+      return { ...prev, slots: next };
+    });
+    setTouched((prev) => ({ ...prev, slots: true }));
+  };
+
+  const insertDescriptionSection = (section) => {
+    const block = [section.heading + ":", ...section.lines.map((l) => `- ${l}`)].join("\n");
+    setFormData((prev) => {
+      const sep = prev.description.trim() ? "\n\n" : "";
+      const next = `${prev.description}${sep}${block}`;
+      return { ...prev, description: next };
+    });
+  };
+
+  // ---- Pay & location: salary mode, deadline quick-picks ----
+  const [salaryMode, setSalaryMode] = useState(() =>
+    (defaultState.formData.salaryMin !== "" || defaultState.formData.salaryMax !== "") ? "range" : "negotiable"
+  );
+
+  const setSalaryNegotiable = () => {
+    setSalaryMode("negotiable");
+    setFormData((prev) => ({ ...prev, salaryMin: "", salaryMax: "" }));
+    setValidationErrors((prev) => ({ ...prev, salaryMin: "", salaryMax: "" }));
+  };
+
+  const setSalaryRangeMode = () => setSalaryMode("range");
+
+  const [deadlineQuickPick, setDeadlineQuickPick] = useState("");
+
+  const applyDeadlineQuickPick = (pick) => {
+    setDeadlineQuickPick(pick.id);
+    setFormData((prev) => ({ ...prev, applicationDeadline: addDaysIso(pick.days) }));
+    setTouched((prev) => ({ ...prev, applicationDeadline: true }));
+    setValidationErrors((prev) => ({ ...prev, applicationDeadline: "" }));
+  };
+
+  const clearDeadline = () => {
+    setDeadlineQuickPick("none");
+    setFormData((prev) => ({ ...prev, applicationDeadline: "" }));
+    setValidationErrors((prev) => ({ ...prev, applicationDeadline: "" }));
   };
 
   const validateForm = () => {
@@ -410,6 +548,17 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
     return Object.keys(errors).length === 0;
   };
 
+  // ---- "Before you post" checklist — also gates the submit button ----
+  const checklist = [
+    { id: "title", label: "Job title", done: Boolean(formData.title.trim()) },
+    { id: "description", label: "Description (40+ characters)", done: formData.description.trim().length >= 40 },
+    { id: "industry", label: "Industry", done: formData.industry.length > 0 },
+    { id: "location", label: "Work location", done: Boolean(formData.location.trim()) },
+    { id: "qualification", label: "At least one qualification", done: formData.qualifications.length > 0 },
+  ];
+  const remainingRequired = checklist.filter((c) => !c.done).length;
+  const canPost = remainingRequired === 0;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -429,7 +578,7 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
         location: formData.location.trim(),
         salaryMin: formData.salaryMin !== "" ? Number(formData.salaryMin) : undefined,
         salaryMax: formData.salaryMax !== "" ? Number(formData.salaryMax) : undefined,
-        industry: (formData.industry || "").trim(),
+        industry: Array.isArray(formData.industry) ? formData.industry.filter(Boolean) : [],
         jobType: formData.jobType,
         workNature: formData.workNature || undefined,
         slots: Number(formData.slots) || 1,
@@ -515,7 +664,7 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
     setSuccess(false);
     setPostedQualifications(null);
     setPostTemplateMsg("");
-    setActiveSection("details");
+    setActiveSection("basics");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -528,10 +677,20 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
   };
 
   const sections = [
-    { id: "details", label: "Job Details", icon: <FaClipboardList /> },
-    { id: "logistics", label: "Logistics", icon: <FaCoins /> },
-    { id: "requirements", label: "Requirements", icon: <FaListUl /> },
+    { id: "basics", label: "Job basics", icon: <FaClipboardList />, required: true, done: checklist[0].done && checklist[1].done && checklist[2].done },
+    { id: "pay", label: "Pay & location", icon: <FaCoins />, required: true, done: checklist[3].done },
+    { id: "eligibility", label: "Eligibility", icon: <FaUsers />, required: false, done: false },
+    { id: "qualifications", label: "Qualifications", icon: <FaListUl />, required: true, done: checklist[4].done },
+    // Matching weights are a separate saved resource keyed by this job's id
+    // (see the useCustomMatchWeights state block above), so this step only
+    // exists once the job itself already has one to save against.
+    ...(isEditing ? [{ id: "matchWeights", label: "Matching weights", icon: <FaSlidersH />, required: false, done: false }] : []),
   ];
+
+  const scrollToSection = (id) => {
+    setActiveSection(id);
+    document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <div className="pj-page">
@@ -545,60 +704,26 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
         <div className="pj-topbar-spacer" />
       </div>
 
+      {!success && (
+        <nav className="pj-step-bar" aria-label="Posting sections">
+          {sections.map((sec, index) => (
+            <button
+              key={sec.id}
+              type="button"
+              className={`pj-step ${activeSection === sec.id ? "is-active" : ""} ${sec.done ? "is-done" : ""}`}
+              onClick={() => scrollToSection(sec.id)}
+            >
+              <span className="pj-step-num">{sec.done ? <FaCheck /> : index + 1}</span>
+              <span className="pj-step-text">
+                <span className="pj-step-label">{sec.label}</span>
+                <span className="pj-step-status">{sec.done ? "Done" : sec.required ? "Required" : "Optional"}</span>
+              </span>
+            </button>
+          ))}
+        </nav>
+      )}
+
       <div className="pj-container">
-        <aside className="pj-sidebar">
-          <div className="pj-sidebar-card">
-            <h3>Progress</h3>
-            <nav className="pj-progress-nav">
-              {sections.map((sec) => (
-                <button
-                  key={sec.id}
-                  className={`pj-progress-item ${activeSection === sec.id ? "active" : ""}`}
-                  onClick={() => {
-                    setActiveSection(sec.id);
-                    document.getElementById(`section-${sec.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                  type="button"
-                >
-                  <span className="pj-progress-icon">{sec.icon}</span>
-                  <span className="pj-progress-label">{sec.label}</span>
-                  {sec.id === "details" && formData.title && formData.description && (
-                    <span className="pj-progress-check">✓</span>
-                  )}
-                  {sec.id === "logistics" && formData.location && (
-                    <span className="pj-progress-check">✓</span>
-                  )}
-                  {sec.id === "requirements" && formData.qualifications.length > 0 && (
-                    <span className="pj-progress-check">✓</span>
-                  )}
-                </button>
-              ))}
-            </nav>
-          </div>
-
-          <div className="pj-sidebar-card pj-preview-card">
-            <h3><FaBuilding /> Live Preview</h3>
-            <p className="pj-preview-hint">How this listing will appear to jobseekers.</p>
-            <div className="pj-preview-stage">
-              <VacancyCard
-                preview
-                job={{
-                  title: formData.title,
-                  description: formData.description,
-                  location: formData.location,
-                  salary: formatSalaryPreview(formData.salaryMin, formData.salaryMax),
-                  jobType: formData.jobType,
-                  slots: Number(formData.slots) || 1,
-                  qualifications: formData.qualifications,
-                  applicationCount: 0,
-                  createdAt: new Date().toISOString(),
-                  employer: isEditing ? initialJob.employer : { companyName: user?.companyName || user?.name || "Your company" },
-                }}
-              />
-            </div>
-          </div>
-        </aside>
-
         <main className="pj-main">
           {error && (
             <div className="pj-alert pj-alert-error">
@@ -667,13 +792,14 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
               </div>
             </div>
           ) : (
-          <form className="pj-form" onSubmit={handleSubmit} noValidate>
-            <section id="section-details" className="pj-section">
+          <>
+          <form id="pj-posting-form" className="pj-form" onSubmit={handleSubmit} noValidate>
+            <section id="section-basics" className="pj-section">
               <div className="pj-section-header">
                 <div className="pj-section-icon"><FaClipboardList /></div>
                 <div>
-                  <h2>Job Details</h2>
-                  <p>Start with the basics about the role</p>
+                  <h2>Job basics</h2>
+                  <p>What the role is and how many people you need.</p>
                 </div>
               </div>
 
@@ -684,7 +810,7 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                 <Autosuggest
                   id="title"
                   name="title"
-                  placeholder="e.g. Senior Frontend Developer"
+                  placeholder="e.g. Service Crew"
                   value={formData.title}
                   onChange={(v) => handleChange({ target: { name: "title", value: v } })}
                   onBlur={() => handleBlur({ target: { name: "title" } })}
@@ -703,6 +829,114 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                     {getCharCount(formData.title)} / 100
                   </span>
                 </div>
+                <div className="pj-quickfill-row">
+                  <span className="pj-quickfill-label">Quick fill:</span>
+                  {TITLE_QUICK_FILLS.map((qf) => (
+                    <button
+                      key={qf}
+                      type="button"
+                      className="pj-chip"
+                      onClick={() => applyTitleQuickFill(qf)}
+                      disabled={loading}
+                    >
+                      {qf}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pj-basics-grid pj-basics-grid--type">
+                <div className="pj-field">
+                  <label>Job type</label>
+                  <div className="pj-chip-row">
+                    {JOB_TYPES.map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        className={`pj-chip ${formData.jobType === type ? "is-active" : ""}`}
+                        onClick={() => setJobType(type)}
+                        disabled={loading}
+                      >
+                        {JOB_TYPE_LABELS[type] || type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pj-field">
+                  <label htmlFor="slots">
+                    <FaUserPlus /> Open slots <span className="pj-required">*</span>
+                  </label>
+                  <div className="pj-stepper">
+                    <button
+                      type="button"
+                      className="pj-stepper-btn"
+                      onClick={() => adjustSlots(-1)}
+                      disabled={loading || Number(formData.slots) <= 1}
+                      aria-label="Decrease open slots"
+                    >
+                      <FaMinus />
+                    </button>
+                    <span className="pj-stepper-value" id="slots">{formData.slots}</span>
+                    <button
+                      type="button"
+                      className="pj-stepper-btn"
+                      onClick={() => adjustSlots(1)}
+                      disabled={loading || Number(formData.slots) >= 100}
+                      aria-label="Increase open slots"
+                    >
+                      <FaPlus />
+                    </button>
+                  </div>
+                  {validationErrors.slots && touched.slots && (
+                    <span className="pj-field-error">{validationErrors.slots}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="pj-basics-grid">
+                <div className="pj-field">
+                  <label htmlFor="workNature">
+                    Work nature <span className="pj-optional">(Optional)</span>
+                  </label>
+                  <div className="pj-select-wrapper">
+                    <select
+                      id="workNature"
+                      name="workNature"
+                      value={formData.workNature}
+                      onChange={handleChange}
+                      disabled={loading}
+                    >
+                      <option value="">Not specified</option>
+                      {WORK_NATURES.map((wn) => (
+                        <option key={wn.value} value={wn.value}>{wn.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pj-field pj-field-full">
+                <label>
+                  <FaBuilding /> Industry <span className="pj-required">*</span>
+                  <span className="pj-optional">(select one or more)</span>
+                </label>
+                <div className="pj-chip-row">
+                  {VALID_INDUSTRIES.map((ind) => (
+                    <button
+                      key={ind}
+                      type="button"
+                      className={`pj-chip ${formData.industry.includes(ind) ? "is-active" : ""}`}
+                      onClick={() => toggleIndustry(ind)}
+                      disabled={loading}
+                    >
+                      {ind}
+                    </button>
+                  ))}
+                </div>
+                {validationErrors.industry && touched.industry && (
+                  <span className="pj-field-error">{validationErrors.industry}</span>
+                )}
               </div>
 
               <div className="pj-field pj-field-full">
@@ -732,230 +966,185 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                     {getCharCount(formData.description)} / 5000
                   </span>
                 </div>
+                <div className="pj-quickfill-row pj-quickfill-row--split">
+                  <span className="pj-quickfill-group">
+                    <span className="pj-quickfill-label">Add a section:</span>
+                    {DESCRIPTION_SECTIONS.map((sec) => (
+                      <button
+                        key={sec.id}
+                        type="button"
+                        className="pj-chip"
+                        onClick={() => insertDescriptionSection(sec)}
+                        disabled={loading}
+                      >
+                        <FaPlus /> {sec.label}
+                      </button>
+                    ))}
+                  </span>
+                  {getCharCount(formData.description) < 40 && (
+                    <span className="pj-hint">Add at least 40 characters.</span>
+                  )}
+                </div>
               </div>
             </section>
 
-            <section id="section-logistics" className="pj-section">
+            <section id="section-pay" className="pj-section">
               <div className="pj-section-header">
                 <div className="pj-section-icon"><FaCoins /></div>
                 <div>
-                  <h2>Compensation & Logistics</h2>
-                  <p>Where, how, and how much</p>
+                  <h2>Pay &amp; location</h2>
+                  <p>Where the work is, what it pays, and when applications close.</p>
                 </div>
               </div>
 
-              <div className="pj-logistics-grid">
-                <div className="pj-logistics-panel">
-                  <div className="pj-location-header-row">
-                    <label className="pj-location-label">
-                      <FaMapMarkerAlt /> Location <span className="pj-required">*</span>
-                    </label>
+              <div className="pj-field pj-field-full">
+                <label>
+                  <FaMapMarkerAlt /> Work location <span className="pj-required">*</span>
+                </label>
+
+                {useRegisteredBusinessAddress ? (
+                  <div className="pj-address-card">
+                    <div className="pj-address-card-icon"><FaMapMarkerAlt /></div>
+                    <div className="pj-address-card-body">
+                      <strong>Registered business address</strong>
+                      <span>{registeredBusinessAddress || "[Address from your employer profile]"}</span>
+                    </div>
+                    <button type="button" className="pj-btn pj-btn-outline" onClick={handleUseDifferentLocation} disabled={loading}>
+                      Use a different location
+                    </button>
                   </div>
-
-                  {!isEditing && <div className={`pj-address-toggle-card ${useRegisteredBusinessAddress ? "active" : ""}`}>
-                    <label className="pj-address-toggle">
-                      <input
-                        type="checkbox"
-                        checked={useRegisteredBusinessAddress}
-                        onChange={(e) => handleUseRegisteredBusinessAddressToggle(e.target.checked)}
-                        disabled={loading}
-                      />
-                      <div className="pj-address-toggle-copy">
-                        <span className="pj-address-toggle-title">Use Registered Business Address</span>
-                        <span className="pj-address-toggle-subtitle">Automatically fill location details from your registered employer profile.</span>
-                      </div>
-                    </label>
-                    {useRegisteredBusinessAddress && !registeredBusinessAddress && (
-                      <div className="pj-address-missing-warning">
-                        <FaInfoCircle /> No registered business address found. Please update your profile.
-                      </div>
-                    )}
-                  </div>}
-
+                ) : (
                   <div className="pj-location-field-group">
-                    <div className="pj-location-select-wrap">
-                      <LocationSelect
-                        key={locationSelectResetKey}
-                        className="pj-location-select-group"
-                        value={formData.location}
-                        onChange={handleLocationChange}
-                        disabled={loading || useRegisteredBusinessAddress}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {validationErrors.location && touched.location && (
-                    <span className="pj-field-error">{validationErrors.location}</span>
-                  )}
-                </div>
-
-                <div className="pj-logistics-panel">
-                  <div className="pj-field">
-                    <label htmlFor="salaryMin">
-                      <FaMoneyBillWave /> Salary Range (PHP) <span className="pj-optional">(Optional)</span>
-                    </label>
-                    <div className="pj-salary-range-row">
-                      <input
-                        id="salaryMin"
-                        type="number"
-                        min="0"
-                        name="salaryMin"
-                        placeholder="Min, e.g. 18000"
-                        value={formData.salaryMin}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        className={validationErrors.salaryMin && touched.salaryMin ? "pj-error-input" : ""}
-                        disabled={loading}
-                      />
-                      <span className="pj-salary-range-sep">to</span>
-                      <input
-                        id="salaryMax"
-                        type="number"
-                        min="0"
-                        name="salaryMax"
-                        placeholder="Max, e.g. 25000"
-                        value={formData.salaryMax}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        className={validationErrors.salaryMax && touched.salaryMax ? "pj-error-input" : ""}
-                        disabled={loading}
-                      />
-                    </div>
-                    {(validationErrors.salaryMin && touched.salaryMin) && (
-                      <span className="pj-field-error">{validationErrors.salaryMin}</span>
+                    {registeredBusinessAddress && (
+                      <button type="button" className="pj-link-btn" onClick={handleUseRegisteredAddress} disabled={loading}>
+                        Use registered business address instead
+                      </button>
                     )}
-                    {(validationErrors.salaryMax && touched.salaryMax) && (
-                      <span className="pj-field-error">{validationErrors.salaryMax}</span>
-                    )}
-                    <span className="pj-hint">Leave blank if negotiable. Numeric ranges let jobseekers filter and match by salary.</span>
-                  </div>
-
-                  <div className="pj-field">
-                    <label htmlFor="industry">
-                      <FaBuilding /> Industry <span className="pj-required">*</span>
-                    </label>
-                    <div className="pj-select-wrapper">
-                      <select
-                        id="industry"
-                        name="industry"
-                        value={formData.industry}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        className={validationErrors.industry && touched.industry ? "pj-error-input" : ""}
-                        required
-                        disabled={loading}
-                      >
-                        <option value="">-- Select Industry --</option>
-                        {formData.industry && !VALID_INDUSTRIES.includes(formData.industry) && (
-                          <option value={formData.industry}>{formData.industry}</option>
-                        )}
-                        {VALID_INDUSTRIES.map((ind) => (
-                          <option key={ind} value={ind}>{ind}</option>
-                        ))}
-                      </select>
-                    </div>
-                    {validationErrors.industry && touched.industry && (
-                      <span className="pj-field-error">{validationErrors.industry}</span>
-                    )}
-                  </div>
-
-                  <div className="pj-field">
-                    <label htmlFor="workNature">
-                      <FaBuilding /> Work Nature <span className="pj-optional">(Optional)</span>
-                    </label>
-                    <div className="pj-select-wrapper">
-                      <select
-                        id="workNature"
-                        name="workNature"
-                        value={formData.workNature}
-                        onChange={handleChange}
-                        disabled={loading}
-                      >
-                        <option value="">-- Not specified --</option>
-                        {WORK_NATURES.map((wn) => (
-                          <option key={wn.value} value={wn.value}>{wn.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="pj-field">
-                    <label htmlFor="jobType">
-                      <FaBriefcase /> Job Type
-                    </label>
-                    <div className="pj-select-wrapper">
-                      <select
-                        id="jobType"
-                        name="jobType"
-                        value={formData.jobType}
-                        onChange={handleChange}
-                        disabled={loading}
-                      >
-                        {JOB_TYPES.map((type) => (
-                          <option key={type} value={type}>
-                            {JOB_TYPE_ICONS[type]} {type}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="pj-field">
-                    <label htmlFor="slots">
-                      <FaUserPlus /> Open Slots <span className="pj-required">*</span>
-                    </label>
-                    <input
-                      id="slots"
-                      type="number"
-                      min="1"
-                      max="100"
-                      name="slots"
-                      value={formData.slots}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      className={validationErrors.slots && touched.slots ? "pj-error-input" : ""}
+                    <LocationSelect
+                      key={locationSelectResetKey}
+                      className="pj-location-select-group"
+                      value={formData.location}
+                      onChange={handleLocationChange}
+                      disabled={loading}
                       required
-                      disabled={loading}
                     />
-                    {validationErrors.slots && touched.slots && (
-                      <span className="pj-field-error">{validationErrors.slots}</span>
-                    )}
                   </div>
+                )}
 
-                  <div className="pj-field">
-                    <label htmlFor="applicationDeadline">
-                      <FaCalendarAlt /> Application Deadline <span className="pj-optional">(Optional)</span>
-                    </label>
+                {useRegisteredBusinessAddress && !registeredBusinessAddress && (
+                  <div className="pj-address-missing-warning">
+                    <FaInfoCircle /> No registered business address found. Please update your profile.
+                  </div>
+                )}
+                {validationErrors.location && touched.location && (
+                  <span className="pj-field-error">{validationErrors.location}</span>
+                )}
+              </div>
+
+              <div className="pj-field pj-field-full">
+                <label><FaMoneyBillWave /> Salary</label>
+                <div className="pj-seg" role="group" aria-label="Salary visibility">
+                  <button
+                    type="button"
+                    className={`pj-seg-btn ${salaryMode === "negotiable" ? "is-active" : ""}`}
+                    onClick={setSalaryNegotiable}
+                    disabled={loading}
+                  >
+                    Negotiable
+                  </button>
+                  <button
+                    type="button"
+                    className={`pj-seg-btn ${salaryMode === "range" ? "is-active" : ""}`}
+                    onClick={setSalaryRangeMode}
+                    disabled={loading}
+                  >
+                    Set a range
+                  </button>
+                </div>
+
+                {salaryMode === "range" && (
+                  <div className="pj-salary-range-row">
                     <input
-                      id="applicationDeadline"
-                      type="date"
-                      name="applicationDeadline"
-                      value={formData.applicationDeadline}
+                      id="salaryMin"
+                      type="number"
+                      min="0"
+                      name="salaryMin"
+                      placeholder="Min, e.g. 18000"
+                      value={formData.salaryMin}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      min={new Date().toISOString().split("T")[0]}
-                      className={validationErrors.applicationDeadline && touched.applicationDeadline ? "pj-error-input" : ""}
+                      className={validationErrors.salaryMin && touched.salaryMin ? "pj-error-input" : ""}
                       disabled={loading}
                     />
-                    {validationErrors.applicationDeadline && touched.applicationDeadline && (
-                      <span className="pj-field-error">{validationErrors.applicationDeadline}</span>
-                    )}
-                    <span className="pj-hint">Leave blank for no deadline.</span>
+                    <span className="pj-salary-range-sep">to</span>
+                    <input
+                      id="salaryMax"
+                      type="number"
+                      min="0"
+                      name="salaryMax"
+                      placeholder="Max, e.g. 25000"
+                      value={formData.salaryMax}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={validationErrors.salaryMax && touched.salaryMax ? "pj-error-input" : ""}
+                      disabled={loading}
+                    />
                   </div>
+                )}
+                {(validationErrors.salaryMin && touched.salaryMin) && (
+                  <span className="pj-field-error">{validationErrors.salaryMin}</span>
+                )}
+                {(validationErrors.salaryMax && touched.salaryMax) && (
+                  <span className="pj-field-error">{validationErrors.salaryMax}</span>
+                )}
+              </div>
+
+              <div className="pj-field pj-field-full">
+                <label htmlFor="applicationDeadline">
+                  <FaCalendarAlt /> Application deadline <span className="pj-optional">(Optional)</span>
+                </label>
+                <div className="pj-deadline-row">
+                  <input
+                    id="applicationDeadline"
+                    type="date"
+                    name="applicationDeadline"
+                    value={formData.applicationDeadline}
+                    onChange={(e) => {
+                      setDeadlineQuickPick("");
+                      handleChange(e);
+                    }}
+                    onBlur={handleBlur}
+                    min={new Date().toISOString().split("T")[0]}
+                    className={`pj-deadline-date ${validationErrors.applicationDeadline && touched.applicationDeadline ? "pj-error-input" : ""}`}
+                    disabled={loading}
+                  />
+                  {DEADLINE_QUICK_PICKS.map((pick) => (
+                    <button
+                      key={pick.id}
+                      type="button"
+                      className={`pj-chip ${deadlineQuickPick === pick.id ? "is-active" : ""}`}
+                      onClick={() => applyDeadlineQuickPick(pick)}
+                      disabled={loading}
+                    >
+                      {pick.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className={`pj-chip ${deadlineQuickPick === "none" || (!deadlineQuickPick && !formData.applicationDeadline) ? "is-active" : ""}`}
+                    onClick={clearDeadline}
+                    disabled={loading}
+                  >
+                    No deadline
+                  </button>
                 </div>
+                {validationErrors.applicationDeadline && touched.applicationDeadline && (
+                  <span className="pj-field-error">{validationErrors.applicationDeadline}</span>
+                )}
               </div>
             </section>
 
-            <section id="section-requirements" className="pj-section">
-              <div className="pj-section-header">
-                <div className="pj-section-icon"><FaListUl /></div>
-                <div>
-                  <h2>Requirements</h2>
-                  <p>What candidates need to qualify</p>
-                </div>
-              </div>
-
+            <section id="section-eligibility" className="pj-section">
               <div className="pj-field pj-field-full">
                 <BasicRequirements
                   value={pickBasicRequirements(formData)}
@@ -965,6 +1154,16 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                 {validationErrors.basicRequirements && (
                   <span className="pj-field-error">{validationErrors.basicRequirements}</span>
                 )}
+              </div>
+            </section>
+
+            <section id="section-qualifications" className="pj-section">
+              <div className="pj-section-header">
+                <div className="pj-section-icon"><FaListUl /></div>
+                <div>
+                  <h2>Qualifications</h2>
+                  <p>Skills, licences and clearances. Required = must-have, Preferred = nice to have.</p>
+                </div>
               </div>
 
               <div className="pj-field pj-field-full">
@@ -982,32 +1181,138 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                 )}
               </div>
             </section>
+          </form>
 
-            <div className="pj-actions">
-              <button
-                type="button"
-                className="pj-btn pj-btn-secondary"
-                onClick={handleCancel}
-                disabled={loading}
-              >
-                {t("common.cancel")}
-              </button>
-              <button type="submit" className="pj-btn pj-btn-primary" disabled={loading}>
-                {loading ? (
-                  <>
-                    <FaSpinner className="pj-spin" /> {isEditing ? t("jobEditing.saving") : "Posting..."}
-                  </>
+          {/* Outside the main <form>: this section saves independently via
+              its own endpoint (jobAPI.updateMatchWeights), not as part of
+              the job-posting submit. */}
+          {isEditing && (
+            <section id="section-matchWeights" className="pj-section">
+              <div className="pj-section-header">
+                <div className="pj-section-icon"><FaSlidersH /></div>
+                <div>
+                  <h2>Matching weights</h2>
+                  <p>Override how much each factor counts toward an applicant's match percentage, just for this job.</p>
+                </div>
+              </div>
+
+              <div className="pj-field pj-field-full">
+                <label className="pj-toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={useCustomMatchWeights}
+                    disabled={matchWeightsLoading || matchWeightsSaving}
+                    onChange={(e) => setUseCustomMatchWeights(e.target.checked)}
+                  />
+                  <span>Use custom matching weights for this job</span>
+                </label>
+
+                {!useCustomMatchWeights ? (
+                  <p className="pj-field-hint">
+                    This job uses your default matching weights (set under Matching Preferences
+                    on your dashboard).
+                  </p>
+                ) : matchWeightsLoading && !matchWeightsLoaded ? (
+                  <p className="loading">Loading...</p>
                 ) : (
                   <>
-                    <FaSave /> {isEditing ? t("common.save") : "Post Job Vacancy"}
+                    {matchWeightsError && (
+                      <span className="pj-field-error">{matchWeightsError}</span>
+                    )}
+                    <MatchWeightsEditor
+                      initialWeights={matchWeightsOverride || matchWeightsEmployerDefault || CODE_FALLBACK_WEIGHTS}
+                      bounds={matchWeightBounds}
+                      onSave={handleSaveMatchWeightsOverride}
+                      onReset={matchWeightsOverride ? handleRemoveMatchWeightsOverride : undefined}
+                      resetLabel="Remove override (use my default)"
+                      busy={matchWeightsSaving}
+                    />
                   </>
                 )}
-              </button>
-            </div>
-          </form>
+              </div>
+            </section>
+          )}
+          </>
           )}
         </main>
+
+        {!success && (
+          <aside className="pj-sidebar">
+            <div className="pj-sidebar-card pj-preview-card">
+              <div className="pj-card-head-row">
+                <h3>Live Preview</h3>
+                <span className="pj-preview-hint">As jobseekers see it</span>
+              </div>
+              <div className="pj-preview-stage">
+                <VacancyCard
+                  preview
+                  job={{
+                    title: formData.title,
+                    description: formData.description,
+                    location: formData.location,
+                    salary: formatSalaryPreview(formData.salaryMin, formData.salaryMax),
+                    jobType: formData.jobType,
+                    slots: Number(formData.slots) || 1,
+                    qualifications: formData.qualifications,
+                    applicationCount: 0,
+                    createdAt: new Date().toISOString(),
+                    employer: isEditing ? initialJob.employer : { companyName: user?.companyName || user?.name || "Your company" },
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="pj-sidebar-card pj-checklist-card">
+              <div className="pj-card-head-row">
+                <h3>Before you post</h3>
+                <span className="pj-checklist-progress">{checklist.length - remainingRequired} of {checklist.length}</span>
+              </div>
+              <ul className="pj-checklist">
+                {checklist.map((item) => (
+                  <li key={item.id} className={item.done ? "is-done" : ""}>
+                    <span className="pj-checklist-dot">{item.done && <FaCheck />}</span>
+                    {item.label}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </aside>
+        )}
       </div>
+
+      {!success && (
+        <div className="pj-sticky-actions">
+          <span className="pj-sticky-actions-note">
+            {canPost ? "Ready to post." : `${remainingRequired} required item${remainingRequired === 1 ? "" : "s"} left before you can post.`}
+          </span>
+          <div className="pj-actions">
+            <button
+              type="button"
+              className="pj-btn pj-btn-secondary"
+              onClick={handleCancel}
+              disabled={loading}
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              type="submit"
+              form="pj-posting-form"
+              className="pj-btn pj-btn-primary"
+              disabled={loading || !canPost}
+            >
+              {loading ? (
+                <>
+                  <FaSpinner className="pj-spin" /> {isEditing ? t("jobEditing.saving") : "Posting..."}
+                </>
+              ) : (
+                <>
+                  <FaSave /> {isEditing ? t("common.save") : "Post Job Vacancy"}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

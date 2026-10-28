@@ -1204,6 +1204,30 @@
   min-width: 0;
 }
 
+.apply-modal-picker-hint {
+  color: #7a8a9a;
+  font-size: 12.5px;
+  margin: 0 0 8px;
+}
+
+.apply-modal-tailor-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #f1f8f1;
+  border: 1.5px dashed #2e7d32;
+  color: #2e7d32;
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+}
+.apply-modal-tailor-cta:hover {
+  background: #e4f5e9;
+}
+
 /* The global `input { display: block }` rule in style.css overrides the
    [hidden] attribute, so force the file input out of the layout here. */
 .apply-modal-file-input {
@@ -1669,6 +1693,28 @@
 
 .info-message .btn-profile-edit:hover {
   background: #d4920a;
+}
+
+/* §A.4 — aggregate skill-gap insight */
+.skill-gap-insight {
+  max-width: 1200px;
+  margin: 0 auto 20px;
+  background: #f0fdf4;
+  border: 1px solid #86d49b;
+  border-radius: 12px;
+  padding: 1rem 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+.skill-gap-insight-icon {
+  color: #1a7a3c;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.skill-gap-insight span {
+  color: #14532d;
+  font-size: 0.92rem;
 }
 
 /* ============================================ */

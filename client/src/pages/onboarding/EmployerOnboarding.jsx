@@ -8,12 +8,13 @@ import AvatarPicker from "../../components/AvatarPicker";
 import { usePersistentState } from "../../hooks/usePersistentState";
 import { WORKFORCE_SIZE_OPTIONS, workforceSizeLabel } from "../../data/employerProfile";
 import { useToast } from "../../components/feedback/context";
-
-const industries = [
-  "Retail", "Manufacturing", "Government", "Healthcare", "Education", "NGO / Non-profit",
-  "Agriculture", "Technology", "Construction", "Transportation", "Hospitality",
-  "Real Estate", "Food & Beverage", "Financial Services", "Other",
-];
+import { useSystemOptions } from "../../hooks/useSystemOptions";
+import { VALID_INDUSTRIES as INDUSTRIES_FALLBACK } from "../../constants/industries";
+import {
+  OFFICE_TYPE_OPTIONS,
+  CLASSIFICATION_TYPE_OPTIONS,
+  CLASSIFICATION_SUBTYPE_OPTIONS,
+} from "../../constants/employerClassification";
 
 const STEP_LABELS = ["Company Information", "Contact Details", "Review & Submit", "Attach Profile Picture"];
 
@@ -43,6 +44,15 @@ export default function EmployerOnboarding() {
   const { user, login, setUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const toast = useToast();
+
+  // Admin-maintainable catalog (item 11) — live from the server, with the
+  // old hardcoded list as a fallback for first paint / offline. This list
+  // previously had its own, differently-worded set of industries from every
+  // other industry picker in the app ("Retail" vs "Retail & Wholesale",
+  // "Technology" vs "Information Technology (IT)", etc.) — using the shared
+  // catalog here means an employer sees the same choices at signup as
+  // everywhere else afterward.
+  const { options: industries } = useSystemOptions("industry", { fallback: INDUSTRIES_FALLBACK });
 
   const defaultState = {
     form: getInitialForm(user),
@@ -204,6 +214,9 @@ export default function EmployerOnboarding() {
       <aside className="onboarding-rail">
         <div className="onboarding-rail-brand">STRAM PESO</div>
         <p className="onboarding-rail-subtitle">Setting up your employer profile</p>
+        <div className="onboarding-rail-progress-track">
+          <div className="onboarding-rail-progress-fill" style={{ width: `${progress}%` }}></div>
+        </div>
         <ol className="onboarding-steps">
           {STEP_LABELS.map((label, i) => {
             const idx = i + 1;
@@ -220,19 +233,20 @@ export default function EmployerOnboarding() {
       </aside>
 
       <div className="onboarding-panel">
-        <section className="onboarding-card">
-          <div className="onboarding-progress-mobile">
-            <div className="onboarding-progress-meta">Step {step} of {STEP_LABELS.length} · {STEP_LABELS[step - 1]}</div>
-            <div className="onboarding-progress-track">
-              <div className="onboarding-progress-fill" style={{ width: `${progress}%` }}></div>
-            </div>
+        <header className="onboarding-topbar">
+          <div className="onboarding-progress-meta">Step {step} of {STEP_LABELS.length}</div>
+          <h1 className="onboarding-topbar-title">{STEP_LABELS[step - 1]}</h1>
+          <div className="onboarding-progress-track">
+            <div className="onboarding-progress-fill" style={{ width: `${progress}%` }}></div>
           </div>
+        </header>
 
+        <div className="onboarding-scroll">
+          <div className="onboarding-canvas">
           {submitError && <div className="onboarding-error" role="alert">{submitError}</div>}
 
       {step === 1 && (
         <div className="onboarding-step">
-          <h2>Tell us about your company</h2>
           <p className="onboarding-subtitle">This helps job seekers learn about who you are.</p>
           <div className="onboarding-fields">
             <label>Company Name *
@@ -303,27 +317,27 @@ export default function EmployerOnboarding() {
             <div>
               <span className="onboarding-label">Office Type</span>
               <div className="pill-row">
-                <button type="button" className={`pill-btn ${form.officeType === "main" ? "active" : ""}`} onClick={() => updateField("officeType", "main")} disabled={saving}>Main</button>
-                <button type="button" className={`pill-btn ${form.officeType === "branch" ? "active" : ""}`} onClick={() => updateField("officeType", "branch")} disabled={saving}>Branch</button>
+                {OFFICE_TYPE_OPTIONS.map(({ value, label }) => (
+                  <button key={value} type="button" className={`pill-btn ${form.officeType === value ? "active" : ""}`} onClick={() => updateField("officeType", value)} disabled={saving}>{label}</button>
+                ))}
               </div>
             </div>
             <div className="onboarding-field-grid">
               <label>Employer Classification Type
                 <select value={form.employerClassificationType} onChange={e => updateField("employerClassificationType", e.target.value)} disabled={saving}>
                   <option value="">Select</option>
-                  <option value="public">Public</option>
-                  <option value="private">Private</option>
+                  {CLASSIFICATION_TYPE_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
                 </select>
               </label>
               {form.employerClassificationType && (
                 <label>Subtype
                   <select value={form.employerClassificationSubtype} onChange={e => updateField("employerClassificationSubtype", e.target.value)} disabled={saving}>
                     <option value="">Select</option>
-                    {form.employerClassificationType === "public" ? (
-                      ["NGA", "LGU", "GOCC", "SUC/LUC"].map(s => <option key={s} value={s}>{s}</option>)
-                    ) : (
-                      ["Direct Hire", "Local Recruitment Agency", "Overseas Recruitment Agency", "D.O. 174 Contractor"].map(s => <option key={s} value={s}>{s}</option>)
-                    )}
+                    {(CLASSIFICATION_SUBTYPE_OPTIONS[form.employerClassificationType] || []).map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
                   </select>
                 </label>
               )}
@@ -334,7 +348,6 @@ export default function EmployerOnboarding() {
 
       {step === 2 && (
         <div className="onboarding-step">
-          <h2>How can applicants reach you?</h2>
           <p className="onboarding-subtitle">Provide your contact details and optional online presence.</p>
           <div className="onboarding-fields">
             <label>Phone Number *
@@ -365,7 +378,6 @@ export default function EmployerOnboarding() {
 
       {step === 3 && (
         <div className="onboarding-step">
-          <h2>You're almost ready!</h2>
           <p className="onboarding-subtitle">Review your details before finishing setup.</p>
           <div className="onboarding-summary-card">
             <div className="onboarding-summary-row"><span className="onboarding-summary-label">Company Name</span><span className="onboarding-summary-value">{form.companyName || "-"}</span></div>
@@ -397,7 +409,6 @@ export default function EmployerOnboarding() {
 
       {step === 4 && (
         <div className="onboarding-step">
-          <h2>Attach profile picture</h2>
           <p className="onboarding-subtitle">
             Required — this appears on your job posts and employer profile. JPG, PNG, or WEBP, up to 5MB.
           </p>
@@ -426,13 +437,17 @@ export default function EmployerOnboarding() {
         </div>
       )}
 
-      {step <= 2 && (
-        <div className="onboarding-nav">
-          <button type="button" className="onboarding-secondary" onClick={handleBack} disabled={step === 1 || saving}>Back</button>
-          <button type="button" className="onboarding-primary" onClick={handleNext} disabled={saving}>Next</button>
+          </div>
         </div>
-      )}
-        </section>
+
+        {step <= 2 && (
+          <footer className="onboarding-footer-bar">
+            <div className="onboarding-nav">
+              <button type="button" className="onboarding-secondary" onClick={handleBack} disabled={step === 1 || saving}>Back</button>
+              <button type="button" className="onboarding-primary" onClick={handleNext} disabled={saving}>Next</button>
+            </div>
+          </footer>
+        )}
       </div>
     </div>
   );

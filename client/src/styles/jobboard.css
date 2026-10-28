@@ -2435,6 +2435,20 @@ button:disabled,
   margin-bottom: 32px;
 }
 
+/* §A.4 — jobs missing exactly one required qualification, surfaced above
+   the main relevance-ordered list rather than buried in it. */
+.jobboard-close-matches {
+  margin-bottom: 8px;
+}
+.jobboard-close-matches-heading {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a5c2a;
+  margin: 0 0 12px;
+  padding-left: 10px;
+  border-left: 4px solid #2e7d32;
+}
+
 @media (max-width: 700px) {
   .jobboard-list {
     grid-template-columns: 1fr;
@@ -2739,6 +2753,21 @@ button:disabled,
 .status-pill.tone-rejected {
   background: #fdecea;
   color: #b03e2d;
+}
+
+.status-pill.tone-under-review {
+  background: #e8f0fe;
+  color: #2c5aa0;
+}
+
+.status-pill.tone-approved {
+  background: #e1f6f3;
+  color: #0f7a6c;
+}
+
+.status-pill.tone-withdrawn {
+  background: #f1eef7;
+  color: #6b5b95;
 }
 
 @media (max-width: 640px) {

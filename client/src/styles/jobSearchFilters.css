@@ -279,6 +279,40 @@
   border-top: 1px solid #eceff1;
 }
 
+.must-haves-row {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #eceff1;
+}
+
+.must-haves-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #3f4a56;
+  cursor: pointer;
+}
+
+.must-haves-switch input {
+  width: 16px;
+  height: 16px;
+  accent-color: #2e7d32;
+  cursor: pointer;
+}
+
+/* §A.4 — "pair onlyMeetsRequired with the count of what it hides" so the
+   toggle never silently empties the board without explaining why. */
+.must-haves-hidden-count {
+  display: block;
+  margin-top: 0.4rem;
+  margin-left: 1.65rem;
+  font-size: 0.78rem;
+  color: #a5601b;
+  font-weight: 600;
+}
+
 .preferred-label {
   font-size: 12px;
   text-transform: uppercase;

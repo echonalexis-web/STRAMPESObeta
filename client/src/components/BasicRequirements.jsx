@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { FaIdCard, FaGraduationCap, FaBriefcase, FaLanguage, FaBolt } from "react-icons/fa";
+import { FaIdCard, FaGraduationCap, FaBriefcase, FaBolt } from "react-icons/fa";
 import "../styles/basic-requirements.css";
 import {
   EDUCATION_LEVELS,
@@ -9,13 +9,22 @@ import {
 } from "../data/jobRequirements";
 import { EMPTY_BASIC_REQUIREMENTS, validateBasicRequirements } from "../utils/basicRequirements";
 
+// Years-of-experience quick-pick chips. "fresh" maps to "0" (open to fresh
+// grads); the others set a floor the applicant's work history must clear.
+const EXPERIENCE_CHIPS = [
+  { value: "0", label: "Fresh grads welcome" },
+  { value: "0.5", label: "6 months" },
+  { value: "1", label: "1 year" },
+  { value: "2", label: "2 years" },
+  { value: "3", label: "3 years" },
+  { value: "5", label: "5+ years" },
+];
+
 export default function BasicRequirements({ value, onChange, disabled = false }) {
   const form = useMemo(() => ({ ...EMPTY_BASIC_REQUIREMENTS, ...(value || {}) }), [value]);
   const issues = validateBasicRequirements(form);
 
   const set = (patch) => onChange({ ...form, ...patch });
-
-  const freshGradsWelcome = form.minExperienceYears === "0" || form.minExperienceYears === 0;
 
   const langEntry = (language) =>
     form.languageRequirements.find((entry) => entry.language === language) || null;
@@ -158,31 +167,27 @@ export default function BasicRequirements({ value, onChange, disabled = false })
             <span className="br-card-title">Minimum experience</span>
           </div>
           <div className="br-card-body">
-            <div className="br-inline">
-              <input
-                id="br-experience"
-                type="number"
-                min="0"
-                step="0.5"
-                inputMode="decimal"
-                placeholder="e.g. 2"
-                className="br-num br-num-wide"
-                value={freshGradsWelcome ? "" : form.minExperienceYears}
-                onChange={(e) => set({ minExperienceYears: e.target.value })}
-                disabled={disabled || freshGradsWelcome}
-                aria-label="Minimum years of experience"
-              />
-              <span className="br-inline-sep">years</span>
+            <div className="br-chip-row" role="group" aria-label="Minimum years of experience">
+              {EXPERIENCE_CHIPS.map((chip) => {
+                const active = form.minExperienceYears === chip.value;
+                return (
+                  <button
+                    key={chip.value}
+                    type="button"
+                    className={`br-pill ${active ? "is-active" : ""}`}
+                    onClick={() => set({ minExperienceYears: active ? "" : chip.value })}
+                    disabled={disabled}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
             </div>
-            <label className="br-check">
-              <input
-                type="checkbox"
-                checked={freshGradsWelcome}
-                onChange={(e) => set({ minExperienceYears: e.target.checked ? "0" : "" })}
-                disabled={disabled}
-              />
-              <span>Open to fresh graduates / no experience</span>
-            </label>
+            <p className="br-card-hint">
+              {form.minExperienceYears === ""
+                ? "Nothing selected — experience won't be factored into matching for this job. Tap a chip to set a floor; tap it again to clear it."
+                : "Tap the highlighted chip again to clear it and leave experience unused in matching."}
+            </p>
           </div>
         </div>
       </div>
@@ -190,7 +195,6 @@ export default function BasicRequirements({ value, onChange, disabled = false })
       {/* Language */}
       <div className="br-lang">
         <div className="br-lang-head">
-          <span className="br-card-icon"><FaLanguage /></span>
           <span className="br-card-title">Language requirements</span>
         </div>
         <div className="br-lang-cards">
@@ -200,33 +204,39 @@ export default function BasicRequirements({ value, onChange, disabled = false })
             return (
               <div key={language} className={`br-lang-card ${on ? "is-on" : ""}`}>
                 <div className="br-lang-card-head">
-                  <span className="br-lang-name">{LANGUAGE_LABELS[language] || language}</span>
                   <button
                     type="button"
+                    role="switch"
                     className={`br-lang-switch ${on ? "is-on" : ""}`}
                     onClick={() => toggleLanguage(language, !on)}
                     disabled={disabled}
-                    aria-pressed={on}
+                    aria-checked={on}
+                    aria-label={`Require ${LANGUAGE_LABELS[language] || language}`}
                   >
-                    {on ? "Required" : "Not required"}
+                    <span className="br-lang-switch-thumb" aria-hidden="true" />
                   </button>
+                  <span className="br-lang-name">{LANGUAGE_LABELS[language] || language}</span>
+                  <span className="br-lang-status">{on ? "Required" : "Not required"}</span>
                 </div>
-                <div className="br-lang-modes" aria-hidden={!on}>
-                  {LANGUAGE_MODES.map((mode) => {
-                    const active = Boolean(entry && entry[mode]);
-                    return (
-                      <button
-                        key={mode}
-                        type="button"
-                        className={`br-pill ${active ? "is-active" : ""}`}
-                        onClick={() => setLanguageMode(language, mode, !active)}
-                        disabled={disabled}
-                      >
-                        {mode}
-                      </button>
-                    );
-                  })}
-                </div>
+                {on && (
+                  <div className="br-lang-modes" role="group" aria-label={`${LANGUAGE_LABELS[language] || language} proficiency`}>
+                    {LANGUAGE_MODES.map((mode) => {
+                      const active = Boolean(entry && entry[mode]);
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          className={`br-pill ${active ? "is-active" : ""}`}
+                          onClick={() => setLanguageMode(language, mode, !active)}
+                          disabled={disabled}
+                          aria-pressed={active}
+                        >
+                          {mode}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}

@@ -4,7 +4,9 @@ const EmployerProfile = require("../models/EmployerProfile");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const VALID_INDUSTRIES = require("../data/industries");
+const { getActiveValues } = require("../services/systemOptionService");
+const { GOVERNMENT_ID_TYPE_OTHER } = require("../data/governmentIdTypes");
+const { computeProfileCompleteness } = require("../utils/profileCompleteness");
 const storageService = require("../services/storageService");
 const { logAuditEvent } = require("../services/auditService");
 const { notifyManyUsers } = require("../services/notificationService");
@@ -1003,7 +1005,10 @@ exports.getProfile = async (req, res) => {
       profile = await EmployerProfile.findOne({ userId: user._id });
     }
 
-    res.json({ user, profile });
+    const profileCompleteness =
+      user.role === "jobseeker" ? computeProfileCompleteness(user, profile) : null;
+
+    res.json({ user, profile, profileCompleteness });
   } catch (error) {
     sendError(res, error);
   }
@@ -1044,6 +1049,33 @@ exports.updateProfile = async (req, res) => {
     };
     if (req.body.dateOfBirth !== undefined) commonUpdates.dateOfBirth = req.body.dateOfBirth || null;
     if (req.body.gender !== undefined) commonUpdates.gender = req.body.gender || null;
+    // Government ID type/number — verification status is explicitly out of
+    // scope (data-entry only). Reject silently (ignore) rather than 400 on
+    // an unrecognized type, consistent with how industryPreferenceLevel
+    // below is handled — the client dropdown already constrains the choice,
+    // this is defense-in-depth, not the primary gate.
+    if (req.body.governmentIdType !== undefined) {
+      const submittedType = req.body.governmentIdType || null;
+      if (submittedType === null) {
+        commonUpdates.governmentIdType = null;
+        // No type at all means "please specify" has nothing to describe.
+        commonUpdates.governmentIdTypeOther = null;
+      } else {
+        const activeGovIdTypes = await getActiveValues("governmentIdType");
+        if (activeGovIdTypes.size === 0 || activeGovIdTypes.has(submittedType)) {
+          commonUpdates.governmentIdType = submittedType;
+          // Stale "please specify" text from a previous "Other" selection
+          // shouldn't linger once the type is no longer "Other".
+          if (submittedType !== GOVERNMENT_ID_TYPE_OTHER) {
+            commonUpdates.governmentIdTypeOther = null;
+          }
+        }
+      }
+    }
+    if (req.body.governmentIdNumber !== undefined) commonUpdates.governmentIdNumber = req.body.governmentIdNumber || null;
+    if (req.body.governmentIdTypeOther !== undefined && commonUpdates.governmentIdTypeOther === undefined) {
+      commonUpdates.governmentIdTypeOther = req.body.governmentIdTypeOther || null;
+    }
 
     if (req.body.surname || req.body.firstName || req.body.middleName || req.body.suffix) {
       commonUpdates.surname = req.body.surname || null;
@@ -1077,7 +1109,11 @@ exports.updateProfile = async (req, res) => {
       if (req.body.preferredIndustries) {
         const industries = parseJSON(req.body.preferredIndustries, []);
         if (Array.isArray(industries) && industries.length > 0) {
-          const validSelectedIndustries = industries.filter((ind) => VALID_INDUSTRIES.includes(ind));
+          const activeIndustries = await getActiveValues("industry");
+          const validSelectedIndustries =
+            activeIndustries.size === 0
+              ? industries
+              : industries.filter((ind) => activeIndustries.has(ind));
           if (validSelectedIndustries.length > 0) {
             commonUpdates.preferredIndustries = validSelectedIndustries;
           }
@@ -1119,7 +1155,10 @@ exports.updateProfile = async (req, res) => {
     // ---- 4. File uploads + explicit clears (persisted to storage backend by persistFields middleware) ----
     const storedValueOf = (field) => req.files?.[field]?.[0]?.storedValue;
     if (storedValueOf("resumeFile")) commonUpdates.resumeFile = storedValueOf("resumeFile");
-    if (storedValueOf("validIdFile")) commonUpdates.validIdFile = storedValueOf("validIdFile");
+    if (storedValueOf("validIdFile")) {
+      commonUpdates.validIdFile = storedValueOf("validIdFile");
+      commonUpdates.governmentIdSubmittedAt = new Date();
+    }
     // Verification documents can't be silently swapped out through the
     // generic profile save while a submission is already under review —
     // submitEmployerVerification(WithDocuments) both refuse to re-submit in
@@ -1133,12 +1172,23 @@ exports.updateProfile = async (req, res) => {
       if (storedValueOf("registrationDoc")) commonUpdates.registrationDocUrl = storedValueOf("registrationDoc");
     }
     if (storedValueOf("resume")) commonUpdates.resumeFile = storedValueOf("resume");
-    if (storedValueOf("supportingDocument")) commonUpdates.validIdFile = storedValueOf("supportingDocument");
+    if (storedValueOf("supportingDocument")) {
+      commonUpdates.validIdFile = storedValueOf("supportingDocument");
+      commonUpdates.governmentIdSubmittedAt = new Date();
+    }
 
     const fieldRemovals = getDocumentFieldRemovals(req.body || {});
     if (documentsLocked) {
       delete fieldRemovals.businessPermitUrl;
       delete fieldRemovals.registrationDocUrl;
+    }
+    // Clearing the ID file also clears what it described — a type/number
+    // left behind with no file would be stale, orphaned metadata.
+    if (fieldRemovals.validIdFile === null) {
+      fieldRemovals.governmentIdType = null;
+      fieldRemovals.governmentIdNumber = null;
+      fieldRemovals.governmentIdTypeOther = null;
+      fieldRemovals.governmentIdSubmittedAt = null;
     }
     Object.assign(commonUpdates, fieldRemovals);
 
@@ -1185,7 +1235,18 @@ exports.updateProfile = async (req, res) => {
       if (allFields.permanentAddress !== undefined) {
         profileData.permanentAddress = parseJSON(allFields.permanentAddress, { street: "", barangay: "", municipality: "", province: "", region: "" });
       }
-      if (allFields.disability !== undefined) profileData.disability = parseJSON(allFields.disability, []);
+      if (allFields.disability !== undefined) {
+        const parsedDisability = parseJSON(allFields.disability, []);
+        profileData.disability = parsedDisability;
+        // Stale "please specify" text shouldn't linger once "Others" is no
+        // longer checked — items 14/15's "Other, please specify" fallback.
+        if (!Array.isArray(parsedDisability) || !parsedDisability.includes("Others")) {
+          profileData.disabilityOther = null;
+        }
+      }
+      if (allFields.disabilityOther !== undefined && profileData.disabilityOther === undefined) {
+        profileData.disabilityOther = allFields.disabilityOther || null;
+      }
       if (allFields.is4psBeneficiary !== undefined) profileData.is4psBeneficiary = allFields.is4psBeneficiary === "true";
       if (allFields._4psHouseholdId !== undefined) profileData._4psHouseholdId = allFields._4psHouseholdId || null;
       if (allFields.isOfw !== undefined) profileData.isOfw = allFields.isOfw === "true";
@@ -1201,6 +1262,10 @@ exports.updateProfile = async (req, res) => {
       if (allFields.skills !== undefined) profileData.skills = parseJSON(allFields.skills, []);
       // Industry preferences
       if (allFields.preferredIndustries !== undefined) profileData.preferredIndustries = parseJSON(allFields.preferredIndustries, []);
+      // Preferred work arrangement (job type / work nature) — these feed
+      // semanticService.employmentTypeScore.
+      if (allFields.preferredJobTypes !== undefined) profileData.preferredJobTypes = parseJSON(allFields.preferredJobTypes, []);
+      if (allFields.preferredWorkNature !== undefined) profileData.preferredWorkNature = parseJSON(allFields.preferredWorkNature, []);
 
       // Religion & government IDs (optional)
       if (allFields.religion !== undefined) profileData.religion = allFields.religion || null;
@@ -1282,6 +1347,8 @@ exports.updateProfile = async (req, res) => {
       message: "Profile updated successfully",
       user: updatedUser,
       profile: updatedProfile,
+      profileCompleteness:
+        currentUser.role === "jobseeker" ? computeProfileCompleteness(updatedUser, updatedProfile) : null,
     });
   } catch (error) {
     console.error("Update profile error:", error);

@@ -4,7 +4,7 @@ export const COVER_LETTER_TEMPLATES = {
     intro: "I am writing to express my strong interest in the {position} position at {company}. With my background in {field}, I am confident that my skills and qualifications align well with the requirements of this role.",
     experience: "In my previous role as {previous_role}, I developed strong skills in {skills} and successfully {achievement}. These experiences have prepared me to contribute effectively to your team.",
     skills: "My key strengths include: {key_skills}. I am particularly proficient in {proficiency} and have a proven track record of delivering results.",
-    whyCompany: "I have been following {company}'s work in the {industry} industry and I am impressed by your commitment to {value}. I am excited about the opportunity to contribute to your mission and grow with your team.",
+    whyCompany: "I have been following {company}'s work in {industry} and I am impressed by your commitment to {value}. I am excited about the opportunity to contribute to your mission and grow with your team.",
     closing: "Thank you for considering my application. I look forward to the opportunity to discuss how my background and skills can contribute to the success of {company}."
   },
   
@@ -22,6 +22,18 @@ export const COVER_LETTER_TEMPLATES = {
     skills: "My key skills include {key_skills}. I am proficient in {proficiency}.",
     whyCompany: "I am drawn to {company} because of your reputation for {value}. I believe I can contribute to your team.",
     closing: "Thank you for your consideration. I look forward to hearing from you."
+  },
+
+  // For fresh graduates and other first-time jobseekers — deliberately never
+  // mentions a "previous role," "years of experience," or an "achievement"
+  // from past employment, since those would be false for this audience.
+  // Leads with education/training and eagerness to learn instead.
+  firstTime: {
+    intro: "I am writing to apply for the {position} position at {company}. As a first-time jobseeker with a background in {field}, I am eager to begin my career and bring a strong willingness to learn to your team.",
+    experience: "While I have not yet held a formal role, I developed {skills} through my studies, training, and hands-on coursework. I am a fast learner, highly adaptable, and ready to take on new responsibilities from day one.",
+    skills: "My key strengths include: {key_skills}. I am especially confident in {proficiency}, and I am committed to growing these skills further in a professional setting.",
+    whyCompany: "I am drawn to {company} because of your reputation in {industry}, and starting my career with an organization that values {value} means a great deal to me.",
+    closing: "Thank you for considering my application. I would welcome the chance to discuss how my enthusiasm, dedication, and eagerness to learn can be an asset to {company}."
   }
 };
 
@@ -32,7 +44,10 @@ export const applyTemplate = (templateName, replacements = {}) => {
 
   // Default replacements
   const defaultReplacements = {
-    '{position}': 'this position',
+    // An adjective, not a noun phrase — every template wraps this in its own
+    // "the {position} position"/"the {position} opening", so a noun-phrase
+    // default like "this position" renders as "the this position position".
+    '{position}': 'advertised',
     '{company}': 'your company',
     '{field}': 'this field',
     '{previous_role}': 'my previous role',

@@ -63,6 +63,8 @@
 
 .ev-tab__dot--pending { background: var(--ev-amber-icon); }
 .ev-tab__dot--verified { background: var(--ev-green-icon); }
+.ev-tab__dot--under_review { background: #2c5aa0; }
+.ev-tab__dot--resubmission_required { background: #b45309; }
 
 .ev-tab__badge {
   display: inline-flex;
@@ -304,6 +306,8 @@
 .ev-badge--verified { background: var(--ev-green-bg); color: var(--ev-green); border: 1px solid var(--ev-green-border); }
 .ev-badge--rejected { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 .ev-badge--unverified { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.ev-badge--under_review { background: #e8f0fe; color: #2c5aa0; border: 1px solid #a8c5f0; }
+.ev-badge--resubmission_required { background: #fff4e2; color: #b45309; border: 1px solid #fcd34d; }
 
 .ev-card__meta {
   display: grid;

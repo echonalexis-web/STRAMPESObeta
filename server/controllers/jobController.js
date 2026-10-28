@@ -2,10 +2,14 @@ const mongoose = require("mongoose");
 const JobVacancy = require("../models/JobVacancy");
 const JobApplication = require("../models/JobApplication");
 const JobseekerDocument = require("../models/JobseekerDocument");
+const JobseekerProfile = require("../models/JobseekerProfile");
 const User = require("../models/User");
+const { computeChecklistMatch, computeUnifiedScore, applicantIndustryPreferenceScore } = require("../services/semanticService");
+const { SEEKER_USER_FIELDS, SEEKER_PROFILE_FIELDS, buildSeekerForMatching } = require("../services/matchProfileService");
+const { resolveJobWeightsForScoring } = require("../services/matchWeightsService");
 const Message = require("../models/Message");
 const { ensureConversationBetweenUsers } = require("./messageController");
-const { getHomepageJobsPayload, getApplicationCountMap } = require("../utils/jobDisplay");
+const { getHomepageJobsPayload, getApplicationCountMap, getHiredCountMap } = require("../utils/jobDisplay");
 const EmployerProfile = require("../models/EmployerProfile");
 const { createNotificationForUser } = require("../services/notificationService");
 const storageService = require("../services/storageService");
@@ -88,15 +92,17 @@ exports.buildArchivedJobSnapshot = (job, metrics = {}) => {
 const archiveJobRecord = async (job, archiveReason = "manual_close", io = null) => {
   if (!job || job.archived) return job;
 
-  const applications = await JobApplication.find({ vacancy: job._id });
+  // Withdrawn applications don't count toward the archived snapshot's
+  // totals/rates — the candidate is no longer actually in the running.
+  const applications = await JobApplication.find({ vacancy: job._id, status: { $ne: "withdrawn" } });
   const totalApplicants = applications.length;
   const qualifiedCount = applications.filter((app) => {
     const status = normalizeApplicationStatusValue(app.status);
-    return ["reviewed", "shortlisted", "hired", "accepted"].includes(status);
+    return ["under_review", "reviewed", "shortlisted", "approved", "hired", "accepted"].includes(status);
   }).length;
   const shortlistedCount = applications.filter((app) => {
     const status = normalizeApplicationStatusValue(app.status);
-    return ["shortlisted", "hired", "accepted"].includes(status);
+    return ["shortlisted", "approved", "hired", "accepted"].includes(status);
   }).length;
   const hiredApplications = applications.filter((app) => ["hired", "accepted"].includes(normalizeApplicationStatusValue(app.status)));
   const hiredCandidateIds = hiredApplications.map((app) => String(app.applicant));
@@ -136,7 +142,7 @@ const archiveJobRecord = async (job, archiveReason = "manual_close", io = null) 
   // otherwise only ever hear from the employer via an explicit status
   // change, and would never learn their pending application just went moot.
   const stillPendingApplicants = applications.filter((app) =>
-    ["pending", "reviewed", "shortlisted"].includes(normalizeApplicationStatusValue(app.status))
+    ["pending", "under_review", "reviewed", "shortlisted", "approved"].includes(normalizeApplicationStatusValue(app.status))
   );
   await Promise.all(
     stillPendingApplicants.map((app) =>
@@ -193,7 +199,11 @@ exports.getJobs = async (req, res) => {
       return map;
     }, {});
 
-    const countMap = await getApplicationCountMap(jobs.map((job) => job._id));
+    const jobIdsForCounts = jobs.map((job) => job._id);
+    const [countMap, hiredCountMap] = await Promise.all([
+      getApplicationCountMap(jobIdsForCounts),
+      getHiredCountMap(jobIdsForCounts),
+    ]);
     const jobsWithCounts = jobs.map((job) => {
       const jobObj = job.toObject();
       const employer = jobObj.employer;
@@ -201,6 +211,7 @@ exports.getJobs = async (req, res) => {
         employer.profile = profileMap[String(employer._id)];
       }
       jobObj.applicationCount = Number(countMap[String(job._id)] || 0);
+      jobObj.remainingSlots = Math.max(0, Number(jobObj.slots || 0) - Number(hiredCountMap[String(job._id)] || 0));
       jobObj.qualifications = formatQualifications(jobObj.qualifications);
       return jobObj;
     });
@@ -294,9 +305,48 @@ exports.getJobById = async (req, res) => {
       }
     }
 
-    const countMap = await getApplicationCountMap([job._id]);
+    const [countMap, hiredCountMap] = await Promise.all([
+      getApplicationCountMap([job._id]),
+      getHiredCountMap([job._id]),
+    ]);
     jobObj.applicationCount = Number(countMap[String(job._id)] || 0);
+    jobObj.remainingSlots = Math.max(0, Number(jobObj.slots || 0) - Number(hiredCountMap[String(job._id)] || 0));
     jobObj.qualifications = formatQualifications(jobObj.qualifications);
+
+    // "Your match" panel data — only meaningful for the jobseeker actually
+    // viewing it, and only when something on the job is even scoreable.
+    // Both the literal checklist (requirements met/missing) and the fuzzy
+    // per-dimension breakdown (relevanceScore/matchBreakdown/coverage) are
+    // computed here from the SAME seeker object, so the "Why this match?"
+    // panel (§A.3) always agrees with the must-have list on this page.
+    if (req.user?.role === "jobseeker" || req.user?.role === "employee" || req.user?.role === "resident") {
+      try {
+        const [seekerUser, seekerProfile] = await Promise.all([
+          User.findById(req.user.id).select(SEEKER_USER_FIELDS).lean(),
+          JobseekerProfile.findOne({ userId: req.user.id }).select(SEEKER_PROFILE_FIELDS).lean(),
+        ]);
+        const seeker = buildSeekerForMatching(seekerUser, seekerProfile);
+        jobObj.checklistMatch = computeChecklistMatch(jobObj, seeker);
+        // P0-02 — resolve this job's configured weights and compute the
+        // industry dimension the exact same way the job board does, so the
+        // relevance score shown here always matches the board's for the
+        // same applicant/job (markdowns/MATCHMAKING_DEPLOYMENT_CHECKLIST.md).
+        const weights = await resolveJobWeightsForScoring(jobObj);
+        const industryScoreOverride = applicantIndustryPreferenceScore(
+          jobObj,
+          seeker.profile.preferredIndustries,
+          seeker.user.industryPreferenceLevel
+        );
+        const unified = computeUnifiedScore(jobObj, seeker, industryScoreOverride, weights);
+        if (unified) {
+          jobObj.relevanceScore = unified.score;
+          jobObj.matchBreakdown = { coverage: unified.coverage, ...unified.breakdown };
+          if (unified.disqualified) jobObj.disqualified = unified.disqualified;
+        }
+      } catch (err) {
+        logger.error("Checklist match error:", { jobId: req.params.id, error: err.message });
+      }
+    }
 
     res.json(jobObj);
   } catch (error) {
@@ -344,7 +394,9 @@ exports.applyToJob = async (req, res) => {
       vacancy: job._id,
     }).session(session);
 
-    if (existingApplication) {
+    // A withdrawn application is re-activatable (see below); anything else
+    // existing for this (applicant, vacancy) pair blocks a second apply.
+    if (existingApplication && existingApplication.status !== "withdrawn") {
       await session.abortTransaction();
       session.endSession();
       return res.status(400).json({ message: "You have already applied to this job" });
@@ -356,15 +408,73 @@ exports.applyToJob = async (req, res) => {
       return res.status(400).json({ message: "Please attach your resume before applying." });
     }
 
-    const application = await JobApplication.create([{
-      applicant: req.user.id,
-      vacancy: job._id,
-      resume: resumeUpload ? resumeUpload.storedValue : resumeDocument.storedValue,
-      resumeDocumentId: resumeDocument ? resumeDocument._id : null,
-      coverLetter: req.body.coverLetter || "",
-      coverLetterFile: coverLetterUpload ? coverLetterUpload.storedValue : coverLetterDocument ? coverLetterDocument.storedValue : "",
-      coverLetterDocumentId: coverLetterDocument ? coverLetterDocument._id : null,
-    }], { session });
+    if (!coverLetterUpload && !coverLetterDocument) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: "Please attach a cover letter before applying." });
+    }
+
+    // A library pick must actually have been tailored for THIS job (see
+    // JobseekerDocument.sourceJobId, set only by the Resume & Cover Letter
+    // Studio's "tailor for this job" flow) — a fresh upload is accepted
+    // as-is since there's no prior "tailored" state to check against it.
+    // Enforced server-side, not just by ApplyModal only ever offering the
+    // tailored document as a choice, so a direct API call can't skip it.
+    if (coverLetterDocument && String(coverLetterDocument.sourceJobId || "") !== String(job._id)) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: "Please tailor your cover letter for this job before applying." });
+    }
+
+    let application;
+    if (existingApplication) {
+      // Re-applying after a withdrawal reactivates the same row instead of
+      // inserting a second one — the unique (applicant, vacancy) index only
+      // allows one row per pair. The previously-withdrawn submission's own
+      // stored files are replaced by the fresh ones below, same cleanup
+      // rule as updateMyApplication: only remove storage that isn't backed
+      // by the jobseeker's document library.
+      const previousResume = existingApplication.resume;
+      const previousResumeWasLibrary = Boolean(existingApplication.resumeDocumentId);
+      const previousCoverLetterFile = existingApplication.coverLetterFile;
+      const previousCoverLetterWasLibrary = Boolean(existingApplication.coverLetterDocumentId);
+
+      existingApplication.set({
+        status: "pending",
+        statusUpdatedAt: null,
+        employerNote: "",
+        resume: resumeUpload ? resumeUpload.storedValue : resumeDocument.storedValue,
+        resumeDocumentId: resumeDocument ? resumeDocument._id : null,
+        coverLetter: req.body.coverLetter || "",
+        coverLetterFile: coverLetterUpload ? coverLetterUpload.storedValue : coverLetterDocument ? coverLetterDocument.storedValue : "",
+        coverLetterDocumentId: coverLetterDocument ? coverLetterDocument._id : null,
+        appliedAt: new Date(),
+        interview: { scheduledAt: null, mode: null, location: "", notes: "", scheduledBy: null },
+      });
+      await existingApplication.save({ session });
+      application = [existingApplication];
+
+      if (previousResume && previousResume !== existingApplication.resume && !previousResumeWasLibrary) {
+        Promise.resolve(storageService.remove(previousResume)).catch((err) =>
+          logger.error("Failed to remove previous resume from storage on reapply", { applicationId: String(existingApplication._id), error: err.message })
+        );
+      }
+      if (previousCoverLetterFile && previousCoverLetterFile !== existingApplication.coverLetterFile && !previousCoverLetterWasLibrary) {
+        Promise.resolve(storageService.remove(previousCoverLetterFile)).catch((err) =>
+          logger.error("Failed to remove previous cover letter from storage on reapply", { applicationId: String(existingApplication._id), error: err.message })
+        );
+      }
+    } else {
+      application = await JobApplication.create([{
+        applicant: req.user.id,
+        vacancy: job._id,
+        resume: resumeUpload ? resumeUpload.storedValue : resumeDocument.storedValue,
+        resumeDocumentId: resumeDocument ? resumeDocument._id : null,
+        coverLetter: req.body.coverLetter || "",
+        coverLetterFile: coverLetterUpload ? coverLetterUpload.storedValue : coverLetterDocument ? coverLetterDocument.storedValue : "",
+        coverLetterDocumentId: coverLetterDocument ? coverLetterDocument._id : null,
+      }], { session });
+    }
 
     await session.commitTransaction();
     session.endSession();
@@ -446,7 +556,7 @@ exports.getApplicationsForJob = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    let applications = await JobApplication.find({ vacancy: job._id })
+    let applications = await JobApplication.find({ vacancy: job._id, status: { $ne: "withdrawn" } })
       .populate("applicant", "name email about isActive")
       .sort({ appliedAt: -1 });
 
@@ -551,10 +661,14 @@ const normalizeMyApplications = async (applications) =>
 // values stored on legacy and current documents.
 const MY_APPLICATIONS_STATUS_TABS = {
   pending: ["pending", "applied"],
-  reviewed: ["reviewed"],
+  // "reviewed" tolerated here for any row not yet migrated by
+  // server/scripts/migrateApplicationStatuses.js.
+  under_review: ["under_review", "reviewed"],
   shortlisted: ["shortlisted"],
+  approved: ["approved"],
   accepted: ["accepted", "hired"],
   rejected: ["rejected"],
+  withdrawn: ["withdrawn"],
 };
 
 exports.getMyApplications = async (req, res) => {
@@ -605,10 +719,12 @@ exports.getMyApplications = async (req, res) => {
     const counts = {
       all: statusBuckets.reduce((sum, bucket) => sum + bucket.count, 0),
       pending: (bucketCount.pending || 0) + (bucketCount.applied || 0),
-      reviewed: bucketCount.reviewed || 0,
+      under_review: (bucketCount.under_review || 0) + (bucketCount.reviewed || 0),
       shortlisted: bucketCount.shortlisted || 0,
+      approved: bucketCount.approved || 0,
       accepted: (bucketCount.accepted || 0) + (bucketCount.hired || 0),
       rejected: bucketCount.rejected || 0,
+      withdrawn: bucketCount.withdrawn || 0,
     };
 
     return res.json({
@@ -748,23 +864,22 @@ exports.deleteMyApplication = async (req, res) => {
       return res.status(403).json({ message: "You can only delete your own applications" });
     }
 
-    // Library-sourced files are never deleted here — the same saved document
-    // may still back other applications, or simply still live in the
-    // jobseeker's library; only the JobseekerDocument's own delete route
-    // removes that storage.
-    if (application.resume && !application.resumeDocumentId) {
-      Promise.resolve(storageService.remove(application.resume)).catch((err) =>
-        logger.error("Failed to remove resume from storage on application delete", { applicationId: req.params.id, error: err.message })
-      );
-    }
-    if (application.coverLetterFile && !application.coverLetterDocumentId) {
-      Promise.resolve(storageService.remove(application.coverLetterFile)).catch((err) =>
-        logger.error("Failed to remove cover letter from storage on application delete", { applicationId: req.params.id, error: err.message })
-      );
+    if (application.status === "hired") {
+      return res.status(400).json({
+        message: "You can't withdraw an application after being hired. Contact the employer or an administrator.",
+      });
     }
 
-    await JobApplication.findByIdAndDelete(application._id);
-    logger.info(`Application deleted: ${req.params.id} by user ${req.user.id}`);
+    // Withdrawal is a status change, not a delete — the row (and its audit
+    // trail) persists so the applicant and employer can both still see that
+    // it was withdrawn, and a re-apply (see applyToJob) reactivates this
+    // same row rather than needing a second one. Stored files are no longer
+    // removed here for the same reason: the record they belong to still
+    // exists.
+    application.status = "withdrawn";
+    application.statusUpdatedAt = new Date();
+    await application.save();
+    logger.info(`Application withdrawn: ${req.params.id} by user ${req.user.id}`);
 
     await logAuditEvent({
       req,

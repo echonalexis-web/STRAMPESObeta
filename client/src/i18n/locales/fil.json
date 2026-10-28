@@ -19,6 +19,18 @@
     "login": "Mag-login",
     "joinAs": "Sumali bilang:"
   },
+  "publicNavbar": {
+    "navigation": "Pangunahing nabigasyon",
+    "login": "Mag-login",
+    "register": "Magrehistro",
+    "createAccount": "Gumawa ng iyong account",
+    "applicant": "Magrehistro bilang Aplikante",
+    "employer": "Magrehistro bilang Employer",
+    "applicantDescription": "Maghanap ng trabaho at mga oportunidad",
+    "employerDescription": "Mag-post ng trabaho at humanap ng empleyado",
+    "loginAccount": "Mag-login sa iyong account",
+    "newHere": "Bago sa STRAM PESO?"
+  },
   "navbar": {
     "superadminConsole": "Superadmin Console",
     "adminDashboard": "Admin Dashboard",

@@ -6,6 +6,7 @@ import VacancyCard from "../components/VacancyCard";
 import ApplyModal from "../components/ApplyModal";
 import "../styles/dashboard.css";
 import { FaBriefcase, FaFileAlt, FaBuilding, FaCalendarAlt, FaSearch, FaArrowRight, FaExclamationTriangle, FaSpinner, FaStar } from "react-icons/fa";
+import { jobMatchesAnyIndustry } from "../utils/industries";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const REC_PER_PAGE = 4;
@@ -87,7 +88,7 @@ export default function Dashboard() {
     job,
     applied: isJobAlreadyApplied(job._id),
     followed: Boolean(job.isFollowedEmployer),
-    preferred: preferredIndustries.includes(job.industry),
+    preferred: jobMatchesAnyIndustry(job, preferredIndustries),
     matchAvailable: hasSkills,
     onOpen: () => navigate(`/jobs/${job._id}`),
     onApply: () => setApplyModalJobId(job._id),
@@ -98,7 +99,7 @@ export default function Dashboard() {
   const recommendedAll = useMemo(
     () =>
       jobs
-        .filter((job) => job.isFollowedEmployer || preferredIndustries.includes(job.industry))
+        .filter((job) => job.isFollowedEmployer || jobMatchesAnyIndustry(job, preferredIndustries))
         .sort((a, b) => Number(Boolean(b.isFollowedEmployer)) - Number(Boolean(a.isFollowedEmployer))),
     [jobs, preferredIndustries]
   );
@@ -110,10 +111,34 @@ export default function Dashboard() {
   const recentJobs = useMemo(() => {
     const topRecommended = recommendedAll.slice(0, 4);
     const filler = jobs
-      .filter((job) => !job.isFollowedEmployer && !preferredIndustries.includes(job.industry))
+      .filter((job) => !job.isFollowedEmployer && !jobMatchesAnyIndustry(job, preferredIndustries))
       .slice(0, 4 - topRecommended.length);
     return [...topRecommended, ...filler];
   }, [jobs, recommendedAll, preferredIndustries]);
+
+  // §A.4 — the most frequent missing requirement across jobs this seeker
+  // "nearly" matches (at least one must-have already met, at most two
+  // missing — not "unrelated job", genuinely close). Needs it to recur in
+  // at least 2 jobs before calling it out, so a single posting's one-off
+  // requirement doesn't read as a trend from a sample of one. For a PESO
+  // this is also a training-demand signal, not just an applicant nudge.
+  const skillGapInsight = useMemo(() => {
+    const tally = new Map();
+    jobs.forEach((job) => {
+      const m = job.checklistMatch;
+      if (!m || !m.totalMustHaves || m.metMustHaves === 0) return;
+      const missingCount = m.totalMustHaves - m.metMustHaves;
+      if (missingCount < 1 || missingCount > 2) return;
+      (m.missingRequired || []).forEach((q) => {
+        tally.set(q.value, (tally.get(q.value) || 0) + 1);
+      });
+    });
+    let best = null;
+    tally.forEach((count, value) => {
+      if (count >= 2 && (!best || count > best.count)) best = { value, count };
+    });
+    return best;
+  }, [jobs]);
 
   if (!user) {
     return (
@@ -193,6 +218,16 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {skillGapInsight && (
+            <div className="skill-gap-insight">
+              <FaExclamationTriangle className="skill-gap-insight-icon" />
+              <span>
+                <strong>{skillGapInsight.value}</strong> appears in {skillGapInsight.count} jobs
+                you nearly qualify for — worth looking into.
+              </span>
+            </div>
+          )}
+
           {/* Recent Job Openings — a short teaser; the full list lives on the Job Board */}
           <div className="section-header">
             <h2>Recent Job Openings</h2>
@@ -263,6 +298,7 @@ export default function Dashboard() {
         isOpen={Boolean(applyModalJobId)}
         onClose={() => setApplyModalJobId(null)}
         jobId={applyModalJobId}
+        job={jobs.find((j) => j._id === applyModalJobId) || null}
         onSuccess={() => {
           setApplyModalJobId(null);
           fetchData();

@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const JobseekerDocument = require("../models/JobseekerDocument");
 const JobApplication = require("../models/JobApplication");
 const storageService = require("../services/storageService");
@@ -68,6 +69,13 @@ exports.uploadMyDocument = async (req, res) => {
       req.file.originalname ||
       (kind === "resume" ? "Resume" : "Cover letter");
     const source = req.body.source === "builder" ? "builder" : "upload";
+    // Only ever trust this for a cover letter actually built via the
+    // "tailor for this job" Studio flow — a bogus/foreign id here would let
+    // ApplyModal wrongly treat an untailored letter as satisfying a specific
+    // job's requirement, so it's validated as a real ObjectId rather than
+    // passed through.
+    const sourceJobId =
+      kind === "coverLetter" && mongoose.isValidObjectId(req.body.sourceJobId) ? req.body.sourceJobId : null;
 
     // The first document saved for a kind becomes primary automatically, so
     // the "Primary" badge and ApplyModal's default selection are meaningful
@@ -83,6 +91,7 @@ exports.uploadMyDocument = async (req, res) => {
       sizeBytes: req.file.size || 0,
       source,
       isPrimary: !hasPrimary,
+      sourceJobId,
     });
 
     return res.status(201).json(document);
