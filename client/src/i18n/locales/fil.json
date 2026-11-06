@@ -799,5 +799,59 @@
     "remaining_other": "{{count}} kailangang item pa bago ka makapag-post.",
     "posting": "Pino-post…",
     "submit": "I-post ang job vacancy"
+  },
+  "admin": {
+    "kpi": {
+      "sectionLabel": "Kabuuan sa platform",
+      "totalAccounts": "Kabuuang Account",
+      "totalEmployers": "Kabuuang Employer",
+      "employers": "Mga Employer",
+      "jobSeekers": "Mga Job Seeker",
+      "vacancies": "Mga Bakante",
+      "applications": "Mga Aplikasyon",
+      "activeJobs": "Aktibong Job",
+      "closedJobs": "Saradong Job",
+      "verifiedEmployers": "Beripikadong Employer"
+    },
+    "charts": {
+      "trendTitle": "Mga Aplikasyon at Pagpaparehistro",
+      "trendAria": "Chart ng buwanang aplikasyon (bar) at pagpaparehistro (linya) ngayong taon. May bersyong table sa ilalim ng chart.",
+      "statusTitle": "Status ng Aplikasyon",
+      "statusAria_one": "Donut chart ng {{count}} aplikasyon ayon sa status. Nakalista ang eksaktong bilang sa tabi ng chart.",
+      "statusAria_other": "Donut chart ng {{count}} aplikasyon ayon sa status. Nakalista ang eksaktong bilang sa tabi ng chart.",
+      "provincialTrendAria": "Bar chart ng buwanang pagpaparehistro at aplikasyon sa {{year}}. May bersyong table sa ilalim ng chart.",
+      "applicantOriginAria": "Bar chart ng mga aplikante ayon sa munisipyong pinagmulan.",
+      "applications": "Mga Aplikasyon",
+      "registrations": "Mga Pagpaparehistro",
+      "month": "Buwan",
+      "total": "Kabuuan",
+      "applicationCount_one": "{{count}} aplikasyon",
+      "applicationCount_other": "{{count}} aplikasyon",
+      "viewTable": "Tingnan bilang table",
+      "hideTable": "Itago ang table"
+    },
+    "provincial": {
+      "placementRate": "Placement Rate",
+      "avgDaysToFill": "Karaniwang Araw Bago Mapunan",
+      "activeClosedRatio": "Ratio ng Aktibo at Sarado",
+      "days_one": "{{count}} araw",
+      "days_other": "{{count}} araw",
+      "trendTitle": "Trend ng Pagpaparehistro at Aplikasyon sa {{year}}",
+      "registered": "Nagparehistro",
+      "applied": "Nag-apply",
+      "distributionSwitch": "View ng distribusyon"
+    },
+    "states": {
+      "provincialLoading": "Nilo-load ang provincial analytics…"
+    },
+    "reports": {
+      "tabsLabel": "Uri ng report",
+      "searchLabel": "Maghanap ng record",
+      "municipalityLabel": "Munisipyo",
+      "statusLabel": "Status",
+      "verificationLabel": "Status ng beripikasyon",
+      "emptyTitle": "Walang nahanap na record",
+      "emptyDescription": "Walang record na tugma sa kasalukuyang filter. Subukang i-clear ang paghahanap o pumili ng ibang status."
+    }
   }
 }

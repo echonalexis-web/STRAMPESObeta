@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Area,
   Bar,
@@ -16,32 +17,40 @@ import {
 import {
   FaBriefcase,
   FaBuilding,
-  FaChartLine,
   FaDownload,
   FaFileAlt,
-  FaShieldAlt,
   FaUser,
-  FaUsers,
 } from "react-icons/fa";
+import {
+  Archive,
+  BriefcaseBusiness,
+  Building2,
+  ChartLine,
+  ChartPie,
+  CircleCheck,
+  FileText,
+  ShieldCheck,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { adminAPI } from "../../services/api";
 import { exportCsv, exportPdfTable } from "../../utils/exportUtils";
 import "../../styles/admin.css";
 import "../../styles/reports.css";
 import AdminHeader from "./AdminHeader";
+import MetricCard from "../../components/MetricCard";
+import Reveal from "../../components/Reveal";
+import StateBlock from "../../components/StateBlock";
+import usePrefersReducedMotion from "../../hooks/usePrefersReducedMotion";
+import { CHART_AXIS, CHART_GRID, CHART_SERIES, CHART_STATUS, CHART_TOOLTIP } from "../../utils/chartTheme";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const TREND_COLORS = { applications: "#10b981", registrations: "#065f46" };
-const CHART_AXIS = "#64748b";
-const CHART_GRID = "#e5e7eb";
-const CHART_TOOLTIP = { borderRadius: 10, border: "1px solid #e5e7eb", background: "#ffffff" };
-const STATUS_COLORS = {
-  pending: "#f59e0b",
-  reviewed: "#3b82f6",
-  shortlisted: "#8b5cf6",
-  rejected: "#ef4444",
-  hired: "#22c55e",
-};
+const TREND_COLORS = { applications: CHART_SERIES[0], registrations: CHART_SERIES[1] };
+const STATUS_COLORS = CHART_STATUS;
+
+// Columns whose cells are counts: right-aligned tabular numbers in the table.
+const NUMERIC_COLUMNS = new Set(["slots", "applicants"]);
 
 const MUNICIPALITY_OPTIONS = [
   "All Marinduque",
@@ -158,6 +167,8 @@ const JOB_COLUMNS = [
 ];
 
 export default function Reports() {
+  const { t } = useTranslation();
+  const reduced = usePrefersReducedMotion();
   const [analytics, setAnalytics] = useState(fallbackAnalytics);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
@@ -261,16 +272,16 @@ export default function Reports() {
 
   const kpis = useMemo(
     () => [
-      { label: "Total Accounts", value: analytics.totalAccounts, icon: <FaUsers />, color: "#22c55e", bg: "#dcfce7" },
-      { label: "Employers", value: analytics.totalEmployers, icon: <FaBuilding />, color: "#3b82f6", bg: "#dbeafe" },
-      { label: "Job Seekers", value: analytics.totalJobSeekers, icon: <FaUser />, color: "#8b5cf6", bg: "#ede9fe" },
-      { label: "Vacancies", value: analytics.totalVacancies, icon: <FaBriefcase />, color: "#f59e0b", bg: "#fef3c7" },
-      { label: "Applications", value: analytics.totalApplications, icon: <FaFileAlt />, color: "#06b6d4", bg: "#cffafe" },
-      { label: "Active Jobs", value: analytics.activeJobs, icon: <FaBriefcase />, color: "#10b981", bg: "#d1fae5" },
-      { label: "Closed Jobs", value: analytics.closedJobs, icon: <FaBriefcase />, color: "#64748b", bg: "#e2e8f0" },
-      { label: "Verified Employers", value: analytics.verifiedEmployers, icon: <FaShieldAlt />, color: "#16a34a", bg: "#dcfce7" },
+      { key: "totalAccounts", label: t("admin.kpi.totalAccounts"), value: analytics.totalAccounts, icon: <Users size={20} /> },
+      { key: "employers", label: t("admin.kpi.employers"), value: analytics.totalEmployers, icon: <Building2 size={20} /> },
+      { key: "jobSeekers", label: t("admin.kpi.jobSeekers"), value: analytics.totalJobSeekers, icon: <UserRound size={20} /> },
+      { key: "vacancies", label: t("admin.kpi.vacancies"), value: analytics.totalVacancies, icon: <BriefcaseBusiness size={20} /> },
+      { key: "applications", label: t("admin.kpi.applications"), value: analytics.totalApplications, icon: <FileText size={20} /> },
+      { key: "activeJobs", label: t("admin.kpi.activeJobs"), value: analytics.activeJobs, icon: <CircleCheck size={20} /> },
+      { key: "closedJobs", label: t("admin.kpi.closedJobs"), value: analytics.closedJobs, icon: <Archive size={20} /> },
+      { key: "verifiedEmployers", label: t("admin.kpi.verifiedEmployers"), value: analytics.verifiedEmployers, icon: <ShieldCheck size={20} /> },
     ],
-    [analytics],
+    [analytics, t],
   );
 
   const setFilter = (key, value) => {
@@ -338,48 +349,50 @@ export default function Reports() {
         description="Overall platform statistics plus filterable, exportable lists of applicants, jobs, and employers."
       />
 
-      <section className="admin-stat-row rpt-kpis">
-        {analyticsLoading
-          ? Array.from({ length: 8 }, (_, i) => (
-              <div key={i} className="admin-stat-card admin-stat-card--skeleton">
-                <div className="admin-stat-icon skeleton-box" />
-                <div className="skeleton-line w-32" />
-                <div className="skeleton-line w-24" />
+      <section className="admin-kpis rpt-kpis" aria-label={t("admin.kpi.sectionLabel")}>
+        {analyticsLoading ? (
+          <div className="ds-metrics ds-metrics--4 admin-metrics" role="status" aria-label={t("common.loading")}>
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="ds-metric admin-metric--skeleton" aria-hidden="true">
+                <span className="ds-skeleton admin-metric__skel-icon" />
+                <span className="ds-skeleton admin-metric__skel-value" />
+                <span className="ds-skeleton admin-metric__skel-label" />
               </div>
-            ))
-          : kpis.map((item) => (
-              <article key={item.label} className="admin-stat-card" style={{ borderLeftColor: item.color }}>
-                <span className="admin-stat-icon" style={{ background: item.bg, color: item.color }}>{item.icon}</span>
-                <strong>{item.value}</strong>
-                <p>{item.label}</p>
-              </article>
             ))}
+          </div>
+        ) : (
+          <Reveal className="ds-metrics ds-metrics--4 admin-metrics">
+            {kpis.map((item) => (
+              <MetricCard key={item.key} icon={item.icon} value={item.value} label={item.label} />
+            ))}
+          </Reveal>
+        )}
       </section>
 
       <section className="admin-analytics-grid">
-        <article className="admin-panel-card">
+        <article className="admin-panel-card admin-chart-card">
           <div className="admin-card-header">
-            <h3><FaChartLine /> Applications &amp; Registrations</h3>
+            <h2 className="admin-chart-title"><ChartLine size={18} aria-hidden="true" /> {t("admin.charts.trendTitle")}</h2>
           </div>
-          <div className="admin-chart-wrap">
+          <div className="admin-chart-wrap" role="img" aria-label={t("admin.charts.trendAria")}>
             <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={chartData} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="rptRegistrationsArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={TREND_COLORS.registrations} stopOpacity={0.18} />
+                    <stop offset="0%" stopColor={TREND_COLORS.registrations} stopOpacity={0.22} />
                     <stop offset="100%" stopColor={TREND_COLORS.registrations} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke={CHART_GRID} strokeDasharray="4 4" vertical={false} />
-                <XAxis dataKey="month" stroke={CHART_AXIS} fontSize={12} tickLine={false} axisLine={{ stroke: CHART_GRID }} />
-                <YAxis stroke={CHART_AXIS} allowDecimals={false} fontSize={12} tickLine={false} axisLine={false} width={30} />
+                <CartesianGrid {...CHART_GRID} vertical={false} />
+                <XAxis dataKey="month" {...CHART_AXIS} tickLine={false} axisLine={{ stroke: CHART_GRID.stroke }} />
+                <YAxis {...CHART_AXIS} allowDecimals={false} tickLine={false} axisLine={false} width={30} />
                 <Tooltip
-                  cursor={{ fill: "rgba(6, 95, 70, 0.04)" }}
-                  contentStyle={CHART_TOOLTIP}
-                  formatter={(value, name) => [value, name === "applications" ? "Applications" : "Registrations"]}
+                  cursor={CHART_TOOLTIP.cursor}
+                  contentStyle={CHART_TOOLTIP.contentStyle}
+                  formatter={(value, name) => [value, name === "applications" ? t("admin.charts.applications") : t("admin.charts.registrations")]}
                 />
-                <Bar dataKey="applications" fill={TREND_COLORS.applications} radius={[6, 6, 0, 0]} maxBarSize={34} />
-                <Area type="monotone" dataKey="registrations" stroke="none" fill="url(#rptRegistrationsArea)" />
+                <Bar dataKey="applications" fill={TREND_COLORS.applications} radius={[6, 6, 0, 0]} maxBarSize={34} isAnimationActive={!reduced} />
+                <Area type="monotone" dataKey="registrations" stroke="none" fill="url(#rptRegistrationsArea)" isAnimationActive={!reduced} />
                 <Line
                   type="monotone"
                   dataKey="registrations"
@@ -387,22 +400,50 @@ export default function Reports() {
                   strokeWidth={2.5}
                   dot={{ r: 3, fill: TREND_COLORS.registrations, strokeWidth: 0 }}
                   activeDot={{ r: 5 }}
+                  isAnimationActive={!reduced}
                 />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
           <div className="admin-provincial-legend">
-            <span><i style={{ background: TREND_COLORS.applications }} /> Applications</span>
-            <span><i style={{ background: TREND_COLORS.registrations }} /> Registrations</span>
+            <span><i style={{ background: TREND_COLORS.applications }} /> {t("admin.charts.applications")}</span>
+            <span><i style={{ background: TREND_COLORS.registrations }} /> {t("admin.charts.registrations")}</span>
           </div>
+          <details className="admin-chart-table">
+            <summary className="admin-chart-table__toggle">
+              <span className="admin-chart-table__show">{t("admin.charts.viewTable")}</span>
+              <span className="admin-chart-table__hide">{t("admin.charts.hideTable")}</span>
+            </summary>
+            <div className="ds-table-wrap admin-chart-table__wrap">
+              <table className="ds-table">
+                <caption className="ds-sr-only">{t("admin.charts.trendTitle")}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{t("admin.charts.month")}</th>
+                    <th scope="col" className="is-num">{t("admin.charts.applications")}</th>
+                    <th scope="col" className="is-num">{t("admin.charts.registrations")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chartData.map((row) => (
+                    <tr key={row.month}>
+                      <td>{row.month}</td>
+                      <td className="is-num">{row.applications}</td>
+                      <td className="is-num">{row.registrations}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
         </article>
 
-        <article className="admin-panel-card">
+        <article className="admin-panel-card admin-chart-card">
           <div className="admin-card-header">
-            <h3><FaChartLine /> Application Status</h3>
+            <h2 className="admin-chart-title"><ChartPie size={18} aria-hidden="true" /> {t("admin.charts.statusTitle")}</h2>
           </div>
           <div className="admin-chart-wrap admin-chart-wrap--pie">
-            <div className="admin-donut">
+            <div className="admin-donut" role="img" aria-label={t("admin.charts.statusAria", { count: pieTotal })}>
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie
@@ -414,20 +455,21 @@ export default function Reports() {
                     paddingAngle={2}
                     cornerRadius={4}
                     stroke="none"
+                    isAnimationActive={!reduced}
                   >
                     {pieData.map((entry) => (
                       <Cell key={entry.key} fill={STATUS_COLORS[entry.key]} />
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={CHART_TOOLTIP}
-                    formatter={(value, name) => [`${value} application${value === 1 ? "" : "s"}`, name]}
+                    contentStyle={CHART_TOOLTIP.contentStyle}
+                    formatter={(value, name) => [t("admin.charts.applicationCount", { count: value }), name]}
                   />
                 </PieChart>
               </ResponsiveContainer>
               <div className="admin-donut__center">
                 <strong>{pieTotal}</strong>
-                <span>Total</span>
+                <span>{t("admin.charts.total")}</span>
               </div>
             </div>
             <div className="admin-pie-legend">
@@ -448,14 +490,16 @@ export default function Reports() {
 
       <section className="rpt-records">
         <div className="rpt-records__head">
-          <div className="rpt-tabs" role="tablist">
+          <div className="rpt-tabs ds-tabs" role="tablist" aria-label={t("admin.reports.tabsLabel")}>
             {TABS.map((entry) => (
               <button
                 key={entry.key}
+                id={`rpt-tab-${entry.key}`}
                 type="button"
                 role="tab"
                 aria-selected={tab === entry.key}
-                className={`rpt-tab${tab === entry.key ? " is-active" : ""}`}
+                aria-controls="rpt-panel"
+                className={`rpt-tab ds-tab${tab === entry.key ? " is-active" : ""}`}
                 onClick={() => selectTab(entry.key)}
               >
                 {entry.icon} {entry.label}
@@ -482,10 +526,12 @@ export default function Reports() {
           </div>
         </div>
 
-        <div className="rpt-filters">
+        <div id="rpt-panel" role="tabpanel" aria-labelledby={`rpt-tab-${tab}`} className="rpt-panel">
+        <div className="rpt-filters ds-toolbar">
           <input
             type="search"
             className="rpt-input"
+            aria-label={t("admin.reports.searchLabel")}
             placeholder={tab === "jobs" ? "Search job title, employer, category" : "Search name or email"}
             value={filters.search}
             onChange={(event) => setFilter("search", event.target.value)}
@@ -493,12 +539,12 @@ export default function Reports() {
 
           {tab === "jobs" ? (
             <>
-              <select className="rpt-input" value={filters.municipality} onChange={(e) => setFilter("municipality", e.target.value)}>
+              <select className="rpt-input" aria-label={t("admin.reports.municipalityLabel")} value={filters.municipality} onChange={(e) => setFilter("municipality", e.target.value)}>
                 {MUNICIPALITY_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
-              <select className="rpt-input" value={filters.jobStatus} onChange={(e) => setFilter("jobStatus", e.target.value)}>
+              <select className="rpt-input" aria-label={t("admin.reports.statusLabel")} value={filters.jobStatus} onChange={(e) => setFilter("jobStatus", e.target.value)}>
                 {JOB_STATUS_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
@@ -506,13 +552,13 @@ export default function Reports() {
             </>
           ) : (
             <>
-              <select className="rpt-input" value={filters.userStatus} onChange={(e) => setFilter("userStatus", e.target.value)}>
+              <select className="rpt-input" aria-label={t("admin.reports.statusLabel")} value={filters.userStatus} onChange={(e) => setFilter("userStatus", e.target.value)}>
                 {USER_STATUS_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>{opt === "All" ? "All statuses" : opt}</option>
                 ))}
               </select>
               {tab === "employers" ? (
-                <select className="rpt-input" value={filters.verification} onChange={(e) => setFilter("verification", e.target.value)}>
+                <select className="rpt-input" aria-label={t("admin.reports.verificationLabel")} value={filters.verification} onChange={(e) => setFilter("verification", e.target.value)}>
                   {VERIFICATION_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>{opt === "All" ? "All verification" : opt}</option>
                   ))}
@@ -522,33 +568,45 @@ export default function Reports() {
           )}
         </div>
 
-        <div className="rpt-table-wrap">
-          <table className="rpt-table">
+        <div className="rpt-table-wrap ds-table-wrap" aria-busy={rowsLoading}>
+          <table className="rpt-table ds-table">
             <thead>
               <tr>
                 {columns.map((col) => (
-                  <th key={col.key}>{col.label}</th>
+                  <th key={col.key} scope="col" className={NUMERIC_COLUMNS.has(col.key) ? "is-num" : undefined}>{col.label}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rowsLoading ? (
                 Array.from({ length: 6 }, (_, i) => (
-                  <tr key={i}>
+                  <tr key={i} className="rpt-row--skeleton" aria-hidden="true">
                     {columns.map((col) => (
                       <td key={col.key}><span className="rpt-skel" /></td>
                     ))}
                   </tr>
                 ))
               ) : rows.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="rpt-empty">No records match the current filters.</td>
+                <tr className="rpt-row--empty">
+                  <td colSpan={columns.length} className="rpt-empty">
+                    <StateBlock
+                      kind="empty"
+                      title={t("admin.reports.emptyTitle")}
+                      description={t("admin.reports.emptyDescription")}
+                    />
+                  </td>
                 </tr>
               ) : (
                 rows.map((row) => (
                   <tr key={row._id}>
                     {columns.map((col) => (
-                      <td key={col.key} data-label={col.label}>{col.get(row)}</td>
+                      <td
+                        key={col.key}
+                        data-label={col.label}
+                        className={NUMERIC_COLUMNS.has(col.key) ? "is-num" : undefined}
+                      >
+                        {col.get(row)}
+                      </td>
                     ))}
                   </tr>
                 ))
@@ -574,6 +632,7 @@ export default function Reports() {
               Next
             </button>
           </div>
+        </div>
         </div>
       </section>
     </div>

@@ -799,5 +799,59 @@
     "remaining_other": "{{count}} required items left before you can post.",
     "posting": "Posting…",
     "submit": "Post job vacancy"
+  },
+  "admin": {
+    "kpi": {
+      "sectionLabel": "Platform totals",
+      "totalAccounts": "Total Accounts",
+      "totalEmployers": "Total Employers",
+      "employers": "Employers",
+      "jobSeekers": "Job Seekers",
+      "vacancies": "Vacancies",
+      "applications": "Applications",
+      "activeJobs": "Active Jobs",
+      "closedJobs": "Closed Jobs",
+      "verifiedEmployers": "Verified Employers"
+    },
+    "charts": {
+      "trendTitle": "Applications & Registrations",
+      "trendAria": "Chart of monthly applications (bars) and registrations (line) for this year. A table version is available below the chart.",
+      "statusTitle": "Application Status",
+      "statusAria_one": "Donut chart of {{count}} application by status. Exact numbers are listed next to the chart.",
+      "statusAria_other": "Donut chart of {{count}} applications by status. Exact numbers are listed next to the chart.",
+      "provincialTrendAria": "Bar chart of monthly registrations and applications in {{year}}. A table version is available below the chart.",
+      "applicantOriginAria": "Bar chart of applicants by home municipality.",
+      "applications": "Applications",
+      "registrations": "Registrations",
+      "month": "Month",
+      "total": "Total",
+      "applicationCount_one": "{{count}} application",
+      "applicationCount_other": "{{count}} applications",
+      "viewTable": "View as table",
+      "hideTable": "Hide table"
+    },
+    "provincial": {
+      "placementRate": "Placement Rate",
+      "avgDaysToFill": "Avg. Days to Fill",
+      "activeClosedRatio": "Active vs. Closed Ratio",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "trendTitle": "{{year}} Registration vs Application Trend",
+      "registered": "Registered",
+      "applied": "Applied",
+      "distributionSwitch": "Distribution view"
+    },
+    "states": {
+      "provincialLoading": "Loading provincial analytics…"
+    },
+    "reports": {
+      "tabsLabel": "Report type",
+      "searchLabel": "Search records",
+      "municipalityLabel": "Municipality",
+      "statusLabel": "Status",
+      "verificationLabel": "Verification status",
+      "emptyTitle": "No records found",
+      "emptyDescription": "No records match the current filters. Try clearing the search or choosing a different status."
+    }
   }
 }

@@ -1,16 +1,19 @@
 /* ============================================================
    Admin — Reports & Statistics (records section)
    `rpt-` namespace. KPI cards + charts reuse admin.css classes.
+   UI refresh: tabs use the .ds-tab look, filters the .ds-toolbar look and
+   the records table the .ds-table look (ds-components.css); every value
+   below comes from the design tokens.
    ============================================================ */
 
 .rpt-records {
-  max-width: 1400px;
+  max-width: var(--ds-page-max);
   margin: 0 auto 32px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  padding: 20px 22px 22px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  padding: var(--ds-space-5) var(--ds-space-6) var(--ds-space-6);
+  color: var(--ds-text);
   font-family: var(--sans, "Inter", system-ui, sans-serif);
 }
 
@@ -20,60 +23,40 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: var(--ds-space-2);
 }
 
-.rpt-tabs {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  background: #f1f5f9;
-  border-radius: 12px;
-}
-
-.rpt-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border: none;
-  background: transparent;
-  color: #64748b;
-  font-size: 0.88rem;
-  font-weight: 700;
-  padding: 8px 16px;
-  border-radius: 9px;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+/* Tabs: .ds-tabs / .ds-tab supply the pill look; only layout here. */
+.rpt-tabs.ds-tabs {
+  padding: 0;
 }
 .rpt-tab svg {
-  font-size: 0.85rem;
-}
-.rpt-tab:hover {
-  color: #0f172a;
-}
-.rpt-tab.is-active {
-  background: #ffffff;
-  color: #065f46;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  flex: none;
+  font-size: 0.875rem;
 }
 
+/* Export buttons: secondary (outline) buttons, 44px tall on touch screens */
 .rpt-export {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  border: 1px solid #bbf7d0;
-  background: #f0fdf4;
-  color: #15803d;
-  font-size: 0.86rem;
+  min-height: var(--ds-tap);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-green);
+  font-family: inherit;
+  font-size: var(--ds-text-sm);
   font-weight: 700;
-  padding: 9px 16px;
-  border-radius: 10px;
+  padding: 0 16px;
+  border-radius: var(--ds-radius-btn);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    border-color var(--ds-motion-fast) var(--ds-motion-ease-out);
 }
 .rpt-export:hover:not(:disabled) {
-  background: #dcfce7;
-  border-color: #86efac;
+  background: var(--ds-mint);
+  border-color: #c9e3d3;
 }
 .rpt-export:disabled {
   opacity: 0.55;
@@ -86,109 +69,71 @@
 }
 
 .rpt-export--pdf {
-  border-color: #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-.rpt-export--pdf:hover:not(:disabled) {
-  background: #dbeafe;
-  border-color: #93c5fd;
+  color: var(--ds-green-deep);
 }
 
-.rpt-filters {
-  display: flex;
-  flex-wrap: wrap;
+/* Filters toolbar (.ds-toolbar) */
+.rpt-filters.ds-toolbar {
   gap: 10px;
-  margin-bottom: 16px;
+  padding: var(--ds-space-3) 0 var(--ds-space-4);
 }
 
 .rpt-input {
   flex: 1 1 200px;
   min-width: 0;
   max-width: none;
+  min-height: var(--ds-tap);
   margin: 0;
   display: block;
-  border: 1px solid #d8e0ea;
-  border-radius: 10px;
-  padding: 10px 13px;
-  font-size: 0.88rem;
+  box-sizing: border-box;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  padding: 0 13px;
+  font-size: var(--ds-text-sm);
   font-family: inherit;
-  color: #0f172a;
-  background: #fff;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  color: var(--ds-text);
+  background: var(--ds-surface);
+  transition: border-color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+.rpt-input::placeholder {
+  color: var(--ds-ink-500);
+}
+.rpt-input:hover {
+  border-color: var(--ds-ink-300);
 }
 .rpt-input:focus {
-  outline: none;
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+  border-color: var(--ds-green-secondary);
 }
 select.rpt-input {
   flex: 0 1 200px;
   cursor: pointer;
 }
 
-.rpt-table-wrap {
-  overflow-x: auto;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-}
-.rpt-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
+/* Records table (.ds-table-wrap / .ds-table) */
+.rpt-table.ds-table {
   min-width: 640px;
 }
-.rpt-table thead th {
-  text-align: left;
-  padding: 12px 16px;
-  background: #f8fafc;
-  color: #64748b;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-bottom: 1px solid #e5e7eb;
-  white-space: nowrap;
-}
-.rpt-table tbody td {
-  padding: 13px 16px;
-  border-bottom: 1px solid #eef2f6;
-  color: #334155;
-}
-.rpt-table tbody td:first-child {
-  font-weight: 600;
-  color: #0f172a;
-}
-.rpt-table tbody tr:last-child td {
-  border-bottom: none;
-}
-.rpt-table tbody tr:hover {
-  background: #fafcff;
+.rpt-table.ds-table tbody td:first-child {
+  font-weight: 700;
+  color: var(--ds-text);
 }
 
 .rpt-empty {
-  padding: 40px 16px !important;
-  text-align: center;
-  color: #94a3b8;
+  padding: var(--ds-space-4) !important;
+}
+.rpt-empty .ds-state {
+  border: 0;
+  padding-block: var(--ds-space-6);
 }
 
-/* 8 KPI cards read better as 4 × 2 than the shared 6-up grid */
-.rpt-kpis {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-@media (max-width: 1100px) {
-  .rpt-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-@media (max-width: 780px) {
-  .rpt-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
+/* 8 KPI cards: .ds-metrics--4 handles the 2-up / 4-up grid. */
 
 .rpt-skel {
   display: block;
   height: 12px;
   width: 70%;
-  border-radius: 6px;
-  background: linear-gradient(90deg, #eef2f6 25%, #f8fafc 37%, #eef2f6 63%);
+  border-radius: var(--ds-radius-sm);
+  background: linear-gradient(90deg, var(--ds-ink-100) 25%, var(--ds-ink-50) 37%, var(--ds-ink-100) 63%);
   background-size: 400% 100%;
   animation: rptSkel 1.3s ease-in-out infinite;
 }
@@ -206,30 +151,37 @@ select.rpt-input {
   margin-top: 14px;
 }
 .rpt-pagination__count {
-  font-size: 0.82rem;
+  font-size: var(--ds-text-sm);
   font-weight: 600;
-  color: #64748b;
+  color: var(--ds-muted);
+  font-variant-numeric: tabular-nums;
 }
 .rpt-pagination__nav {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 0.82rem;
-  color: #64748b;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-muted);
+  font-variant-numeric: tabular-nums;
 }
 .rpt-pagination__nav button {
-  border: 1px solid #d8e0ea;
-  background: #fff;
-  color: #334155;
-  border-radius: 9px;
-  padding: 8px 14px;
-  font-size: 0.83rem;
+  min-height: 36px;
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-ink-700);
+  border-radius: var(--ds-radius-btn);
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: var(--ds-text-sm);
   font-weight: 700;
   cursor: pointer;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    border-color var(--ds-motion-fast) var(--ds-motion-ease-out);
 }
 .rpt-pagination__nav button:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+  background: var(--ds-mint);
+  border-color: #c9e3d3;
+  color: var(--ds-green);
 }
 .rpt-pagination__nav button:disabled {
   opacity: 0.5;
@@ -245,30 +197,23 @@ select.rpt-input {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
-    margin-bottom: 14px;
+    margin-bottom: 4px;
   }
 
-  .rpt-tabs {
+  .rpt-tabs.ds-tabs {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
     gap: 6px;
-    padding: 6px;
-    border-radius: 12px;
+    overflow: visible;
   }
 
-  .rpt-tab {
+  .rpt-tab.ds-tab {
     width: 100%;
     justify-content: center;
     min-width: 0;
-    padding: 10px 8px;
-    font-size: clamp(0.72rem, 2.8vw, 0.9rem);
-    line-height: 1.2;
-    white-space: nowrap;
-  }
-
-  .rpt-tab svg {
-    font-size: 0.76rem;
+    padding: 0 8px;
+    gap: 6px;
   }
 
   .rpt-export-group {
@@ -281,27 +226,24 @@ select.rpt-input {
   .rpt-export {
     width: 100%;
     box-sizing: border-box;
-    justify-content: center;
-    min-height: 44px;
-    padding: 12px 10px;
-    font-size: 0.82rem;
+    padding: 0 10px;
   }
 
-  .rpt-filters {
+  .rpt-filters.ds-toolbar {
     flex-direction: column;
+    align-items: stretch;
     gap: 10px;
   }
 
   .rpt-input,
   select.rpt-input {
     width: 100%;
-    min-height: 44px;
     flex: 1 1 auto;
-    box-sizing: border-box;
-    font-size: 0.94rem;
+    font-size: 16px;
   }
 
-  .rpt-table-wrap {
+  /* Rows reflow into stacked cards below 768px */
+  .rpt-table-wrap.ds-table-wrap {
     overflow: visible;
     border: none;
     border-radius: 0;
@@ -318,7 +260,7 @@ select.rpt-input {
     width: 100%;
   }
 
-  .rpt-table {
+  .rpt-table.ds-table {
     min-width: 0;
     border: none;
   }
@@ -334,33 +276,32 @@ select.rpt-input {
     border: none;
   }
 
-  .rpt-table tbody tr {
+  .rpt-table.ds-table tbody tr {
     display: block;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    box-shadow: 0 3px 14px rgba(15, 23, 42, 0.05);
-    padding: 12px 12px 10px;
+    background: var(--ds-surface);
+    border: 1px solid var(--ds-border);
+    border-radius: var(--ds-radius-lg);
+    padding: 12px 14px 10px;
   }
 
-  .rpt-table tbody tr:hover {
-    background: #fff;
+  .rpt-table.ds-table tbody tr:hover {
+    background: var(--ds-surface);
   }
 
-  .rpt-table tbody td {
+  .rpt-table.ds-table tbody td {
     display: flex;
     align-items: flex-start;
     gap: 10px;
     padding: 8px 0;
     border: none;
     min-width: 0;
+    text-align: left;
     word-break: break-word;
     overflow-wrap: anywhere;
   }
 
-  .rpt-table tbody td:first-child {
-    font-size: 1.05rem;
-    font-weight: 700;
+  .rpt-table.ds-table tbody td:first-child {
+    font-size: var(--ds-text-md);
     padding-top: 0;
   }
 
@@ -369,13 +310,17 @@ select.rpt-input {
     display: block;
     width: 32%;
     min-width: 90px;
-    color: #64748b;
-    font-size: 0.68rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    font-weight: 800;
+    color: var(--ds-ink-500);
+    font-size: var(--ds-text-xs);
+    font-weight: 700;
     line-height: 1.5;
     flex-shrink: 0;
+  }
+
+  /* Skeleton and empty rows carry no data-label */
+  .rpt-row--skeleton td::before,
+  .rpt-table tbody td.rpt-empty::before {
+    display: none;
   }
 
   .rpt-table tbody td > * {
@@ -385,8 +330,8 @@ select.rpt-input {
     overflow-wrap: anywhere;
   }
 
-  .rpt-empty {
-    padding: 18px 12px !important;
+  .rpt-table.ds-table tbody td.rpt-empty {
+    padding: 0 !important;
   }
 
   .rpt-pagination {
@@ -397,5 +342,21 @@ select.rpt-input {
   .rpt-pagination__nav {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .rpt-pagination__nav button {
+    min-height: var(--ds-tap);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rpt-skel {
+    animation: none;
+  }
+
+  .rpt-export,
+  .rpt-input,
+  .rpt-pagination__nav button {
+    transition: none;
   }
 }

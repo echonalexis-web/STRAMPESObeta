@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bar,
   BarChart,
@@ -8,7 +9,19 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { CalendarClock, Scale, TrendingUp } from "lucide-react";
 import { adminAPI } from "../../services/api";
+import MetricCard from "../../components/MetricCard";
+import StateBlock from "../../components/StateBlock";
+import usePrefersReducedMotion from "../../hooks/usePrefersReducedMotion";
+import { CHART_AXIS, CHART_GRID, CHART_SERIES, CHART_TOOLTIP } from "../../utils/chartTheme";
+
+// Same pairing as the dashboard trend chart: registrations gold, applications green.
+const SERIES = {
+  registered: CHART_SERIES[1],
+  applied: CHART_SERIES[0],
+  distribution: CHART_SERIES[0],
+};
 
 const MUNICIPALITY_OPTIONS = [
   { value: "ALL", label: "All Marinduque" },
@@ -23,6 +36,8 @@ const MUNICIPALITY_OPTIONS = [
 const buildRatioLabel = (active, closed) => `${Number(active || 0)}:${Number(closed || 0)}`;
 
 export default function ProvincialAnalyticsOverview() {
+  const { t } = useTranslation();
+  const reduced = usePrefersReducedMotion();
   const [selectedMunicipality, setSelectedMunicipality] = useState("ALL");
   const [year, setYear] = useState(2026);
   const [distributionView, setDistributionView] = useState("vacancies");
@@ -101,68 +116,96 @@ export default function ProvincialAnalyticsOverview() {
         </div>
       </div>
 
-      {error ? <div className="admin-form-error">{error}</div> : null}
+      {error ? (
+        <StateBlock kind="error" description={error} className="admin-provincial-state" />
+      ) : null}
 
       {loading ? (
-        <div className="admin-provincial-panel admin-provincial-panel--loading">
-          Loading provincial analytics...
-        </div>
+        <StateBlock kind="loading" title={t("admin.states.provincialLoading")} className="admin-provincial-state" />
       ) : analytics ? (
         <>
-          <div className="admin-provincial-kpis">
-            <article className="admin-provincial-kpi">
-              <span className="admin-provincial-kpi__label">Placement Rate</span>
-              <strong>{readValue(metrics.placementRate)}%</strong>
-            </article>
-            <article className="admin-provincial-kpi">
-              <span className="admin-provincial-kpi__label">Avg. Days to Fill</span>
-              <strong>{readValue(metrics.avgDaysToFill)} days</strong>
-            </article>
-            <article className="admin-provincial-kpi">
-              <span className="admin-provincial-kpi__label">Active vs. Closed Ratio</span>
-              <strong>{buildRatioLabel(metrics.activeVacancies, metrics.closedVacancies)}</strong>
-            </article>
+          <div className="ds-metrics ds-metrics--3 admin-provincial-kpis">
+            <MetricCard
+              icon={<TrendingUp size={20} />}
+              value={`${readValue(metrics.placementRate)}%`}
+              label={t("admin.provincial.placementRate")}
+            />
+            <MetricCard
+              icon={<CalendarClock size={20} />}
+              value={t("admin.provincial.days", { count: readValue(metrics.avgDaysToFill) })}
+              label={t("admin.provincial.avgDaysToFill")}
+            />
+            <MetricCard
+              icon={<Scale size={20} />}
+              value={buildRatioLabel(metrics.activeVacancies, metrics.closedVacancies)}
+              label={t("admin.provincial.activeClosedRatio")}
+            />
           </div>
 
           <div className="admin-provincial-grid">
             <div className="admin-provincial-panel">
               <div className="admin-provincial-panel__title-row">
-                <h3>{year} Registration vs Application Trend</h3>
+                <h3>{t("admin.provincial.trendTitle", { year })}</h3>
               </div>
 
-              <div className="admin-provincial-chart">
+              <div className="admin-provincial-chart" role="img" aria-label={t("admin.charts.provincialTrendAria", { year })}>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid stroke="#e5e7eb" strokeDasharray="4 4" vertical={false} />
-                    <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
-                    <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
+                    <CartesianGrid {...CHART_GRID} vertical={false} />
+                    <XAxis dataKey="month" {...CHART_AXIS} tickLine={false} axisLine={{ stroke: CHART_GRID.stroke }} />
+                    <YAxis {...CHART_AXIS} allowDecimals={false} tickLine={false} axisLine={false} />
                     <Tooltip
-                      cursor={{ fill: "rgba(6, 95, 70, 0.04)" }}
-                      contentStyle={{
-                        borderRadius: "10px",
-                        border: "1px solid #e5e7eb",
-                        background: "#ffffff",
-                      }}
+                      cursor={CHART_TOOLTIP.cursor}
+                      contentStyle={CHART_TOOLTIP.contentStyle}
                     />
-                    <Bar dataKey="registered" fill="#065f46" radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="applied" fill="#10b981" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="registered" fill={SERIES.registered} radius={[6, 6, 0, 0]} isAnimationActive={!reduced} />
+                    <Bar dataKey="applied" fill={SERIES.applied} radius={[6, 6, 0, 0]} isAnimationActive={!reduced} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
               <div className="admin-provincial-legend">
-                <span><i style={{ background: "#065f46" }} /> Registered</span>
-                <span><i style={{ background: "#10b981" }} /> Applied</span>
+                <span><i style={{ background: SERIES.registered }} /> {t("admin.provincial.registered")}</span>
+                <span><i style={{ background: SERIES.applied }} /> {t("admin.provincial.applied")}</span>
               </div>
+
+              <details className="admin-chart-table">
+                <summary className="admin-chart-table__toggle">
+                  <span className="admin-chart-table__show">{t("admin.charts.viewTable")}</span>
+                  <span className="admin-chart-table__hide">{t("admin.charts.hideTable")}</span>
+                </summary>
+                <div className="ds-table-wrap admin-chart-table__wrap">
+                  <table className="ds-table">
+                    <caption className="ds-sr-only">{t("admin.provincial.trendTitle", { year })}</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">{t("admin.charts.month")}</th>
+                        <th scope="col" className="is-num">{t("admin.provincial.registered")}</th>
+                        <th scope="col" className="is-num">{t("admin.provincial.applied")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {chartData.map((row) => (
+                        <tr key={row.month}>
+                          <td>{row.month}</td>
+                          <td className="is-num">{row.registered}</td>
+                          <td className="is-num">{row.applied}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
             </div>
 
             <div className="admin-provincial-panel">
               <div className="admin-provincial-panel__title-row admin-provincial-panel__title-row--with-toggle">
                 <h3>{distributionView === "vacancies" ? "Marinduque Distribution" : "Applicant Municipality Origin"}</h3>
-                <div className="admin-provincial-distribution-switch" aria-label="Distribution view switcher">
+                <div className="admin-provincial-distribution-switch" role="group" aria-label={t("admin.provincial.distributionSwitch")}>
                   <button
                     type="button"
                     className={distributionView === "vacancies" ? "admin-provincial-toggle admin-provincial-toggle--active" : "admin-provincial-toggle"}
+                    aria-pressed={distributionView === "vacancies"}
                     onClick={() => setDistributionView("vacancies")}
                   >
                     Vacancies
@@ -170,6 +213,7 @@ export default function ProvincialAnalyticsOverview() {
                   <button
                     type="button"
                     className={distributionView === "applicants" ? "admin-provincial-toggle admin-provincial-toggle--active" : "admin-provincial-toggle"}
+                    aria-pressed={distributionView === "applicants"}
                     onClick={() => setDistributionView("applicants")}
                   >
                     Applicants
@@ -196,21 +240,21 @@ export default function ProvincialAnalyticsOverview() {
                   )}
                 </div>
               ) : (
-                <div className="admin-provincial-chart admin-provincial-chart--compact">
+                <div
+                  className="admin-provincial-chart admin-provincial-chart--compact"
+                  role="img"
+                  aria-label={t("admin.charts.applicantOriginAria")}
+                >
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={activeDistributionData} layout="vertical" margin={{ top: 12, right: 10, left: 10, bottom: 0 }}>
-                      <CartesianGrid stroke="#e5e7eb" strokeDasharray="4 4" horizontal={false} />
-                      <XAxis type="number" stroke="#64748b" fontSize={12} allowDecimals={false} />
-                      <YAxis type="category" dataKey="municipality" width={100} stroke="#64748b" fontSize={12} />
+                      <CartesianGrid {...CHART_GRID} horizontal={false} />
+                      <XAxis type="number" {...CHART_AXIS} allowDecimals={false} tickLine={false} />
+                      <YAxis type="category" dataKey="municipality" width={100} {...CHART_AXIS} tickLine={false} />
                       <Tooltip
-                        cursor={{ fill: "rgba(16, 185, 129, 0.06)" }}
-                        contentStyle={{
-                          borderRadius: "10px",
-                          border: "1px solid #e5e7eb",
-                          background: "#ffffff",
-                        }}
+                        cursor={CHART_TOOLTIP.cursor}
+                        contentStyle={CHART_TOOLTIP.contentStyle}
                       />
-                      <Bar dataKey="value" fill="#10b981" radius={[0, 6, 6, 0]} />
+                      <Bar dataKey="value" fill={SERIES.distribution} radius={[0, 6, 6, 0]} isAnimationActive={!reduced} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -248,12 +292,12 @@ export default function ProvincialAnalyticsOverview() {
                 <h3>Top In-Demand Roles</h3>
               </div>
 
-              <div className="admin-provincial-table-wrap">
-                <table className="admin-table admin-provincial-table">
+              <div className="admin-provincial-table-wrap ds-table-wrap">
+                <table className="admin-table admin-provincial-table ds-table">
                   <thead>
                     <tr>
-                      <th>Role</th>
-                      <th>Open Vacancies</th>
+                      <th scope="col">Role</th>
+                      <th scope="col" className="is-num">Open Vacancies</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -261,7 +305,7 @@ export default function ProvincialAnalyticsOverview() {
                       roles.map((role) => (
                         <tr key={role.title}>
                           <td>{role.title}</td>
-                          <td>{role.vacancies}</td>
+                          <td className="is-num">{role.vacancies}</td>
                         </tr>
                       ))
                     ) : (

@@ -5,7 +5,7 @@
 
 export const CHART_SERIES = [
   '#07553a', // --ds-chart-1 forest green
-  '#e6b91e', // --ds-chart-2 gold
+  '#a07a00', // gold, darkened from --ds-chart-2 (#e6b91e is ~1.9:1 on white; this is ~4:1, WCAG 1.4.11)
   '#0b704b', // --ds-chart-3 secondary green
   '#7fb89a', // --ds-chart-4 soft green
   '#5a6c65', // --ds-chart-5 ink

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Area,
   Bar,
@@ -13,32 +14,27 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { FaChartLine, FaBriefcase, FaBuilding, FaFileAlt, FaShieldAlt, FaUser, FaUsers } from "react-icons/fa";
+import { BriefcaseBusiness, Building2, ChartLine, ChartPie, FileText, ShieldCheck, UserRound, Users } from "lucide-react";
 import { adminAPI } from "../../services/api";
 import "../../styles/admin.css";
 import AdminHeader from "./AdminHeader";
 import ProvincialAnalyticsOverview from "./ProvincialAnalyticsOverview";
 import MatchWeightDefaultsSettings from "../../components/MatchWeightDefaultsSettings";
+import MetricCard from "../../components/MetricCard";
+import Reveal from "../../components/Reveal";
+import usePrefersReducedMotion from "../../hooks/usePrefersReducedMotion";
+import { CHART_AXIS, CHART_GRID, CHART_SERIES, CHART_STATUS, CHART_TOOLTIP } from "../../utils/chartTheme";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-// Shared with Provincial Analytics Overview above
+// Shared with Provincial Analytics Overview above (brand chart palette)
 const TREND_COLORS = {
-  applications: "#10b981",
-  registrations: "#065f46",
+  applications: CHART_SERIES[0],
+  registrations: CHART_SERIES[1],
 };
-const CHART_AXIS = "#64748b";
-const CHART_GRID = "#e5e7eb";
-const CHART_TOOLTIP = { borderRadius: 10, border: "1px solid #e5e7eb", background: "#ffffff" };
 
-// Application Status keeps its own multi-colour palette (exempt from the trend scheme)
-const STATUS_COLORS = {
-  pending: "#f59e0b",
-  reviewed: "#3b82f6",
-  shortlisted: "#8b5cf6",
-  rejected: "#ef4444",
-  hired: "#22c55e",
-};
+// Application Status keeps its own semantic palette (AA-safe status hues)
+const STATUS_COLORS = CHART_STATUS;
 
 const fallbackAnalytics = {
   totalAccounts: 0,
@@ -60,6 +56,8 @@ const fallbackAnalytics = {
 };
 
 export default function AdminDashboard() {
+  const { t } = useTranslation();
+  const reduced = usePrefersReducedMotion();
   const [analytics, setAnalytics] = useState(fallbackAnalytics);
   const [loading, setLoading] = useState(true);
 
@@ -90,13 +88,13 @@ export default function AdminDashboard() {
   }, []);
 
   const stats = useMemo(() => [
-    { label: "Total Accounts", icon: <FaUsers />, value: analytics.totalAccounts, color: "#22c55e", bg: "#dcfce7" },
-    { label: "Total Employers", icon: <FaBuilding />, value: analytics.totalEmployers, color: "#3b82f6", bg: "#dbeafe" },
-    { label: "Job Seekers", icon: <FaUser />, value: analytics.totalJobSeekers, color: "#8b5cf6", bg: "#ede9fe" },
-    { label: "Vacancies", icon: <FaBriefcase />, value: analytics.totalVacancies, color: "#f59e0b", bg: "#fef3c7" },
-    { label: "Applications", icon: <FaFileAlt />, value: analytics.totalApplications, color: "#06b6d4", bg: "#cffafe" },
-    { label: "Verified Employers", icon: <FaShieldAlt />, value: analytics.verifiedEmployers, color: "#22c55e", bg: "#dcfce7" },
-  ], [analytics]);
+    { key: "totalAccounts", label: t("admin.kpi.totalAccounts"), icon: <Users size={20} />, value: analytics.totalAccounts },
+    { key: "totalEmployers", label: t("admin.kpi.totalEmployers"), icon: <Building2 size={20} />, value: analytics.totalEmployers },
+    { key: "jobSeekers", label: t("admin.kpi.jobSeekers"), icon: <UserRound size={20} />, value: analytics.totalJobSeekers },
+    { key: "vacancies", label: t("admin.kpi.vacancies"), icon: <BriefcaseBusiness size={20} />, value: analytics.totalVacancies },
+    { key: "applications", label: t("admin.kpi.applications"), icon: <FileText size={20} />, value: analytics.totalApplications },
+    { key: "verifiedEmployers", label: t("admin.kpi.verifiedEmployers"), icon: <ShieldCheck size={20} />, value: analytics.verifiedEmployers },
+  ], [analytics, t]);
 
   const chartData = useMemo(() =>
     MONTH_LABELS.map((month, index) => ({
@@ -127,50 +125,52 @@ export default function AdminDashboard() {
         description="Monitor platform health, account growth, hiring activity, and operational performance across the province."
       />
 
-      <section className="admin-stat-row">
-        {loading
-          ? Array.from({ length: 6 }, (_, index) => (
-              <div key={`stat-loader-${index}`} className="admin-stat-card admin-stat-card--skeleton">
-                <div className="admin-stat-icon skeleton-box" />
-                <div className="skeleton-line w-32" />
-                <div className="skeleton-line w-24" />
+      <section className="admin-kpis" aria-label={t("admin.kpi.sectionLabel")}>
+        {loading ? (
+          <div className="ds-metrics ds-metrics--3 admin-metrics" role="status" aria-label={t("common.loading")}>
+            {Array.from({ length: 6 }, (_, index) => (
+              <div key={`stat-loader-${index}`} className="ds-metric admin-metric--skeleton" aria-hidden="true">
+                <span className="ds-skeleton admin-metric__skel-icon" />
+                <span className="ds-skeleton admin-metric__skel-value" />
+                <span className="ds-skeleton admin-metric__skel-label" />
               </div>
-            ))
-          : stats.map((item) => (
-              <article key={item.label} className="admin-stat-card" style={{ borderLeftColor: item.color }}>
-                <span className="admin-stat-icon" style={{ background: item.bg, color: item.color }}>{item.icon}</span>
-                <strong>{item.value}</strong>
-                <p>{item.label}</p>
-              </article>
             ))}
+          </div>
+        ) : (
+          <Reveal className="ds-metrics ds-metrics--3 admin-metrics">
+            {stats.map((item) => (
+              <MetricCard key={item.key} icon={item.icon} value={item.value} label={item.label} />
+            ))}
+          </Reveal>
+        )}
       </section>
 
       <ProvincialAnalyticsOverview />
 
       <section className="admin-analytics-grid">
-        <article className="admin-panel-card">
+        <article className="admin-panel-card admin-chart-card">
           <div className="admin-card-header">
-            <h3><FaChartLine /> Applications &amp; Registrations</h3>
+            <h2 className="admin-chart-title"><ChartLine size={18} aria-hidden="true" /> {t("admin.charts.trendTitle")}</h2>
           </div>
-          <div className="admin-chart-wrap">
+          <div className="admin-chart-wrap" role="img" aria-label={t("admin.charts.trendAria")}>
             <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={chartData} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="adminRegistrationsArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={TREND_COLORS.registrations} stopOpacity={0.18} />
+                    <stop offset="0%" stopColor={TREND_COLORS.registrations} stopOpacity={0.22} />
                     <stop offset="100%" stopColor={TREND_COLORS.registrations} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke={CHART_GRID} strokeDasharray="4 4" vertical={false} />
-                <XAxis dataKey="month" stroke={CHART_AXIS} fontSize={12} tickLine={false} axisLine={{ stroke: CHART_GRID }} />
-                <YAxis stroke={CHART_AXIS} allowDecimals={false} fontSize={12} tickLine={false} axisLine={false} width={30} />
+                <CartesianGrid {...CHART_GRID} vertical={false} />
+                <XAxis dataKey="month" {...CHART_AXIS} tickLine={false} axisLine={{ stroke: CHART_GRID.stroke }} />
+                <YAxis {...CHART_AXIS} allowDecimals={false} tickLine={false} axisLine={false} width={30} />
                 <Tooltip
-                  cursor={{ fill: "rgba(6, 95, 70, 0.04)" }}
-                  contentStyle={CHART_TOOLTIP}
-                  formatter={(value, name) => [value, name === "applications" ? "Applications" : "Registrations"]}
+                  cursor={CHART_TOOLTIP.cursor}
+                  contentStyle={CHART_TOOLTIP.contentStyle}
+                  formatter={(value, name) => [value, name === "applications" ? t("admin.charts.applications") : t("admin.charts.registrations")]}
                 />
-                <Bar dataKey="applications" fill={TREND_COLORS.applications} radius={[6, 6, 0, 0]} maxBarSize={34} />
-                <Area type="monotone" dataKey="registrations" stroke="none" fill="url(#adminRegistrationsArea)" />
+                <Bar dataKey="applications" fill={TREND_COLORS.applications} radius={[6, 6, 0, 0]} maxBarSize={34} isAnimationActive={!reduced} />
+                <Area type="monotone" dataKey="registrations" stroke="none" fill="url(#adminRegistrationsArea)" isAnimationActive={!reduced} />
                 <Line
                   type="monotone"
                   dataKey="registrations"
@@ -178,22 +178,50 @@ export default function AdminDashboard() {
                   strokeWidth={2.5}
                   dot={{ r: 3, fill: TREND_COLORS.registrations, strokeWidth: 0 }}
                   activeDot={{ r: 5 }}
+                  isAnimationActive={!reduced}
                 />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
           <div className="admin-provincial-legend">
-            <span><i style={{ background: TREND_COLORS.applications }} /> Applications</span>
-            <span><i style={{ background: TREND_COLORS.registrations }} /> Registrations</span>
+            <span><i style={{ background: TREND_COLORS.applications }} /> {t("admin.charts.applications")}</span>
+            <span><i style={{ background: TREND_COLORS.registrations }} /> {t("admin.charts.registrations")}</span>
           </div>
+          <details className="admin-chart-table">
+            <summary className="admin-chart-table__toggle">
+              <span className="admin-chart-table__show">{t("admin.charts.viewTable")}</span>
+              <span className="admin-chart-table__hide">{t("admin.charts.hideTable")}</span>
+            </summary>
+            <div className="ds-table-wrap admin-chart-table__wrap">
+              <table className="ds-table">
+                <caption className="ds-sr-only">{t("admin.charts.trendTitle")}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{t("admin.charts.month")}</th>
+                    <th scope="col" className="is-num">{t("admin.charts.applications")}</th>
+                    <th scope="col" className="is-num">{t("admin.charts.registrations")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chartData.map((row) => (
+                    <tr key={row.month}>
+                      <td>{row.month}</td>
+                      <td className="is-num">{row.applications}</td>
+                      <td className="is-num">{row.registrations}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
         </article>
 
-        <article className="admin-panel-card">
+        <article className="admin-panel-card admin-chart-card">
           <div className="admin-card-header">
-            <h3><FaChartLine /> Application Status</h3>
+            <h2 className="admin-chart-title"><ChartPie size={18} aria-hidden="true" /> {t("admin.charts.statusTitle")}</h2>
           </div>
           <div className="admin-chart-wrap admin-chart-wrap--pie">
-            <div className="admin-donut">
+            <div className="admin-donut" role="img" aria-label={t("admin.charts.statusAria", { count: pieTotal })}>
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie
@@ -205,20 +233,21 @@ export default function AdminDashboard() {
                     paddingAngle={2}
                     cornerRadius={4}
                     stroke="none"
+                    isAnimationActive={!reduced}
                   >
                     {pieData.map((entry) => (
                       <Cell key={entry.key} fill={STATUS_COLORS[entry.key]} />
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={CHART_TOOLTIP}
-                    formatter={(value, name) => [`${value} application${value === 1 ? "" : "s"}`, name]}
+                    contentStyle={CHART_TOOLTIP.contentStyle}
+                    formatter={(value, name) => [t("admin.charts.applicationCount", { count: value }), name]}
                   />
                 </PieChart>
               </ResponsiveContainer>
               <div className="admin-donut__center">
                 <strong>{pieTotal}</strong>
-                <span>Total</span>
+                <span>{t("admin.charts.total")}</span>
               </div>
             </div>
             <div className="admin-pie-legend">
