@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   FaBullhorn,
   FaHeart,
@@ -13,6 +14,7 @@ import {
 } from "react-icons/fa";
 import { newsAPI } from "../../services/api";
 import { useToast, useConfirm } from "../../components/feedback/context";
+import StateBlock from "../../components/StateBlock";
 import "../../styles/admin.css";
 import "../../styles/newsAdmin.css";
 import AdminHeader from "./AdminHeader";
@@ -33,6 +35,7 @@ const excerpt = (text, max = 90) => {
 };
 
 export default function NewsFeedManagement() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirm();
@@ -141,8 +144,6 @@ export default function NewsFeedManagement() {
           </button>
         </div>
 
-        {error ? <div className="na-alert">{error}</div> : null}
-
         <div className="na-table-wrap">
           <table className="na-table">
             <thead>
@@ -158,7 +159,7 @@ export default function NewsFeedManagement() {
             <tbody>
               {loading ? (
                 [0, 1, 2].map((row) => (
-                  <tr key={row}>
+                  <tr key={row} aria-hidden="true">
                     <td><div className="na-skel" style={{ width: "70%" }} /></td>
                     <td><div className="na-skel" style={{ width: 70 }} /></td>
                     <td><div className="na-skel" style={{ width: 80 }} /></td>
@@ -167,6 +168,17 @@ export default function NewsFeedManagement() {
                     <td><div className="na-skel" style={{ width: 80, marginLeft: "auto" }} /></td>
                   </tr>
                 ))
+              ) : error ? (
+                <tr>
+                  <td colSpan={6} className="na-state-cell">
+                    <StateBlock
+                      kind="error"
+                      title={t("admin.news.errorTitle")}
+                      description={error}
+                      onRetry={loadPosts}
+                    />
+                  </td>
+                </tr>
               ) : posts.length === 0 ? (
                 <tr>
                   <td colSpan={6}>

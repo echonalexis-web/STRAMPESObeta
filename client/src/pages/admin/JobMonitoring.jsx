@@ -19,6 +19,8 @@ import {
 } from "react-icons/fa";
 import { adminAPI, superadminAPI } from "../../services/api";
 import { useToast } from "../../components/feedback/context";
+import StateBlock from "../../components/StateBlock";
+import useParallaxLayer from "../../hooks/useParallaxLayer";
 import { useAuth } from "../../context/AuthContext";
 import { exportCsv, exportPdfTable } from "../../utils/exportUtils";
 import "../../styles/jobMonitoring.css";
@@ -71,6 +73,14 @@ const JOB_EXPORT_COLUMNS = [
         : "—",
   },
 ];
+
+// Header ring art: the band's single decorative parallax layer. Its own
+// component so the layer re-registers whenever the banner remounts (the page
+// swaps to JobPostingForm while a job is being edited).
+const BannerRings = () => {
+  const ringsRef = useParallaxLayer(0.1, 24);
+  return <span ref={ringsRef} className="jm-banner__rings ds-pagehead__art mx-parallax" aria-hidden="true" />;
+};
 
 export default function JobMonitoring() {
   const PAGE_SIZE = 10;
@@ -361,17 +371,16 @@ export default function JobMonitoring() {
 
   return (
     <div className="jm-page">
-      <header className="jm-banner">
-        <div className="jm-banner__rings" aria-hidden="true" />
-        <div className="jm-banner__eyebrow">
-          {isSuperadmin ? "Superadmin · Policy Enforcement" : "Admin Control Center"}
+      <header className="jm-banner ds-pagehead">
+        <BannerRings />
+        <div className="ds-pagehead__text">
+          <h1 className="jm-banner__title ds-pagehead__title">Job Monitoring &amp; Vacancy Pipeline</h1>
+          <p className="jm-banner__desc ds-pagehead__sub">
+            {isSuperadmin
+              ? "Review employer job postings and permanently remove any that violate platform policy."
+              : "Monitor employer job postings, review pending vacancies, track hiring demand across Marinduque municipalities, and verify slot allocations in real-time."}
+          </p>
         </div>
-        <h1 className="jm-banner__title">Job Monitoring &amp; Vacancy Pipeline</h1>
-        <p className="jm-banner__desc">
-          {isSuperadmin
-            ? "Review employer job postings and permanently remove any that violate platform policy."
-            : "Monitor employer job postings, review pending vacancies, track hiring demand across Marinduque municipalities, and verify slot allocations in real-time."}
-        </p>
       </header>
 
       {!isSuperadmin && (
@@ -380,7 +389,7 @@ export default function JobMonitoring() {
             <article key={label} className={`jm-kpi jm-kpi--${accent}`}>
               <div className="jm-kpi__header">
                 <span className="jm-kpi__label">{label}</span>
-                <div className="jm-kpi__icon">
+                <div className="jm-kpi__icon" aria-hidden="true">
                   <Icon />
                 </div>
               </div>
@@ -511,16 +520,18 @@ export default function JobMonitoring() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="jm-empty">
-                    <FaExclamationTriangle aria-hidden="true" />
-                    Loading active vacancies...
+                  <td colSpan={4} className="jm-state-cell">
+                    <StateBlock kind="loading" title={t("admin.jobMonitoring.loading")} />
                   </td>
                 </tr>
               ) : jobs.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="jm-empty">
-                    <FaExclamationTriangle aria-hidden="true" />
-                    No vacancies match your filters.
+                  <td colSpan={4} className="jm-state-cell">
+                    <StateBlock
+                      kind="empty"
+                      title={t("admin.jobMonitoring.emptyTitle")}
+                      description={t("admin.jobMonitoring.emptyDescription")}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -558,8 +569,13 @@ export default function JobMonitoring() {
                         <div className="jm-slot-cell">
                           <div className="jm-slot-row">
                             <span className="jm-slots__ratio">{job.slots} / {job.applicants} slots</span>
-                            <button type="button" className="jm-view-btn" onClick={() => setSelectedJob(job)}>
-                              <FaEye />
+                            <button
+                              type="button"
+                              className="jm-view-btn"
+                              onClick={() => setSelectedJob(job)}
+                              aria-label={t("admin.jobMonitoring.viewAria", { title: job.title })}
+                            >
+                              <FaEye aria-hidden="true" />
                             </button>
                           </div>
                           {canEdit && (
@@ -605,14 +621,20 @@ export default function JobMonitoring() {
 
       {selectedJob ? (
         <div className="jm-backdrop" onClick={() => setSelectedJob(null)}>
-          <div className="jm-modal" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="jm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="jm-inspect-title"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="jm-modal__header">
-              <div className="jm-modal__icon">
+              <div className="jm-modal__icon" aria-hidden="true">
                 <FaBriefcase />
               </div>
               <div className="jm-modal__heading">
                 <p className="jm-modal__eyebrow">Vacancy Inspection</p>
-                <h3 className="jm-modal__title">{selectedJob.title}</h3>
+                <h3 id="jm-inspect-title" className="jm-modal__title">{selectedJob.title}</h3>
               </div>
               <button type="button" className="jm-modal__close" onClick={() => setSelectedJob(null)} aria-label="Close vacancy inspection">
                 <FaTimes />
@@ -669,14 +691,20 @@ export default function JobMonitoring() {
 
       {takedownJob ? (
         <div className="jm-backdrop" onClick={() => !takingDown && setTakedownJob(null)}>
-          <div className="jm-modal" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="jm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="jm-takedown-title"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="jm-modal__header">
-              <div className="jm-modal__icon">
+              <div className="jm-modal__icon" aria-hidden="true">
                 <FaTrash />
               </div>
               <div className="jm-modal__heading">
                 <p className="jm-modal__eyebrow">Policy Violation Takedown</p>
-                <h3 className="jm-modal__title">{takedownJob.title}</h3>
+                <h3 id="jm-takedown-title" className="jm-modal__title">{takedownJob.title}</h3>
               </div>
               <button
                 type="button"

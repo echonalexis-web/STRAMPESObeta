@@ -852,6 +852,42 @@
       "verificationLabel": "Verification status",
       "emptyTitle": "No records found",
       "emptyDescription": "No records match the current filters. Try clearing the search or choosing a different status."
+    },
+    "verification": {
+      "tabsLabel": "Verification status",
+      "loading": "Loading verification list…",
+      "errorTitle": "Couldn't load the verification list",
+      "empty": {
+        "pending": "No pending verifications.",
+        "under_review": "No submissions currently under review.",
+        "verified": "No verified employers yet.",
+        "resubmission_required": "No submissions awaiting resubmission.",
+        "all": "No employer records found."
+      },
+      "emptyHint": "New employer submissions appear here as soon as they are sent for review.",
+      "noSearchMatch": "No records match your search.",
+      "noSearchMatchHint": "Check the spelling, or search by another company name or email."
+    },
+    "jobMonitoring": {
+      "loading": "Loading vacancies…",
+      "emptyTitle": "No vacancies found",
+      "emptyDescription": "No vacancies match your filters. Try clearing the search or choosing another municipality or status.",
+      "viewAria": "View details for {{title}}"
+    },
+    "news": {
+      "errorTitle": "Couldn't load announcements",
+      "loadingAnnouncement": "Loading announcement…"
+    },
+    "spes": {
+      "loading": "Loading applications…",
+      "emptyTitle": "No applications found",
+      "emptyDescription": "No SPES applications match the selected program and status."
+    },
+    "userProfile": {
+      "loading": "Loading user profile…",
+      "errorTitle": "Couldn't load this profile",
+      "notFound": "User profile not found",
+      "notFoundDescription": "This account may have been removed, or the link is incorrect."
     }
   }
 }

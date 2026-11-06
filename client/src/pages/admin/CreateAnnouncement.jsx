@@ -4,6 +4,8 @@ import { FaArrowLeft, FaImage, FaHeart, FaUpload, FaCrop } from "react-icons/fa"
 import { newsAPI, resolveAssetUrl } from "../../services/api";
 import { useToast } from "../../components/feedback/context";
 import ImageEditorModal from "../../components/ImageEditorModal";
+import StateBlock from "../../components/StateBlock";
+import { useTranslation } from "react-i18next";
 import "../../styles/admin.css";
 import "../../styles/newsAdmin.css";
 import AdminHeader from "./AdminHeader";
@@ -57,6 +59,7 @@ const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const IMAGE_ACCEPT = "image/png,image/jpeg,image/jpg,image/webp,image/gif";
 
 export default function CreateAnnouncement() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const toast = useToast();
   const { id } = useParams();
@@ -268,7 +271,7 @@ export default function CreateAnnouncement() {
           {error ? <div className="na-alert">{error}</div> : null}
 
           {loading ? (
-            <p className="na-state">Loading announcement…</p>
+            <StateBlock kind="loading" title={t("admin.news.loadingAnnouncement")} />
           ) : (
           <form className="na-form" onSubmit={handleSubmit}>
             <div className="na-field na-field--full">

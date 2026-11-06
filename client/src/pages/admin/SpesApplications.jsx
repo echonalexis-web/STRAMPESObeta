@@ -3,7 +3,9 @@ import { FaTimes } from "react-icons/fa";
 import { Eye, FileText, Download, Clock } from "lucide-react";
 import { newsAPI, spesAPI } from "../../services/api";
 import SecureFileLink from "../../components/SecureFileLink";
+import { useTranslation } from "react-i18next";
 import { useToast } from "../../components/feedback/context";
+import StateBlock from "../../components/StateBlock";
 import AdminHeader from "./AdminHeader";
 import "../../styles/admin.css";
 import "../../styles/spes.css";
@@ -242,6 +244,7 @@ function SpesEvalDrawer({ app, onClose, onSaved }) {
 }
 
 export default function SpesApplications() {
+  const { t } = useTranslation();
   const toast = useToast();
   const [programs, setPrograms] = useState([]);
   const [announcementId, setAnnouncementId] = useState("");
@@ -324,13 +327,13 @@ export default function SpesApplications() {
   };
 
   return (
-    <div className="admin-page-container">
+    <div className="admin-page-container spes-admin">
       <AdminHeader
         title="SPES Applications"
         description="Review Special Program for Employment of Students applicants, record exam and interview results, and release results in-platform."
       />
 
-      <div className="spes-admin-controls">
+      <div className="spes-admin-controls ds-toolbar">
         <label>
           Program
           <select value={announcementId} onChange={(e) => setAnnouncementId(e.target.value)}>
@@ -377,7 +380,7 @@ export default function SpesApplications() {
 
       <div className="admin-panel-card">
         <div className="admin-card-header">
-          <h3>Applications</h3>
+          <h2 className="spes-admin__title">Applications</h2>
         </div>
         <div className="admin-table-wrap">
           <table className="admin-table">
@@ -393,14 +396,18 @@ export default function SpesApplications() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="admin-empty-state">
-                    <p>Loading…</p>
+                  <td colSpan={5} className="spes-admin__state-cell">
+                    <StateBlock kind="loading" title={t("admin.spes.loading")} />
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="admin-empty-state">
-                    <p>No applications found.</p>
+                  <td colSpan={5} className="spes-admin__state-cell">
+                    <StateBlock
+                      kind="empty"
+                      title={t("admin.spes.emptyTitle")}
+                      description={t("admin.spes.emptyDescription")}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -433,7 +440,7 @@ export default function SpesApplications() {
                     </td>
                     <td>
                       <button type="button" className="admin-inline-btn" onClick={() => setReviewing(app)}>
-                        <Eye size={14} /> Review &amp; Evaluate
+                        <Eye size={16} aria-hidden="true" /> Review &amp; Evaluate
                       </button>
                     </td>
                   </tr>

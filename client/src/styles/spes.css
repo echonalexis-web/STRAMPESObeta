@@ -953,3 +953,206 @@
 @media (prefers-reduced-motion: reduce) {
   .spes-page .spes-stepper__item--active .spes-stepper__dot { animation: none; }
 }
+
+/* ---- Admin SPES applications — UI refresh (phase 4b) token pass ----
+   Scoped to .spes-admin (only pages/admin/SpesApplications.jsx renders
+   it; the evaluation drawer is rendered inside that root). The jobseeker
+   SPES panel and My SPES Applications keep the rules above. */
+.spes-admin .spes-admin-controls {
+  align-items: flex-end;
+  gap: var(--ds-space-3);
+  margin-bottom: var(--ds-space-4);
+}
+.spes-admin .spes-admin-controls label {
+  flex: 1 1 220px;
+  min-width: 0;
+  gap: var(--ds-space-1);
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+}
+.spes-admin .spes-admin-controls select,
+.spes-admin .spes-drawer__section input,
+.spes-admin .spes-drawer__section select,
+.spes-admin .spes-drawer__section textarea {
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-md);
+}
+.spes-admin .spes-drawer__section textarea { padding: var(--ds-space-3); line-height: var(--ds-leading-body); }
+.spes-admin .spes-admin-controls select:focus,
+.spes-admin .spes-drawer__section input:focus,
+.spes-admin .spes-drawer__section select:focus,
+.spes-admin .spes-drawer__section textarea:focus {
+  border-color: var(--ds-green-secondary);
+  box-shadow: 0 0 0 3px rgba(11, 112, 75, 0.15);
+}
+@media (min-width: 768px) {
+  .spes-admin .spes-admin-controls label { flex: 0 1 280px; }
+  .spes-admin .spes-admin-controls select,
+  .spes-admin .spes-drawer__section input,
+  .spes-admin .spes-drawer__section select,
+  .spes-admin .spes-drawer__section textarea { font-size: var(--ds-text-sm); }
+}
+
+.spes-admin .spes-release-bar {
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.spes-admin .spes-admin__title {
+  margin: 0;
+  color: var(--ds-text);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-h3);
+  font-weight: 800;
+  line-height: var(--ds-leading-snug);
+  text-wrap: balance;
+}
+.spes-admin .spes-admin__state-cell { padding: var(--ds-space-4); }
+.spes-admin .spes-admin__state-cell .ds-state { border: 0; }
+.spes-admin .admin-table tbody tr:hover td.spes-admin__state-cell { background: transparent; }
+
+/* Buttons: brand green, 44px */
+.spes-admin .spes-btn {
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-4);
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-green);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+.spes-admin .spes-btn:hover:not(:disabled) { background: var(--ds-green-deep); }
+.spes-admin .spes-btn--ghost {
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-green);
+}
+.spes-admin .spes-btn--ghost:hover:not(:disabled) { background: var(--ds-mint); }
+
+/* Status chips: text on AA tints */
+.spes-admin .spes-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--ds-mint);
+  color: var(--ds-green);
+  font-size: var(--ds-text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.spes-admin .spes-chip--results_released,
+.spes-admin .spes-chip--evaluated { background: var(--ds-info-bg); color: var(--ds-info); }
+.spes-admin .spes-chip--disqualified,
+.spes-admin .spes-chip--withdrawn { background: var(--ds-danger-bg); color: var(--ds-danger); }
+.spes-admin .spes-chip--osy,
+.spes-admin .spes-chip--under_review,
+.spes-admin .spes-chip--for_exam,
+.spes-admin .spes-chip--for_interview { background: var(--ds-warning-bg); color: var(--ds-warning); }
+
+.spes-admin .spes-submitted-date {
+  color: var(--ds-muted);
+  font-size: var(--ds-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.spes-admin .spes-age-badge {
+  font-size: var(--ds-text-xs);
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.spes-admin .spes-age-badge--warn { background: var(--ds-warning-bg); color: var(--ds-warning); }
+.spes-admin .spes-age-badge--danger { background: var(--ds-danger-bg); color: var(--ds-danger); }
+.spes-admin .admin-muted { color: var(--ds-muted); font-size: var(--ds-text-xs); }
+
+/* Evaluation drawer (focus/Esc behaviour unchanged) */
+.spes-admin .spes-drawer-overlay {
+  z-index: var(--ds-z-app-drawer);
+  background: rgba(4, 60, 42, 0.5);
+}
+.spes-admin .spes-drawer {
+  height: 100dvh;
+  background: var(--ds-bg);
+  box-shadow: var(--ds-elev-2);
+  animation-duration: var(--ds-motion-slow);
+  animation-timing-function: var(--ds-motion-ease-out);
+}
+.spes-admin .spes-drawer__header {
+  padding: max(var(--ds-space-5), env(safe-area-inset-top)) var(--ds-space-5) var(--ds-space-5);
+  background: linear-gradient(120deg, var(--ds-green-deep) 0%, var(--ds-green) 100%);
+}
+.spes-admin .spes-drawer__header h2 {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-h3);
+  font-weight: 800;
+  text-wrap: balance;
+}
+.spes-admin .spes-drawer__subtitle { color: #cfe6da; font-size: var(--ds-text-sm); overflow-wrap: anywhere; }
+.spes-admin .spes-drawer__close {
+  width: var(--ds-tap);
+  height: var(--ds-tap);
+  border-color: rgba(255, 255, 255, 0.4);
+  border-radius: var(--ds-radius-btn);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+.spes-admin .spes-drawer__close:hover {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+.spes-admin .spes-drawer__close:hover svg { transform: none; }
+.spes-admin .spes-drawer__body { padding: var(--ds-space-5); gap: var(--ds-space-6); }
+.spes-admin .spes-drawer__section h3 {
+  color: var(--ds-text);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-md);
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.spes-admin .spes-drawer__section label { color: var(--ds-ink-700); font-size: var(--ds-text-sm); }
+.spes-admin .spes-drawer__warning {
+  border: 1px solid #f1bdb6;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-danger-bg);
+  color: #7f1a12;
+  font-size: var(--ds-text-sm);
+}
+.spes-admin .spes-note { color: var(--ds-muted); font-size: var(--ds-text-sm); }
+.spes-admin .spes-doc-card {
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+}
+.spes-admin .spes-doc-card__icon { color: var(--ds-green); }
+.spes-admin .spes-doc-card__label { color: var(--ds-text); font-size: var(--ds-text-sm); }
+.spes-admin .spes-doc-card__link {
+  min-height: var(--ds-tap);
+  color: var(--ds-green);
+  font-size: var(--ds-text-sm);
+}
+.spes-admin .spes-drawer__actions {
+  padding: var(--ds-space-4) var(--ds-space-5) max(var(--ds-space-4), env(safe-area-inset-bottom));
+  border-top-color: var(--ds-border);
+  background: var(--ds-surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spes-admin .spes-drawer { animation: none; }
+  .spes-admin .spes-btn,
+  .spes-admin .spes-drawer__close,
+  .spes-admin .spes-drawer__close svg { transition: none; }
+}

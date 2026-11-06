@@ -4310,3 +4310,220 @@
     transition: none;
   }
 }
+
+/* ============================================ */
+/* UI refresh (phase 4b): account recovery queue */
+/* ============================================ */
+
+/* idOcr.css is frozen (it also styles the public recovery pages), so the
+   staff queue is restyled here under the admin page root. Scoped to
+   .admin-page-container.recovery-queue — only AccountRecoveryQueue renders it. */
+.admin-page-container.recovery-queue {
+  padding-top: 18px;
+}
+@media (max-width: 768px) {
+  /* Top padding clears the fixed mobile top bar (matches .admin-page-container). */
+  .admin-page-container.recovery-queue {
+    padding-top: 87px;
+  }
+}
+
+.admin-page-container.recovery-queue .recovery-queue__alert {
+  margin: 0 0 var(--ds-space-4);
+}
+
+.admin-page-container.recovery-queue .id-ocr {
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
+  padding: var(--ds-space-4);
+}
+@media (min-width: 768px) {
+  .admin-page-container.recovery-queue .id-ocr {
+    padding: var(--ds-space-5) var(--ds-space-6);
+  }
+}
+.admin-page-container.recovery-queue .id-ocr p {
+  max-width: 75ch;
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-body);
+}
+.admin-page-container.recovery-queue .id-ocr h2 {
+  margin: 0 0 var(--ds-space-2);
+  color: var(--ds-text);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-h2);
+  font-weight: 800;
+  line-height: var(--ds-leading-snug);
+  text-wrap: balance;
+}
+.admin-page-container.recovery-queue .id-ocr h3 {
+  margin: 0 0 var(--ds-space-2);
+  color: var(--ds-text);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-h3);
+  font-weight: 800;
+}
+
+/* Fields: 44px, 16px text below 768px (no iOS zoom) */
+.admin-page-container.recovery-queue label {
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+}
+.admin-page-container.recovery-queue .recovery-queue__filter {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+  min-width: min(100%, 260px);
+}
+.admin-page-container.recovery-queue select,
+.admin-page-container.recovery-queue textarea,
+.admin-page-container.recovery-queue input:not([type="checkbox"]) {
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-md);
+  font-weight: 400;
+}
+.admin-page-container.recovery-queue textarea {
+  min-height: 112px;
+  padding: var(--ds-space-3);
+  line-height: var(--ds-leading-body);
+}
+.admin-page-container.recovery-queue input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--ds-green);
+}
+@media (min-width: 768px) {
+  .admin-page-container.recovery-queue select,
+  .admin-page-container.recovery-queue textarea,
+  .admin-page-container.recovery-queue input:not([type="checkbox"]) {
+    font-size: var(--ds-text-sm);
+  }
+}
+
+/* Buttons: .ds-btn--secondary look, 44px; the last decision button is primary */
+.admin-page-container.recovery-queue button {
+  min-height: var(--ds-tap);
+  margin: var(--ds-space-1);
+  padding: 0 var(--ds-space-4);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-surface);
+  color: var(--ds-green);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    border-color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+.admin-page-container.recovery-queue button:hover:not(:disabled) {
+  background: var(--ds-mint);
+}
+.admin-page-container.recovery-queue button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.admin-page-container.recovery-queue .id-ocr-grid > div:last-child > button:last-child {
+  border-color: var(--ds-green);
+  background: var(--ds-green);
+  color: #fff;
+}
+.admin-page-container.recovery-queue .id-ocr-grid > div:last-child > button:last-child:hover:not(:disabled) {
+  background: var(--ds-green-deep);
+}
+
+/* Request list: one row per request, 44px+ */
+.admin-page-container.recovery-queue .recovery-queue__list {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: var(--ds-space-4) 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-page-container.recovery-queue .recovery-queue__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-1) var(--ds-space-3);
+  width: 100%;
+  margin: 0;
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border-radius: var(--ds-radius-md);
+  color: var(--ds-text);
+  text-align: left;
+}
+.admin-page-container.recovery-queue .recovery-queue__name {
+  font-family: var(--ds-font-display);
+  font-weight: 800;
+}
+.admin-page-container.recovery-queue .recovery-queue__meta {
+  flex: 1 1 160px;
+  min-width: 0;
+  color: var(--ds-muted);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.admin-page-container.recovery-queue .recovery-queue__chip {
+  padding: 2px var(--ds-space-2);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-warning-bg);
+  color: var(--ds-warning);
+  font-size: var(--ds-text-xs);
+  font-weight: 700;
+}
+.admin-page-container.recovery-queue .recovery-queue__chip.is-verified {
+  background: var(--ds-success-bg);
+  color: var(--ds-success);
+}
+.admin-page-container.recovery-queue .recovery-queue__state {
+  margin: var(--ds-space-4) 0;
+}
+.admin-page-container.recovery-queue .recovery-queue__pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+.admin-page-container.recovery-queue .recovery-queue__page {
+  min-width: 2ch;
+  color: var(--ds-ink-700);
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Comparison table: .ds-table look; row headers are tbody th */
+.admin-page-container.recovery-queue .admin-table {
+  margin: var(--ds-space-4) 0;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+}
+.admin-page-container.recovery-queue .admin-table tbody th {
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border-top: 1px solid var(--ds-ink-100);
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  text-align: left;
+}
+.admin-page-container.recovery-queue .admin-table tbody td {
+  border-top: 1px solid var(--ds-ink-100);
+  border-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page-container.recovery-queue button {
+    transition: none;
+  }
+}

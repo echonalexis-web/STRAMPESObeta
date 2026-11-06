@@ -1,8 +1,11 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { FaCheckCircle, FaClipboardCheck, FaClock, FaEnvelope, FaFileAlt, FaInfoCircle, FaSearch } from "react-icons/fa";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { AuthContext } from "../../context/AuthContext";
 import { verificationAPI } from "../../services/api";
 import SecureFileLink from "../../components/SecureFileLink";
+import StateBlock from "../../components/StateBlock";
 import "../../styles/admin.css";
 import "../../styles/employer-verification.css";
 import AdminHeader from "./AdminHeader";
@@ -69,6 +72,7 @@ const buildPageList = (current, total) => {
 };
 
 export default function EmployerVerification() {
+  const { t } = useTranslation();
   const { user } = useContext(AuthContext);
   // Only a plain admin may approve/reject (mirrors the backend guards on
   // both the legacy PATCH /verification/:id route and the id-scoped
@@ -222,13 +226,10 @@ export default function EmployerVerification() {
     handleDecision(userId, { decision, note });
   };
 
-  const EMPTY_MESSAGES = {
-    pending: "No pending verifications.",
-    under_review: "No submissions currently under review.",
-    verified: "No verified employers yet.",
-    resubmission_required: "No submissions awaiting resubmission.",
-  };
-  const emptyMessage = EMPTY_MESSAGES[statusTab] || "No employer records found.";
+  const EMPTY_KEYS = ["pending", "under_review", "verified", "resubmission_required"];
+  const emptyMessage = EMPTY_KEYS.includes(statusTab)
+    ? t(`admin.verification.empty.${statusTab}`)
+    : t("admin.verification.empty.all");
 
   const rangeFrom = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeTo = Math.min(page * PAGE_SIZE, total);
@@ -244,7 +245,7 @@ export default function EmployerVerification() {
         }
       />
 
-      <div className="ev-tabs" role="tablist" aria-label="Verification status">
+      <div className="ev-tabs" role="tablist" aria-label={t("admin.verification.tabsLabel")}>
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.key}
@@ -299,7 +300,7 @@ export default function EmployerVerification() {
       ) : null}
 
       <div className="ev-section-head">
-        <h3><FaClipboardCheck aria-hidden="true" /> Verification Queue</h3>
+        <h2><FaClipboardCheck aria-hidden="true" /> Verification Queue</h2>
         {!loading && !loadError ? (
           <span className="ev-section-head__count">
             Showing {queue.length} of {total}
@@ -308,13 +309,24 @@ export default function EmployerVerification() {
       </div>
 
       {loading ? (
-        <div className="ev-empty">Loading verification list…</div>
+        <StateBlock kind="loading" className="ev-state" title={t("admin.verification.loading")} />
       ) : loadError ? (
-        <div className="ev-empty">{loadError}</div>
+        <StateBlock
+          kind="error"
+          className="ev-state"
+          title={t("admin.verification.errorTitle")}
+          description={loadError}
+          onRetry={loadQueue}
+        />
       ) : (
         <div className="ev-list">
           {queue.length === 0 ? (
-            <div className="ev-empty">{search ? "No records match your search." : emptyMessage}</div>
+            <StateBlock
+              kind="empty"
+              className="ev-state"
+              title={search ? t("admin.verification.noSearchMatch") : emptyMessage}
+              description={search ? t("admin.verification.noSearchMatchHint") : t("admin.verification.emptyHint")}
+            />
           ) : (
             queue.map((item) => {
               const meta = statusMeta(item.verificationStatus);
@@ -379,6 +391,11 @@ export default function EmployerVerification() {
                         <input
                           type="text"
                           value={reasonText}
+                          aria-label={
+                            reasonPanel.type === "resubmit"
+                              ? "What needs to be fixed? Shown to the employer (required)"
+                              : "Reason shown to the employer (required)"
+                          }
                           placeholder={
                             reasonPanel.type === "resubmit"
                               ? "What needs to be fixed? Shown to the employer (required)"
@@ -457,9 +474,9 @@ export default function EmployerVerification() {
               className="ev-pagination__btn"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              aria-label="Previous page"
+              aria-label={t("employerDashboard.archived.prevPage")}
             >
-              ‹
+              <ChevronLeft size={18} aria-hidden="true" />
             </button>
             {pageList.map((item, index) =>
               item === "…" ? (
@@ -484,9 +501,9 @@ export default function EmployerVerification() {
               className="ev-pagination__btn"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              aria-label="Next page"
+              aria-label={t("employerDashboard.archived.nextPage")}
             >
-              ›
+              <ChevronRight size={18} aria-hidden="true" />
             </button>
           </div>
         </div>

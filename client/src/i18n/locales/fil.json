@@ -852,6 +852,42 @@
       "verificationLabel": "Status ng beripikasyon",
       "emptyTitle": "Walang nahanap na record",
       "emptyDescription": "Walang record na tugma sa kasalukuyang filter. Subukang i-clear ang paghahanap o pumili ng ibang status."
+    },
+    "verification": {
+      "tabsLabel": "Status ng beripikasyon",
+      "loading": "Nilo-load ang listahan ng beripikasyon…",
+      "errorTitle": "Hindi ma-load ang listahan ng beripikasyon",
+      "empty": {
+        "pending": "Walang naghihintay na beripikasyon.",
+        "under_review": "Walang submission na kasalukuyang sinusuri.",
+        "verified": "Wala pang verified na employer.",
+        "resubmission_required": "Walang submission na naghihintay ng muling pagsumite.",
+        "all": "Walang nahanap na record ng employer."
+      },
+      "emptyHint": "Lalabas dito ang mga bagong submission ng employer kapag naipadala na para sa pagsusuri.",
+      "noSearchMatch": "Walang record na tugma sa iyong hinanap.",
+      "noSearchMatchHint": "Suriin ang spelling, o maghanap gamit ang ibang pangalan ng kumpanya o email."
+    },
+    "jobMonitoring": {
+      "loading": "Nilo-load ang mga bakante…",
+      "emptyTitle": "Walang nahanap na bakante",
+      "emptyDescription": "Walang bakanteng tugma sa iyong filter. Subukang i-clear ang paghahanap o pumili ng ibang munisipyo o status.",
+      "viewAria": "Tingnan ang detalye ng {{title}}"
+    },
+    "news": {
+      "errorTitle": "Hindi ma-load ang mga anunsyo",
+      "loadingAnnouncement": "Nilo-load ang anunsyo…"
+    },
+    "spes": {
+      "loading": "Nilo-load ang mga aplikasyon…",
+      "emptyTitle": "Walang nahanap na aplikasyon",
+      "emptyDescription": "Walang SPES application na tugma sa napiling programa at status."
+    },
+    "userProfile": {
+      "loading": "Nilo-load ang profile ng user…",
+      "errorTitle": "Hindi ma-load ang profile na ito",
+      "notFound": "Hindi nahanap ang profile ng user",
+      "notFoundDescription": "Maaaring natanggal na ang account na ito, o mali ang link."
     }
   }
 }

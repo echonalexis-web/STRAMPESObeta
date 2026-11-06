@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   FaArrowLeft,
   FaBriefcase,
@@ -13,6 +14,10 @@ import {
 } from "react-icons/fa";
 import { adminAPI } from "../../services/api";
 import SecureFileLink from "../../components/SecureFileLink";
+import { IdOcrSummary } from "../../components/IdOcrReview";
+import IdEvidence from "../../components/IdEvidence";
+import StateBlock from "../../components/StateBlock";
+import useParallaxLayer from "../../hooks/useParallaxLayer";
 import { downloadBlob } from "../../utils/exportUtils";
 import "../../styles/adminUserProfile.css";
 
@@ -61,7 +66,16 @@ const DocLink = ({ value, label = "View document" }) =>
     </SecureFileLink>
   ) : null;
 
+// Header ring art: the band's single decorative parallax layer. Its own
+// component so the layer registers when the loaded header mounts (the page
+// first renders a loading skeleton).
+const HeaderArt = () => {
+  const artRef = useParallaxLayer(0.1, 24);
+  return <span ref={artRef} className="ds-pagehead__art mx-parallax aup-header__art" aria-hidden="true" />;
+};
+
 export default function UserProfileView() {
+  const { t } = useTranslation();
   const { userId } = useParams();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -99,8 +113,9 @@ export default function UserProfileView() {
   if (loading) {
     return (
       <div className="aup-page">
-        <div className="aup-shell">
-          <div className="aup-header">
+        <div className="aup-shell" role="status" aria-live="polite">
+          <span className="ds-sr-only">{t("admin.userProfile.loading")}</span>
+          <div className="aup-header" aria-hidden="true">
             <div className="aup-skel" style={{ width: 120, background: "rgba(255,255,255,0.25)" }} />
             <div className="aup-id">
               <div className="aup-skel" style={{ width: 78, height: 78, borderRadius: "50%", background: "rgba(255,255,255,0.25)" }} />
@@ -110,7 +125,7 @@ export default function UserProfileView() {
               </div>
             </div>
           </div>
-          <div className="aup-grid">
+          <div className="aup-grid" aria-hidden="true">
             {[0, 1].map((i) => (
               <div className="aup-card" key={i}>
                 <div className="aup-skel aup-skel--lg" style={{ width: 160, marginBottom: 18 }} />
@@ -128,11 +143,18 @@ export default function UserProfileView() {
   if (error || !user) {
     return (
       <div className="aup-page">
-        <div className="aup-state">
-          <p>{error || "User profile not found."}</p>
-          <button type="button" className="aup-state__btn" onClick={() => navigate(-1)}>
-            Go back
-          </button>
+        <div className="aup-shell">
+          <StateBlock
+            kind={error ? "error" : "empty"}
+            className="aup-state-block"
+            title={error ? t("admin.userProfile.errorTitle") : t("admin.userProfile.notFound")}
+            description={error || t("admin.userProfile.notFoundDescription")}
+            action={
+              <button type="button" className="ds-btn ds-btn--primary" onClick={() => navigate(-1)}>
+                {t("profile.goBack")}
+              </button>
+            }
+          />
         </div>
       </div>
     );
@@ -173,6 +195,7 @@ export default function UserProfileView() {
     <div className="aup-page">
       <div className="aup-shell">
         <header className="aup-header">
+          <HeaderArt />
           <div className="aup-header__toprow">
             <button type="button" className="aup-back" onClick={() => navigate(-1)}>
               <FaArrowLeft aria-hidden="true" /> Go back
@@ -191,11 +214,11 @@ export default function UserProfileView() {
           </div>
 
           <div className="aup-id">
-            <div className="aup-avatar">{initialsFromName(user.name)}</div>
+            <div className="aup-avatar" aria-hidden="true">{initialsFromName(user.name)}</div>
             <div className="aup-id__text">
-              <p className="aup-kicker">{roleLabel}</p>
               <h1 className="aup-name">{user.name || "Unnamed User"}</h1>
               <div className="aup-chips">
+                <span className="aup-chip aup-chip--role">{roleLabel}</span>
                 <span className={`aup-chip ${isActive ? "aup-chip--active" : "aup-chip--inactive"}`}>
                   {isActive ? "Active" : "Inactive"}
                 </span>
@@ -298,6 +321,11 @@ export default function UserProfileView() {
               <Field label="Resume">
                 {resumeRef ? <DocLink value={resumeRef} label="View resume" /> : "Not uploaded"}
               </Field>
+              {!isEmployer && <Field label={t("staffRecovery.fields.governmentIdFile")} full>
+                <IdEvidence value={user.validIdFile} label={t("staffRecovery.fields.governmentIdFile")} />
+                <p>{user.governmentIdType} {user.governmentIdNumber}</p>
+                <IdOcrSummary ocr={user.governmentIdOcr} />
+              </Field>}
               {isEmployer ? (
                 <>
                   <Field label="Business permit">
