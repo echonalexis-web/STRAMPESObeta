@@ -5,13 +5,17 @@ import "../styles/jobboard.css";
 import VacancyCard from "../components/VacancyCard";
 import JobSearchFilters from "../components/JobSearchFilters";
 import ApplyModal from "../components/ApplyModal";
+import PageHero from "../components/PageHero";
+import StateBlock from "../components/StateBlock";
 import { AuthContext } from "../context/AuthContext";
 import phLocationsRaw from "../data/philippine_provinces_cities_municipalities_and_barangays_2019v2.json";
-import { FaBriefcase } from "react-icons/fa";
+import { useTranslation } from "react-i18next";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { jobMatchesAnyIndustry } from "../utils/industries";
 
 export default function JobBoard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { user, login } = useContext(AuthContext);
   const preferredIndustries = user?.preferredIndustries || [];
 
@@ -161,16 +165,19 @@ export default function JobBoard() {
   );
 
   return (
-    <div className="jobboard-container">
-      <section className="jobboard-hero jobboard-hero--slim">
-        <div className="jobboard-hero-content">
-          <h1>Available Jobs in Marinduque</h1>
-          <p>Browse open vacancies and apply with your resume.</p>
-        </div>
-      </section>
+    <div className="jb">
+      <div className="jb-inner">
+        <PageHero
+          className="jb-hero2"
+          title={t("jobBoard.heroTitle")}
+          accent={t("jobBoard.heroAccent")}
+          body={t("jobBoard.heroBody", { count: totalJobs })}
+        />
 
-      <div className="jobboard-content">
-        <div className="jobboard-toolbar">
+        {/* From 1101px the filters become a sticky left rail beside the
+            results (jobboard.css); below that they stay stacked above. */}
+        <div className="jb-layout">
+        <div className="jb-toolbar">
           <JobSearchFilters
             filters={activeFilters}
             onChange={handleFilterChange}
@@ -182,38 +189,59 @@ export default function JobBoard() {
           />
         </div>
 
-        <div className="jobboard-resultbar">
-          {totalJobs > 0 ? `${totalJobs} ${totalJobs === 1 ? "job" : "jobs"} available` : "No jobs available"}
-          {totalJobs > 0 && ` · Page ${currentPage} of ${totalPages}`}
+        <div className="jb-main">
+        <div className="jb-resultbar" role="status" aria-live="polite">
+          {totalJobs > 0 ? t("jobBoard.resultCount", { count: totalJobs }) : t("jobBoard.noResults")}
+          {totalJobs > 0 && ` · ${t("jobBoard.pageOf", { page: currentPage, total: totalPages })}`}
         </div>
 
         {user && !hasSkills && totalJobs > 0 && (
-          <div className="info-message">
-            <p>You haven't added any skills to your profile yet. Add skills to see your match percentage for each job.</p>
-            <button className="btn-profile-edit" onClick={() => navigate("/profile")}>Edit Profile</button>
+          <div className="jb-note">
+            <p>{t("jobBoard.noSkills")}</p>
+            <button type="button" className="ds-btn ds-btn--secondary" onClick={() => navigate("/profile")}>{t("jobBoard.editProfile")}</button>
           </div>
         )}
 
         {loading ? (
-          <div className="loading-spinner">
-            <div className="spinner"></div>
-            <p>Loading jobs...</p>
+          <div className="jb-list jb-loading" role="status" aria-live="polite">
+            <span className="ds-sr-only">{t("jobBoard.loading")}</span>
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="ds-card jb-sk-card" aria-hidden="true">
+                <span className="ds-skeleton jb-sk-line jb-sk-line--sm" />
+                <span className="ds-skeleton jb-sk-line jb-sk-line--lg" />
+                <span className="ds-skeleton jb-sk-line" />
+                <span className="ds-skeleton jb-sk-btn" />
+              </div>
+            ))}
           </div>
         ) : error ? (
-          <div className="error-message">{error}</div>
+          <StateBlock
+            kind="error"
+            title={t("jobBoard.errorTitle")}
+            description={error}
+            onRetry={() => fetchJobs(activeFilters, currentPage)}
+          />
         ) : jobs.length === 0 ? (
-          <div className="empty-state">
-            <FaBriefcase className="empty-icon" />
-            <p>No jobs available.</p>
-          </div>
+          <StateBlock
+            kind="empty"
+            title={t("jobBoard.emptyTitle")}
+            description={t("jobBoard.emptyBody")}
+            action={
+              Object.keys(activeFilters).length > 0 ? (
+                <button type="button" className="ds-btn ds-btn--primary" onClick={handleReset}>
+                  {t("jobBoard.clearFilters")}
+                </button>
+              ) : null
+            }
+          />
         ) : (
           <>
             {closeMatchJobs.length > 0 && (
-              <section className="jobboard-close-matches">
-                <h2 className="jobboard-close-matches-heading">
-                  Close matches — 1 requirement away
+              <section className="jb-close-matches">
+                <h2 className="jb-close-matches__heading">
+                  {t("jobBoard.closeMatches")}
                 </h2>
-                <div className="jobboard-list">
+                <div className="jb-list">
                   {closeMatchJobs.map((job) => (
                     <VacancyCard
                       key={job._id}
@@ -230,7 +258,7 @@ export default function JobBoard() {
               </section>
             )}
 
-            <div className="jobboard-list">
+            <div className="jb-list">
               {mainListJobs.map((job) => (
                 <VacancyCard
                   key={job._id}
@@ -256,27 +284,31 @@ export default function JobBoard() {
               }}
             />
 
-            <div className="pagination-controls">
+            <nav className="jb-pager" aria-label={t("jobBoard.pagerLabel")}>
               <button
-                className="pagination-btn"
+                type="button"
+                className="ds-btn ds-btn--secondary"
                 onClick={() => fetchJobs(activeFilters, currentPage - 1)}
                 disabled={currentPage <= 1 || loading}
               >
-                ← Previous
+                <ArrowLeft size={16} aria-hidden="true" /> {t("jobBoard.previous")}
               </button>
-              <div className="pagination-info">
-                Page {currentPage} of {totalPages}
+              <div className="jb-pager__info" aria-current="page">
+                {t("jobBoard.pageOf", { page: currentPage, total: totalPages })}
               </div>
               <button
-                className="pagination-btn"
+                type="button"
+                className="ds-btn ds-btn--secondary"
                 onClick={() => fetchJobs(activeFilters, currentPage + 1)}
                 disabled={currentPage >= totalPages || loading}
               >
-                Next →
+                {t("jobBoard.next")} <ArrowRight size={16} aria-hidden="true" />
               </button>
-            </div>
+            </nav>
           </>
         )}
+        </div>
+        </div>
       </div>
     </div>
   );

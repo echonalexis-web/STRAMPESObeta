@@ -1,94 +1,119 @@
 /* ============================================================ */
 /* Job Search Filters — STRAM PESO                               */
-/* Sits as a standalone white card on the page background        */
-/* (no longer overlaid on the green hero), so text is dark and   */
-/* contrast is real.                                             */
+/* Mobile-first: the keyword search + Search + Filters toggle are */
+/* always visible; every other refinement lives in a collapsible */
+/* panel (.jsf-panel) below 768px and is shown inline from 768px. */
 /* ============================================================ */
 
 .job-search-filters {
   display: block;
-  background: #ffffff;
-  border: 1px solid #e6e9ec;
-  border-radius: 14px;
-  padding: 18px;
-  font-family: var(--sans);
-  box-shadow: 0 2px 10px rgba(16, 24, 40, 0.05);
+  box-sizing: border-box;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-3);
+  font-family: var(--ds-font-body);
+  box-shadow: var(--ds-shadow-1);
   overflow: visible;
 }
 
-.search-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1a2a3a;
-  margin: 0 0 12px 4px;
+.job-search-filters *,
+.job-search-filters *::before,
+.job-search-filters *::after {
+  box-sizing: border-box;
 }
 
-.search-label svg {
-  color: #f5a623;
-  font-size: 15px;
-}
-
-/* ─── Rows ─── */
-.job-search-filters .filter-row {
+/* ─── Primary bar (always visible) ─── */
+.jsf-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  overflow: visible;
+  gap: var(--ds-space-2);
 }
 
-.job-search-filters .filter-row.primary-row {
-  margin-bottom: 10px;
+.jsf-search {
+  position: relative;
+  flex: 1 1 100%;
+  min-width: 0;
 }
 
-.job-search-filters .filter-row.refinement-row {
-  margin-bottom: 0;
+.jsf-search-icon {
+  position: absolute;
+  left: var(--ds-space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ds-muted);
+  font-size: var(--ds-text-md);
+  pointer-events: none;
 }
 
-/* ─── Base Inputs & Selects ─── */
+.job-search-filters .filter-keyword {
+  padding-left: calc(var(--ds-space-3) + 28px);
+  max-width: none;
+  margin: 0;
+}
+
+.job-search-filters .filter-submit-btn,
+.job-search-filters .jsf-toggle {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.jsf-toggle .jsf-count {
+  min-width: 22px;
+  justify-content: center;
+}
+
+/* ─── Collapsible panel ─── */
+.jsf-panel {
+  display: none;
+  margin-top: var(--ds-space-3);
+  padding-top: var(--ds-space-3);
+  border-top: 1px solid var(--ds-border);
+}
+
+.jsf-panel.is-open {
+  display: block;
+}
+
+.jsf-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ds-space-3);
+}
+
+.jsf-fields > * {
+  min-width: 0;
+}
+
+/* ─── Inputs & selects (16px: no iOS zoom; 44px tall via .ds-input) ─── */
 .job-search-filters .filter-input,
 .job-search-filters .filter-select {
-  padding: 11px 13px;
-  border-radius: 10px;
-  border: 1px solid #d5dbe0;
-  background: #f7f9fa;
-  color: #1a2a3a;
-  font-size: 14px;
-  outline: none;
-  transition: box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  width: 100%;
+  font-size: var(--ds-text-md);
 }
 
-.job-search-filters .filter-input::placeholder {
-  color: #9aa4b0;
-}
-
-.job-search-filters .filter-input:focus,
-.job-search-filters .filter-select:focus {
-  background: #ffffff;
-  border-color: #2e7d32;
-  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.12);
-}
-
-/* ─── Keyword input ─── */
-.filter-keyword {
-  flex: 2 1 280px;
+.job-search-filters .ds-input.filter-select {
   min-width: 0;
+  height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  box-shadow: none;
+  cursor: pointer;
 }
 
-/* ─── Location Autocomplete ─── */
+.job-search-filters .filter-input:focus-visible,
+.job-search-filters .filter-select:focus-visible {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 1px;
+}
+
+/* ─── Location autocomplete ─── */
 .filter-location-wrapper {
   position: relative;
-  flex: 2 1 280px;
-  min-width: 0;
-  overflow: visible;
-}
-
-.filter-location-wrapper .filter-location {
-  width: 100%;
-  box-sizing: border-box;
 }
 
 .location-suggestions {
@@ -96,76 +121,66 @@
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: #ffffff;
-  border: 1px solid #e8ecf0;
-  border-radius: 10px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  box-shadow: var(--ds-shadow-3);
   list-style: none;
   margin: 0;
-  padding: 6px 0;
-  z-index: 100;
+  padding: var(--ds-space-1) 0;
+  z-index: var(--ds-z-sticky);
   max-height: 240px;
   overflow-y: auto;
 }
 
 .location-suggestions li {
-  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  min-height: var(--ds-tap);
+  padding: var(--ds-space-2) var(--ds-space-4);
   cursor: pointer;
-  font-size: 14px;
-  color: #1a2a3a;
-  transition: background 0.15s ease;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-text);
+  overflow-wrap: anywhere;
 }
 
 .location-suggestions li:hover {
-  background: #f0f7f1;
+  background: var(--ds-mint);
 }
 
-/* ─── Selects (Job Type) ─── */
-.job-search-filters .filter-select {
-  flex: 1 1 160px;
-  min-width: 0;
-  cursor: pointer;
-  appearance: auto;
-}
-
-/* ─── Salary Range Slider ─── */
+/* ─── Salary range slider ─── */
 .salary-range-field {
-  flex: 1 1 260px;
-  min-width: 220px;
-  background: #f7f9fa;
-  border: 1px solid #d5dbe0;
-  border-radius: 10px;
-  padding: 9px 14px 13px;
-  box-sizing: border-box;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-space-3) var(--ds-space-4) var(--ds-space-2);
 }
 
 .salary-range-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+  align-items: baseline;
+  gap: var(--ds-space-1) var(--ds-space-2);
 }
 
 .salary-range-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+  color: var(--ds-text);
 }
 
 .salary-range-value {
-  font-size: 13px;
+  font-size: var(--ds-text-sm);
   font-weight: 700;
-  color: #2e7d32;
-  white-space: nowrap;
+  color: var(--ds-green);
+  font-variant-numeric: tabular-nums;
 }
 
+/* 44px tall hit zone; the visible track stays a thin 4px line */
 .salary-range-track-wrap {
   position: relative;
-  height: 16px;
+  height: var(--ds-tap);
   display: flex;
   align-items: center;
 }
@@ -176,14 +191,14 @@
   right: 0;
   height: 4px;
   border-radius: 2px;
-  background: #d5dbe0;
+  background: var(--ds-border);
 }
 
 .salary-range-fill {
   position: absolute;
   height: 4px;
   border-radius: 2px;
-  background: #2e7d32;
+  background: var(--ds-green-secondary);
 }
 
 .salary-range-input {
@@ -191,7 +206,7 @@
   left: 0;
   right: 0;
   width: 100%;
-  height: 16px;
+  height: var(--ds-tap);
   margin: 0;
   background: transparent;
   pointer-events: none;
@@ -213,92 +228,117 @@
   appearance: none;
   -webkit-appearance: none;
   pointer-events: auto;
-  width: 16px;
-  height: 16px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: #2e7d32;
-  border: 2px solid #ffffff;
-  box-shadow: 0 1px 4px rgba(16, 24, 40, 0.28);
+  background: var(--ds-green);
+  border: 3px solid var(--ds-surface);
+  box-shadow: var(--ds-shadow-2);
   cursor: pointer;
-  margin-top: -6px;
+  margin-top: -12px;
 }
 
 .salary-range-input::-moz-range-thumb {
   pointer-events: auto;
-  width: 16px;
-  height: 16px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: #2e7d32;
-  border: 2px solid #ffffff;
-  box-shadow: 0 1px 4px rgba(16, 24, 40, 0.28);
+  background: var(--ds-green);
+  border: 3px solid var(--ds-surface);
+  box-shadow: var(--ds-shadow-2);
   cursor: pointer;
 }
 
-/* ─── Buttons ─── */
-.filter-submit-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 11px 22px;
-  background: #2e7d32;
-  color: #fff;
-  border: 1px solid #2e7d32;
-  border-radius: 10px;
+.salary-range-input:focus-visible::-webkit-slider-thumb {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 2px;
+}
+
+.salary-range-input:focus-visible::-moz-range-thumb {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 2px;
+}
+
+.salary-range-input:focus-visible {
+  outline: none;
+}
+
+/* ─── Chip rows, must-haves ─── */
+.job-search-filters .filter-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--ds-space-2);
+  margin-top: var(--ds-space-4);
+}
+
+.preferred-label {
+  font-size: var(--ds-text-sm);
   font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease;
-  white-space: nowrap;
-  flex: 0 0 auto;
+  color: var(--ds-text);
 }
 
-.filter-submit-btn:hover {
-  background: #256628;
-  border-color: #256628;
-}
-
-.filter-submit-btn.btn-reset {
-  background: #ffffff;
-  color: #3f4a56;
-  border-color: #d5dbe0;
-}
-
-.filter-submit-btn.btn-reset:hover {
-  background: #f5f7f8;
-  border-color: #c2cad1;
-}
-
-/* ─── Industry Preferences Row ─── */
-.preferred-industries-row {
+.job-search-filters .industry-chips {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #eceff1;
+  gap: var(--ds-space-2);
 }
 
-.must-haves-row {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid #eceff1;
+.job-search-filters .industry-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-tap);
+  max-width: 100%;
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  border-radius: var(--ds-radius-pill);
+  gap: 0;
+  padding: 0 var(--ds-space-4);
+  font-family: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--ds-dur-base) var(--ds-ease), border-color var(--ds-dur-base) var(--ds-ease);
+}
+
+.job-search-filters .industry-chip:hover {
+  border-color: var(--ds-green-secondary);
+  background: var(--ds-mint);
+}
+
+/* Selected state is also exposed as aria-pressed and a check glyph, not
+   colour alone. */
+.job-search-filters .industry-chip.active {
+  background: var(--ds-green);
+  color: #fff;
+  border-color: var(--ds-green);
+}
+
+.job-search-filters .industry-chip.active::before {
+  content: "\2713";
+  margin-right: var(--ds-space-2);
+  font-weight: 800;
 }
 
 .must-haves-switch {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
+  gap: var(--ds-space-3);
+  min-height: var(--ds-tap);
+  font-size: var(--ds-text-sm);
   font-weight: 600;
-  color: #3f4a56;
+  color: var(--ds-text);
   cursor: pointer;
 }
 
 .must-haves-switch input {
-  width: 16px;
-  height: 16px;
-  accent-color: #2e7d32;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--ds-green);
   cursor: pointer;
 }
 
@@ -306,79 +346,124 @@
    toggle never silently empties the board without explaining why. */
 .must-haves-hidden-count {
   display: block;
-  margin-top: 0.4rem;
-  margin-left: 1.65rem;
-  font-size: 0.78rem;
-  color: #a5601b;
+  font-size: var(--ds-text-sm);
+  color: #7a5b00;
   font-weight: 600;
 }
 
-.preferred-label {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #6b7280;
-  font-weight: 700;
-  margin-right: 0.5rem;
+/* ─── Panel actions (Reset + Show results) ─── */
+.jsf-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-2);
+  margin-top: var(--ds-space-4);
+  padding-top: var(--ds-space-3);
+  border-top: 1px solid var(--ds-border);
 }
 
-.industry-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.industry-chip {
-  border: 1px solid #d5dbe0;
-  background: #ffffff;
-  color: #3f4a56;
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.industry-chip:hover {
-  border-color: #2e7d32;
-  color: #2e7d32;
-  background: #f0f7f1;
-}
-
-.industry-chip.active {
-  background: #2e7d32;
-  color: #fff;
-  border-color: #2e7d32;
-}
-
-/* ─── Responsive ─── */
-@media (max-width: 768px) {
+/* ─── >=480px ─── */
+@media (min-width: 480px) {
   .job-search-filters {
-    padding: 14px;
+    padding: var(--ds-space-4);
   }
 
-  .job-search-filters .filter-row {
-    flex-direction: column;
-    align-items: stretch;
+  .jsf-search {
+    flex-basis: 100%;
+  }
+}
+
+/* ─── >=768px: panel is static, toggle + second submit disappear ─── */
+@media (min-width: 768px) {
+  .job-search-filters {
+    padding: var(--ds-space-5);
+    border-radius: var(--ds-radius-xl);
   }
 
-  .filter-keyword,
+  .jsf-bar {
+    flex-wrap: nowrap;
+    gap: var(--ds-space-3);
+  }
+
+  .jsf-search {
+    flex: 1 1 auto;
+  }
+
+  .job-search-filters .filter-submit-btn {
+    flex: 0 0 auto;
+    padding: 0 var(--ds-space-8);
+  }
+
+  .jsf-toggle {
+    display: none;
+  }
+
+  .jsf-panel {
+    display: block;
+  }
+
+  .jsf-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .filter-location-wrapper,
-  .job-search-filters .filter-select,
-  .filter-skills-wrapper,
   .salary-range-field {
-    width: 100%;
-    flex: 1 1 auto !important;
+    grid-column: 1 / -1;
   }
 
-  /* Prevent iOS Safari auto-zoom-on-focus */
-  .job-search-filters .filter-input,
-  .job-search-filters .filter-select {
-    font-size: 16px;
+  .jsf-actions {
+    display: flex;
+    justify-content: flex-end;
+    border-top: 0;
+    padding-top: 0;
+    margin-top: var(--ds-space-4);
   }
 
-  .filter-submit-btn {
-    width: 100%;
+  .jsf-apply {
+    display: none;
   }
+}
+
+/* ─── >=1024px ─── */
+@media (min-width: 1024px) {
+  .jsf-fields {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .filter-location-wrapper {
+    grid-column: auto;
+  }
+
+  .salary-range-field {
+    grid-column: 1 / -1;
+    max-width: 520px;
+  }
+}
+
+/* ─── Roles refresh (2a): border-first white surface (logged-in only;
+       the filters render on the protected /jobs board) ─── */
+body.app-with-sidebar .job-search-filters {
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  box-shadow: none;
+}
+
+body.app-with-sidebar .job-search-filters .filter-submit-btn,
+body.app-with-sidebar .job-search-filters .jsf-toggle,
+body.app-with-sidebar .job-search-filters .btn-reset,
+body.app-with-sidebar .job-search-filters .jsf-apply {
+  border-radius: var(--ds-radius-btn);
+}
+
+body.app-with-sidebar .job-search-filters .ds-input.filter-input,
+body.app-with-sidebar .job-search-filters .ds-input.filter-select {
+  border-radius: var(--ds-radius-btn);
+}
+
+body.app-with-sidebar .job-search-filters .salary-range-field {
+  border-color: var(--ds-ink-100);
+  background: var(--ds-ink-50);
+}
+
+body.app-with-sidebar .job-search-filters .must-haves-hidden-count {
+  color: var(--ds-warning);
 }

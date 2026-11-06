@@ -2801,3 +2801,238 @@ button:disabled,
     justify-content: center;
   }
 }
+
+/* ============================================================ */
+/* JOB BOARD — .jb-* (UI-04). Mobile-first: base = <=360px.      */
+/* Appended block; the legacy .jobboard-* rules above remain for */
+/* YourApplications and other shared pages. Visual precedent:    */
+/* the .jsd-* applicant dashboard in dashboard.css.              */
+/* ============================================================ */
+
+.jb {
+  min-height: 100dvh;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+  padding-block: var(--ds-space-4) var(--ds-space-10);
+  padding-inline: max(var(--ds-space-4), env(safe-area-inset-left, 0px)) max(var(--ds-space-4), env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+}
+.jb *, .jb *::before, .jb *::after { box-sizing: border-box; }
+
+.jb-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+  min-width: 0;
+}
+
+/* Hero — compact, single gradient surface with two ring outlines */
+.jb-hero {
+  position: relative;
+  overflow: hidden;
+  padding: var(--ds-space-5);
+  border-radius: var(--ds-radius-lg);
+  background: linear-gradient(160deg, var(--ds-green) 0%, var(--ds-green-deep) 100%);
+  color: #fff;
+  box-shadow: var(--ds-shadow-2);
+}
+.jb-hero__deco { position: absolute; inset: 0; pointer-events: none; }
+.jb-hero__ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.jb-hero__ring--a { width: 200px; height: 200px; right: -70px; top: -90px; }
+.jb-hero__ring--b { width: 320px; height: 320px; right: -140px; top: -150px; }
+.jb-hero__text { position: relative; }
+.jb .jb-hero__text h1 {
+  margin: 0 0 var(--ds-space-1);
+  color: #fff;
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-xl);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.jb .jb-hero__text p {
+  margin: 0;
+  max-width: 52ch;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: var(--ds-text-sm);
+  line-height: 1.5;
+}
+
+.jb-toolbar { min-width: 0; }
+
+.jb-resultbar {
+  margin: 0;
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  color: var(--ds-muted);
+}
+
+/* No-skills note */
+.jb-note {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-4);
+  background: var(--ds-warning-bg);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-sm);
+  line-height: 1.5;
+}
+.jb-note p { margin: 0; }
+
+/* Results: one column on phones, auto-fill grid from 768 */
+.jb-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ds-space-4);
+}
+.jb-list > * { min-width: 0; }
+
+.jb-close-matches {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  margin-bottom: var(--ds-space-2);
+}
+.jb .jb-close-matches__heading {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-lg);
+  font-weight: 800;
+  color: var(--ds-text);
+}
+
+/* Empty + error */
+.jb-empty p, .jb-error__text { margin: 0; max-width: 52ch; font-size: var(--ds-text-sm); line-height: 1.5; }
+.jb-empty__icon { font-size: 24px; color: var(--ds-gold); }
+.jb-error { border-style: solid; border-color: var(--ds-danger); background: var(--ds-danger-bg); color: var(--ds-danger); }
+.jb-error .ds-btn { margin-top: var(--ds-space-2); }
+.jb-error__text { color: var(--ds-text); overflow-wrap: anywhere; }
+
+/* Loading skeletons */
+.jb-sk-card { display: flex; flex-direction: column; gap: var(--ds-space-3); min-height: 200px; }
+.jb-sk-line { height: 14px; width: 80%; }
+.jb-sk-line--lg { height: 20px; width: 60%; }
+.jb-sk-line--sm { width: 40%; }
+.jb-sk-btn { height: 44px; margin-top: auto; border-radius: var(--ds-radius-md); }
+
+/* Pager: Previous/Next stack under the label on narrow screens */
+.jb-pager {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-3);
+  align-items: center;
+  margin-top: var(--ds-space-2);
+}
+.jb-pager__info {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  color: var(--ds-muted);
+}
+.jb-pager .ds-btn { width: 100%; grid-row: 2; }
+
+@media (min-width: 480px) {
+  .jb-hero { padding: var(--ds-space-6); }
+  .jb .jb-hero__text h1 { font-size: var(--ds-text-2xl); }
+  .jb-note { flex-direction: row; align-items: center; justify-content: space-between; }
+  .jb-note .ds-btn { flex-shrink: 0; }
+  .jb-pager { grid-template-columns: auto auto auto; justify-content: center; }
+  .jb-pager__info { grid-row: 1; grid-column: 2; min-width: 120px; }
+  .jb-pager .ds-btn { grid-row: 1; width: auto; }
+  .jb-pager .ds-btn:first-child { grid-column: 1; }
+  .jb-pager .ds-btn:last-child { grid-column: 3; }
+}
+
+@media (min-width: 768px) {
+  .jb { padding-block: var(--ds-space-6) var(--ds-space-12); padding-inline: var(--ds-space-6); }
+  .jb-inner { gap: var(--ds-space-5); }
+  .jb-hero { padding: var(--ds-space-6) var(--ds-space-8); border-radius: var(--ds-radius-xl); }
+  .jb-hero__ring--a { width: 300px; height: 300px; right: 40px; top: -150px; }
+  .jb-hero__ring--b { width: 460px; height: 460px; right: -60px; top: -220px; }
+  .jb-list { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--ds-space-5); }
+  .jb .jb-close-matches__heading { font-size: var(--ds-text-xl); }
+}
+
+@media (min-width: 1440px) {
+  .jb { padding-inline: var(--ds-space-8); }
+}
+
+/* ============================================================ */
+/* JOB BOARD — roles refresh (2a)                                */
+/* PageHero header; from 1101px a two-column composition with a  */
+/* sticky filter rail beside the results. Below 1101px the       */
+/* filters keep their stacked, collapsible mobile behaviour.     */
+/* All under `.jb` (only JobBoard renders it; /jobs is a         */
+/* logged-in route) and `body.app-with-sidebar` for the sticky.  */
+/* ============================================================ */
+
+.jb-layout,
+.jb-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+  min-width: 0;
+}
+
+.jb .jb-pager .ds-btn { border-radius: var(--ds-radius-btn); }
+.jb .jb-note { border-radius: var(--ds-radius-md); }
+
+@media (min-width: 768px) {
+  .jb-layout,
+  .jb-main { gap: var(--ds-space-5); }
+}
+
+@media (min-width: 1101px) {
+  .jb .jb-inner { max-width: var(--ds-page-max); }
+
+  .jb-layout {
+    display: grid;
+    grid-template-columns: minmax(272px, 300px) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--ds-space-6);
+  }
+
+  /* Sticky rail: opaque surface, below the top bar (z 100) and modals.
+     It sits beside the results, so it never covers focused content. */
+  body.app-with-sidebar .jb .jb-toolbar {
+    position: sticky;
+    top: calc(var(--ds-topbar-h) + var(--ds-space-3));
+    z-index: calc(var(--ds-z-app-topbar) - 10);
+    align-self: start;
+  }
+  body.app-with-sidebar .jb .jb-toolbar .job-search-filters {
+    max-height: calc(100dvh - var(--ds-topbar-h) - var(--ds-space-6));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding: var(--ds-space-4);
+  }
+
+  /* The form's own >=768/1024 grid assumes full width; stack it in the rail */
+  body.app-with-sidebar .jb .jb-toolbar .jsf-bar { flex-wrap: wrap; }
+  body.app-with-sidebar .jb .jb-toolbar .jsf-search { flex: 1 1 100%; }
+  body.app-with-sidebar .jb .jb-toolbar .filter-submit-btn {
+    flex: 1 1 100%;
+    padding: 0 var(--ds-space-4);
+  }
+  body.app-with-sidebar .jb .jb-toolbar .jsf-fields { grid-template-columns: minmax(0, 1fr); }
+  body.app-with-sidebar .jb .jb-toolbar .filter-location-wrapper,
+  body.app-with-sidebar .jb .jb-toolbar .salary-range-field {
+    grid-column: auto;
+    max-width: none;
+  }
+  body.app-with-sidebar .jb .jb-toolbar .jsf-actions .btn-reset { width: 100%; }
+}

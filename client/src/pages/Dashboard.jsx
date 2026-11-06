@@ -4,16 +4,40 @@ import { AuthContext } from "../context/AuthContext";
 import { jobAPI, resolveAssetUrl } from "../services/api";
 import VacancyCard from "../components/VacancyCard";
 import ApplyModal from "../components/ApplyModal";
+import PageHero from "../components/PageHero";
+import MetricCard from "../components/MetricCard";
+import StateBlock from "../components/StateBlock";
+import Reveal from "../components/Reveal";
 import "../styles/dashboard.css";
-import { FaBriefcase, FaFileAlt, FaBuilding, FaCalendarAlt, FaSearch, FaArrowRight, FaExclamationTriangle, FaSpinner, FaStar } from "react-icons/fa";
+import { useTranslation } from "react-i18next";
+import { ArrowLeft, ArrowRight, Briefcase, CircleCheck, Clock, FileText, Lightbulb, Search, Star } from "lucide-react";
 import { jobMatchesAnyIndustry } from "../utils/industries";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const REC_PER_PAGE = 4;
 
+// Same percent VacancyCard shows for a job: the checklist percent when the
+// job has one, otherwise the relevance estimate. 0 when the seeker has no
+// skills on file (the cards hide the percent then, so the rail does too).
+const jobMatchPercent = (job, hasSkills) => {
+  if (!hasSkills) return 0;
+  if (job?.checklistMatch) return Number(job.checklistMatch.percent) || 0;
+  return Math.round((job?.relevanceScore || 0) * 100);
+};
+
+const greetingForNow = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "morning";
+  if (hour < 18) return "afternoon";
+  return "evening";
+};
+
 export default function Dashboard() {
   const { user, login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  // Computed once per visit (lazy initializer) so render stays pure.
+  const [greetingKey] = useState(greetingForNow);
   const preferredIndustries = useMemo(() => user?.preferredIndustries || [], [user]);
 
   const [jobs, setJobs] = useState([]);
@@ -140,13 +164,32 @@ export default function Dashboard() {
     return best;
   }, [jobs]);
 
+  // Presentation only: the three loaded jobs with the highest match percent
+  // (hero "Best match today" card + the "Top matches" rail).
+  const topMatches = useMemo(
+    () =>
+      jobs
+        .map((job) => ({ job, percent: jobMatchPercent(job, hasSkills) }))
+        .filter((entry) => entry.percent > 0)
+        .sort((a, b) => b.percent - a.percent)
+        .slice(0, 3),
+    [jobs, hasSkills]
+  );
+
   if (!user) {
     return (
-      <div className="dashboard-container">
-        <div className="error-message">
-          <FaExclamationTriangle className="error-icon" />
-          <span>Please login to view your dashboard.</span>
-          <button onClick={() => navigate('/login')} className="btn-login-redirect">Go to Login</button>
+      <div className="jsd">
+        <div className="jsd-inner">
+          <StateBlock
+            kind="error"
+            title={t("dashboard.loginRequiredTitle")}
+            description={t("dashboard.loginRequired")}
+            action={
+              <button type="button" onClick={() => navigate('/login')} className="ds-btn ds-btn--primary">
+                {t("dashboard.goToLogin")}
+              </button>
+            }
+          />
         </div>
       </div>
     );
@@ -160,139 +203,225 @@ export default function Dashboard() {
     a.status === 'accepted' || a.status === 'hired'
   ).length;
 
+  const stats = [
+    { key: 'jobs', icon: <Briefcase size={20} />, value: jobs.length, label: t("dashboard.metrics.availableJobs") },
+    { key: 'total', icon: <FileText size={20} />, value: totalApplications, label: t("dashboard.metrics.totalApplications") },
+    { key: 'pending', icon: <Clock size={20} />, value: pendingApplications, label: t("dashboard.metrics.pending") },
+    { key: 'accepted', icon: <CircleCheck size={20} />, value: acceptedApplications, label: t("dashboard.metrics.accepted") },
+  ];
+
+  const firstName = user.name?.split(' ')[0] || t("dashboard.nameFallback");
+  const bestMatch = topMatches[0] || null;
+  const employerLabel = (job) => job?.employer?.companyName || job?.employer?.name || t("dashboard.employerFallback");
+
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-hero">
-        <div className="dashboard-hero-content">
-          <div className="dashboard-hero-text">
-            <h1>Welcome back, {user.name?.split(' ')[0] || 'User'}!</h1>
-            <p>Find your next opportunity and track your job applications</p>
-          </div>
-          <button className="hero-browse-btn" onClick={() => navigate("/jobs")}>
-            <FaSearch /> Browse Jobs <FaArrowRight className="btn-arrow" />
-          </button>
-        </div>
-      </div>
-
-      <div className="stats-grid">
-        <div className="stat-card stat-card-green">
-          <div className="stat-card-icon"><FaBriefcase /></div>
-          <div className="stat-card-content"><span className="stat-number">{jobs.length}</span><span className="stat-label">Available Jobs</span></div>
-        </div>
-        <div className="stat-card stat-card-yellow">
-          <div className="stat-card-icon"><FaFileAlt /></div>
-          <div className="stat-card-content"><span className="stat-number">{totalApplications}</span><span className="stat-label">Total Applications</span></div>
-        </div>
-        <div className="stat-card stat-card-blue">
-          <div className="stat-card-icon"><FaCalendarAlt /></div>
-          <div className="stat-card-content"><span className="stat-number">{pendingApplications}</span><span className="stat-label">Pending Review</span></div>
-        </div>
-        <div className="stat-card stat-card-purple">
-          <div className="stat-card-icon"><FaBuilding /></div>
-          <div className="stat-card-content"><span className="stat-number">{acceptedApplications}</span><span className="stat-label">Accepted</span></div>
-        </div>
-      </div>
-
-      {error && (
-        <div className="error-message error-message-with-retry">
-          <FaExclamationTriangle className="error-icon" /><span>{error}</span>
-          <button onClick={handleRetry} className="retry-btn">Retry</button>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="loading-spinner"><FaSpinner className="spinner-icon" /><p>Loading your dashboard...</p></div>
-      ) : (
-        <>
-          <div className="profile-card">
-            <div className="profile-card-left">
-              <div className="profile-avatar-large">
-                {profileImageUrl ? <img src={profileImageUrl} alt={user.name || "User avatar"} /> : initials}
-              </div>
-              <div className="profile-details">
-                <h2>{user.name}</h2><p className="profile-email">{user.email}</p><span className="profile-role-badge">Job Seeker</span>
-              </div>
-            </div>
-            <div className="profile-card-right">
-              <button className="btn-profile-edit" onClick={() => navigate("/profile")}>Edit Profile</button>
-            </div>
-          </div>
-
-          {skillGapInsight && (
-            <div className="skill-gap-insight">
-              <FaExclamationTriangle className="skill-gap-insight-icon" />
-              <span>
-                <strong>{skillGapInsight.value}</strong> appears in {skillGapInsight.count} jobs
-                you nearly qualify for — worth looking into.
-              </span>
-            </div>
-          )}
-
-          {/* Recent Job Openings — a short teaser; the full list lives on the Job Board */}
-          <div className="section-header">
-            <h2>Recent Job Openings</h2>
-            <button className="section-view-all" onClick={() => navigate("/jobs")}>View All <FaArrowRight /></button>
-          </div>
-
-          {!hasSkills && user && (
-            <div className="info-message">
-              <p>You haven't added any skills to your profile yet. Add skills to see your match percentage for each job.</p>
-              <button className="btn-profile-edit" onClick={() => navigate("/profile")}>Edit Profile</button>
-            </div>
-          )}
-
-          {recentJobs.length === 0 ? (
-            <div className="empty-state-card"><p>No jobs are available right now.</p></div>
-          ) : (
-            <div className="jobs-grid">
-              {recentJobs.map((job) => <VacancyCard key={job._id} {...cardProps(job)} />)}
-            </div>
-          )}
-
-          {/* Recommended for You — paginated */}
-          <div className="section-header">
-            <h2><FaStar style={{ color: '#f59e0b', marginRight: '8px' }} /> Recommended for You</h2>
-          </div>
-
-          {preferredIndustries.length === 0 ? (
-            <div className="setup-industries-prompt">
-              <div className="setup-industries-content">
-                <FaStar className="setup-industries-icon" />
-                <h3>Set Up Your Preferred Industries</h3>
-                <p>To get personalized job recommendations, add your preferred industries to your profile. This helps us suggest jobs that match your career interests.</p>
-                <button className="btn-setup-industries" onClick={() => navigate("/profile")}>
-                  Go to Edit Profile
-                </button>
-              </div>
-            </div>
-          ) : recommendedAll.length === 0 ? (
-            <div className="empty-state-card"><p>No recommended jobs available. Check back soon!</p></div>
-          ) : (
-            <>
-              <div className="jobs-grid">
-                {recSlice.map((job) => <VacancyCard key={job._id} {...cardProps(job)} />)}
-              </div>
-              <div className="pagination-controls dash-pagination">
+    <div className="jsd">
+      <div className="jsd-inner">
+        <PageHero
+          large
+          className="jsd-hero2"
+          title={t(`dashboard.greeting.${greetingKey}`)}
+          accent={`${firstName}.`}
+          body={loading ? t("dashboard.heroBodyLoading") : t("dashboard.heroBody", { count: jobs.length })}
+          actions={
+            <button type="button" className="ds-btn ds-btn--gold jsd-hero2__cta" onClick={() => navigate("/jobs")}>
+              <Search size={18} aria-hidden="true" />
+              {t("dashboard.browseJobs")}
+              <ArrowRight size={18} className="jsd-hero2__arrow" aria-hidden="true" />
+            </button>
+          }
+          aside={
+            !loading && bestMatch ? (
+              <div className="jsd-best">
+                <h2 className="jsd-best__heading">{t("dashboard.bestMatch")}</h2>
+                <p className="jsd-best__title">{bestMatch.job.title}</p>
+                <p className="jsd-best__sub">{employerLabel(bestMatch.job)}</p>
+                <div className="jsd-best__meter">
+                  <div className="ds-progress" aria-hidden="true">
+                    <span className="ds-progress__bar" style={{ "--ds-progress": `${Math.min(100, bestMatch.percent)}%` }} />
+                  </div>
+                  <span className="jsd-best__percent">{t("dashboard.matchPercent", { percent: bestMatch.percent })}</span>
+                </div>
                 <button
-                  className="pagination-btn"
-                  onClick={() => setRecPage((p) => Math.max(1, p - 1))}
-                  disabled={recSafePage <= 1}
+                  type="button"
+                  className="ds-btn ds-btn--secondary jsd-best__open"
+                  onClick={() => navigate(`/jobs/${bestMatch.job._id}`)}
                 >
-                  ← Previous
-                </button>
-                <div className="pagination-info">Page {recSafePage} of {recTotalPages}</div>
-                <button
-                  className="pagination-btn"
-                  onClick={() => setRecPage((p) => Math.min(recTotalPages, p + 1))}
-                  disabled={recSafePage >= recTotalPages}
-                >
-                  Next →
+                  {t("dashboard.viewJob")}
+                  <ArrowRight size={16} aria-hidden="true" />
                 </button>
               </div>
-            </>
-          )}
-        </>
-      )}
+            ) : null
+          }
+        />
+
+        <Reveal className="ds-metrics ds-metrics--4 jsd-metrics">
+          {stats.map((st) => (
+            <MetricCard key={st.key} icon={st.icon} value={st.value} label={st.label} />
+          ))}
+        </Reveal>
+
+        {error && (
+          <StateBlock
+            kind="error"
+            title={t("dashboard.errorTitle")}
+            description={error}
+            onRetry={handleRetry}
+          />
+        )}
+
+        {loading ? (
+          <div className="jsd-loading" role="status" aria-busy="true">
+            <span className="ds-sr-only">{t("dashboard.loading")}</span>
+            <div className="ds-card jsd-profile" aria-hidden="true">
+              <span className="ds-skeleton jsd-sk-avatar" />
+              <div className="jsd-sk-lines">
+                <span className="ds-skeleton jsd-sk-line jsd-sk-line--lg" />
+                <span className="ds-skeleton jsd-sk-line" />
+              </div>
+            </div>
+            <div className="jsd-grid" aria-hidden="true">
+              {[0, 1, 2, 3].map((i) => (
+                <div className="ds-card jsd-sk-card" key={i}>
+                  <span className="ds-skeleton jsd-sk-line jsd-sk-line--lg" />
+                  <span className="ds-skeleton jsd-sk-line" />
+                  <span className="ds-skeleton jsd-sk-line jsd-sk-line--sm" />
+                  <span className="ds-skeleton jsd-sk-btn" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="jsd-layout">
+            {/* Side rail first in source so the profile card keeps its
+                place at the top of the phone layout; from 1101px it moves
+                to the right-hand column (dashboard.css). */}
+            <aside className="jsd-side" aria-label={t("dashboard.sideLabel")}>
+              <div className="ds-card jsd-profile">
+                <div className="jsd-profile__who">
+                  <div className="jsd-profile__avatar">
+                    {profileImageUrl ? <img src={profileImageUrl} alt={user.name || t("dashboard.avatarAlt")} /> : initials}
+                  </div>
+                  <div className="jsd-profile__details">
+                    <h2>{user.name}</h2>
+                    <p className="jsd-profile__email">{user.email}</p>
+                    <span className="ds-badge">{t("dashboard.jobSeeker")}</span>
+                  </div>
+                </div>
+                <button type="button" className="ds-btn ds-btn--secondary jsd-profile__edit" onClick={() => navigate("/profile")}>{t("dashboard.editProfile")}</button>
+              </div>
+
+              {topMatches.length > 0 && (
+                <section className="jsd-top" aria-labelledby="jsd-top-title">
+                  <h2 id="jsd-top-title" className="jsd-top__title">{t("dashboard.topMatchesTitle")}</h2>
+                  <ol className="ds-list jsd-top__list">
+                    {topMatches.map(({ job, percent }, index) => (
+                      <li key={job._id}>
+                        <button
+                          type="button"
+                          className="ds-list-row jsd-top__row"
+                          onClick={() => navigate(`/jobs/${job._id}`)}
+                        >
+                          <span className="ds-list-row__lead" aria-hidden="true">{index + 1}</span>
+                          <span className="ds-list-row__main">
+                            <span className="ds-list-row__title">{job.title}</span>
+                            <span className="ds-list-row__sub">{employerLabel(job)}</span>
+                          </span>
+                          <span className="ds-list-row__end">{t("dashboard.matchPercent", { percent })}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
+            </aside>
+
+            <div className="jsd-main">
+              {skillGapInsight && (
+                <div className="jsd-note">
+                  <Lightbulb size={18} className="jsd-note__icon" aria-hidden="true" />
+                  <span>
+                    <strong>{skillGapInsight.value}</strong>{" "}
+                    {t("dashboard.skillGap", { count: skillGapInsight.count })}
+                  </span>
+                </div>
+              )}
+
+              {/* Recent Job Openings — a short teaser; the full list lives on the Job Board */}
+              <div className="jsd-section-head">
+                <h2>{t("dashboard.recentTitle")}</h2>
+                <button type="button" className="jsd-view-all" onClick={() => navigate("/jobs")}>
+                  {t("dashboard.viewAll")} <ArrowRight size={16} aria-hidden="true" />
+                </button>
+              </div>
+
+              {!hasSkills && user && (
+                <div className="jsd-note jsd-note--action">
+                  <p>{t("dashboard.noSkills")}</p>
+                  <button type="button" className="ds-btn ds-btn--secondary" onClick={() => navigate("/profile")}>{t("dashboard.editProfile")}</button>
+                </div>
+              )}
+
+              {recentJobs.length === 0 ? (
+                <StateBlock kind="empty" title={t("dashboard.noJobsTitle")} description={t("dashboard.noJobsBody")} />
+              ) : (
+                <div className="jsd-grid">
+                  {recentJobs.map((job, index) => (
+                    <Reveal key={job._id} index={index + 1} className="jsd-cell">
+                      <VacancyCard {...cardProps(job)} />
+                    </Reveal>
+                  ))}
+                </div>
+              )}
+
+              {/* Recommended for You — paginated */}
+              <div className="jsd-section-head">
+                <h2><Star size={20} className="jsd-star" aria-hidden="true" /> {t("dashboard.recommendedTitle")}</h2>
+              </div>
+
+              {preferredIndustries.length === 0 ? (
+                <StateBlock
+                  kind="empty"
+                  title={t("dashboard.setupIndustriesTitle")}
+                  description={t("dashboard.setupIndustriesBody")}
+                  action={
+                    <button type="button" className="ds-btn ds-btn--primary" onClick={() => navigate("/profile")}>
+                      {t("dashboard.goToProfile")}
+                    </button>
+                  }
+                />
+              ) : recommendedAll.length === 0 ? (
+                <StateBlock kind="empty" title={t("dashboard.noRecommendedTitle")} description={t("dashboard.noRecommendedBody")} />
+              ) : (
+                <>
+                  <div className="jsd-grid">
+                    {recSlice.map((job) => <VacancyCard key={job._id} {...cardProps(job)} />)}
+                  </div>
+                  <nav className="jsd-pager" aria-label={t("dashboard.pagerLabel")}>
+                    <button
+                      type="button"
+                      className="ds-btn ds-btn--secondary"
+                      onClick={() => setRecPage((p) => Math.max(1, p - 1))}
+                      disabled={recSafePage <= 1}
+                    >
+                      <ArrowLeft size={16} aria-hidden="true" /> {t("dashboard.previous")}
+                    </button>
+                    <div className="jsd-pager__info" aria-live="polite">{t("dashboard.pageOf", { page: recSafePage, total: recTotalPages })}</div>
+                    <button
+                      type="button"
+                      className="ds-btn ds-btn--secondary"
+                      onClick={() => setRecPage((p) => Math.min(recTotalPages, p + 1))}
+                      disabled={recSafePage >= recTotalPages}
+                    >
+                      {t("dashboard.next")} <ArrowRight size={16} aria-hidden="true" />
+                    </button>
+                  </nav>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       <ApplyModal
         isOpen={Boolean(applyModalJobId)}

@@ -1,0 +1,550 @@
+/* Job detail page — mobile-first brand layer (UI-05). Loaded after report.css,
+   which still owns the base job-* rules; everything here is scoped under
+   .job-detail-page (specificity beats report.css regardless of order).
+   Base = <=360px; enhancements at 480 / 768 / 901 (report.css switches the
+   layout to two columns above 900px) / 1024. */
+
+.job-detail-page {
+  --jd-bar-h: 72px;
+  min-height: 100dvh;
+  background: var(--ds-bg);
+  font-family: var(--ds-font-body);
+  overflow-x: clip;
+}
+
+/* Content never hides behind the sticky apply bar. */
+.job-detail-page.has-apply-bar {
+  padding-bottom: calc(var(--jd-bar-h) + env(safe-area-inset-bottom) + 16px);
+}
+
+/* ---- hero: deep green with two ring outlines ---- */
+.job-detail-page .job-hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--ds-green-secondary) -10%, var(--ds-green) 45%, var(--ds-green-deep) 100%);
+  padding-inline: 16px;
+}
+
+.jd-hero-rings {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.jd-hero-rings::before,
+.jd-hero-rings::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.jd-hero-rings::before { width: 280px; height: 280px; right: -90px; top: -110px; }
+.jd-hero-rings::after { width: 180px; height: 180px; right: -40px; top: -60px; }
+
+.job-detail-page .job-hero-inner { position: relative; }
+
+.job-detail-page .job-hero h1 {
+  font-family: var(--ds-font-display);
+  font-weight: 800;
+  font-size: clamp(1.5rem, 6vw, 2.25rem);
+  overflow-wrap: anywhere;
+}
+
+.job-detail-page .job-hero-back,
+.job-detail-page .job-hero-company,
+.job-detail-page .job-hero-follow {
+  min-height: var(--ds-tap);
+}
+.job-detail-page .job-hero-back {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  padding-right: 0.75rem;
+  font-size: var(--ds-text-sm);
+}
+.job-detail-page .job-hero-company { max-width: 100%; }
+.job-detail-page .job-hero-company-name { min-width: 0; overflow-wrap: anywhere; text-align: left; }
+.job-detail-page .job-hero-follow { padding-inline: 1.1rem; }
+.job-detail-page .job-hero-follow.is-following { color: var(--ds-green); }
+
+.job-detail-page .job-chip {
+  font-size: var(--ds-text-sm);
+  min-height: 32px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* ---- layout + section cards ---- */
+.job-detail-page .job-detail-layout {
+  padding-inline: 16px;
+  margin-top: 16px;
+  gap: 16px;
+}
+
+.job-detail-page .job-main-column { gap: 16px; }
+
+.job-detail-page .job-section,
+.job-detail-page .employer-card,
+.job-detail-page .apply-card {
+  min-width: 0;
+  padding: 18px 16px;
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-1);
+}
+
+.job-detail-page .job-section h3,
+.job-detail-page .employer-card h3,
+.job-detail-page .apply-card h3 {
+  font-family: var(--ds-font-display);
+  font-weight: 800;
+  color: var(--ds-text);
+}
+.job-detail-page .job-section h3::before,
+.job-detail-page .employer-card h3::before { background: var(--ds-gold); }
+
+.job-detail-page .job-description-text {
+  color: var(--ds-text);
+  font-size: var(--ds-text-md);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+/* progressive disclosure: long text clamps below 768px */
+.job-detail-page .jd-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 7;
+  line-clamp: 7;
+  overflow: hidden;
+  margin: 0;
+}
+.job-detail-page .employer-dl .jd-clamp { -webkit-line-clamp: 4; line-clamp: 4; }
+.job-detail-page .jd-clamp.is-expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
+}
+
+.job-detail-page .jd-more-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-tap);
+  padding: 0 4px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  color: var(--ds-green-secondary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* requirements */
+.job-detail-page .job-req-group-label {
+  font-size: var(--ds-text-sm);
+  letter-spacing: 0.04em;
+  color: var(--ds-muted);
+}
+.job-detail-page .job-req-row {
+  align-items: flex-start;
+  padding: 0.7rem 0;
+  font-size: var(--ds-text-sm);
+  border-bottom-color: var(--ds-border);
+}
+.job-detail-page .job-req-row-icon { margin-top: 1px; }
+.job-detail-page .job-req-row-label {
+  flex: 1 1 0;
+  color: var(--ds-text);
+  overflow-wrap: anywhere;
+}
+.job-detail-page .job-req-row-status { font-size: var(--ds-text-sm); }
+
+/* "Why this match?" disclosure */
+.job-detail-page .job-why-match summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--ds-tap);
+  font-family: var(--ds-font-display);
+  font-weight: 800;
+  color: var(--ds-text);
+}
+
+/* match panel inside the apply card */
+.job-detail-page .job-match-panel { border-color: var(--ds-border); background: var(--ds-mint); }
+
+/* ---- side column: apply card, details, employer ---- */
+.job-detail-page .job-details-grid { grid-template-columns: 1fr; }
+.job-detail-page .job-detail-item { background: var(--ds-bg); border-color: var(--ds-border); }
+.job-detail-page .job-detail-label { font-size: var(--ds-text-xs); }
+
+.job-detail-page .employer-dl { grid-template-columns: 1fr; gap: 0.15rem 0; }
+.job-detail-page .employer-dl dt { font-size: var(--ds-text-xs); }
+.job-detail-page .employer-dl dd { margin: 0 0 0.6rem; font-size: var(--ds-text-sm); }
+
+.job-detail-page .btn-apply,
+.job-detail-page .btn-rail,
+.job-detail-page .btn-admin-action {
+  min-height: 48px;
+  border-radius: var(--ds-radius-md);
+}
+.job-detail-page .btn-apply { background: var(--ds-green); font-family: var(--ds-font-display); }
+.job-detail-page .btn-apply:hover:not(:disabled) { background: var(--ds-green-deep); }
+.job-detail-page .job-link-button { min-height: var(--ds-tap); }
+.job-detail-page .resume-link,
+.job-detail-page .report-trigger {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-tap);
+}
+.job-detail-page .job-save-job-wrap .btn-favorite-icon {
+  width: var(--ds-tap);
+  height: var(--ds-tap);
+  min-width: var(--ds-tap);
+}
+.job-detail-page .job-applied-ribbon { font-size: var(--ds-text-sm); border-radius: var(--ds-radius-md); }
+.job-detail-page .status-pill { font-size: var(--ds-text-sm); }
+
+/* While the sticky bar is shown, the card's duplicate Apply button is hidden. */
+.job-detail-page.has-apply-bar .apply-card .btn-apply { display: none; }
+
+/* ---- sticky apply bar ---- */
+.jd-apply-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--ds-z-sticky);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: var(--ds-surface);
+  border-top: 1px solid var(--ds-border);
+  box-shadow: 0 -6px 18px rgba(4, 60, 42, 0.1);
+}
+
+.jd-apply-bar__info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+.jd-apply-bar__info strong,
+.jd-apply-bar__info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ds-text-sm);
+}
+.jd-apply-bar__info strong { font-family: var(--ds-font-display); font-weight: 800; color: var(--ds-text); }
+.jd-apply-bar__info span { color: var(--ds-muted); }
+
+.jd-apply-bar__btn {
+  flex: none;
+  min-height: 48px;
+  padding: 0 20px;
+  border: none;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-green);
+  color: #fff;
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-md);
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color var(--ds-dur-fast) var(--ds-ease), transform var(--ds-dur-fast) var(--ds-ease);
+}
+.jd-apply-bar__btn:hover { background: var(--ds-green-deep); }
+.jd-apply-bar__btn:active { transform: translateY(1px); }
+
+/* Keep the floating messenger (fixed bottom-right, z 3500) above the bar. */
+body:has(.jd-apply-bar) .fm-root {
+  bottom: calc(var(--jd-bar-h, 72px) + 12px + env(safe-area-inset-bottom));
+}
+
+/* ---- loading skeleton ---- */
+.jd-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 16px 24px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+body:not(.app-with-sidebar) .jd-skel { padding-top: 6rem; }
+.jd-skel__hero { height: 170px; border-radius: var(--ds-radius-lg); }
+.jd-skel__card { height: 120px; border-radius: var(--ds-radius-lg); }
+.jd-skel__card--tall { height: 260px; }
+
+@media (min-width: 480px) {
+  .job-detail-page .job-details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .job-detail-page .job-section,
+  .job-detail-page .employer-card,
+  .job-detail-page .apply-card { padding: 22px 20px; }
+}
+
+@media (min-width: 768px) {
+  .job-detail-page .job-hero { padding-inline: 24px; }
+  .job-detail-page .job-detail-layout { padding-inline: 24px; gap: 20px; }
+  .jd-hero-rings::before { width: 420px; height: 420px; right: -90px; top: -190px; }
+  .jd-hero-rings::after { width: 280px; height: 280px; right: -10px; top: -110px; }
+
+  /* clamp is a mobile-only affordance */
+  .job-detail-page .jd-clamp,
+  .job-detail-page .employer-dl .jd-clamp {
+    display: block;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+    overflow: visible;
+  }
+  .job-detail-page .jd-more-btn { display: none; }
+
+  .job-detail-page .employer-dl { grid-template-columns: 128px 1fr; gap: 0.5rem 1rem; }
+  .job-detail-page .employer-dl dd { margin: 0; }
+  .job-detail-page .job-apply-column .employer-dl { grid-template-columns: 1fr; }
+}
+
+/* The in-card Apply button takes over once the page is two columns. */
+@media (min-width: 901px) {
+  .jd-apply-bar { display: none; }
+  .job-detail-page.has-apply-bar { padding-bottom: 0; }
+  .job-detail-page.has-apply-bar .apply-card .btn-apply { display: block; }
+  body:has(.jd-apply-bar) .fm-root { bottom: 20px; }
+  .job-detail-page .job-detail-layout { padding-inline: 24px; padding-bottom: 3rem; }
+}
+
+
+/* Login-required prompt inside AppModal (UI-06): report.css gives these
+   buttons flex-basis 160px, which in its stacked (<=640px) column layout
+   made each one 160px tall. Size them to content, 48px touch height. */
+.job-auth-modal-actions .green-btn,
+.job-auth-modal-actions .outline-btn {
+  flex: 0 0 auto;
+  min-height: 48px;
+}
+
+@media (min-width: 641px) {
+  .job-auth-modal-actions .green-btn,
+  .job-auth-modal-actions .outline-btn {
+    flex: 1 1 0;
+  }
+}
+
+/* ============================================================ */
+/* Roles refresh (2a) — signed-in layer.                         */
+/* /jobs/:id is also public (PublicNavbar), so every visual      */
+/* change below sits under body.app-with-sidebar. The two new    */
+/* elements (.jd-facts, .jd-verified) are hidden for guests so   */
+/* the guest page renders exactly as before.                     */
+/* ============================================================ */
+
+.jd-facts,
+.jd-verified { display: none; }
+
+body.app-with-sidebar .job-detail-page { --jd-max: 1240px; }
+
+/* Hero becomes a rounded card aligned with the content column */
+body.app-with-sidebar .job-detail-page .job-hero {
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  max-width: calc(var(--jd-max) - 48px);
+  margin: var(--ds-space-2) auto 0;
+  padding: var(--ds-space-8) var(--ds-space-5);
+  border-radius: var(--ds-radius-lg);
+  background: linear-gradient(160deg, var(--ds-green) 0%, var(--ds-green-deep) 100%);
+  isolation: isolate;
+}
+body.app-with-sidebar .job-detail-page .jd-hero-rings { z-index: 0; }
+body.app-with-sidebar .job-detail-page .job-hero-inner {
+  z-index: 1;
+  max-width: none;
+}
+body.app-with-sidebar .job-detail-page .job-hero h1 {
+  max-width: 28ch;
+  font-size: var(--ds-text-h1);
+  line-height: var(--ds-leading-tight);
+  letter-spacing: var(--ds-tracking-display);
+  text-wrap: balance;
+}
+body.app-with-sidebar .job-detail-page .job-hero-follow.is-following { color: var(--ds-green); }
+
+/* The type / salary / openings chips repeat in the fact strip */
+body.app-with-sidebar .job-detail-page .job-chip--fact { display: none; }
+
+/* Fact strip (existing fields only) */
+body.app-with-sidebar .job-detail-page .jd-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ds-space-4);
+  margin: var(--ds-space-6) 0 0;
+  padding-top: var(--ds-space-5);
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+body.app-with-sidebar .job-detail-page .jd-facts__item { min-width: 0; }
+body.app-with-sidebar .job-detail-page .jd-facts dt {
+  margin: 0;
+  color: #cfe6da;
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+}
+body.app-with-sidebar .job-detail-page .jd-facts dd {
+  margin: var(--ds-space-1) 0 0;
+  color: #fff;
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-md);
+  font-weight: 800;
+  line-height: var(--ds-leading-snug);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* Content column width + cards in tokens (border-first, no resting shadow) */
+body.app-with-sidebar .job-detail-page .job-detail-layout { max-width: var(--jd-max); }
+
+body.app-with-sidebar .job-detail-page .job-section,
+body.app-with-sidebar .job-detail-page .employer-card,
+body.app-with-sidebar .job-detail-page .apply-card {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  box-shadow: none;
+}
+body.app-with-sidebar .job-detail-page .job-section h3,
+body.app-with-sidebar .job-detail-page .employer-card h3,
+body.app-with-sidebar .job-detail-page .apply-card h3 {
+  font-size: var(--ds-text-h3);
+  line-height: var(--ds-leading-snug);
+  text-wrap: balance;
+}
+body.app-with-sidebar .job-detail-page .job-section h3::before,
+body.app-with-sidebar .job-detail-page .employer-card h3::before { display: none; }
+
+/* Requirements: mint chip grid (two columns from 768px) */
+body.app-with-sidebar .job-detail-page .job-req-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ds-space-2);
+}
+body.app-with-sidebar .job-detail-page .job-req-group-label {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+body.app-with-sidebar .job-detail-page .job-req-row {
+  align-items: center;
+  min-height: var(--ds-tap);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border: 1px solid #c9e3d3;
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-mint);
+}
+body.app-with-sidebar .job-detail-page .job-req-row.is-missing {
+  border: 1px dashed var(--ds-danger);
+  background: var(--ds-danger-bg);
+}
+body.app-with-sidebar .job-detail-page .job-req-row-icon { margin-top: 0; }
+body.app-with-sidebar .job-detail-page .job-req-row.is-met .job-req-row-icon { background: var(--ds-surface); color: var(--ds-green); }
+body.app-with-sidebar .job-detail-page .job-req-row.is-missing .job-req-row-icon { background: var(--ds-surface); color: var(--ds-danger); }
+body.app-with-sidebar .job-detail-page .job-req-row.is-met .job-req-row-status { color: var(--ds-green); }
+body.app-with-sidebar .job-detail-page .job-req-row.is-missing .job-req-row-status { color: var(--ds-danger); }
+body.app-with-sidebar .job-detail-page .job-req-row-label { color: var(--ds-ink-900); }
+
+/* "Why this match?" — CSS chevron instead of the text glyph */
+body.app-with-sidebar .job-detail-page .job-why-match summary::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin: 0 var(--ds-space-3) 0 2px;
+  border-right: 2px solid var(--ds-green);
+  border-bottom: 2px solid var(--ds-green);
+  transform: rotate(-45deg);
+  transition: transform var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+body.app-with-sidebar .job-detail-page .job-why-match[open] summary::before { transform: rotate(45deg); }
+
+/* Right rail */
+body.app-with-sidebar .job-detail-page .job-match-panel {
+  border-color: #c9e3d3;
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-mint);
+}
+body.app-with-sidebar .job-detail-page .job-detail-item {
+  border-color: var(--ds-ink-100);
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-ink-50);
+}
+body.app-with-sidebar .job-detail-page .job-detail-item strong {
+  color: var(--ds-ink-900);
+  font-variant-numeric: tabular-nums;
+}
+body.app-with-sidebar .job-detail-page .btn-apply,
+body.app-with-sidebar .job-detail-page .btn-rail,
+body.app-with-sidebar .job-detail-page .btn-admin-action,
+body.app-with-sidebar .job-detail-page .jd-apply-bar__btn { border-radius: var(--ds-radius-btn); }
+body.app-with-sidebar .job-detail-page .job-applied-ribbon { border-radius: var(--ds-radius-btn); }
+body.app-with-sidebar .job-detail-page .job-link-button { color: var(--ds-green); }
+body.app-with-sidebar .job-detail-page .job-link-button:hover { color: var(--ds-green-deep); }
+
+/* PESO verified notice (only rendered when the employer is verified) */
+body.app-with-sidebar .job-detail-page .jd-verified {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  margin: 0 0 var(--ds-space-4);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border: 1px solid #b8dfc5;
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-success-bg);
+  color: var(--ds-success);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  line-height: var(--ds-leading-snug);
+}
+body.app-with-sidebar .job-detail-page .jd-verified svg { flex: none; }
+
+/* Skeleton matches the card hero */
+body.app-with-sidebar .jd-skel { max-width: 1240px; }
+body.app-with-sidebar .jd-skel__hero,
+body.app-with-sidebar .jd-skel__card { border-radius: var(--ds-radius-card); }
+
+@media (min-width: 768px) {
+  body.app-with-sidebar .job-detail-page .job-hero {
+    width: calc(100% - 48px);
+    padding: var(--ds-space-10);
+    border-radius: var(--ds-radius-hero);
+  }
+  body.app-with-sidebar .job-detail-page .jd-facts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ds-space-5);
+  }
+  body.app-with-sidebar .job-detail-page .jd-facts__item + .jd-facts__item {
+    padding-left: var(--ds-space-5);
+    border-left: 1px solid rgba(255, 255, 255, 0.14);
+  }
+  body.app-with-sidebar .job-detail-page .job-req-group { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.app-with-sidebar .job-detail-page .job-section,
+  body.app-with-sidebar .job-detail-page .employer-card,
+  body.app-with-sidebar .job-detail-page .apply-card { padding: var(--ds-space-6); }
+}
+
+@media (min-width: 901px) {
+  body.app-with-sidebar .job-detail-page .job-hero { margin-top: 0; }
+}
+
+@media (min-width: 1024px) {
+  body.app-with-sidebar .job-detail-page .job-detail-layout {
+    grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.7fr);
+    gap: var(--ds-space-6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.app-with-sidebar .job-detail-page .job-why-match summary::before { transition: none; }
+}

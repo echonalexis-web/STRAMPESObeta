@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { adminAPI, jobAPI, displayFileName } from "../services/api";
@@ -15,9 +15,22 @@ import ApplyModal from "../components/ApplyModal";
 import VacancyCard from "../components/VacancyCard";
 import MatchBreakdownPanel from "../components/MatchBreakdownPanel";
 import { useFollow } from "../hooks/useFollow";
+import useParallaxLayer from "../hooks/useParallaxLayer";
 import { FaPlus, FaCheck, FaTimes, FaExclamationTriangle } from "react-icons/fa";
+import { ShieldCheck } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { MATCH_TIER_CLASS } from "../utils/qualifications";
 import "../styles/qualifications-editor.css";
+import "../styles/job-detail.css";
+
+// Hero ring outlines on a parallax layer — signed-in view only, so the guest
+// (PublicNavbar) hero stays static exactly as before. Its own component so
+// the layer registers when the hero mounts (after loading), not on the
+// page's first render.
+function ParallaxHeroRings() {
+  const ringsRef = useParallaxLayer(0.12);
+  return <span ref={ringsRef} className="jd-hero-rings mx-parallax" aria-hidden="true" />;
+}
 
 const RequirementRow = ({ met, label }) => (
   <div className={`job-req-row ${met ? "is-met" : "is-missing"}`}>
@@ -26,6 +39,51 @@ const RequirementRow = ({ met, label }) => (
     <span className="job-req-row-status">{met ? "You have this" : "Missing"}</span>
   </div>
 );
+
+// Long free text (job / employer description) collapses to a few lines on
+// narrow screens with a "Show more" toggle. The clamp itself is CSS-only
+// (job-detail.css, <768px); this only measures whether the text actually
+// overflows so short text never gets a pointless button.
+function ExpandableText({ text, className = "", id }) {
+  const ref = useRef(null);
+  const [expanded, setExpanded] = useState(false);
+  const [clamped, setClamped] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const measure = () => {
+      if (el.classList.contains("is-expanded")) return;
+      setClamped(el.scrollHeight - el.clientHeight > 1);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <>
+      <p
+        ref={ref}
+        id={id}
+        className={`jd-clamp ${expanded ? "is-expanded" : ""} ${className}`.trim()}
+      >
+        {text}
+      </p>
+      {clamped && (
+        <button
+          type="button"
+          className="jd-more-btn"
+          aria-expanded={expanded}
+          aria-controls={id}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      )}
+    </>
+  );
+}
 
 const STATUS_META = {
   pending:     { label: "Pending review", tone: "pending" },
@@ -46,6 +104,7 @@ export default function JobDetail() {
   const [searchParams] = useSearchParams();
   const toast = useToast();
   const confirm = useConfirm();
+  const { t } = useTranslation();
   const { user } = useContext(AuthContext);
 
   const [job, setJob] = useState(null);
@@ -214,7 +273,18 @@ export default function JobDetail() {
   const employerName = job?.employer?.companyName || job?.employer?.name || "Employer";
   const employerDescription = job?.employer?.companyDescription || "No employer description provided.";
 
-  if (loading) return <div className="report-container"><p>Loading job details...</p></div>;
+  if (loading) {
+    return (
+      <div className="job-detail-page">
+        <div className="jd-skel" role="status" aria-live="polite">
+          <span className="ds-sr-only">Loading job details...</span>
+          <div className="jd-skel__hero ds-skeleton" aria-hidden="true" />
+          <div className="jd-skel__card ds-skeleton" aria-hidden="true" />
+          <div className="jd-skel__card jd-skel__card--tall ds-skeleton" aria-hidden="true" />
+        </div>
+      </div>
+    );
+  }
 
   if (error && !job) {
     const isRecJobApplied = (jobId) =>
@@ -318,10 +388,14 @@ export default function JobDetail() {
   const requiredReqItems = checklist?.items?.filter((item) => !item.optional) || [];
   const preferredReqItems = checklist?.items?.filter((item) => item.optional) || [];
   const matchTierClass = checklist ? MATCH_TIER_CLASS[checklist.tier] || "low" : "na";
+  // Sticky bottom apply bar (mobile only, see job-detail.css): same handler
+  // and labels as the in-card button; guests get the existing login prompt.
+  const showApplyBar = showApplyForm || showEditForm || (!user && !isAdminUser);
 
   return (
-    <div className="job-detail-page">
+    <div className={`job-detail-page ${showApplyBar ? "has-apply-bar" : ""}`.trim()}>
       <section className="job-hero">
+        {user ? <ParallaxHeroRings /> : <span className="jd-hero-rings" aria-hidden="true" />}
         <div className="job-hero-inner">
           <button type="button" className="job-hero-back" onClick={() => navigate("/jobs")}>
             ← Browse jobs
@@ -351,10 +425,32 @@ export default function JobDetail() {
           </div>
           <div className="job-hero-meta">
             <span className="job-chip">{job.location}</span>
-            <span className="job-chip">{job.jobType || "Full-time"}</span>
-            <span className="job-chip">{job.salary ? `₱${job.salary}` : "Salary negotiable"}</span>
-            <span className="job-chip">{openings} opening{openings === 1 ? "" : "s"}</span>
+            {/* `job-chip--fact` chips repeat in the fact strip below; the
+                signed-in view hides them there (job-detail.css). */}
+            <span className="job-chip job-chip--fact">{job.jobType || "Full-time"}</span>
+            <span className="job-chip job-chip--fact">{job.salary ? `₱${job.salary}` : "Salary negotiable"}</span>
+            <span className="job-chip job-chip--fact">{openings} opening{openings === 1 ? "" : "s"}</span>
           </div>
+          {/* Fact strip — same existing fields as the chips above. Shown only
+              in the signed-in layout (hidden for guests in job-detail.css). */}
+          <dl className="jd-facts">
+            <div className="jd-facts__item">
+              <dt>{t("jobDetail.facts.type")}</dt>
+              <dd>{job.jobType || t("jobDetail.fullTime")}</dd>
+            </div>
+            <div className="jd-facts__item">
+              <dt>{t("jobDetail.facts.salary")}</dt>
+              <dd>{job.salary ? `₱${job.salary}` : t("jobDetail.salaryNegotiable")}</dd>
+            </div>
+            <div className="jd-facts__item">
+              <dt>{t("jobDetail.facts.vacancies")}</dt>
+              <dd>{openings}</dd>
+            </div>
+            <div className="jd-facts__item">
+              <dt>{t("jobDetail.facts.deadline")}</dt>
+              <dd>{formatDate(job.applicationDeadline)}</dd>
+            </div>
+          </dl>
         </div>
       </section>
 
@@ -368,12 +464,16 @@ export default function JobDetail() {
           )}
 
           <section className="job-section">
-            <h3>About the Job</h3>
-            <p className="job-description-text">{job.description || "No description provided."}</p>
+            <h3>{t("jobDetail.aboutJob")}</h3>
+            <ExpandableText
+              id="job-description-text"
+              className="job-description-text"
+              text={job.description || "No description provided."}
+            />
           </section>
 
           <section className="job-section">
-            <h3>Requirements</h3>
+            <h3>{t("jobDetail.requirements")}</h3>
             {checklist ? (
               <div className="job-req-card">
                 {(checklist.basicEligibility?.education ||
@@ -424,8 +524,10 @@ export default function JobDetail() {
 
           {job.matchBreakdown && (
             <section className="job-section">
-              <details className="job-why-match">
-                <summary>Why this match?</summary>
+              {/* Open by default for signed-in viewers; `open` is false for
+                  guests, which renders the same collapsed markup as before. */}
+              <details className="job-why-match" open={Boolean(user)}>
+                <summary>{t("jobDetail.whyMatch")}</summary>
                 <MatchBreakdownPanel
                   breakdown={job.matchBreakdown}
                   disqualified={job.disqualified}
@@ -552,7 +654,7 @@ export default function JobDetail() {
           ) : null}
 
           <section className="job-section job-details-section">
-            <h3>Job Details</h3>
+            <h3>{t("jobDetail.jobDetails")}</h3>
             <div className="job-details-grid">
               <div className="job-detail-item">
                 <span className="job-detail-label">Date Posted</span>
@@ -578,7 +680,13 @@ export default function JobDetail() {
           </section>
 
           <section className="employer-card">
-            <h3>Employer Info</h3>
+            <h3>{t("jobDetail.employerInfo")}</h3>
+            {job.employer?.verificationStatus === "verified" && (
+              <p className="jd-verified">
+                <ShieldCheck size={18} aria-hidden="true" />
+                <span>{t("jobDetail.verifiedNotice")}</span>
+              </p>
+            )}
             <dl className="employer-dl">
               <dt>Company</dt>
               <dd>
@@ -599,7 +707,9 @@ export default function JobDetail() {
               <dt>Verification</dt>
               <dd>{job.employer?.verificationStatus || "Not provided"}</dd>
               <dt>Description</dt>
-              <dd>{employerDescription}</dd>
+              <dd>
+                <ExpandableText id="employer-description-text" text={employerDescription} />
+              </dd>
             </dl>
             {user && !isAdminUser && job._id ? (
               <div className="employer-card-report">
@@ -615,6 +725,18 @@ export default function JobDetail() {
           </section>
         </aside>
       </div>
+
+      {showApplyBar && (
+        <div className="jd-apply-bar" role="region" aria-label="Apply for this job">
+          <div className="jd-apply-bar__info">
+            <strong>{job.title}</strong>
+            <span>{employerName}</span>
+          </div>
+          <button type="button" className="jd-apply-bar__btn" onClick={handleApplyClick}>
+            {showEditForm ? "Edit application" : "Apply now"}
+          </button>
+        </div>
+      )}
 
       <EmployerModal
         isOpen={employerModalOpen}
