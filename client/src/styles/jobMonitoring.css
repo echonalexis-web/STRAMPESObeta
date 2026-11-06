@@ -1056,17 +1056,18 @@
 }
 .jm-page .jm-field__wrap {
   min-height: var(--ds-tap);
-  border: 1px solid var(--ds-border);
+  /* inset ring instead of a border so the inner control keeps the full 44px */
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--ds-border);
   border-radius: var(--ds-radius-btn);
   background: var(--ds-surface);
 }
 .jm-page .jm-field__wrap:focus-within {
-  border-color: var(--ds-green-secondary);
-  box-shadow: 0 0 0 3px rgba(11, 112, 75, 0.15);
+  box-shadow: inset 0 0 0 1px var(--ds-green-secondary), 0 0 0 3px rgba(11, 112, 75, 0.15);
 }
 .jm-page .jm-field__wrap input,
 .jm-page .jm-field__wrap select {
-  min-height: 42px;
+  min-height: var(--ds-tap);
   color: var(--ds-text);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-md);

@@ -14,11 +14,15 @@ export default function PageHero({
   actions,
   aside,
   large = false,
-  titleAs: Title = 'h1',
-  as: Tag = 'section',
+  titleAs = 'h1',
+  as = 'section',
   className = '',
   ...rest
 }) {
+  // Capitalized locals so JSX can use them (the lint config ignores unused
+  // capitalized variables, but not destructured parameter aliases).
+  const Title = titleAs
+  const Tag = as
   const ringsRef = useParallaxLayer(0.12)
   const classes = ['ds-hero', large ? 'ds-hero--lg' : '', aside ? 'ds-hero--split' : '', className]
     .filter(Boolean)

@@ -4803,6 +4803,9 @@
 }
 .audit-page .admin-filter-row {
   gap: var(--ds-space-3);
+  /* Wrap instead of overflowing between 901px and ~1280px: the legacy
+     six-column template needs ~970px but the content column is narrower. */
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
 }
 .audit-page .admin-filter-group {
   gap: var(--ds-space-1);
