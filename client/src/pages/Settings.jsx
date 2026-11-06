@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState, useSyncExternalStore } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -21,6 +21,14 @@ import { AuthContext } from "../context/AuthContext";
 import { employerAPI, authAPI, superadminAPI } from "../services/api";
 import { useNavbarStylePreference } from "../hooks/useNavbarStylePreference";
 import { useToast, useConfirm } from "../components/feedback/context";
+import GoogleSignInButton from "../components/GoogleSignInButton";
+import IdOcrReview from "../components/IdOcrReview";
+// GoogleSignInButton's own base layout rules (.google-signin / __divider /
+// __btn) live here rather than in settings.css. Importing it explicitly
+// (instead of relying on it happening to already be loaded by some other
+// page) keeps the "Add a password" card correctly laid out even if Settings
+// is ever route-split away from pages that import this directly.
+import "../styles/auth.css";
 import "../styles/settings.css";
 
 const normalizeRole = (role) =>
@@ -37,6 +45,16 @@ const NOTIFICATION_DEFAULTS = {
   notifyVerificationRequest: true,
   notifyUserReport: true,
   notifySpesSubmission: true,
+  notifyAccountRecovery: true,
+};
+
+// Same categories as NOTIFICATION_DEFAULTS (in-app), plus the "emailAll"
+// master switch — a second, independent channel. See
+// server/models/User.js's emailNotificationPreferences and
+// markdowns/NOTIF_EMAIL_ID_OCR_AND_ACCOUNT_RECOVERY_PLAN.md §1.
+const EMAIL_NOTIFICATION_DEFAULTS = {
+  emailAll: true,
+  ...NOTIFICATION_DEFAULTS,
 };
 
 const PRIVACY_DEFAULTS = {
@@ -83,6 +101,21 @@ const SECTION_LABEL_KEY = {
   danger: "danger",
 };
 
+// From 1024px Settings shows a persistent sub-navigation beside the open
+// section (and opens the first section by default); below that it keeps the
+// list-first flow. Read through useSyncExternalStore so the layout follows
+// the viewport without an effect that sets state.
+const WIDE_QUERY = "(min-width: 1024px)";
+const subscribeWide = (onChange) => {
+  if (typeof window === "undefined" || !window.matchMedia) return () => {};
+  const mq = window.matchMedia(WIDE_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+};
+const getWide = () =>
+  typeof window !== "undefined" && Boolean(window.matchMedia) && window.matchMedia(WIDE_QUERY).matches;
+const getWideServer = () => false;
+
 function Toggle({ id, checked, onChange, label, hint, disabled }) {
   return (
     <label className={`set-toggle ${disabled ? "is-disabled" : ""}`} htmlFor={id}>
@@ -104,9 +137,73 @@ function Toggle({ id, checked, onChange, label, hint, disabled }) {
   );
 }
 
+// A notification category with its own switch per channel (in-app / email) —
+// the two are independent preferences (see
+// server/services/notificationService.js's queueNotificationEmail: an event
+// a recipient has turned off in-app is never emailed either, but email can
+// still be turned off separately while in-app stays on). The switches sit in
+// their own flex cluster that wraps onto its own line below the label/hint
+// text once the row gets too narrow for both (phones, a resized window, a
+// rotated screen) — not a fixed breakpoint, so it holds at any width.
+function DualToggle({
+  id,
+  label,
+  hint,
+  inAppChecked,
+  emailChecked,
+  onInAppChange,
+  onEmailChange,
+  disabled,
+  // Extra condition disabling ONLY the email switch (e.g. the "emailAll"
+  // master switch below is off) — the in-app switch stays usable either way.
+  emailDisabled = false,
+}) {
+  const { t } = useTranslation();
+  const emailSwitchDisabled = disabled || emailDisabled;
+  return (
+    <div className={`set-dualtoggle ${disabled ? "is-disabled" : ""}`}>
+      <span className="set-toggle__text">
+        <span className="set-toggle__label">{label}</span>
+        {hint && <span className="set-toggle__hint">{hint}</span>}
+      </span>
+      <div className="set-dualtoggle__switches">
+        <label className={`set-toggle set-dualtoggle__switch ${disabled ? "is-disabled" : ""}`} htmlFor={`${id}-app`}>
+          <input
+            id={`${id}-app`}
+            type="checkbox"
+            checked={inAppChecked}
+            disabled={disabled}
+            onChange={(e) => onInAppChange(e.target.checked)}
+          />
+          <span className="set-toggle__track" aria-hidden="true">
+            <span className="set-toggle__thumb" />
+          </span>
+          <span className="set-dualtoggle__switch-label">{t("settings.notifications.channelInApp")}</span>
+        </label>
+        <label
+          className={`set-toggle set-dualtoggle__switch ${emailSwitchDisabled ? "is-disabled" : ""}`}
+          htmlFor={`${id}-email`}
+        >
+          <input
+            id={`${id}-email`}
+            type="checkbox"
+            checked={emailChecked}
+            disabled={emailSwitchDisabled}
+            onChange={(e) => onEmailChange(e.target.checked)}
+          />
+          <span className="set-toggle__track" aria-hidden="true">
+            <span className="set-toggle__thumb" />
+          </span>
+          <span className="set-dualtoggle__switch-label">{t("settings.notifications.channelEmail")}</span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { t } = useTranslation();
-  const { user, logout } = useContext(AuthContext);
+  const { user, setUser, logout } = useContext(AuthContext);
   const toast = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
@@ -124,6 +221,11 @@ export default function Settings() {
   // list instead of forcing some other section open.
   const [activeSection, setActiveSection] = useState(null);
   const active = activeSection && sections.includes(activeSection) ? activeSection : null;
+  // Wide screens never show an empty detail area: with nothing picked yet
+  // the first section of this role is shown. Nothing is stored, so going
+  // back below 1024px still lands on the list.
+  const isWide = useSyncExternalStore(subscribeWide, getWide, getWideServer);
+  const current = active || (isWide ? sections[0] : null);
 
   const go = (key) => setActiveSection(key);
   const goBack = () => setActiveSection(null);
@@ -131,6 +233,7 @@ export default function Settings() {
   // ── Notification preferences + privacy (jobseeker / employer / admin) ──
   const hasAccountSettings = ["jobseeker", "employer", "admin"].includes(role);
   const [notifPrefs, setNotifPrefs] = useState(NOTIFICATION_DEFAULTS);
+  const [emailNotifPrefs, setEmailNotifPrefs] = useState(EMAIL_NOTIFICATION_DEFAULTS);
   const [privacy, setPrivacy] = useState(PRIVACY_DEFAULTS);
   const [accountSettingsLoading, setAccountSettingsLoading] = useState(hasAccountSettings);
 
@@ -144,6 +247,9 @@ export default function Settings() {
         if (cancelled) return;
         if (data?.notificationPreferences) {
           setNotifPrefs((prev) => ({ ...prev, ...data.notificationPreferences }));
+        }
+        if (data?.emailNotificationPreferences) {
+          setEmailNotifPrefs((prev) => ({ ...prev, ...data.emailNotificationPreferences }));
         }
         if (data?.privacy) {
           setPrivacy((prev) => ({ ...prev, ...data.privacy }));
@@ -168,6 +274,17 @@ export default function Settings() {
       await authAPI.updateSettings({ notificationPreferences: { [key]: value } });
     } catch {
       setNotifPrefs(previous);
+      toast.error(t("settings.saveError"));
+    }
+  };
+
+  const saveEmailNotificationPref = async (key, value) => {
+    const previous = emailNotifPrefs;
+    setEmailNotifPrefs((prev) => ({ ...prev, [key]: value }));
+    try {
+      await authAPI.updateSettings({ emailNotificationPreferences: { [key]: value } });
+    } catch {
+      setEmailNotifPrefs(previous);
       toast.error(t("settings.saveError"));
     }
   };
@@ -239,7 +356,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="set">
+    <div className="set st-page">
       <div className="set__main">
         <header className="set__pagehead">
           <span className="set__pagehead-icon">
@@ -251,55 +368,18 @@ export default function Settings() {
           </div>
         </header>
 
-        {active ? (
-          <div className="set__detail">
-            <button type="button" className="set__back" onClick={goBack}>
-              <FaArrowLeft aria-hidden="true" /> {t("settings.backToList")}
-            </button>
-
-            <div className="set__panel">
-              {active === "account" && (
-                <AccountSection role={role} user={user} displayName={displayName} />
-              )}
-              {active === "language" && <LanguageSection />}
-              {active === "templates" && <TemplatesSection toast={toast} confirm={confirm} />}
-              {active === "notifications" && (
-                <NotificationsSection
-                  role={role}
-                  prefs={notifPrefs}
-                  loading={accountSettingsLoading}
-                  onToggle={saveNotificationPref}
-                />
-              )}
-              {active === "privacy" && (
-                <PrivacySection
-                  privacy={privacy}
-                  loading={accountSettingsLoading}
-                  onChange={savePrivacyField}
-                />
-              )}
-              {active === "access" && <AccessSection role={role} />}
-              {active === "system" && (
-                <SystemSection
-                  role={role}
-                  navbarStyle={navbarStyle}
-                  onNavbarStyleChange={setNavbarStyle}
-                  system={systemSettings}
-                  loading={systemLoading}
-                  onSave={saveSystemField}
-                />
-              )}
-              {active === "admin-tools" && <AdminToolsSection />}
-              {active === "about" && <AboutSection />}
-              {active === "danger" && (
-                <DangerSection confirm={confirm} toast={toast} logout={logout} navigate={navigate} />
-              )}
-            </div>
-          </div>
-        ) : (
+        <div className={`set__layout${isWide ? " set__layout--split" : ""}`}>
+        {isWide || !current ? (
           <nav className="set__list" aria-label={t("settings.railLabel")}>
+            {isWide ? <h2 className="set__subnav-title">{t("settings.subnavTitle")}</h2> : null}
             {sections.map((key) => (
-              <button key={key} type="button" className="set__list-item" onClick={() => go(key)}>
+              <button
+                key={key}
+                type="button"
+                className={`set__list-item${key === "danger" ? " set__list-item--danger" : ""}${isWide && key === current ? " is-active" : ""}`}
+                aria-current={isWide && key === current ? "true" : undefined}
+                onClick={() => go(key)}
+              >
                 <span className="set__list-icon">{SECTION_ICON[key]}</span>
                 <span className="set__list-text">
                   <span className="set__list-title">{t(`settings.sections.${SECTION_LABEL_KEY[key]}`)}</span>
@@ -309,7 +389,71 @@ export default function Settings() {
               </button>
             ))}
           </nav>
-        )}
+        ) : null}
+
+        {current ? (
+          <div className="set__detail">
+            {!isWide ? (
+              <button type="button" className="set__back" onClick={goBack}>
+                <FaArrowLeft aria-hidden="true" /> {t("settings.backToList")}
+              </button>
+            ) : null}
+
+            <div className="set__panel">
+              {current === "account" && (
+                <AccountSection
+                  role={role}
+                  user={user}
+                  displayName={displayName}
+                  toast={toast}
+                  confirm={confirm}
+                  onPasswordAdded={() =>
+                    setUser((prev) => (prev ? { ...prev, hasPassword: true } : prev))
+                  }
+                  onUsernameChanged={(username) =>
+                    setUser((prev) => (prev ? { ...prev, username } : prev))
+                  }
+                />
+              )}
+              {current === "language" && <LanguageSection />}
+              {current === "templates" && <TemplatesSection toast={toast} confirm={confirm} />}
+              {current === "notifications" && (
+                <NotificationsSection
+                  role={role}
+                  prefs={notifPrefs}
+                  emailPrefs={emailNotifPrefs}
+                  loading={accountSettingsLoading}
+                  onToggle={saveNotificationPref}
+                  onEmailToggle={saveEmailNotificationPref}
+                />
+              )}
+              {current === "privacy" && (
+                <PrivacySection
+                  privacy={privacy}
+                  loading={accountSettingsLoading}
+                  onChange={savePrivacyField}
+                />
+              )}
+              {current === "access" && <AccessSection role={role} />}
+              {current === "system" && (
+                <SystemSection
+                  role={role}
+                  navbarStyle={navbarStyle}
+                  onNavbarStyleChange={setNavbarStyle}
+                  system={systemSettings}
+                  loading={systemLoading}
+                  onSave={saveSystemField}
+                />
+              )}
+              {current === "admin-tools" && <AdminToolsSection />}
+              {current === "about" && <AboutSection />}
+              {current === "danger" && (
+                <DangerSection confirm={confirm} toast={toast} logout={logout} navigate={navigate} />
+              )}
+            </div>
+          </div>
+        ) : null}
+        </div>
       </div>
     </div>
   );
@@ -328,7 +472,471 @@ function SectionHead({ title, subtitle }) {
   );
 }
 
-function AccountSection({ role, user, displayName }) {
+// A second, optional sign-in identifier alongside email — set once here,
+// changeable again only after a 30-day cooldown (see
+// authController.setUsername / utils/username.js). Live-checks
+// availability as the user types, debounced, against the same
+// rate-limited endpoint the registration screen could also use.
+function AccountUsername({ user, toast, onUsernameChanged }) {
+  const { t } = useTranslation();
+  const currentUsername = user?.username || "";
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(currentUsername);
+  const [submitting, setSubmitting] = useState(false);
+  // null | "checking" | "available" | "unavailable" | "same"
+  const [checkState, setCheckState] = useState(null);
+  const [checkMessage, setCheckMessage] = useState("");
+
+  useEffect(() => {
+    if (!editing) return undefined;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.toLowerCase() === currentUsername.toLowerCase()) {
+      setCheckState(trimmed ? "same" : null);
+      setCheckMessage("");
+      return undefined;
+    }
+
+    setCheckState("checking");
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      try {
+        const { data } = await authAPI.checkUsernameAvailable(trimmed);
+        if (cancelled) return;
+        if (data?.available) {
+          setCheckState("available");
+          setCheckMessage("");
+        } else {
+          setCheckState("unavailable");
+          setCheckMessage(data?.reason || t("settings.account.username.taken"));
+        }
+      } catch {
+        if (!cancelled) setCheckState(null);
+      }
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [value, editing, currentUsername, t]);
+
+  const startEditing = () => {
+    setValue(currentUsername);
+    setCheckState(null);
+    setEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setValue(currentUsername);
+    setCheckState(null);
+    setEditing(false);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.toLowerCase() === currentUsername.toLowerCase()) {
+      setEditing(false);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { data } = await authAPI.setUsername(trimmed);
+      toast.success(data?.message || t("settings.account.username.updateSuccess"));
+      onUsernameChanged?.(data?.username ?? trimmed.toLowerCase());
+      setEditing(false);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || t("settings.account.username.updateError"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="set-subrow">
+        <div>
+          <span className="set-subrow__title">{t("settings.account.username.title")}</span>
+          <span className="set-subrow__hint">
+            {currentUsername
+              ? t("settings.account.username.currentHint", { username: currentUsername })
+              : t("settings.account.username.noneHint")}
+          </span>
+        </div>
+        <button type="button" className="set-btn set-btn--ghost" onClick={startEditing}>
+          {currentUsername ? t("settings.account.username.change") : t("settings.account.username.setOne")}
+        </button>
+      </div>
+    );
+  }
+
+  const blockSubmit = submitting || checkState === "unavailable" || checkState === "checking";
+
+  return (
+    <form className="set-subrow set-subrow--column" onSubmit={handleSubmit}>
+      <div>
+        <span className="set-subrow__title">{t("settings.account.username.title")}</span>
+        <span className="set-subrow__hint">{t("settings.account.username.hint")}</span>
+      </div>
+      <label className="set-field">
+        <span className="set-field__label">{t("settings.account.username.label")}</span>
+        <input
+          type="text"
+          value={value}
+          disabled={submitting}
+          placeholder={t("settings.account.username.placeholder")}
+          onChange={(e) => setValue(e.target.value)}
+          autoComplete="username"
+          maxLength={30}
+        />
+      </label>
+      {checkState === "checking" && <p className="set-hint">{t("common.loading")}</p>}
+      {checkState === "available" && (
+        <p className="set-hint set-hint--ok">{t("settings.account.username.available")}</p>
+      )}
+      {checkState === "unavailable" && <p className="set-error">{checkMessage}</p>}
+      <div className="set-actions">
+        <button type="submit" className="set-btn set-btn--primary" disabled={blockSubmit}>
+          {submitting ? t("common.loading") : t("common.save")}
+        </button>
+        <button type="button" className="set-btn set-btn--ghost" disabled={submitting} onClick={cancelEditing}>
+          {t("common.cancel")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// Google-only accounts (no local password yet) have exactly one way in —
+// "Continue with Google". If the owner ever loses access to that Google
+// account itself (its own 2FA challenge, no phone on hand, etc.), there is
+// no recovery path. This card lets them add a password proactively, before
+// that happens. Re-auth is a FRESH Google credential (not the long-lived
+// session JWT) — see authController.setPassword for why.
+function AccountSecurity({ user, toast, onPasswordAdded }) {
+  const { t } = useTranslation();
+  const isGoogleLinked = Boolean(user?.googleId);
+  // `hasPassword` only exists once /auth/profile has hydrated the user
+  // object (see AuthContext). Default to "has one" so an ordinary,
+  // non-Google account never flashes this card while that's still loading.
+  const hasPassword = user?.hasPassword !== false;
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  if (hasPassword) {
+    return (
+      <div className="set-subrow">
+        <div>
+          <span className="set-subrow__title">{t("settings.account.security.passwordTitle")}</span>
+          <span className="set-subrow__hint">{t("settings.account.security.passwordHint")}</span>
+        </div>
+        <Link to="/change-password" className="set-btn set-btn--ghost">
+          {t("settings.account.security.changePassword")}
+        </Link>
+      </div>
+    );
+  }
+
+  // Schema-wise this shouldn't happen (User.password is required unless
+  // googleId is set) — but if it ever did, there's nothing useful to offer
+  // here, so render nothing rather than a dead-end card.
+  if (!isGoogleLinked) return null;
+
+  const handleGoogleCredential = async (credential) => {
+    if (newPassword.length < 8) {
+      toast.error(t("settings.account.security.tooShort"));
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error(t("settings.account.security.mismatch"));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { data } = await authAPI.setPassword(credential, newPassword);
+      if (data?.token) localStorage.setItem("token", data.token);
+      toast.success(data?.message || t("settings.account.security.addSuccess"));
+      setNewPassword("");
+      setConfirmPassword("");
+      onPasswordAdded?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || t("settings.account.security.addError"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="set-subrow set-subrow--column">
+      <div>
+        <span className="set-subrow__title">{t("settings.account.security.addPasswordTitle")}</span>
+        <span className="set-subrow__hint">{t("settings.account.security.addPasswordHint")}</span>
+      </div>
+      <label className="set-field">
+        <span className="set-field__label">{t("settings.account.security.newPassword")}</span>
+        <input
+          type="password"
+          autoComplete="new-password"
+          value={newPassword}
+          disabled={submitting}
+          placeholder={t("settings.account.security.newPasswordPlaceholder")}
+          onChange={(e) => setNewPassword(e.target.value)}
+        />
+      </label>
+      <label className="set-field">
+        <span className="set-field__label">{t("settings.account.security.confirmPassword")}</span>
+        <input
+          type="password"
+          autoComplete="new-password"
+          value={confirmPassword}
+          disabled={submitting}
+          placeholder={t("settings.account.security.confirmPasswordPlaceholder")}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+        />
+      </label>
+      <GoogleSignInButton
+        showDivider={false}
+        fullWidth
+        text="continue_with"
+        onCredential={handleGoogleCredential}
+        onError={() => toast.error(t("settings.account.security.googleLoadError"))}
+      />
+    </div>
+  );
+}
+
+// Safe to show once the viewer already IS the account owner (this only
+// ever renders inside Settings, behind a normal session) — masks enough
+// that a glance at a shared screen doesn't hand the address to someone
+// else, while still confirming "yes, that's the one I set".
+const maskEmail = (email) => {
+  const [local, domain] = String(email || "").split("@");
+  if (!local || !domain) return email || "";
+  const dotIndex = domain.lastIndexOf(".");
+  const domainName = dotIndex > 0 ? domain.slice(0, dotIndex) : domain;
+  const tld = dotIndex > 0 ? domain.slice(dotIndex) : "";
+  const maskedLocal = `${local[0]}${"•".repeat(Math.min(4, Math.max(1, local.length - 1)))}`;
+  const maskedDomain = `${domainName[0]}${"•".repeat(Math.min(3, Math.max(1, domainName.length - 1)))}${tld}`;
+  return `${maskedLocal}@${maskedDomain}`;
+};
+
+// A second password-reset destination for when the primary inbox itself is
+// unreachable (see ForgotPassword's "try my recovery email instead" and
+// authController.requestRecoveryEmail). Setting/changing it re-authenticates
+// with the current password, same gate as changing the sign-in email —
+// Google-only accounts with no password yet are pointed at "Add a password"
+// above instead of shown a form that can only ever fail.
+function AccountRecoveryEmail({ user, toast }) {
+  const { t } = useTranslation();
+  const hasPassword = user?.hasPassword !== false;
+  const verified = Boolean(user?.recoveryEmail && user?.recoveryEmailVerifiedAt);
+  const pending = Boolean(user?.recoveryEmail && !user?.recoveryEmailVerifiedAt);
+
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  // Tracks the address Settings has already shown a "check your inbox"
+  // notice for, so re-rendering after a save doesn't repeat it forever —
+  // reset whenever the user starts editing again.
+  const [justRequested, setJustRequested] = useState("");
+
+  const startEditing = () => {
+    setValue("");
+    setCurrentPassword("");
+    setJustRequested("");
+    setEditing(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    setSubmitting(true);
+    try {
+      const { data } = await authAPI.requestRecoveryEmail(trimmed, currentPassword);
+      toast.success(data?.message || t("settings.account.recoveryEmail.requestSuccess"));
+      setJustRequested(trimmed);
+      setEditing(false);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || t("settings.account.recoveryEmail.requestError"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="set-subrow">
+        <div>
+          <span className="set-subrow__title">{t("settings.account.recoveryEmail.title")}</span>
+          <span className="set-subrow__hint">
+            {justRequested
+              ? t("settings.account.recoveryEmail.justRequestedHint", { email: justRequested })
+              : verified
+              ? t("settings.account.recoveryEmail.verifiedHint", { email: maskEmail(user.recoveryEmail) })
+              : pending
+              ? t("settings.account.recoveryEmail.pendingHint", { email: maskEmail(user.recoveryEmail) })
+              : t("settings.account.recoveryEmail.noneHint")}
+          </span>
+        </div>
+        <button type="button" className="set-btn set-btn--ghost" onClick={startEditing}>
+          {verified || pending ? t("settings.account.recoveryEmail.change") : t("settings.account.recoveryEmail.add")}
+        </button>
+      </div>
+    );
+  }
+
+  if (!hasPassword) {
+    return (
+      <div className="set-subrow">
+        <div>
+          <span className="set-subrow__title">{t("settings.account.recoveryEmail.title")}</span>
+          <span className="set-subrow__hint">{t("settings.account.recoveryEmail.needsPasswordHint")}</span>
+        </div>
+        <button type="button" className="set-btn set-btn--ghost" onClick={() => setEditing(false)}>
+          {t("common.cancel")}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form className="set-subrow set-subrow--column" onSubmit={handleSubmit}>
+      <div>
+        <span className="set-subrow__title">{t("settings.account.recoveryEmail.title")}</span>
+        <span className="set-subrow__hint">{t("settings.account.recoveryEmail.formHint")}</span>
+      </div>
+      <label className="set-field">
+        <span className="set-field__label">{t("settings.account.recoveryEmail.emailLabel")}</span>
+        <input
+          type="email"
+          value={value}
+          disabled={submitting}
+          placeholder={t("settings.account.recoveryEmail.emailPlaceholder")}
+          onChange={(e) => setValue(e.target.value)}
+          autoComplete="email"
+        />
+      </label>
+      <label className="set-field">
+        <span className="set-field__label">{t("settings.account.recoveryEmail.currentPasswordLabel")}</span>
+        <input
+          type="password"
+          value={currentPassword}
+          disabled={submitting}
+          placeholder={t("settings.account.recoveryEmail.currentPasswordPlaceholder")}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          autoComplete="current-password"
+        />
+      </label>
+      <div className="set-actions">
+        <button type="submit" className="set-btn set-btn--primary" disabled={submitting}>
+          {submitting ? t("common.loading") : t("common.save")}
+        </button>
+        <button type="button" className="set-btn set-btn--ghost" disabled={submitting} onClick={() => setEditing(false)}>
+          {t("common.cancel")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// 10 one-time codes for the one recovery path that needs neither a password
+// nor a live Google session (see AccountRecovery.jsx + redeemBackupCode).
+// The raw codes exist only in the single generate response — never fetched,
+// stored, or shown again after this render.
+function AccountBackupCodes({ user, toast, confirm }) {
+  const { t } = useTranslation();
+  const [generating, setGenerating] = useState(false);
+  const [codes, setCodes] = useState(null);
+
+  const hasExisting = Boolean(user?.backupCodesGeneratedAt);
+
+  const handleGenerate = async () => {
+    if (hasExisting) {
+      const ok = await confirm({
+        title: t("settings.account.backupCodes.regenerateConfirmTitle"),
+        message: t("settings.account.backupCodes.regenerateConfirmMessage"),
+        tone: "danger",
+        confirmLabel: t("settings.account.backupCodes.regenerateConfirmLabel"),
+      });
+      if (!ok) return;
+    }
+    setGenerating(true);
+    try {
+      const { data } = await authAPI.generateBackupCodes();
+      setCodes(data?.codes || []);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || t("settings.account.backupCodes.generateError"));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleCopyAll = async () => {
+    try {
+      await navigator.clipboard.writeText(codes.join("\n"));
+      toast.success(t("settings.account.backupCodes.copied"));
+    } catch {
+      toast.error(t("settings.account.backupCodes.copyError"));
+    }
+  };
+
+  if (codes) {
+    return (
+      <div className="set-subrow set-subrow--column">
+        <div>
+          <span className="set-subrow__title">{t("settings.account.backupCodes.title")}</span>
+          <span className="set-subrow__hint">{t("settings.account.backupCodes.savedWarning")}</span>
+        </div>
+        <div className="set-backupcodes-grid">
+          {codes.map((code) => (
+            <code key={code} className="set-backupcodes-grid__code">
+              {code}
+            </code>
+          ))}
+        </div>
+        <div className="set-actions">
+          <button type="button" className="set-btn set-btn--ghost" onClick={handleCopyAll}>
+            {t("settings.account.backupCodes.copyAll")}
+          </button>
+          <button type="button" className="set-btn set-btn--primary" onClick={() => setCodes(null)}>
+            {t("settings.account.backupCodes.done")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="set-subrow">
+      <div>
+        <span className="set-subrow__title">{t("settings.account.backupCodes.title")}</span>
+        <span className="set-subrow__hint">
+          {hasExisting
+            ? t("settings.account.backupCodes.generatedHint", {
+                date: new Date(user.backupCodesGeneratedAt).toLocaleDateString(),
+              })
+            : t("settings.account.backupCodes.noneHint")}
+        </span>
+      </div>
+      <button type="button" className="set-btn set-btn--ghost" onClick={handleGenerate} disabled={generating}>
+        {generating
+          ? t("common.loading")
+          : hasExisting
+          ? t("settings.account.backupCodes.regenerate")
+          : t("settings.account.backupCodes.generate")}
+      </button>
+    </div>
+  );
+}
+
+function AccountIdOcr({ user }) {
+  return <div className="set-subrow set-subrow--column"><IdOcrReview initialOcr={user?.governmentIdOcr} /></div>;
+}
+
+function AccountSection({ role, user, displayName, toast, confirm, onPasswordAdded, onUsernameChanged }) {
   const { t } = useTranslation();
   const roleLabel = t(`settings.roles.${role}`, { defaultValue: role });
   return (
@@ -363,6 +971,16 @@ function AccountSection({ role, user, displayName }) {
           </dd>
         </div>
       </dl>
+
+      <AccountUsername user={user} toast={toast} onUsernameChanged={onUsernameChanged} />
+
+      <AccountSecurity user={user} toast={toast} onPasswordAdded={onPasswordAdded} />
+
+      <AccountRecoveryEmail user={user} toast={toast} />
+
+      <AccountBackupCodes user={user} toast={toast} confirm={confirm} />
+      {role === "jobseeker" && <AccountIdOcr user={user} />}
+
       <div className="set-actions">
         <Link to="/profile/edit" className="set-btn set-btn--primary">
           {t("settings.account.editFullProfile")} <FaArrowRight aria-hidden="true" />
@@ -402,7 +1020,7 @@ function TemplatesSection({ toast, confirm }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -414,11 +1032,11 @@ function TemplatesSection({ toast, confirm }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const handleDelete = async (tpl) => {
     const ok = await confirm({
@@ -503,8 +1121,12 @@ function TemplatesSection({ toast, confirm }) {
   );
 }
 
-function NotificationsSection({ role, prefs, loading, onToggle }) {
+function NotificationsSection({ role, prefs, emailPrefs, loading, onToggle, onEmailToggle }) {
   const { t } = useTranslation();
+  // Per-category email switches are only meaningful while the master is on
+  // (see queueNotificationEmail's gating order) — dimmed, not hidden, so
+  // turning the master back on restores whatever was set per category.
+  const emailDisabled = emailPrefs.emailAll === false;
   return (
     <section className="set-card">
       <SectionHead
@@ -514,30 +1136,48 @@ function NotificationsSection({ role, prefs, loading, onToggle }) {
 
       {loading && <p className="set-hint">{t("common.loading")}</p>}
 
+      <Toggle
+        id="n-email-all"
+        checked={emailPrefs.emailAll}
+        disabled={loading}
+        onChange={(v) => onEmailToggle("emailAll", v)}
+        label={t("settings.notifications.emailAll")}
+        hint={t("settings.notifications.emailAllHint")}
+      />
+
       <div className="set-toggle-group">
         {role === "jobseeker" && (
           <>
-            <Toggle
+            <DualToggle
               id="n-msg"
-              checked={prefs.notifyMessages}
+              inAppChecked={prefs.notifyMessages}
+              emailChecked={emailPrefs.notifyMessages}
               disabled={loading}
-              onChange={(v) => onToggle("notifyMessages", v)}
+              emailDisabled={emailDisabled}
+              onInAppChange={(v) => onToggle("notifyMessages", v)}
+              onEmailChange={(v) => onEmailToggle("notifyMessages", v)}
               label={t("settings.notifications.newMessages")}
               hint={t("settings.notifications.newMessagesHint")}
             />
-            <Toggle
+            <DualToggle
               id="n-match"
-              checked={prefs.notifyJobMatch}
+              inAppChecked={prefs.notifyJobMatch}
+              emailChecked={emailPrefs.notifyJobMatch}
               disabled={loading}
-              onChange={(v) => onToggle("notifyJobMatch", v)}
+              emailDisabled={emailDisabled}
+              onInAppChange={(v) => onToggle("notifyJobMatch", v)}
+              onEmailChange={(v) => onEmailToggle("notifyJobMatch", v)}
               label={t("settings.notifications.jobMatches")}
               hint={t("settings.notifications.jobMatchesHint")}
             />
-            <Toggle
+            <DualToggle
               id="n-appupd"
-              checked={prefs.notifyApplicationUpdate}
+              inAppChecked={prefs.notifyApplicationUpdate}
+              emailChecked={emailPrefs.notifyApplicationUpdate}
               disabled={loading}
-              onChange={(v) => onToggle("notifyApplicationUpdate", v)}
+              emailDisabled={emailDisabled}
+              onInAppChange={(v) => onToggle("notifyApplicationUpdate", v)}
+              onEmailChange={(v) => onEmailToggle("notifyApplicationUpdate", v)}
               label={t("settings.notifications.applicationUpdates")}
               hint={t("settings.notifications.applicationUpdatesHint")}
             />
@@ -545,19 +1185,25 @@ function NotificationsSection({ role, prefs, loading, onToggle }) {
         )}
         {role === "employer" && (
           <>
-            <Toggle
+            <DualToggle
               id="n-applicant"
-              checked={prefs.notifyNewApplicant}
+              inAppChecked={prefs.notifyNewApplicant}
+              emailChecked={emailPrefs.notifyNewApplicant}
               disabled={loading}
-              onChange={(v) => onToggle("notifyNewApplicant", v)}
+              emailDisabled={emailDisabled}
+              onInAppChange={(v) => onToggle("notifyNewApplicant", v)}
+              onEmailChange={(v) => onEmailToggle("notifyNewApplicant", v)}
               label={t("settings.notifications.newApplicants")}
               hint={t("settings.notifications.newApplicantsHint")}
             />
-            <Toggle
+            <DualToggle
               id="n-expiring"
-              checked={prefs.notifyJobExpiring}
+              inAppChecked={prefs.notifyJobExpiring}
+              emailChecked={emailPrefs.notifyJobExpiring}
               disabled={loading}
-              onChange={(v) => onToggle("notifyJobExpiring", v)}
+              emailDisabled={emailDisabled}
+              onInAppChange={(v) => onToggle("notifyJobExpiring", v)}
+              onEmailChange={(v) => onEmailToggle("notifyJobExpiring", v)}
               label={t("settings.notifications.vacancyExpiring")}
               hint={t("settings.notifications.vacancyExpiringHint")}
             />
@@ -565,29 +1211,49 @@ function NotificationsSection({ role, prefs, loading, onToggle }) {
         )}
         {role === "admin" && (
           <>
-            <Toggle
+            <DualToggle
               id="n-verif"
-              checked={prefs.notifyVerificationRequest}
+              inAppChecked={prefs.notifyVerificationRequest}
+              emailChecked={emailPrefs.notifyVerificationRequest}
               disabled={loading}
-              onChange={(v) => onToggle("notifyVerificationRequest", v)}
+              emailDisabled={emailDisabled}
+              onInAppChange={(v) => onToggle("notifyVerificationRequest", v)}
+              onEmailChange={(v) => onEmailToggle("notifyVerificationRequest", v)}
               label={t("settings.notifications.verificationRequests")}
               hint={t("settings.notifications.verificationRequestsHint")}
             />
-            <Toggle
+            <DualToggle
               id="n-report"
-              checked={prefs.notifyUserReport}
+              inAppChecked={prefs.notifyUserReport}
+              emailChecked={emailPrefs.notifyUserReport}
               disabled={loading}
-              onChange={(v) => onToggle("notifyUserReport", v)}
+              emailDisabled={emailDisabled}
+              onInAppChange={(v) => onToggle("notifyUserReport", v)}
+              onEmailChange={(v) => onEmailToggle("notifyUserReport", v)}
               label={t("settings.notifications.userReports")}
               hint={t("settings.notifications.userReportsHint")}
             />
-            <Toggle
+            <DualToggle
               id="n-spes"
-              checked={prefs.notifySpesSubmission}
+              inAppChecked={prefs.notifySpesSubmission}
+              emailChecked={emailPrefs.notifySpesSubmission}
               disabled={loading}
-              onChange={(v) => onToggle("notifySpesSubmission", v)}
+              emailDisabled={emailDisabled}
+              onInAppChange={(v) => onToggle("notifySpesSubmission", v)}
+              onEmailChange={(v) => onEmailToggle("notifySpesSubmission", v)}
               label={t("settings.notifications.spesSubmissions")}
               hint={t("settings.notifications.spesSubmissionsHint")}
+            />
+            <DualToggle
+              id="n-account-recovery"
+              inAppChecked={prefs.notifyAccountRecovery}
+              emailChecked={emailPrefs.notifyAccountRecovery}
+              disabled={loading}
+              emailDisabled={emailDisabled}
+              onInAppChange={(v) => onToggle("notifyAccountRecovery", v)}
+              onEmailChange={(v) => onEmailToggle("notifyAccountRecovery", v)}
+              label={t("staffRecovery.queue")}
+              hint={t("staffRecovery.notificationHint")}
             />
           </>
         )}

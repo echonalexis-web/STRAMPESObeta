@@ -835,3 +835,121 @@
   .spes-summary-strip { width: 100%; }
   .spes-summary-stat { flex: 1; }
 }
+
+/* ---- My SPES Applications — roles refresh (2b) token pass ----
+   Scoped to .spes-page (only MySpesApplications renders it); the SPES
+   panel on the news article and the admin SPES screen keep the rules
+   above. No layout change. */
+.spes-page {
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+}
+
+.spes-page h1 {
+  color: var(--ds-text);
+  font-family: var(--ds-font-display);
+  text-wrap: balance;
+}
+
+.spes-page .spes-note { color: var(--ds-muted); }
+.spes-page .spes-page__banner { border-bottom-color: var(--ds-border); }
+
+.spes-page .spes-summary-stat {
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+}
+.spes-page .spes-summary-stat strong { color: var(--ds-green); font-variant-numeric: tabular-nums; }
+.spes-page .spes-summary-stat span { color: var(--ds-muted); font-size: var(--ds-text-xs); }
+.spes-page .spes-summary-stat--program strong { color: var(--ds-text); }
+.spes-page .spes-summary-stat__label {
+  color: var(--ds-muted);
+  font-size: var(--ds-text-xs);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.spes-page .spes-chip { background: var(--ds-mint); color: var(--ds-green); font-size: var(--ds-text-xs); }
+.spes-page .spes-chip--results_released,
+.spes-page .spes-chip--evaluated { background: var(--ds-info-bg); color: var(--ds-info); }
+.spes-page .spes-chip--disqualified,
+.spes-page .spes-chip--withdrawn { background: var(--ds-danger-bg); color: var(--ds-danger); }
+.spes-page .spes-chip--under_review,
+.spes-page .spes-chip--for_exam,
+.spes-page .spes-chip--for_interview { background: var(--ds-warning-bg); color: var(--ds-warning); }
+
+.spes-page .spes-card {
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
+}
+.spes-page .spes-card h2 { color: var(--ds-text); font-family: var(--ds-font-display); }
+.spes-page .spes-card__meta { color: var(--ds-muted); font-size: var(--ds-text-sm); }
+
+.spes-page .spes-stepper__item::before { background: var(--ds-ink-100); }
+.spes-page .spes-stepper__item--done::before { background: var(--ds-green); }
+.spes-page .spes-stepper__dot {
+  background: var(--ds-ink-50);
+  border-color: var(--ds-ink-100);
+  color: var(--ds-ink-500);
+  font-size: var(--ds-text-xs);
+}
+.spes-page .spes-stepper__item--done .spes-stepper__dot {
+  background: var(--ds-green);
+  border-color: var(--ds-green);
+  color: #fff;
+}
+.spes-page .spes-stepper__item--active .spes-stepper__dot {
+  background: var(--ds-gold);
+  border-color: var(--ds-gold);
+  color: var(--ds-green-deep);
+}
+/* Nothing under 12px */
+.spes-page .spes-stepper__label { color: var(--ds-muted); font-size: var(--ds-text-xs); }
+.spes-page .spes-stepper__item--done .spes-stepper__label,
+.spes-page .spes-stepper__item--active .spes-stepper__label { color: var(--ds-text); }
+.spes-page .spes-stepper-terminal {
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-danger-bg);
+  color: var(--ds-danger);
+}
+
+.spes-page .spes-card__panel {
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-ink-50);
+}
+.spes-page .spes-card__panel--highlight { background: var(--ds-mint); }
+.spes-page .spes-card__panel h3 {
+  color: var(--ds-green-deep);
+  font-size: var(--ds-text-sm);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.spes-page .spes-card__panel p { color: var(--ds-ink-700); font-size: var(--ds-text-sm); }
+.spes-page .spes-doc-list li { font-size: var(--ds-text-sm); }
+.spes-page .spes-doc-list__icon,
+.spes-page .spes-doc-list__link { color: var(--ds-green); }
+.spes-page .spes-doc-list__label { color: var(--ds-text); }
+.spes-page .spes-doc-list__link {
+  min-height: var(--ds-tap);
+  font-size: var(--ds-text-sm);
+}
+
+.spes-page .spes-result { border-color: var(--ds-border); border-radius: var(--ds-radius-md); background: var(--ds-surface); }
+.spes-page .spes-result p { color: var(--ds-ink-700); font-size: var(--ds-text-sm); }
+.spes-page .spes-result--accepted { background: var(--ds-success-bg); }
+.spes-page .spes-result--accepted strong { color: var(--ds-success); }
+.spes-page .spes-result--not_accepted { background: var(--ds-danger-bg); }
+.spes-page .spes-result--not_accepted strong { color: var(--ds-danger); }
+.spes-page .spes-result--waitlisted { background: var(--ds-warning-bg); }
+
+.spes-page .ds-state { margin-bottom: var(--ds-space-4); }
+
+@media (max-width: 768px) {
+  .spes-page .spes-stepper__label { font-size: var(--ds-text-xs); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spes-page .spes-stepper__item--active .spes-stepper__dot { animation: none; }
+}

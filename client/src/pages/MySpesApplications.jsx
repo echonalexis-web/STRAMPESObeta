@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { CheckCircle2, Clock, FileText, Sparkles, Download } from "lucide-react";
 import { spesAPI } from "../services/api";
 import SecureFileLink from "../components/SecureFileLink";
+import StateBlock from "../components/StateBlock";
 import "../styles/spes.css";
 
 const STATUS_LABEL = {
@@ -89,6 +91,7 @@ function SpesStepper({ status }) {
 }
 
 export default function MySpesApplications() {
+  const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -136,13 +139,21 @@ export default function MySpesApplications() {
         </div>
       </div>
 
-      {loading ? <p className="spes-note">Loading…</p> : null}
-      {!loading && error ? <p className="spes-note">{error}</p> : null}
+      {loading ? <StateBlock kind="loading" title={t("applications.spesLoading")} /> : null}
+      {!loading && error ? (
+        <StateBlock kind="error" title={t("applications.spesErrorTitle")} description={error} />
+      ) : null}
       {!loading && !error && items.length === 0 ? (
-        <p className="spes-note">
-          You have no SPES applications yet. Find a SPES program in the{" "}
-          <Link to="/news">news feed</Link>.
-        </p>
+        <StateBlock
+          kind="empty"
+          title={t("applications.spesEmptyTitle")}
+          description={t("applications.spesEmptyBody")}
+          action={
+            <Link to="/news" className="ds-btn ds-btn--primary">
+              {t("applications.spesEmptyAction")}
+            </Link>
+          }
+        />
       ) : null}
 
       {items.map((app) => {

@@ -400,7 +400,8 @@
       "deactivateSuccess": "Your account has been deactivated. Sign in again anytime to reactivate it.",
       "deactivateError": "Couldn't deactivate your account. Please try again."
     },
-    "saveError": "Couldn't save your changes. Please try again."
+    "saveError": "Couldn't save your changes. Please try again.",
+    "subnavTitle": "All settings"
   },
   "jobEditing": {
     "title": "Edit Job Posting",
@@ -504,7 +505,10 @@
     "civilStatus": {
       "other": "Other",
       "specifyLabel": "Please specify"
-    }
+    },
+    "loading": "Loading profile…",
+    "loadErrorTitle": "We couldn't open this profile",
+    "goBack": "Go back"
   },
   "dashboard": {
     "greeting": {
@@ -593,5 +597,29 @@
     "jobDetails": "Job Details",
     "employerInfo": "Employer Info",
     "verifiedNotice": "PESO verified employer"
+  },
+  "news": {
+    "readStory": "Read story",
+    "moreFrom": "More from STRAM PESO",
+    "readMore": "Read more"
+  },
+  "applications": {
+    "loading": "Loading your applications…",
+    "emptyTitle": "You haven't applied to any jobs yet",
+    "emptyBody": "Jobs you apply to will show up here so you can track their status.",
+    "browseJobs": "Browse jobs",
+    "errorTitle": "We couldn't load your applications",
+    "filterEmptyTitle": "No applications in this status",
+    "filterEmptyBody": "Pick another status to see the rest of your applications.",
+    "spesLoading": "Loading your SPES applications…",
+    "spesErrorTitle": "We couldn't load your SPES applications",
+    "spesEmptyTitle": "No SPES applications yet",
+    "spesEmptyBody": "SPES programs are announced in the News Feed. Apply from the announcement to track it here.",
+    "spesEmptyAction": "Go to the News Feed",
+    "notifLoading": "Loading notifications…",
+    "notifEmptyTitle": "No notifications yet",
+    "notifEmptyBody": "Updates on your applications, messages and announcements will appear here.",
+    "notifFilterEmptyTitle": "Nothing in this filter",
+    "notifFilterEmptyBody": "Try another filter to see the rest of your notifications."
   }
 }

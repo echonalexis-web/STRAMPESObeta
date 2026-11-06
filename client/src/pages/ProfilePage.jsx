@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   FaEnvelope,
   FaMapMarkerAlt,
@@ -42,6 +43,8 @@ import ImageEditorModal from "../components/ImageEditorModal";
 import JobseekerDocumentsPanel from "../components/JobseekerDocumentsPanel";
 import VerificationTab from "../components/VerificationTab";
 import { downloadBlob } from "../utils/exportUtils";
+import useParallaxLayer from "../hooks/useParallaxLayer";
+import StateBlock from "../components/StateBlock";
 import "../styles/profile-redesign.css";
 
 const formatStructuredAddress = (addr) => {
@@ -208,7 +211,7 @@ const DataItem = ({ label, value }) => {
 };
 
 const Section = ({ id, icon, title, tint, children }) => (
-  <section id={id} className="rd2-section">
+  <section id={id} className="rd2-section ds-card">
     <div className="rd2-section-head">
       <span className={`rd2-ico${tint ? ` rd2-ico--${tint}` : ""}`}>{icon}</span>
       <h2>{title}</h2>
@@ -228,6 +231,19 @@ const AccItem = ({ id, title, open, onToggle, children }) => (
 );
 
 const EmptyNote = ({ children }) => <p className="rd2-empty">{children}</p>;
+
+// Decorative cover band behind the header: a dotted pattern on its own
+// parallax layer. Its own component so the layer registers when the header
+// actually mounts (ProfilePage returns early while an admin/employer view
+// is still loading).
+const ProfileCover = () => {
+  const dotsRef = useParallaxLayer(0.08, 20);
+  return (
+    <div className="rd2-cover" aria-hidden="true">
+      <span ref={dotsRef} className="rd2-cover-dots mx-parallax" />
+    </div>
+  );
+};
 
 const VerificationBadge = ({ status }) => {
   const map = {
@@ -257,6 +273,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
   const location = useLocation();
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useTranslation();
 
   const [profile, setProfile] = useState(isAdminView || isEmployerView ? null : user);
   const [loading, setLoading] = useState(true);
@@ -700,27 +717,40 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
   const followingCount = following.length;
   const sectionTabs = isAdmin ? [] : isEmployer ? EMPLOYER_TABS : JOBSEEKER_TABS;
 
-  if (!profile && loading) return null;
+  if (!profile && loading) {
+    return (
+      <div className={`rd-page${isEmployerView ? " rd-page--with-topbar" : ""}`}>
+        <section className="rd-shell">
+          <StateBlock kind="loading" title={t("profile.loading")} />
+        </section>
+      </div>
+    );
+  }
 
   if (loadError) {
     return (
       <div className="rd-page">
         <section className="rd-shell">
-          <div className="rd-access-error">
-            <p>{loadError}</p>
-            <button type="button" className="rd2-btn rd2-btn--ghost" onClick={() => navigate(-1)}>Go back</button>
-          </div>
+          <StateBlock
+            kind="error"
+            title={t("profile.loadErrorTitle")}
+            description={loadError}
+            action={
+              <button type="button" className="rd2-btn rd2-btn--ghost" onClick={() => navigate(-1)}>{t("profile.goBack")}</button>
+            }
+          />
         </section>
       </div>
     );
   }
 
   return (
-    <div className="rd-page">
+    <div className={`rd-page${isEmployerView ? " rd-page--with-topbar" : ""}`}>
       <section className="rd-shell">
-        <header className="rd2-head">
+        <header className="rd2-head ds-card">
+          <ProfileCover />
           <div className="rd2-head-row">
-            <div className="rd2-avatar-wrap">
+            <div className={`rd2-avatar-wrap${isEmployer ? " rd2-avatar-wrap--company" : ""}`}>
               <button
                 type="button"
                 className={`rd2-avatar${isEmployer ? " rd2-avatar--company" : ""}${avatarUrl || !isReadOnly ? " rd2-avatar--clickable" : ""}`}
@@ -825,15 +855,15 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
           ) : null}
 
           {!isAdmin && !isReadOnly ? (
-            <nav className="rd2-utilitynav" aria-label="Profile views">
-              <Link to="/profile" className={activeTab === "overview" ? "is-active" : ""}>Overview</Link>
-              {!isEmployer ? <Link to="/profile/favorites" className={activeTab === "favorites" ? "is-active" : ""}>Favorites</Link> : null}
-              <Link to="/profile/likes" className={activeTab === "likes" ? "is-active" : ""}>My Likes</Link>
-              <Link to="/profile/followers" className={activeTab === "followers" ? "is-active" : ""}>
+            <nav className="rd2-utilitynav" aria-label="Profile views" onFocus={(e) => e.target.scrollIntoView?.({ block: "nearest", inline: "nearest" })}>
+              <Link to="/profile" className={activeTab === "overview" ? "is-active" : ""} aria-current={activeTab === "overview" ? "page" : undefined}>Overview</Link>
+              {!isEmployer ? <Link to="/profile/favorites" className={activeTab === "favorites" ? "is-active" : ""} aria-current={activeTab === "favorites" ? "page" : undefined}>Favorites</Link> : null}
+              <Link to="/profile/likes" className={activeTab === "likes" ? "is-active" : ""} aria-current={activeTab === "likes" ? "page" : undefined}>My Likes</Link>
+              <Link to="/profile/followers" className={activeTab === "followers" ? "is-active" : ""} aria-current={activeTab === "followers" ? "page" : undefined}>
                 {isEmployer ? `Followers (${followerCount})` : `Following (${followingCount})`}
               </Link>
               {!isEmployer ? (
-                <Link to="/profile/documents" className={activeTab === "documents" ? "is-active" : ""}>
+                <Link to="/profile/documents" className={activeTab === "documents" ? "is-active" : ""} aria-current={activeTab === "documents" ? "page" : undefined}>
                   Resumes &amp; Cover Letters
                 </Link>
               ) : null}
@@ -872,12 +902,13 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
         ) : null}
 
         {activeTab === "overview" && sectionTabs.length > 0 ? (
-          <nav className="rd2-tabs" aria-label="Jump to section">
+          <nav className="rd2-tabs" aria-label="Jump to section" onFocus={(e) => e.target.scrollIntoView?.({ block: "nearest", inline: "nearest" })}>
             {sectionTabs.map(([sid, label]) => (
               <button
                 key={sid}
                 type="button"
                 className={`rd2-tab${activeSection === sid ? " is-active" : ""}`}
+                aria-current={activeSection === sid ? "true" : undefined}
                 onClick={() => scrollToSection(sid)}
               >
                 {label}
@@ -887,7 +918,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
         ) : null}
 
         {activeTab === "likes" && !isAdmin ? (
-          <section className="rd-card">
+          <section className="rd-card ds-card">
             <h2><FaHeart /> My Liked Announcements</h2>
             {likedNewsLoading ? (
               <EmptyNote>Loading your liked announcements...</EmptyNote>
@@ -912,7 +943,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
             )}
           </section>
         ) : activeTab === "favorites" && !isEmployer && !isAdmin ? (
-          <section className="rd-card">
+          <section className="rd-card ds-card">
             <h2><FaBookmark /> Saved / Favorited Jobs</h2>
             {likedJobsLoading ? (
               <EmptyNote>Loading your saved jobs...</EmptyNote>
@@ -944,7 +975,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
             )}
           </section>
         ) : activeTab === "followers" ? (
-          <section className="rd-card">
+          <section className="rd-card ds-card">
             <h2><FaUsers /> {isEmployer ? "Followers & Following" : "Following"}</h2>
             {connectionsLoading ? (
               <EmptyNote>Loading connections...</EmptyNote>
@@ -1048,20 +1079,24 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
               </div>
             </Section>
 
-            <Section id="sec-address" icon={<FaMapMarkerAlt />} title="Business address">
-              <div className="rd2-rows">
-                <DataItem label="Business Address" value={businessAddressText} />
-              </div>
-            </Section>
+            {/* Side column from 1101px (profile-redesign.css); below that the
+                wrapper is display: contents, so the stack order is unchanged. */}
+            <div className="rd2-side">
+              <Section id="sec-address" icon={<FaMapMarkerAlt />} title="Business address">
+                <div className="rd2-rows">
+                  <DataItem label="Business Address" value={businessAddressText} />
+                </div>
+              </Section>
 
-            <Section id="sec-contacts" icon={<FaUserTie />} title="Corporate contacts">
-              <div className="rd2-pairs rd2-pairs--3">
-                <DataItem label="Owner / President" value={profile?.ownerName} />
-                <DataItem label="Authorized Contact Person" value={profile?.contactPersonName} />
-                <DataItem label="Contact Person Position" value={profile?.contactPersonPosition} />
-                <DataItem label="Fax" value={profile?.fax} />
-              </div>
-            </Section>
+              <Section id="sec-contacts" icon={<FaUserTie />} title="Corporate contacts">
+                <div className="rd2-pairs rd2-pairs--3">
+                  <DataItem label="Owner / President" value={profile?.ownerName} />
+                  <DataItem label="Authorized Contact Person" value={profile?.contactPersonName} />
+                  <DataItem label="Contact Person Position" value={profile?.contactPersonPosition} />
+                  <DataItem label="Fax" value={profile?.fax} />
+                </div>
+              </Section>
+            </div>
 
             <Section id="sec-documents" icon={<FaFilePdf />} title="Documents">
               <div className="rd-doc-grid">
@@ -1120,27 +1155,31 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
               )}
             </Section>
 
-            <Section id="sec-contact" icon={<FaIdCard />} title="Contact & identity">
-              <div className="rd2-rows">
-                <DataItem label="Email" value={profile?.email} />
-                <DataItem label="Phone" value={profile?.phone} />
-                <DataItem label="Landline" value={profile?.landline} />
-                <DataItem label="Secondary mobile" value={profile?.mobileSecondary} />
-                <DataItem label="Present address" value={presentAddressText} />
-                <DataItem label="Permanent address" value={permanentAddressText} />
-              </div>
-            </Section>
+            {/* Side column from 1101px (profile-redesign.css); below that the
+                wrapper is display: contents, so the stack order is unchanged. */}
+            <div className="rd2-side">
+              <Section id="sec-contact" icon={<FaIdCard />} title="Contact & identity">
+                <div className="rd2-rows">
+                  <DataItem label="Email" value={profile?.email} />
+                  <DataItem label="Phone" value={profile?.phone} />
+                  <DataItem label="Landline" value={profile?.landline} />
+                  <DataItem label="Secondary mobile" value={profile?.mobileSecondary} />
+                  <DataItem label="Present address" value={presentAddressText} />
+                  <DataItem label="Permanent address" value={permanentAddressText} />
+                </div>
+              </Section>
 
-            <Section id="sec-personal" icon={<FaUser />} title="Personal details">
-              <div className="rd2-pairs">
-                <DataItem label="Date of birth" value={formatDate(profile?.dateOfBirth)} />
-                <DataItem label="Citizenship" value={profile?.citizenship} />
-                <DataItem label="Gender" value={profile?.gender} />
-                <DataItem label="Place of birth" value={profile?.placeOfBirth} />
-                <DataItem label="Civil status" value={profile?.civilStatus} />
-                <DataItem label="Religion" value={profile?.religion} />
-              </div>
-            </Section>
+              <Section id="sec-personal" icon={<FaUser />} title="Personal details">
+                <div className="rd2-pairs">
+                  <DataItem label="Date of birth" value={formatDate(profile?.dateOfBirth)} />
+                  <DataItem label="Citizenship" value={profile?.citizenship} />
+                  <DataItem label="Gender" value={profile?.gender} />
+                  <DataItem label="Place of birth" value={profile?.placeOfBirth} />
+                  <DataItem label="Civil status" value={profile?.civilStatus} />
+                  <DataItem label="Religion" value={profile?.religion} />
+                </div>
+              </Section>
+            </div>
 
             <Section id="sec-education" icon={<FaGraduationCap />} title="Education">
               {hasEducation ? (

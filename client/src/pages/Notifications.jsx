@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   FaBell,
   FaCheck,
@@ -16,6 +17,7 @@ import {
 } from "react-icons/fa";
 import { useNotifications } from "../hooks/useNotifications";
 import { useToast } from "../components/feedback/context";
+import StateBlock from "../components/StateBlock";
 import "../styles/notifications.css";
 
 const formatDateTime = (value) => {
@@ -64,6 +66,7 @@ const FILTER_TABS = [
 export default function Notifications() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useTranslation();
   const {
     notifications,
     loading,
@@ -166,10 +169,22 @@ export default function Notifications() {
         </>
       )}
 
-      {loading && <p className="notifications-page__state">Loading notifications...</p>}
-      {!loading && !hasItems && <p className="notifications-page__state">No notifications yet.</p>}
+      {loading && <StateBlock kind="loading" className="notifications-page__block" title={t("applications.notifLoading")} />}
+      {!loading && !hasItems && (
+        <StateBlock
+          kind="empty"
+          className="notifications-page__block"
+          title={t("applications.notifEmptyTitle")}
+          description={t("applications.notifEmptyBody")}
+        />
+      )}
       {!loading && hasItems && visibleItems.length === 0 && (
-        <p className="notifications-page__state">No notifications in this filter.</p>
+        <StateBlock
+          kind="empty"
+          className="notifications-page__block"
+          title={t("applications.notifFilterEmptyTitle")}
+          description={t("applications.notifFilterEmptyBody")}
+        />
       )}
 
       {!loading && visibleItems.length > 0 && (

@@ -3036,3 +3036,231 @@ button:disabled,
   }
   body.app-with-sidebar .jb .jb-toolbar .jsf-actions .btn-reset { width: 100%; }
 }
+
+/* ============================================================ */
+/* YOUR APPLICATIONS — roles refresh (2b) token/state pass.      */
+/* Scoped to .ya-page (only YourApplications renders it) so the  */
+/* shared .jobboard-* / .status-pill rules stay as they are for  */
+/* every other page. No layout redesign.                         */
+/* ============================================================ */
+.ya-page .app-status-tabs {
+  gap: var(--ds-space-2);
+}
+
+/* Status tabs take the .ds-tab look with a 44px target */
+.ya-page .app-tab {
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-4);
+  gap: var(--ds-space-2);
+  border-color: var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-ink-700);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    border-color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+
+.ya-page .app-tab:hover {
+  background: var(--ds-mint);
+  border-color: var(--ds-border);
+  color: var(--ds-green);
+}
+
+.ya-page .app-tab.is-active {
+  background: var(--ds-green);
+  border-color: var(--ds-green);
+  color: #fff;
+}
+
+.ya-page .app-tab-n {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-mint);
+  color: var(--ds-green);
+  font-size: var(--ds-text-xs);
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+  opacity: 1;
+}
+
+.ya-page .app-tab.is-active .app-tab-n {
+  background: var(--ds-gold);
+  color: var(--ds-green-deep);
+}
+
+.ya-page .app-tab:focus-visible,
+.ya-page .app-status-select:focus-visible,
+.ya-page .app-act:focus-visible,
+.ya-page .app-row-title:focus-visible,
+.ya-page .pagination-btn:focus-visible {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 2px;
+}
+
+.ya-page .app-status-select {
+  min-height: var(--ds-tap);
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  color: var(--ds-green);
+  font-family: var(--ds-font-body);
+}
+
+/* Rows: border-first */
+.ya-page .app-row {
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+}
+
+.ya-page .app-row-logo {
+  background: var(--ds-mint);
+  color: var(--ds-green);
+}
+
+.ya-page .app-row-title {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-md);
+  font-weight: 700;
+  color: var(--ds-text);
+}
+
+.ya-page .app-row-title:hover:not(:disabled) {
+  color: var(--ds-green);
+}
+
+.ya-page .app-row-sub {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-muted);
+}
+
+.ya-page .app-row-metaline {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-muted);
+}
+
+.ya-page .app-interview-card {
+  border-color: var(--ds-border);
+  background: var(--ds-info-bg);
+}
+
+.ya-page .app-interview-card-title,
+.ya-page .app-interview-card-row a {
+  color: var(--ds-info);
+}
+
+.ya-page .app-interview-card-title,
+.ya-page .app-interview-card-row {
+  font-size: var(--ds-text-sm);
+}
+
+.ya-page .app-interview-card-row {
+  color: var(--ds-ink-700);
+}
+
+.ya-page .app-interview-card-notes {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-muted);
+}
+
+.ya-page .app-act {
+  min-height: 36px;
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+}
+
+.ya-page .app-act-view {
+  background: var(--ds-green);
+  border-color: var(--ds-green);
+  color: #fff;
+}
+
+.ya-page .app-act-view:hover:not(:disabled) {
+  background: var(--ds-green-secondary);
+  border-color: var(--ds-green-secondary);
+}
+
+.ya-page .app-act-edit:hover:not(:disabled) {
+  background: var(--ds-mint);
+  border-color: var(--ds-border);
+  color: var(--ds-green);
+}
+
+.ya-page .app-act-withdraw {
+  border-color: color-mix(in srgb, var(--ds-danger) 30%, transparent);
+  color: var(--ds-danger);
+}
+
+.ya-page .app-act-withdraw:hover:not(:disabled) {
+  background: var(--ds-danger-bg);
+  border-color: color-mix(in srgb, var(--ds-danger) 45%, transparent);
+}
+
+/* Status pills (page-scoped copies of the shared tones, on tokens) */
+.ya-page .status-pill {
+  font-size: var(--ds-text-xs);
+}
+.ya-page .status-pill.tone-pending { background: var(--ds-ink-50); color: var(--ds-ink-700); }
+.ya-page .status-pill.tone-under-review { background: var(--ds-info-bg); color: var(--ds-info); }
+.ya-page .status-pill.tone-shortlisted { background: var(--ds-warning-bg); color: var(--ds-warning); }
+.ya-page .status-pill.tone-approved,
+.ya-page .status-pill.tone-accepted { background: var(--ds-success-bg); color: var(--ds-success); }
+.ya-page .status-pill.tone-rejected { background: var(--ds-danger-bg); color: var(--ds-danger); }
+.ya-page .status-pill.tone-withdrawn { background: var(--ds-ink-100); color: var(--ds-ink-700); }
+
+.ya-page .ds-state {
+  margin: var(--ds-space-4) 0 var(--ds-space-8);
+}
+
+@media (max-width: 767px) {
+  /* 16px select (no iOS zoom) and 44px row actions on phones */
+  .ya-page .app-status-select {
+    font-size: 16px;
+  }
+
+  .ya-page .app-act {
+    min-height: var(--ds-tap);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ya-page .app-tab,
+  .ya-page .app-act {
+    transition: none;
+  }
+}
+
+.ya-page .pagination-btn {
+  min-height: var(--ds-tap);
+  border-radius: var(--ds-radius-btn);
+}
+
+.ya-page .pagination-btn {
+  background: var(--ds-green);
+}
+
+.ya-page .pagination-btn:hover:not(:disabled) {
+  background: var(--ds-green-secondary);
+  transform: none;
+  box-shadow: none;
+}
+
+.ya-page .pagination-btn:disabled {
+  background: var(--ds-ink-300);
+}
+
+.ya-page .pagination-controls {
+  border: 1px solid var(--ds-border);
+  box-shadow: none;
+}
+
+.ya-page .pagination-info {
+  color: var(--ds-muted);
+  font-variant-numeric: tabular-nums;
+}

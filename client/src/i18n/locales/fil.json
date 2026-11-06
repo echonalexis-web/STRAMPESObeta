@@ -400,7 +400,8 @@
       "deactivateSuccess": "Na-deactivate na ang iyong account. Mag-sign in muli anumang oras para i-reactivate ito.",
       "deactivateError": "Hindi ma-deactivate ang iyong account. Pakisubukang muli."
     },
-    "saveError": "Hindi ma-save ang iyong mga pagbabago. Pakisubukang muli."
+    "saveError": "Hindi ma-save ang iyong mga pagbabago. Pakisubukang muli.",
+    "subnavTitle": "Lahat ng settings"
   },
   "jobEditing": {
     "title": "I-edit ang Post ng Trabaho",
@@ -504,7 +505,10 @@
     "civilStatus": {
       "other": "Iba Pa",
       "specifyLabel": "Pakitukoy"
-    }
+    },
+    "loading": "Nilo-load ang profile…",
+    "loadErrorTitle": "Hindi mabuksan ang profile na ito",
+    "goBack": "Bumalik"
   },
   "dashboard": {
     "greeting": {
@@ -593,5 +597,29 @@
     "jobDetails": "Detalye ng Trabaho",
     "employerInfo": "Impormasyon ng Employer",
     "verifiedNotice": "Employer na beripikado ng PESO"
+  },
+  "news": {
+    "readStory": "Basahin ang balita",
+    "moreFrom": "Iba pa mula sa STRAM PESO",
+    "readMore": "Magbasa pa"
+  },
+  "applications": {
+    "loading": "Nilo-load ang iyong mga aplikasyon…",
+    "emptyTitle": "Wala ka pang ina-apply-an na trabaho",
+    "emptyBody": "Makikita rito ang mga trabahong ina-apply-an mo para masubaybayan mo ang status nila.",
+    "browseJobs": "Maghanap ng trabaho",
+    "errorTitle": "Hindi ma-load ang iyong mga aplikasyon",
+    "filterEmptyTitle": "Walang aplikasyon sa status na ito",
+    "filterEmptyBody": "Pumili ng ibang status para makita ang iba mo pang aplikasyon.",
+    "spesLoading": "Nilo-load ang iyong mga SPES application…",
+    "spesErrorTitle": "Hindi ma-load ang iyong mga SPES application",
+    "spesEmptyTitle": "Wala ka pang SPES application",
+    "spesEmptyBody": "Inaanunsyo sa News Feed ang mga SPES program. Mag-apply mula sa anunsyo para masubaybayan ito rito.",
+    "spesEmptyAction": "Pumunta sa News Feed",
+    "notifLoading": "Nilo-load ang mga notification…",
+    "notifEmptyTitle": "Wala ka pang notification",
+    "notifEmptyBody": "Lalabas dito ang mga update sa iyong aplikasyon, mensahe at anunsyo.",
+    "notifFilterEmptyTitle": "Walang laman ang filter na ito",
+    "notifFilterEmptyBody": "Subukan ang ibang filter para makita ang iba mo pang notification."
   }
 }

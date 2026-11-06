@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { jobAPI, displayFileName } from "../services/api";
 import EmployerAvatar from "../components/EmployerAvatar";
+import StateBlock from "../components/StateBlock";
 import "../styles/jobboard.css";
 import { FaExclamationTriangle, FaRegEye, FaPen, FaTrashAlt, FaCalendarAlt, FaVideo, FaMapMarkerAlt } from "react-icons/fa";
 
@@ -64,6 +66,7 @@ const TABS = [
 
 export default function YourApplications() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [visible, setVisible] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -141,7 +144,7 @@ export default function YourApplications() {
   };
 
   return (
-    <div className="jobboard-container">
+    <div className="jobboard-container ya-page">
       <section className="jobboard-hero jobboard-hero--slim jobboard-hero--noimage">
         <div className="jobboard-hero-content">
           <h1>Your Applications</h1>
@@ -186,18 +189,25 @@ export default function YourApplications() {
           </select>
         </div>
 
-        {error && <div className="error-message" style={{ marginBottom: "1.5rem" }}>{error}</div>}
-
         {loading ? (
-          <p className="app-list-empty">Loading your applications…</p>
-        ) : !hasAnyApplications ? (
-          <p className="app-list-empty">
-            You haven’t applied to any jobs yet. <button className="link-btn" onClick={() => navigate("/jobs")}>Browse jobs</button>
-          </p>
+          <StateBlock kind="loading" title={t("applications.loading")} />
+        ) : !hasAnyApplications && !error ? (
+          <StateBlock
+            kind="empty"
+            title={t("applications.emptyTitle")}
+            description={t("applications.emptyBody")}
+            action={
+              <button type="button" className="ds-btn ds-btn--primary" onClick={() => navigate("/jobs")}>
+                {t("applications.browseJobs")}
+              </button>
+            }
+          />
         ) : (
           <>
-            {visible.length === 0 ? (
-              <p className="app-list-empty">No applications in this status.</p>
+            {error ? (
+              <StateBlock kind="error" title={t("applications.errorTitle")} description={error} />
+            ) : visible.length === 0 ? (
+              <StateBlock kind="empty" title={t("applications.filterEmptyTitle")} description={t("applications.filterEmptyBody")} />
             ) : (
               <div className="applications-list">
                 {visible.map((application) => {

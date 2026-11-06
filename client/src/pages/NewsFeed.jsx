@@ -1,8 +1,11 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { FaHeart, FaRegHeart, FaSearch } from "react-icons/fa";
+import { ArrowRight } from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
 import { newsAPI, newsLikeAPI, resolveAssetUrl } from "../services/api";
+import useParallaxLayer from "../hooks/useParallaxLayer";
 import "../styles/news-feed.css";
 
 const CATEGORIES = [
@@ -45,6 +48,11 @@ export default function NewsFeed() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
   const isLoggedIn = Boolean(user);
+  const { t } = useTranslation();
+  // Decorative header ring only. The `mx-parallax` class (which consumes the
+  // controller's --mx-y) is added for signed-in visitors only, so the guest
+  // view of /news stays static and identical.
+  const ringRef = useParallaxLayer(0.1, 24);
 
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
@@ -165,6 +173,12 @@ export default function NewsFeed() {
   return (
     <main className="news-feed-page" aria-label="STRAM PESO News Feed">
       <section className="news-feed-header-wrap">
+        <span
+          ref={ringRef}
+          className={`news-feed-ring news-feed-ring--a${isLoggedIn ? " mx-parallax" : ""}`}
+          aria-hidden="true"
+        />
+        <span className="news-feed-ring news-feed-ring--b" aria-hidden="true" />
         <div className="news-feed-header">
           <h1>{title}</h1>
           <p>Official updates, opportunities, advisories, and events from STRAM PESO.</p>
@@ -218,9 +232,36 @@ export default function NewsFeed() {
       </section>
 
       <section className="news-feed-list-wrap">
-        {loading ? <p className="news-state">Loading announcements...</p> : null}
-        {!loading && error ? <p className="news-state news-state-error">{error}</p> : null}
-        {!loading && !error && items.length === 0 ? <p className="news-state">No announcements found.</p> : null}
+        {loading ? (
+          <div className="news-skeleton" role="status" aria-live="polite">
+            <span className="ds-sr-only">Loading announcements...</span>
+            <div className="news-grid" aria-hidden="true">
+              {[0, 1, 2].map((n) => (
+                <div key={n} className="news-card news-card--skeleton">
+                  <span className="ds-skeleton news-sk-media" />
+                  <div className="news-card__body">
+                    <span className="ds-skeleton news-sk-line news-sk-line--badge" />
+                    <span className="ds-skeleton news-sk-line news-sk-line--title" />
+                    <span className="ds-skeleton news-sk-line" />
+                    <span className="ds-skeleton news-sk-line news-sk-line--short" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {!loading && error ? (
+          <div className="ds-empty news-empty news-state-error" role="alert">
+            <h3 className="ds-empty__title">Unable to load news</h3>
+            <p>{error}</p>
+          </div>
+        ) : null}
+        {!loading && !error && items.length === 0 ? (
+          <div className="ds-empty news-empty">
+            <h3 className="ds-empty__title">No announcements found.</h3>
+            <p>Try another category or a different search term.</p>
+          </div>
+        ) : null}
 
         {featured ? (
           <article
@@ -249,8 +290,19 @@ export default function NewsFeed() {
                 <span>{formatDate(featured.publishedAt || featured.createdAt)}</span>
                 <span>{featured.author?.name || "PESO Admin"}</span>
               </div>
+              {/* Signed-in banner only: a visual cue, not a second control —
+                  the whole article is already the link. */}
+              {isLoggedIn ? (
+                <span className="ds-btn ds-btn--gold news-featured__cta" aria-hidden="true">
+                  {t("news.readStory")} <ArrowRight size={16} />
+                </span>
+              ) : null}
             </div>
           </article>
+        ) : null}
+
+        {isLoggedIn && rest.length > 0 ? (
+          <h2 className="news-section-title">{t("news.moreFrom")}</h2>
         ) : null}
 
         <div className="news-grid">
@@ -283,6 +335,11 @@ export default function NewsFeed() {
                   <div className="news-card__foot">
                     {renderLikeButton(item)}
                     <span>{formatDate(item?.publishedAt || item?.createdAt)}</span>
+                    {isLoggedIn ? (
+                      <span className="news-card__more" aria-hidden="true">
+                        {t("news.readMore")} <ArrowRight size={14} />
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               </article>
