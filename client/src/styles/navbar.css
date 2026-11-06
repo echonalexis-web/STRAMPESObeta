@@ -37,7 +37,7 @@
 
 body.app-with-sidebar {
   padding-top: 0;
-  padding-left: 270px;
+  padding-left: var(--ds-sidebar-w);
   background: linear-gradient(180deg, #f4f7f4 0%, #edf3ef 100%);
   transition: padding-left 0.18s ease;
 }
@@ -50,7 +50,7 @@ body.app-with-sidebar {
    below), so this must not apply there. */
 @media (min-width: 901px) {
   body.app-with-sidebar.app-sidebar-compact {
-    padding-left: 76px;
+    padding-left: var(--ds-sidebar-w-compact);
   }
 }
 
@@ -332,20 +332,20 @@ body.app-with-sidebar {
 /* AUTH SIDEBAR (DESKTOP LOGGED IN)             */
 /* ============================================ */
 .navbar--auth-sidebar {
-  width: 275px;
+  width: var(--ds-sidebar-w);
   height: 100vh;
   height: 100dvh;
   padding: 0.7rem 0.6rem 0.6rem;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, #0b5d34 0%, #0d4f2d 52%, #0a3f27 100%);
+  background: linear-gradient(160deg, var(--ds-green) 0%, var(--ds-green-deep) 100%);
   background-attachment: fixed;
   border-right: none;
   position: fixed;
   left: 0;
   top: 0;
   z-index: 1100;
-  box-shadow: 8px 0 18px rgba(11, 43, 29, 0.18);
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.05), 8px 0 24px rgba(4, 60, 42, 0.14);
   overflow-y: auto;
   transition: width 0.18s ease;
 }
@@ -438,10 +438,10 @@ body.app-with-sidebar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  min-height: 42px;
+  width: var(--ds-tap);
+  height: var(--ds-tap);
+  min-width: var(--ds-tap);
+  min-height: var(--ds-tap);
   padding: 0;
 }
 
@@ -554,8 +554,7 @@ body.app-with-sidebar {
 .auth-sidebar-nav button:hover,
 .messages-link:hover,
 .nav-submenu-toggle:hover {
-  background: rgba(255, 255, 255, 0.09);
-  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .nav-submenu a {
@@ -575,60 +574,35 @@ body.app-with-sidebar {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
+/* Active sidebar item: a solid white pill with green text/icon. Scoped to
+   .auth-sidebar-nav so the mobile drawer's own (gold) active style for its
+   .messages-link entries is not overridden. The old gold-text + animated
+   underline treatment (and its nav-underline-grow keyframes) was removed. */
 .auth-sidebar-nav a.is-active,
-.nav-submenu a.is-active,
-.messages-link.is-active,
-.nav-standalone-link.is-active,
-.nav-section-link.is-active {
-  background: transparent !important;
-  color: #ffcc00 !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  font-weight: 800;
+.auth-sidebar-nav .nav-submenu a.is-active,
+.auth-sidebar-nav .messages-link.is-active,
+.auth-sidebar-nav .nav-standalone-link.is-active,
+.auth-sidebar-nav .nav-section-link.is-active {
+  background: var(--ds-surface);
+  color: var(--ds-green);
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(4, 60, 42, 0.18);
+  font-weight: 700;
   position: relative;
 }
 
-/* The underline sits on the label text itself (shrink-to-fit as a flex
-   item), not the full-width link row — so its width below is a plain
-   100%, matched to however long that label happens to be, instead of a
-   fixed px value centered under the whole row regardless of text length. */
+.auth-sidebar-nav a.is-active svg {
+  opacity: 1;
+  color: var(--ds-green);
+}
+
+.auth-sidebar-nav a.is-active:hover {
+  background: var(--ds-surface);
+}
+
 .nav-link-text {
   position: relative;
   display: inline-block;
-}
-
-/* A short, straight, rounded-cap bar rather than an inset box-shadow — a
-   box-shadow is clipped to the link's own border-radius, so it bends around
-   the rounded corners instead of staying flat. */
-.auth-sidebar-nav a.is-active .nav-link-text::after,
-.nav-submenu a.is-active .nav-link-text::after,
-.messages-link.is-active .nav-link-text::after,
-.nav-standalone-link.is-active .nav-link-text::after,
-.nav-section-link.is-active .nav-link-text::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: -4px;
-  width: 100%;
-  height: 2px;
-  border-radius: 2px;
-  background: #ffffff;
-  transform-origin: left;
-  /* Re-fires whenever .is-active newly matches this link (switching pages,
-     or the active link changing) — a quick left-to-right draw-in instead of
-     the bar just popping into existence at full width. */
-  animation: nav-underline-grow 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes nav-underline-grow {
-  from {
-    transform: scaleX(0);
-    opacity: 0.5;
-  }
-  to {
-    transform: scaleX(1);
-    opacity: 1;
-  }
 }
 
 .messages-link {
@@ -650,16 +624,17 @@ body.app-with-sidebar {
   position: sticky;
   bottom: 0;
   margin-top: auto;
+  min-height: var(--ds-tap);
   padding: 0.8rem 0.7rem;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(168, 149, 6, 0.96) 0%, rgb(250, 222, 5) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-gold);
+  border: 1px solid transparent;
+  color: var(--ds-green-deep);
   font-weight: 800;
   font-size: 1rem;
   line-height: 1.2;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out), opacity var(--ds-motion-fast) var(--ds-motion-ease-out);
   flex-shrink: 0;
   text-align: center;
   width: 100%;
@@ -777,43 +752,37 @@ body.app-with-sidebar {
   transform: translateY(-1px);
 }
 
+/* Drawer: bottom sheet on phones (mobile-first), right-hand panel from 768px.
+   Tokens from design-system.css; transform/opacity motion only. */
 .mobile-menu-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(3px);
+  background: rgba(4, 60, 42, 0.55);
   z-index: 1250;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 1rem;
+  padding: 0;
+  animation: mobileMenuFade var(--ds-dur-base) var(--ds-ease);
 }
 
 .mobile-menu-panel {
   position: relative;
-  width: min(88vw, 380px);
-  max-height: 86vh;
-  background: url('../assets/images/navbar-bg.png') center center no-repeat;
-  background-size: cover;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 0 20px 38px rgba(15, 23, 42, 0.18);
-  padding: 0.8rem 0.8rem 0.9rem;
+  width: 100%;
+  max-height: 88dvh;
+  background: linear-gradient(160deg, var(--ds-green) 0%, var(--ds-green-deep) 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: var(--ds-shadow-3);
+  padding: var(--ds-space-4) max(var(--ds-space-4), env(safe-area-inset-right)) max(var(--ds-space-4), env(safe-area-inset-bottom)) max(var(--ds-space-4), env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: var(--ds-space-3);
   z-index: 1300;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border-radius: 18px;
-  animation: slidePanelBottom 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.mobile-menu-panel::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(9, 47, 27, 0.62) 0%, rgba(10, 59, 35, 0.78) 100%);
-  z-index: 0;
+  border-radius: var(--ds-radius-xl) var(--ds-radius-xl) 0 0;
+  font-family: var(--ds-font-body);
+  animation: slidePanelBottom var(--ds-dur-slow) var(--ds-ease);
 }
 
 .mobile-menu-panel > * {
@@ -826,16 +795,55 @@ body.app-with-sidebar {
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes mobileMenuFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slidePanelRight {
+  from { transform: translateX(40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu-overlay,
+  .mobile-menu-panel {
+    animation: none;
+  }
+}
+
 /* Brand/Logo Header in Mobile Menu */
-
-
 .mobile-menu-brand {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: var(--ds-space-3);
+  min-height: var(--ds-tap);
   text-decoration: none;
-  padding: 0.2rem 0.15rem 0.7rem;
-  border-bottom: 1px solid rgba(28, 81, 49, 0.13);
+  padding: 0 var(--ds-tap) var(--ds-space-3) 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.mobile-menu-panel > .mobile-menu-close {
+  position: absolute;
+  top: var(--ds-space-3);
+  right: max(var(--ds-space-3), env(safe-area-inset-right));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ds-tap);
+  height: var(--ds-tap);
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: var(--ds-radius-md);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 1rem;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.mobile-menu-close:hover {
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .mobile-menu-brand-icon {
@@ -844,7 +852,7 @@ body.app-with-sidebar {
   border-radius: 50%;
   background: #ffffff;
   padding: 2px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
   flex-shrink: 0;
 }
 
@@ -856,35 +864,35 @@ body.app-with-sidebar {
 
 .mobile-menu-brand-text {
   color: #ffffff;
+  font-family: var(--ds-font-display);
   font-weight: 800;
-  font-size: 1rem;
-  letter-spacing: 0.8px;
+  font-size: var(--ds-text-md);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  min-width: 0;
 }
 
 /* Primary Mobile Navigation Links */
 .mobile-menu-links {
   display: flex;
   flex-direction: column;
-  gap: 0.22rem;
+  gap: var(--ds-space-1);
 }
 
 .mobile-nav-section-group {
   display: flex;
   flex-direction: column;
-  gap: 0.18rem;
-  margin-top: 0.05rem;
+  gap: var(--ds-space-1);
+  margin-top: var(--ds-space-1);
 }
 
 .mobile-nav-section-label {
-  color: #facc15;
-  font-weight: 800;
-  font-size: 0.62rem;
+  color: var(--ds-gold);
+  font-weight: 700;
+  font-size: var(--ds-text-xs);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  padding: 0.35rem 0.2rem 0.1rem;
-  opacity: 0.96;
+  padding: var(--ds-space-2) var(--ds-space-1) 0;
 }
 
 .mobile-nav-submenu-group {
@@ -936,39 +944,77 @@ body.app-with-sidebar {
 .mobile-menu-links button {
   color: #ffffff;
   text-decoration: none;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
+  font-family: var(--ds-font-body);
   font-weight: 600;
   cursor: pointer;
   width: 100%;
-  padding: 0.66rem 0.7rem;
-  font-size: 0.94rem;
-  border-radius: 10px;
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  font-size: var(--ds-text-md);
+  border-radius: var(--ds-radius-md);
   text-align: left;
-  transition: all 0.2s ease;
+  transition: background-color var(--ds-dur-fast) var(--ds-ease);
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: var(--ds-space-3);
 }
 
 .mobile-menu-links a:hover,
 .mobile-menu-links button:hover,
 .mobile-nav-submenu a:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
-  transform: translateX(2px);
+}
+
+.mobile-menu-links :is(a, button):focus-visible,
+.mobile-menu-close:focus-visible,
+.mobile-menu-brand:focus-visible {
+  outline: 3px solid var(--ds-gold);
+  outline-offset: 2px;
 }
 
 /* Active Mobile Item Accent */
 .mobile-menu-links a.is-active,
 .mobile-nav-submenu a.is-active {
-  background: #f8c82ce3;
-  color: #1f3b2b;
+  background: var(--ds-gold);
+  color: var(--ds-green-deep);
   font-weight: 700;
-  border: 1.5px solid #d9a713;
-  border-radius: 10px;
-  padding-left: 0.7rem;
-  box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.04);
+  border: 1px solid var(--ds-gold);
+}
+
+.mobile-menu-links .user-unread-badge {
+  margin-left: auto;
+}
+
+.mobile-menu-links .logout-btn {
+  margin-top: var(--ds-space-2);
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.4);
+  justify-content: center;
+}
+
+@media (min-width: 768px) {
+  .mobile-menu-overlay {
+    align-items: stretch;
+    justify-content: flex-end;
+  }
+
+  .mobile-menu-panel {
+    width: min(360px, 88vw);
+    max-height: none;
+    height: 100dvh;
+    border-top: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: var(--ds-radius-xl) 0 0 var(--ds-radius-xl);
+    padding-top: max(var(--ds-space-4), env(safe-area-inset-top));
+    animation-name: slidePanelRight;
+  }
+
+  .mobile-menu-panel > .mobile-menu-close {
+    top: max(var(--ds-space-3), env(safe-area-inset-top));
+  }
 }
 
 /* Mobile Register Action Section */
@@ -1068,7 +1114,7 @@ body.app-with-sidebar {
    avoid fighting that layout. */
 @media (min-width: 901px) {
   .navbar--auth-sidebar.is-compact {
-    width: 76px;
+    width: var(--ds-sidebar-w-compact);
     padding-left: 0.4rem;
     padding-right: 0.4rem;
   }
@@ -1121,16 +1167,61 @@ body.app-with-sidebar {
     padding: 0.45rem;
     justify-content: center;
   }
+
+  .navbar--auth-sidebar.is-compact .sidebar-collapse-chip {
+    left: calc(var(--ds-sidebar-w-compact) - 14px);
+  }
 }
 
-/* Forces an element hidden above 768px regardless of the navbar's own
-   900px desktop/mobile breakpoint below — used on the Messages/Notifications
-   entries (top icons, sidebar list links, mobile panel links) now that the
-   globally-mounted DashboardTopBar (see components/DashboardTopBar.jsx)
-   already covers them above that width. Only 769-900px actually changes
-   behavior here; outside that range the navbar's existing rules already
-   agree with this one. */
-@media (min-width: 769px) {
+/* Collapse/expand chip: sits on the sidebar's right edge, vertically
+   centered. position:fixed (not absolute) so the sidebar's overflow-y:auto
+   doesn't clip the half that hangs outside it. Desktop only — below 900px
+   the sidebar is a top bar. */
+.sidebar-collapse-chip {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .sidebar-collapse-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 50%;
+    left: calc(var(--ds-sidebar-w) - 14px);
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 2px solid var(--ds-bg);
+    border-radius: 50%;
+    background: var(--ds-gold);
+    color: var(--ds-green-deep);
+    font-size: 0.7rem;
+    cursor: pointer;
+    z-index: 1101;
+    box-shadow: 0 2px 8px rgba(11, 43, 29, 0.3);
+    transition: left 0.18s ease, background-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .sidebar-collapse-chip:hover {
+    background: var(--ds-gold);
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  .sidebar-collapse-chip:focus-visible {
+    outline: 3px solid var(--ds-green);
+    outline-offset: 2px;
+  }
+}
+
+/* Forces an element hidden on the desktop layout (>=901px, the same
+   breakpoint where the sidebar navbar and the globally-mounted
+   DashboardTopBar - see components/DashboardTopBar.jsx - take over) — used
+   on the Messages/Notifications entries (top icons, sidebar list links,
+   mobile panel links). At <=900px the top bar is collapsed, so these
+   entries must stay visible in the navbar header/drawer. */
+@media (min-width: 901px) {
   .nav-hide-wide {
     display: none !important;
   }
@@ -1162,23 +1253,36 @@ body.app-with-sidebar {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding: 0.8rem 1rem;
-    border-bottom: 3px solid #ffcc00;
+    padding: 0.8rem max(var(--ds-space-3), env(safe-area-inset-right)) 0.8rem max(var(--ds-space-3), env(safe-area-inset-left));
+    border-bottom: 3px solid var(--ds-gold);
     border-radius: 0;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
-    background: url('../assets/images/navbar-bg.png') center center no-repeat;
-    background-size: cover;
-    border-left: 1px solid rgba(255,255,255,0.08);
-    border-right: 1px solid rgba(255,255,255,0.08);
+    box-shadow: var(--ds-shadow-2);
+    background: linear-gradient(110deg, var(--ds-green-deep), var(--ds-green));
     overflow: hidden;
   }
 
   .navbar--auth-sidebar::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.22) 100%);
-    z-index: 0;
+    display: none;
+  }
+
+  /* Header actions: 44px touch targets on phones/tablets */
+  .auth-sidebar-action {
+    width: var(--ds-tap);
+    height: var(--ds-tap);
+    border-radius: var(--ds-radius-md);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.24);
+  }
+
+  .auth-sidebar-actions {
+    gap: var(--ds-space-2);
+  }
+
+  .auth-sidebar-action:focus-visible,
+  .mobile-menu-toggle--auth:focus-visible,
+  .auth-sidebar-logo:focus-visible {
+    outline: 3px solid var(--ds-gold);
+    outline-offset: 2px;
   }
 
   .auth-sidebar-top {
@@ -1224,22 +1328,37 @@ body.app-with-sidebar {
 
   .auth-sidebar-logo .nav-logo-text {
     color: #ffffff;
-    font-size: 1.1rem;
-    letter-spacing: 0.08em;
+    font-family: var(--ds-font-display);
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
   }
 
+  /* Too narrow for the wordmark; logo img keeps its alt text and the drawer shows the full name */
+  @media (max-width: 359px) {
+    .auth-sidebar-logo .nav-logo-text {
+      display: none;
+    }
+  }
+
+  @media (min-width: 480px) {
+    .auth-sidebar-logo .nav-logo-text {
+      font-size: 1.1rem;
+      letter-spacing: 0.08em;
+    }
+  }
+
   .mobile-menu-toggle {
-    background: linear-gradient(180deg, #0c4d29 0%, #083d1d 100%);
+    background: rgba(255, 255, 255, 0.08);
     color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: var(--ds-radius-md);
     padding: 0.55rem 0.7rem;
-    min-width: 42px;
-    min-height: 42px;
+    min-width: var(--ds-tap);
+    min-height: var(--ds-tap);
     order: 3;
     box-shadow: 0 4px 10px rgba(5, 35, 17, 0.2);
   }
@@ -1277,5 +1396,217 @@ body.app-with-sidebar {
     width: 26px;
     height: 26px;
     min-width: 26px;
+  }
+}
+/* UI-16 audit fix: the header logo link was 28px tall on mobile; give it a 44px tap area without changing its layout */
+@media (max-width: 900px) {
+  .auth-sidebar-logo {
+    min-height: var(--ds-tap, 44px);
+  }
+}
+
+/* ============================================ */
+/* APP SHELL REFRESH — logged-in sidebar        */
+/* (scoped to .navbar--auth-sidebar, which only  */
+/* renders for logged-in users)                 */
+/* ============================================ */
+
+/* Group labels: navigation group names, kept at the 12px type floor. */
+.navbar--auth-sidebar .nav-section-label {
+  font-size: var(--ds-text-xs);
+  font-weight: 800;
+  letter-spacing: var(--ds-tracking-eyebrow);
+  color: rgba(255, 255, 255, 0.72);
+  padding: var(--ds-space-2) var(--ds-space-2) 0;
+}
+
+.navbar--auth-sidebar .nav-section-group {
+  gap: var(--ds-space-1);
+}
+
+/* Items: 44px rows, quiet white hover, no lift. */
+.navbar--auth-sidebar .auth-sidebar-nav :is(.nav-section-link, .nav-standalone-link, .messages-link) {
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  border-radius: var(--ds-radius-btn);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  transition:
+    background-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    box-shadow var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+
+.navbar--auth-sidebar .auth-sidebar-nav :is(.nav-section-link, .nav-standalone-link, .messages-link):hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ds-surface);
+}
+
+.navbar--auth-sidebar .auth-sidebar-nav :is(.nav-section-link, .nav-standalone-link, .messages-link).is-active {
+  background: var(--ds-surface);
+  color: var(--ds-green);
+  font-weight: 700;
+}
+
+/* Visible focus ring on the dark surface (gold reads on both the green rail
+   and the white active pill). */
+.navbar--auth-sidebar :is(a, button):focus-visible {
+  outline: 3px solid var(--ds-gold);
+  outline-offset: 2px;
+}
+
+/* The collapse chip is itself gold and its ring sits over the cream page,
+   so it keeps a green ring instead. */
+.navbar--auth-sidebar .sidebar-collapse-chip:focus-visible {
+  outline-color: var(--ds-green);
+}
+
+/* Count badges: AA red pill. In the sidebar list they sit inline at the end
+   of the row; compact mode keeps its absolute top-right placement (more
+   specific rule in the is-compact block above). */
+.navbar--auth-sidebar .user-unread-badge {
+  background: var(--ds-danger);
+  color: var(--ds-surface);
+  font-size: var(--ds-text-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.navbar--auth-sidebar .auth-sidebar-nav .user-unread-badge {
+  position: static;
+  margin-left: auto;
+  min-width: 18px;
+  height: 20px;
+  padding: 0 6px;
+}
+
+/* Identity card (non-superadmin roles). */
+.navbar--auth-sidebar .auth-sidebar-profile {
+  margin-bottom: var(--ds-space-3);
+}
+
+.navbar--auth-sidebar .auth-id-card {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  width: 100%;
+  min-height: 60px;
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--ds-radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ds-surface);
+  font-family: var(--ds-font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out), border-color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+
+.navbar--auth-sidebar .auth-id-card:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.navbar--auth-sidebar .auth-id-avatar {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.navbar--auth-sidebar .auth-id-card .user-avatar-circle {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--ds-surface);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-xs);
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.navbar--auth-sidebar .auth-id-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ds-success);
+  border: 2px solid var(--ds-surface);
+}
+
+.navbar--auth-sidebar .auth-id-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+  line-height: 1.25;
+}
+
+.navbar--auth-sidebar .auth-id-name,
+.navbar--auth-sidebar .auth-id-status {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navbar--auth-sidebar .auth-id-name {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  color: var(--ds-surface);
+}
+
+.navbar--auth-sidebar .auth-id-status {
+  font-size: var(--ds-text-xs);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/* Logout hover on the gold button. */
+.navbar--auth-sidebar .auth-sidebar-logout:hover {
+  opacity: 0.92;
+}
+
+@media (min-width: 901px) {
+  /* Compact (icon-only): avatar only, no card chrome. The text block is
+     already hidden by the .nav-link-text rule in the is-compact block. */
+  .navbar--auth-sidebar.is-compact .auth-id-card {
+    justify-content: center;
+    min-height: 0;
+    padding: var(--ds-space-1);
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .navbar--auth-sidebar.is-compact .auth-sidebar-nav :is(.nav-section-link, .nav-standalone-link, .messages-link) {
+    justify-content: center;
+    padding: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navbar--auth-sidebar,
+  .navbar--auth-sidebar .auth-sidebar-nav :is(.nav-section-link, .nav-standalone-link, .messages-link),
+  .navbar--auth-sidebar .auth-id-card,
+  .navbar--auth-sidebar .auth-sidebar-logout,
+  .sidebar-collapse-chip,
+  .logout-modal {
+    transition: none;
+    animation: none;
+  }
+
+  .sidebar-collapse-chip:hover {
+    transform: translateY(-50%);
+  }
+
+  body.app-with-sidebar {
+    transition: none;
   }
 }

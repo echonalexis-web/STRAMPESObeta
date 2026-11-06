@@ -1,5 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { AuthContext } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { messageAPI, resolveAssetUrl } from "../services/api";
@@ -38,36 +39,82 @@ const HIDDEN_PATH_PREFIXES = [
   "/change-password",
 ];
 
-const getPortalContent = (user) => {
+const getPortalContent = (user, t) => {
   const role = normalizeRole(user?.role);
 
   if (role === "superadmin") {
     return {
-      title: "Superadmin Console",
-      description: "Provision and manage LMDPESO admin accounts & NSRP system settings",
-      icon: <FaUserShield />,
-      badge: { label: "System Administrator", tone: "neutral" },
+      title: t("shell.topbar.portal.superadmin"),
+      description: t("shell.topbar.superadminDescription"),
+      icon: <FaUserShield aria-hidden="true" />,
+      badge: { label: t("shell.topbar.badge.systemAdministrator"), tone: "neutral" },
     };
   }
 
   if (role === "admin") {
-    return { title: "Admin Portal", badge: { label: "System Administrator", tone: "neutral" } };
+    return {
+      title: t("shell.topbar.portal.admin"),
+      badge: { label: t("shell.topbar.badge.systemAdministrator"), tone: "neutral" },
+    };
   }
 
   if (role === "employer") {
     const status = user?.verificationStatus;
     return {
-      title: "Employer Portal",
+      title: t("shell.topbar.portal.employer"),
       badge:
         status === "verified"
-          ? { label: "Verified Employer", tone: "success" }
+          ? { label: t("shell.topbar.badge.verifiedEmployer"), tone: "success" }
           : status === "rejected"
-          ? { label: "Verification Rejected", tone: "neutral" }
-          : { label: "Verification Pending", tone: "warning" },
+          ? { label: t("shell.topbar.badge.verificationRejected"), tone: "neutral" }
+          : { label: t("shell.topbar.badge.verificationPending"), tone: "warning" },
     };
   }
 
-  return { title: "Applicant Portal", badge: { label: "Active Job Seeker", tone: "success" } };
+  return {
+    title: t("shell.topbar.portal.jobseeker"),
+    badge: { label: t("shell.topbar.badge.activeJobSeeker"), tone: "success" },
+  };
+};
+
+// Page title shown under the portal label, keyed off the current path
+// (exact matches first, then prefix matches; order matters where a prefix
+// would swallow a more specific route). Unknown paths get no title, so the
+// bar shows the portal label alone.
+const PAGE_TITLE_EXACT = {
+  "/dashboard": "dashboard",
+  "/jobs": "browseJobs",
+  "/applications": "applications",
+  "/spes/applications": "spes",
+  "/news": "news",
+  "/employer": "employerDashboard",
+  "/employer-dashboard": "employerDashboard",
+  "/admin": "adminDashboard",
+  "/admin/reports": "reports",
+  "/admin/verification": "employerVerification",
+  "/admin/job-monitoring": "jobMonitoring",
+  "/admin/account-recovery": "accountRecovery",
+  "/admin/users": "userManagement",
+  "/admin/users/moderation": "reportsAppeals",
+  "/admin/news": "newsManagement",
+  "/admin/spes": "spesApplications",
+  "/admin/audit-logs": "auditTrail",
+  "/superadmin": "superadminConsole",
+};
+
+const PAGE_TITLE_PREFIXES = [
+  ["/jobs/", "jobDetails"],
+  ["/news/", "article"],
+  ["/employer/applicants/", "applicantProfile"],
+  ["/admin/users/", "userProfile"],
+  ["/admin/news/", "newsManagement"],
+];
+
+const getPageTitleKey = (pathname) => {
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  if (PAGE_TITLE_EXACT[path]) return PAGE_TITLE_EXACT[path];
+  const match = PAGE_TITLE_PREFIXES.find(([prefix]) => path.startsWith(prefix));
+  return match ? match[1] : null;
 };
 
 const getEntityId = (value) => {
@@ -134,6 +181,7 @@ const formatRelativeTime = (isoDate) => {
  * which stays available everywhere for actually replying in place.
  */
 export default function DashboardTopBar() {
+  const { t } = useTranslation();
   const { user } = useContext(AuthContext);
   const { socket, isConnected } = useSocket();
   const navigate = useNavigate();
@@ -279,16 +327,24 @@ export default function DashboardTopBar() {
 
   if (hidden) return null;
 
-  const { title, badge, icon, description } = getPortalContent(user);
+  const { title, badge, icon, description } = getPortalContent(user, t);
+  const pageTitleKey = getPageTitleKey(location.pathname);
 
+  // The portal label is the bar's only eyebrow; the page title below it is a
+  // plain paragraph, not an <h1>, so each page keeps its own single h1.
   return (
     <div className="dtb-root" ref={rootRef}>
       <div className="dtb-left">
         {icon && <span className="dtb-icon">{icon}</span>}
         <div className="dtb-left-text">
+          <span className="dtb-portal">{title}</span>
           <div className="dtb-left-heading">
-            <h1 className="dtb-title">{title}</h1>
-            {badge && <span className={`dtb-badge dtb-badge--${badge.tone || "success"}`}><i /> {badge.label}</span>}
+            {pageTitleKey && <p className="dtb-title">{t(`shell.topbar.titles.${pageTitleKey}`)}</p>}
+            {badge && (
+              <span className={`dtb-badge dtb-badge--${badge.tone || "success"}`}>
+                <i aria-hidden="true" /> {badge.label}
+              </span>
+            )}
           </div>
           {description && <p className="dtb-description">{description}</p>}
         </div>
@@ -300,10 +356,10 @@ export default function DashboardTopBar() {
             type="button"
             className="dtb-icon-btn"
             onClick={() => toggleMenu("notifications")}
-            aria-label="Notifications"
+            aria-label={t("navbar.notifications")}
             aria-expanded={openMenu === "notifications"}
           >
-            <FaBell />
+            <FaBell aria-hidden="true" />
             {unreadNotifications > 0 && (
               <span className="dtb-badge-count">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
             )}
@@ -313,17 +369,17 @@ export default function DashboardTopBar() {
             <div className="dtb-dropdown">
               <div className="dtb-dropdown-head">
                 <span className="dtb-dropdown-head-title">
-                  <FaBell className="dtb-dropdown-head-icon" aria-hidden="true" /> Notifications
+                  <FaBell className="dtb-dropdown-head-icon" aria-hidden="true" /> {t("navbar.notifications")}
                 </span>
                 {unreadNotifications > 0 && (
                   <button type="button" className="dtb-mark-read" onClick={markAllAsRead}>
-                    <FaCheck aria-hidden="true" /> Mark all read
+                    <FaCheck aria-hidden="true" /> {t("shell.topbar.markAllRead")}
                   </button>
                 )}
               </div>
               <div className="dtb-dropdown-list">
                 {notifications.length === 0 ? (
-                  <p className="dtb-dropdown-empty">You're all caught up.</p>
+                  <p className="dtb-dropdown-empty">{t("shell.topbar.allCaughtUp")}</p>
                 ) : (
                   notifications.slice(0, 5).map((item) => (
                     <button
@@ -343,7 +399,7 @@ export default function DashboardTopBar() {
                 )}
               </div>
               <button type="button" className="dtb-dropdown-footer" onClick={() => { setOpenMenu(null); navigate("/notifications"); }}>
-                View All Notifications
+                {t("shell.topbar.viewAllNotifications")}
               </button>
             </div>
           )}
@@ -354,10 +410,10 @@ export default function DashboardTopBar() {
             type="button"
             className="dtb-icon-btn"
             onClick={() => toggleMenu("messages")}
-            aria-label="Messages"
+            aria-label={t("navbar.messages")}
             aria-expanded={openMenu === "messages"}
           >
-            <FaCommentDots />
+            <FaCommentDots aria-hidden="true" />
             {unreadMessages > 0 && <span className="dtb-badge-count">{unreadMessages > 9 ? "9+" : unreadMessages}</span>}
           </button>
 
@@ -365,15 +421,15 @@ export default function DashboardTopBar() {
             <div className="dtb-dropdown">
               <div className="dtb-dropdown-head">
                 <span className="dtb-dropdown-head-title">
-                  <FaCommentDots className="dtb-dropdown-head-icon" aria-hidden="true" /> Recent Messages
+                  <FaCommentDots className="dtb-dropdown-head-icon" aria-hidden="true" /> {t("shell.topbar.recentMessages")}
                 </span>
                 <button type="button" className="dtb-open-chat" onClick={openChatBox}>
-                  Open Chat Box
+                  {t("shell.topbar.openChatBox")}
                 </button>
               </div>
               <div className="dtb-dropdown-list">
                 {conversations.length === 0 ? (
-                  <p className="dtb-dropdown-empty">No conversations yet.</p>
+                  <p className="dtb-dropdown-empty">{t("shell.topbar.noConversations")}</p>
                 ) : (
                   conversations.map((conversation) => {
                     const other = getOtherParticipant(conversation, currentUserId);
@@ -397,10 +453,10 @@ export default function DashboardTopBar() {
                         )}
                         <span className="dtb-dropdown-item-body">
                           <span className="dtb-dropdown-item-top">
-                            <span className="dtb-dropdown-item-title">{other?.name || "Unknown User"}</span>
+                            <span className="dtb-dropdown-item-title">{other?.name || t("shell.topbar.unknownUser")}</span>
                             <span className="dtb-dropdown-item-time">{formatRelativeTime(conversation.lastMessageAt)}</span>
                           </span>
-                          <span className="dtb-dropdown-item-message">{conversation.lastMessage || "No messages yet"}</span>
+                          <span className="dtb-dropdown-item-message">{conversation.lastMessage || t("shell.topbar.noMessagesYet")}</span>
                         </span>
                       </button>
                     );
@@ -408,7 +464,7 @@ export default function DashboardTopBar() {
                 )}
               </div>
               <button type="button" className="dtb-dropdown-footer" onClick={() => { setOpenMenu(null); navigate("/messages"); }}>
-                View All Messages
+                {t("shell.topbar.viewAllMessages")}
               </button>
             </div>
           )}

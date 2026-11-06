@@ -1,0 +1,41 @@
+/* Opt-in motion: parallax layers and scroll reveals.
+   Driven by utils/motionController.js, which sets `html.mx-on` only when
+   motion is allowed (no reduced-motion preference, viewport >= 768px).
+   Without the class every element here is fully visible and static — that is
+   the no-JS, reduced-motion, small-screen and low-power state.
+   New `mx-` prefix on purpose: the logged-out pages never use it. */
+
+/* Parallax layer: a decorative LEAF element (never a wrapper of fixed or
+   sticky UI). The controller writes --mx-y; transform only. */
+.mx-parallax {
+  transform: translate3d(0, var(--mx-y, 0px), 0);
+}
+.mx-parallax[data-mx-live] {
+  will-change: transform;
+}
+
+/* Reveal: hidden only after the controller has switched motion on. */
+html.mx-on .mx-reveal {
+  opacity: 0;
+  transform: translate3d(0, var(--ds-reveal-dist, 12px), 0);
+  transition: opacity var(--ds-motion-slow) var(--ds-motion-ease-out),
+    transform var(--ds-motion-slow) var(--ds-motion-ease-out);
+  transition-delay: calc(var(--mx-i, 0) * 40ms);
+}
+html.mx-on .mx-reveal[data-in] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Belt and braces: the controller already stays off for reduced motion, but
+   the global reset only shortens durations, it does not neutralize transform. */
+@media (prefers-reduced-motion: reduce) {
+  .mx-parallax,
+  .mx-reveal,
+  html.mx-on .mx-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+}

@@ -1,58 +1,59 @@
 /* Shared content-area top bar for role dashboards — mounted once, globally
    (see App.jsx), so it's a flush, edge-to-edge sticky strip rather than a
-   card nested inside any one page's own padded container. */
+   card nested inside any one page's own padded container.
+
+   Mobile-first: the base rules below (<=900px, where navbar.css turns the
+   Navbar into its own fixed 76px bar carrying the same notification/message
+   icons) collapse this bar to an invisible spacer — never a second stacked
+   header. Its visible layout only starts at min-width:901px.
+
+   The spacer has to stay in the DOM flow rather than `display: none`: its
+   margin-top (58px) is load-bearing. The mobile navbar is a fixed 76px bar
+   while body.app-with-sidebar only adds 18px of its own clearance at this
+   width (76 - 58 = 18) — pages that render this bar have no top clearance of
+   their own and depend on that combined 76px. Pages that skip this bar
+   (Settings, Messages, Notifications, ...) add their own clearance and are
+   unaffected. Keep 58px in sync with navbar.css (76px bar - 18px body). */
 .dtb-root {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  padding: 0.85rem 1.5rem;
-  background: #ffffff;
-  border-bottom: 1px solid #e9ebe3;
-  box-shadow: 0 1px 3px rgba(20, 30, 20, 0.04);
-  margin: 0 0 1.25rem;
+  position: relative;
+  margin: 58px 0 0;
+  padding: 0;
+  min-height: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
 }
 
-/* Below 900px the main Navbar collapses into its own compact mobile bar
-   with the same notification/message/settings icons this bar duplicates
-   (see navbar.css's own max-width:900px block) — redundant chrome on a
-   screen that's already tight on space, so its visible content is dropped
-   here.
+.dtb-left,
+.dtb-right {
+  display: none;
+}
 
-   It still has to stay in the DOM flow as an (invisible, collapsed) box
-   rather than `display: none`, though: its margin-top: 58px is quietly
-   load-bearing. The mobile navbar is a fixed 76px bar (see navbar.css),
-   while body.app-with-sidebar only adds 18px of its own clearance at this
-   width (76 - 58 = 18) — pages that render this bar (most of them) have no
-   top clearance of their own and depend on that combined 76px to not start
-   underneath the fixed navbar. Pages that skip this bar entirely (Settings,
-   Messages, Notifications, …) already add their own clearance instead, so
-   they're unaffected either way. Collapsing to zero visible height instead
-   of removing the box keeps that math intact while still getting rid of
-   the bar itself. */
-@media (max-width: 900px) {
+@media (min-width: 901px) {
   .dtb-root {
-    padding: 0;
-    margin-top: 58px;
-    margin-bottom: 0;
-    border-bottom: none;
+    position: sticky;
+    top: 0;
+    z-index: var(--ds-z-app-topbar);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ds-space-3) var(--ds-space-4);
+    flex-wrap: wrap;
+    min-height: var(--ds-topbar-h);
+    padding: var(--ds-space-3) var(--ds-page-gutter);
+    background: var(--ds-surface);
+    border-bottom: 1px solid var(--ds-border);
     box-shadow: none;
-    background: none;
-    min-height: 0;
+    margin: 0 0 1.25rem;
   }
 
   .dtb-left,
   .dtb-right {
-    display: none;
+    display: flex;
   }
 }
 
 .dtb-left {
-  display: flex;
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
@@ -62,9 +63,9 @@
   flex: none;
   width: 42px;
   height: 42px;
-  border-radius: 12px;
-  background: #15803d;
-  color: #ffffff;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-green-secondary);
+  color: var(--ds-surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -78,6 +79,17 @@
   min-width: 0;
 }
 
+/* Portal label: the project's only eyebrow (shell top bar). */
+.dtb-portal {
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-xs);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: var(--ds-tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--ds-green-secondary);
+}
+
 .dtb-left-heading {
   display: flex;
   align-items: center;
@@ -87,26 +99,32 @@
 
 .dtb-title {
   margin: 0;
-  font-size: 1.3rem;
+  font-family: var(--ds-font-display);
+  font-size: 1.3125rem;
   font-weight: 800;
-  color: #0f2540;
-  white-space: nowrap;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ds-ink-900, var(--ds-green-deep));
+  text-wrap: balance;
 }
 
 .dtb-description {
   margin: 0;
-  font-size: 0.85rem;
-  color: #64748b;
+  max-width: 75ch;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-muted);
 }
 
 .dtb-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.3rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
+  min-height: 24px;
+  padding: 2px var(--ds-space-3);
+  border-radius: var(--ds-radius-pill);
+  font-size: var(--ds-text-xs);
   font-weight: 700;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -118,25 +136,25 @@
 }
 
 .dtb-badge--success {
-  background: #e6f6e9;
-  color: #15803d;
+  background: var(--ds-mint);
+  color: var(--ds-green);
 }
-.dtb-badge--success i { background: #22c55e; }
+.dtb-badge--success i { background: var(--ds-green-secondary); }
 
 .dtb-badge--warning {
-  background: #fef3c7;
-  color: #b45309;
+  background: var(--ds-warning-bg);
+  color: var(--ds-ink-900, var(--ds-text));
 }
-.dtb-badge--warning i { background: #f59e0b; }
+.dtb-badge--warning i { background: var(--ds-gold-deep); }
 
 .dtb-badge--neutral {
-  background: #e2e8f0;
-  color: #334155;
+  background: var(--ds-ink-50, var(--ds-border));
+  color: var(--ds-ink-700, var(--ds-text));
+  box-shadow: inset 0 0 0 1px var(--ds-border);
 }
-.dtb-badge--neutral i { background: #64748b; }
+.dtb-badge--neutral i { background: var(--ds-muted); }
 
 .dtb-right {
-  display: flex;
   align-items: center;
   gap: 0.6rem;
 }
@@ -147,34 +165,37 @@
 
 .dtb-icon-btn {
   position: relative;
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
-  border: 1px solid #e9ebe3;
-  background: #f8fafc;
-  color: #334155;
+  width: var(--ds-tap);
+  height: var(--ds-tap);
+  border-radius: 50%;
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-ink-700, var(--ds-text));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.35rem;
+  font-size: 1.125rem;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out), color var(--ds-motion-fast) var(--ds-motion-ease-out), border-color var(--ds-motion-fast) var(--ds-motion-ease-out);
 }
 
-.dtb-icon-btn:hover {
-  background: #e6f6e9;
-  color: #15803d;
-  transform: translateY(-1px);
+.dtb-icon-btn:hover,
+.dtb-icon-btn[aria-expanded="true"] {
+  background: var(--ds-mint);
+  border-color: var(--ds-mint);
+  color: var(--ds-green);
 }
 
 .dtb-badge-count {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  background: #ef4444;
-  color: #ffffff;
-  border-radius: 999px;
-  font-size: 11px;
+  top: -5px;
+  right: -5px;
+  background: var(--ds-danger);
+  color: var(--ds-surface);
+  border-radius: var(--ds-radius-pill);
+  font-size: var(--ds-text-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
   font-weight: 800;
   min-width: 20px;
   height: 20px;
@@ -182,22 +203,22 @@
   align-items: center;
   justify-content: center;
   padding: 0 5px;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--ds-surface);
 }
 
 .dtb-dropdown {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  width: 320px;
+  width: 340px;
   max-width: calc(100vw - 2rem);
-  background: #ffffff;
-  border-radius: 14px;
-  border: 1px solid #e9ebe3;
-  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.16);
+  background: var(--ds-surface);
+  border-radius: var(--ds-radius-card);
+  border: 1px solid var(--ds-border);
+  box-shadow: var(--ds-elev-2);
   overflow: hidden;
   z-index: 60;
-  animation: dtbDropIn 0.15s ease-out;
+  animation: dtbDropIn var(--ds-dur-base) var(--ds-ease);
 }
 
 @keyframes dtbDropIn {
@@ -213,8 +234,8 @@
   padding: 0.85rem 0.9rem;
   font-weight: 800;
   font-size: 0.95rem;
-  color: #0f2540;
-  border-bottom: 1px solid #eef1f6;
+  color: var(--ds-green-deep);
+  border-bottom: 1px solid var(--ds-border);
 }
 
 .dtb-dropdown-head-title {
@@ -224,18 +245,19 @@
 }
 
 .dtb-dropdown-head-icon {
-  color: #16a34a;
+  color: var(--ds-green-secondary);
   font-size: 0.95rem;
 }
 
 .dtb-mark-read,
 .dtb-open-chat {
+  min-height: var(--ds-tap);
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
   border: none;
   background: none;
-  color: #16a34a;
+  color: var(--ds-green-secondary);
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
@@ -256,7 +278,7 @@
   margin: 0;
   padding: 1.25rem 0.9rem;
   text-align: center;
-  color: #94a3b8;
+  color: var(--ds-muted);
   font-size: 0.85rem;
 }
 
@@ -269,11 +291,11 @@
   gap: 0.25rem;
   padding: 0.75rem 0.9rem;
   border: none;
-  border-bottom: 1px solid #f1f5f9;
-  background: #ffffff;
+  border-bottom: 1px solid var(--ds-border);
+  background: var(--ds-surface);
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background var(--ds-dur-fast) var(--ds-ease);
 }
 
 .dtb-dropdown-item:last-child {
@@ -281,7 +303,7 @@
 }
 
 .dtb-dropdown-item:hover {
-  background: #f8fafc;
+  background: var(--ds-bg);
 }
 
 /* Unread notifications are marked by a small dot next to the title (see
@@ -301,21 +323,21 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #16a34a;
+  background: var(--ds-green-secondary);
 }
 
 .dtb-dropdown-item-title {
   width: 100%;
   font-size: 0.86rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--ds-text);
   text-align: left;
 }
 
 .dtb-dropdown-item-message {
   width: 100%;
   font-size: 0.82rem;
-  color: #64748b;
+  color: var(--ds-muted);
   line-height: 1.45;
   text-align: left;
 }
@@ -323,7 +345,7 @@
 .dtb-dropdown-item-time {
   width: 100%;
   font-size: 0.72rem;
-  color: #94a3b8;
+  color: var(--ds-muted);
   text-align: left;
 }
 
@@ -365,8 +387,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ef4444;
-  color: #ffffff;
+  background: var(--ds-danger);
+  color: var(--ds-surface);
   font-weight: 800;
   font-size: 0.75rem;
 }
@@ -375,35 +397,36 @@
   width: 100%;
   text-align: center;
   border: none;
-  border-top: 1px solid #eef1f6;
+  border-top: 1px solid var(--ds-border);
   background: transparent;
-  color: #16a34a;
+  color: var(--ds-green-secondary);
   font-weight: 700;
   font-size: 0.82rem;
   padding: 0.75rem;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background var(--ds-dur-fast) var(--ds-ease);
 }
 
 .dtb-dropdown-footer:hover {
-  background: #f8fafc;
+  background: var(--ds-bg);
   text-decoration: underline;
 }
 
 .dtb-user {
+  min-height: var(--ds-tap);
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  border: 1px solid #e9ebe3;
-  background: #f8fafc;
+  border: 1px solid var(--ds-border);
+  background: var(--ds-bg);
   border-radius: 999px;
   padding: 0.3rem 0.9rem 0.3rem 0.3rem;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background var(--ds-dur-fast) var(--ds-ease);
 }
 
 .dtb-user:hover {
-  background: #e6f6e9;
+  background: var(--ds-mint);
 }
 
 .dtb-user-avatar {
@@ -418,8 +441,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #16a34a;
-  color: #ffffff;
+  background: var(--ds-green-secondary);
+  color: var(--ds-surface);
   font-weight: 800;
   font-size: 0.72rem;
 }
@@ -434,7 +457,7 @@
 .dtb-user-name {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--ds-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -443,10 +466,155 @@
 
 .dtb-user-email {
   font-size: 0.72rem;
-  color: #64748b;
+  color: var(--ds-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 160px;
 }
 
+
+.dtb-icon-btn:focus-visible,
+.dtb-user:focus-visible,
+.dtb-mark-read:focus-visible,
+.dtb-open-chat:focus-visible,
+.dtb-dropdown-item:focus-visible,
+.dtb-dropdown-footer:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dtb-dropdown { animation: none; }
+  .dtb-icon-btn { transition: none; }
+  .dtb-icon-btn:hover { transform: none; }
+}
+
+/* ── App shell refresh (≥901px visible only; .dtb-left/.dtb-right stay
+   display:none below that, so none of this renders on mobile) ── */
+.dtb-left {
+  gap: var(--ds-space-3);
+}
+
+.dtb-right {
+  gap: var(--ds-space-2);
+}
+
+.dtb-dropdown-head {
+  padding: var(--ds-space-3) var(--ds-space-4);
+  font-family: var(--ds-font-display);
+  color: var(--ds-ink-900);
+}
+
+.dtb-mark-read,
+.dtb-open-chat {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-green);
+}
+
+.dtb-dropdown-empty {
+  font-size: var(--ds-text-sm);
+}
+
+.dtb-dropdown-item {
+  padding: var(--ds-space-3) var(--ds-space-4);
+}
+
+.dtb-dropdown-item:hover {
+  background: var(--ds-ink-50);
+}
+
+.dtb-dropdown-item-title {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-ink-900);
+}
+
+.dtb-dropdown-item-message {
+  font-size: 0.8125rem;
+  color: var(--ds-ink-500);
+}
+
+.dtb-dropdown-item-time {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-ink-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.dtb-dropdown-item-top .dtb-dropdown-item-time {
+  width: auto;
+  flex: none;
+}
+
+.dtb-dropdown-avatar {
+  width: 36px;
+  height: 36px;
+}
+
+.dtb-dropdown-avatar--fallback {
+  font-size: var(--ds-text-xs);
+}
+
+.dtb-dropdown-footer {
+  min-height: var(--ds-tap);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-green);
+}
+
+.dtb-dropdown-footer:hover {
+  background: var(--ds-ink-50);
+}
+
+.dtb-user {
+  background: var(--ds-surface);
+  border-radius: var(--ds-radius-pill);
+  padding: 4px var(--ds-space-4) 4px 4px;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out), border-color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+
+.dtb-user:hover {
+  background: var(--ds-mint);
+  border-color: var(--ds-mint);
+}
+
+.dtb-user-avatar {
+  width: 36px;
+  height: 36px;
+}
+
+.dtb-user-avatar--fallback {
+  background: var(--ds-green);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-xs);
+}
+
+.dtb-user-name {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-ink-900);
+}
+
+.dtb-user-email {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-ink-500);
+}
+
+.dtb-icon-btn:focus-visible,
+.dtb-user:focus-visible,
+.dtb-mark-read:focus-visible,
+.dtb-open-chat:focus-visible,
+.dtb-dropdown-item:focus-visible,
+.dtb-dropdown-footer:focus-visible {
+  outline-width: 3px;
+}
+
+.dtb-dropdown-item:focus-visible,
+.dtb-dropdown-footer:focus-visible {
+  outline-offset: -3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dtb-user,
+  .dtb-dropdown-item,
+  .dtb-dropdown-footer {
+    transition: none;
+  }
+}

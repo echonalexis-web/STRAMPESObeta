@@ -1,0 +1,84 @@
+/* STRAMPESO design system — app-shell additions (logged-in roles).
+   ADDITIVE ONLY. Every name here is new; no value in design-system.css or
+   index.css is redefined, because the logged-out pages (Home, About, auth)
+   consume those. Safe to load globally: nothing here selects an element.
+   Consume via var(--ds-*). Breakpoints (documented, not usable in @media):
+   480 / 768 / 900-901 (sidebar flips to a top bar) / 1024 / 1100 (grid
+   composition only) / 1440. */
+
+:root {
+  /* Type — eyebrow is reserved for the top bar; hero/page titles use display */
+  --ds-text-eyebrow: 0.75rem;                              /* 12 */
+  --ds-tracking-eyebrow: 0.14em;
+  --ds-text-display: clamp(2rem, 1.25rem + 3vw, 3.5rem);   /* 32 → 56 */
+  --ds-tracking-display: -0.03em;                          /* floor is -0.04em */
+  --ds-text-h1: clamp(1.625rem, 1.25rem + 1.5vw, 2.25rem); /* 26 → 36 */
+  --ds-text-h2: clamp(1.25rem, 1.1rem + 0.75vw, 1.625rem); /* 20 → 26 */
+  --ds-text-h3: 1.125rem;                                  /* 18 */
+  --ds-leading-tight: 1.1;
+  --ds-leading-snug: 1.3;
+  --ds-leading-body: 1.55;
+
+  /* Spacing additions (4px base kept) */
+  --ds-space-14: 56px;
+  --ds-space-16: 64px;
+  --ds-space-20: 80px;
+  --ds-page-gutter: clamp(16px, 4vw, 48px);
+
+  /* Layout */
+  --ds-sidebar-w: 264px;
+  --ds-sidebar-w-compact: 76px;
+  --ds-topbar-h: 76px;
+  --ds-page-max: 1480px;
+
+  /* Radii additions */
+  --ds-radius-btn: 10px;
+  --ds-radius-card: 20px;
+  --ds-radius-hero: 28px;
+
+  /* Elevation — border first, shadow only on lift/float */
+  --ds-elev-1: 0 8px 24px rgba(4, 60, 42, 0.1);
+  --ds-elev-2: 0 16px 40px rgba(4, 60, 42, 0.16);
+
+  /* Motion (150–250ms; exponential ease-out from an already-visible default) */
+  --ds-motion-fast: 150ms;
+  --ds-motion-base: 200ms;
+  --ds-motion-slow: 250ms;
+  --ds-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ds-reveal-dist: 12px;
+  --ds-parallax-max: 32px;
+
+  /* z-index map of the real app stack (documented; existing --ds-z-* scale
+     is not used by navbar/modals and is not renumbered) */
+  --ds-z-app-sticky: 100;
+  --ds-z-app-topbar: 100;
+  --ds-z-app-sidebar: 1100;
+  --ds-z-app-sidebar-chip: 1101;
+  --ds-z-app-drawer: 1250;
+  --ds-z-app-modal: 1350;
+  --ds-z-app-messenger: 3500;
+
+  /* Semantic colors (AA on white / on their tint) */
+  --ds-success: #1c6b3a;
+  --ds-success-bg: #e5f4ea;
+  --ds-info: #1d5a8f;
+  --ds-info-bg: #e6f0f9;
+  --ds-warning: #7a5b00;
+  --ds-gold-deep: #a07a00;
+
+  /* Brand-tinted neutrals for dense (admin) screens */
+  --ds-ink-900: #10271f;
+  --ds-ink-700: #2f463d;
+  --ds-ink-500: #5a6c65;
+  --ds-ink-300: #a9b8b1;
+  --ds-ink-100: #e6ede9;
+  --ds-ink-50: #f1f5f2;
+
+  /* Chart series (mirrored as hex in utils/chartTheme.js) */
+  --ds-chart-1: #07553a;
+  --ds-chart-2: #e6b91e;
+  --ds-chart-3: #0b704b;
+  --ds-chart-4: #7fb89a;
+  --ds-chart-5: #5a6c65;
+  --ds-chart-6: #b42318;
+}

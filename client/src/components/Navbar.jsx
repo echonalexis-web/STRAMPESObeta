@@ -1,4 +1,4 @@
-﻿import { useContext, useEffect, useState } from "react";
+﻿import { useContext, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -23,6 +23,8 @@ import {
   FaFileAlt,
   FaSearch,
   FaSignOutAlt,
+  FaChevronLeft,
+  FaChevronRight,
 } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { messageAPI, notificationAPI, resolveAssetUrl } from "../services/api";
@@ -32,6 +34,7 @@ import { isJobVacancyEligibleAge, isSpesEligibleAge } from "../utils/age";
 import "../styles/navbar.css";
 import pesoLogo from "../assets/images/peso-logo.png";
 import PublicNavbar from "./PublicNavbar";
+import EmployerAvatar from "./EmployerAvatar";
 
 const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
@@ -68,6 +71,7 @@ const getLoggedInMenuItems = (userRole, t) => {
         label: t("navbar.employmentJobs"),
         submenu: [
           { label: t("navbar.employerVerification"), to: "/admin/verification", icon: <FaBuilding aria-hidden="true" /> },
+          { label: t("staffRecovery.queue"), to: "/admin/account-recovery", icon: <FaUsersCog aria-hidden="true" /> },
           { label: t("navbar.jobMonitoring"), to: "/admin/job-monitoring", icon: <FaBriefcase aria-hidden="true" /> },
         ],
       },
@@ -100,6 +104,7 @@ const getLoggedInMenuItems = (userRole, t) => {
         ],
       },
       { label: t("navbar.employerVerification"), to: "/admin/verification", icon: <FaBuilding aria-hidden="true" /> },
+      { label: t("staffRecovery.queue"), to: "/admin/account-recovery", icon: <FaUsersCog aria-hidden="true" /> },
       { label: t("navbar.jobMonitoring"), to: "/admin/job-monitoring", icon: <FaBriefcase aria-hidden="true" /> },
       // No Audit Trail here (superadmin-only) — this group exists so
       // Notifications/Messages have a "System & Logs" home to pin to, same
@@ -207,6 +212,20 @@ const UserAvatar = ({ user }) => {
   );
 };
 
+// Status line under the name on the sidebar identity card. The employer
+// branch mirrors DashboardTopBar.jsx's getPortalContent: "verified" and
+// "rejected" are explicit, every other status reads as pending.
+const getIdentityStatusKey = (role, user) => {
+  if (role === "employer") {
+    const status = user?.verificationStatus;
+    if (status === "verified") return "shell.identity.employerVerified";
+    if (status === "rejected") return "shell.identity.employerRejected";
+    return "shell.identity.employerPending";
+  }
+  if (role === "admin") return "shell.identity.admin";
+  return "shell.identity.jobseeker";
+};
+
 // Notifications + Messages, pinned to the top of admin/superadmin's "System
 // & Logs" group so they're always visible instead of buried at the bottom of
 // a long grouped menu. `variant: "desktop"` matches the styling of the
@@ -233,6 +252,7 @@ const SystemLogsQuickLinks = ({
       <Link
         to="/messages"
         className={linkClassName(isActiveLink("/messages"), hideMessagesWide)}
+        aria-current={isActiveLink("/messages") ? "page" : undefined}
         onClick={onLinkClick}
         title={t("navbar.messages")}
       >
@@ -245,6 +265,7 @@ const SystemLogsQuickLinks = ({
       <Link
         to="/notifications"
         className={linkClassName(isActiveLink("/notifications"), hideNotificationsWide)}
+        aria-current={isActiveLink("/notifications") ? "page" : undefined}
         onClick={onLinkClick}
         title={t("navbar.notifications")}
       >
@@ -267,7 +288,7 @@ export default function Navbar() {
   const userRole = normalizeRole(user?.role);
   const isLoggedIn = Boolean(user);
   const currentUserId = user?._id || user?.id || null;
-  const [navbarStyle] = useNavbarStylePreference(currentUserId);
+  const [navbarStyle, setNavbarStyle] = useNavbarStylePreference(currentUserId);
   const isCompactNav = navbarStyle === "icons";
   const loggedInMenuItems = getLoggedInMenuItems(userRole, t);
   const isAdminRole = userRole === "admin" || userRole === "superadmin";
@@ -283,11 +304,18 @@ export default function Navbar() {
   const showNotificationsSidebarLink = !isAdminRole;
   const showMessagesSidebarLink = !isAdminRole;
 
+  const mobileToggleRef = useRef(null);
+  const mobilePanelRef = useRef(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [openSubmenu, setOpenSubmenu] = useState(null);
+  const [menuPath, setMenuPath] = useState(location.pathname);
+  if (menuPath !== location.pathname) {
+    setMenuPath(location.pathname);
+    setIsMobileMenuOpen(false);
+    setShowLogoutModal(false);
+  }
 
   const jobseekerMenuGroups = getJobseekerMenuGroups(t, user);
   const jobseekerMobileMenuSections = getJobseekerMobileMenuSections(t, user);
@@ -392,13 +420,6 @@ export default function Navbar() {
     };
   }, [socket, isConnected, user, location.pathname]);
 
-  useEffect(() => {
-    if (!user) setShowLogoutModal(false);
-  }, [user]);
-
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
 
   const isActiveLink = (to) => {
     const path = to.split("#")[0];
@@ -414,26 +435,12 @@ export default function Navbar() {
     return location.pathname === path;
   };
 
-  useEffect(() => {
-    const activeSubmenuItem = loggedInMenuItems.find(
-      (item) =>
-        item.submenu &&
-        item.submenu.some((subitem) => isActiveLink(subitem.to))
-    );
-
-    if (activeSubmenuItem) {
-      setOpenSubmenu(activeSubmenuItem.label);
-      return;
-    }
-
-    setOpenSubmenu(null);
-  }, [location.pathname, loggedInMenuItems, isActiveLink]);
 
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth > 768 && !user) {
         setIsMobileMenuOpen(false);
-        setOpenSubmenu(null);
+
       }
     };
     window.addEventListener("resize", handleResize);
@@ -442,13 +449,13 @@ export default function Navbar() {
 
   const openLogoutModal = () => {
     setIsMobileMenuOpen(false);
-    setOpenSubmenu(null);
+
     setShowLogoutModal(true);
   };
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
-    setOpenSubmenu(null);
+
   };
 
   const toggleMobileMenu = () => {
@@ -457,11 +464,7 @@ export default function Navbar() {
       return;
     }
 
-    const activeGroup = loggedInMenuItems.find(
-      (item) => item.submenu && item.submenu.some((subitem) => isActiveLink(subitem.to))
-    );
 
-    setOpenSubmenu(activeGroup?.label ?? null);
     setIsMobileMenuOpen(true);
   };
 
@@ -524,6 +527,51 @@ export default function Navbar() {
     };
   }, [isMobileMenuOpen]);
 
+  // Drawer a11y (mirrors PublicNavbar's mobile drawer): focus moves into the
+  // panel on open, Tab is trapped inside it, Esc closes, focus is restored to
+  // the toggle on close, and it auto-closes if the viewport grows into the
+  // desktop sidebar layout (keep 901px in sync with navbar.css).
+  useEffect(() => {
+    if (!isMobileMenuOpen) return undefined;
+    const panel = mobilePanelRef.current;
+    const toggle = mobileToggleRef.current;
+    const focusables = () => Array.from(panel?.querySelectorAll("a[href], button:not([disabled])") || []);
+    focusables()[0]?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setIsMobileMenuOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusables();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!panel.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    const desktop = window.matchMedia("(min-width: 901px)");
+    const onBreakpointChange = () => {
+      if (desktop.matches) setIsMobileMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    desktop.addEventListener("change", onBreakpointChange);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      desktop.removeEventListener("change", onBreakpointChange);
+      toggle?.focus();
+    };
+  }, [isMobileMenuOpen]);
+
   // On setup / onboarding flows the page supplies its own step rail, so the
   // app sidebar is collapsed away entirely (same behaviour as the applicant
   // detail setup).
@@ -542,28 +590,29 @@ export default function Navbar() {
 
           <div className="auth-sidebar-actions">
             <Link to="/messages" className={cx("auth-sidebar-action", hideMessagesWide)} aria-label={t("navbar.messages")}>
-              <FaEnvelope />
+              <FaEnvelope aria-hidden="true" />
             </Link>
             {showNotificationsTopAction && (
               <Link to="/notifications" className={cx("auth-sidebar-action", hideNotificationsWide)} aria-label={t("navbar.notifications")}>
-                <FaBell />
+                <FaBell aria-hidden="true" />
                 {unreadNotifications > 0 && (
                   <span className="user-unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>
                 )}
               </Link>
             )}
             <Link to="/settings" className="auth-sidebar-action" aria-label={t("navbar.settings")}>
-              <FaCog />
+              <FaCog aria-hidden="true" />
             </Link>
             <button
               type="button"
+              ref={mobileToggleRef}
               className="mobile-menu-toggle mobile-menu-toggle--auth"
               onClick={toggleMobileMenu}
               aria-label={isMobileMenuOpen ? t("navbar.closeNav") : t("navbar.openNav")}
               aria-expanded={isMobileMenuOpen}
               aria-controls="mobile-nav-panel"
             >
-              {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
+              {isMobileMenuOpen ? <FaTimes aria-hidden="true" /> : <FaBars aria-hidden="true" />}
             </button>
           </div>
         </div>
@@ -576,13 +625,23 @@ export default function Navbar() {
           <div className="auth-sidebar-profile">
             <button
               type="button"
-              className="user-pill-button"
+              className="user-pill-button auth-id-card"
               onClick={() => navigate("/profile")}
               title={user?.name}
             >
-              <span className="user-name">
-                <UserAvatar user={user} />
-                <span className="nav-link-text">{user?.name}</span>
+              <span className="auth-id-avatar">
+                {userRole === "employer" ? (
+                  <EmployerAvatar employer={user} name={user?.name} className="user-avatar-circle" />
+                ) : (
+                  <UserAvatar user={user} />
+                )}
+                {userRole === "employer" && user?.verificationStatus === "verified" && (
+                  <span className="auth-id-dot" aria-hidden="true" />
+                )}
+              </span>
+              <span className="nav-link-text auth-id-text">
+                <span className="auth-id-name">{user?.name}</span>
+                <span className="auth-id-status">{t(getIdentityStatusKey(userRole, user))}</span>
               </span>
             </button>
           </div>
@@ -599,6 +658,7 @@ export default function Navbar() {
                       key={`${group.label}-${item.to}`}
                       to={item.to}
                       className={isActiveLink(item.to) ? "nav-section-link is-active" : "nav-section-link"}
+                      aria-current={isActiveLink(item.to) ? "page" : undefined}
                       title={item.label}
                     >
                       {item.icon}
@@ -611,6 +671,7 @@ export default function Navbar() {
               <Link
                 to="/profile"
                 className={isActiveLink("/profile") ? "nav-standalone-link is-active" : "nav-standalone-link"}
+                aria-current={isActiveLink("/profile") ? "page" : undefined}
                 title={t("navbar.myProfile")}
               >
                 <FaUserCircle aria-hidden="true" />
@@ -619,6 +680,7 @@ export default function Navbar() {
               <Link
                 to="/settings"
                 className={isActiveLink("/settings") ? "nav-standalone-link is-active" : "nav-standalone-link"}
+                aria-current={isActiveLink("/settings") ? "page" : undefined}
                 title={t("navbar.settings")}
               >
                 <FaCog aria-hidden="true" />
@@ -638,6 +700,7 @@ export default function Navbar() {
                         key={`${item.label}-${subitem.to}`}
                         to={subitem.to}
                         className={isActiveLink(subitem.to) ? "nav-section-link is-active" : "nav-section-link"}
+                        aria-current={isActiveLink(subitem.to) ? "page" : undefined}
                         title={subitem.label}
                       >
                         {subitem.icon}
@@ -653,6 +716,7 @@ export default function Navbar() {
                   key={item.to}
                   to={item.to}
                   className={isActiveLink(item.to) ? "nav-standalone-link is-active" : "nav-standalone-link"}
+                  aria-current={isActiveLink(item.to) ? "page" : undefined}
                   title={item.label}
                 >
                   {item.icon}
@@ -666,6 +730,7 @@ export default function Navbar() {
             <Link
               to="/messages"
               className={cx("messages-link", isActiveLink("/messages") && "is-active", hideMessagesWide)}
+              aria-current={isActiveLink("/messages") ? "page" : undefined}
               title={t("navbar.messages")}
             >
               <FaEnvelope className="nav-link-icon" aria-hidden="true" />
@@ -680,6 +745,7 @@ export default function Navbar() {
             <Link
               to="/notifications"
               className={cx("messages-link", isActiveLink("/notifications") && "is-active", hideNotificationsWide)}
+              aria-current={isActiveLink("/notifications") ? "page" : undefined}
               title={t("navbar.notifications")}
             >
               <FaBell className="nav-link-icon" aria-hidden="true" />
@@ -691,6 +757,16 @@ export default function Navbar() {
           )}
         </div>
 
+        <button
+          type="button"
+          className="sidebar-collapse-chip"
+          onClick={() => setNavbarStyle(isCompactNav ? "full" : "icons")}
+          aria-label={isCompactNav ? t("navbar.expandSidebar") : t("navbar.collapseSidebar")}
+          title={isCompactNav ? t("navbar.expandSidebar") : t("navbar.collapseSidebar")}
+        >
+          {isCompactNav ? <FaChevronRight aria-hidden="true" /> : <FaChevronLeft aria-hidden="true" />}
+        </button>
+
         <button className="logout-btn auth-sidebar-logout" onClick={openLogoutModal} title={t("common.logout")}>
           <FaSignOutAlt aria-hidden="true" />
           <span className="nav-link-text">{t("common.logout")}</span>
@@ -701,6 +777,10 @@ export default function Navbar() {
           <div className="mobile-menu-overlay" onClick={closeMobileMenu}>
             <aside
               id="mobile-nav-panel"
+              ref={mobilePanelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("common.appName")}
               className="mobile-menu-panel"
               onClick={(event) => event.stopPropagation()}
             >
@@ -710,6 +790,9 @@ export default function Navbar() {
                 </span>
                 <span className="mobile-menu-brand-text">{t("common.appName")}</span>
               </Link>
+              <button type="button" className="mobile-menu-close" onClick={closeMobileMenu} aria-label={t("navbar.closeNav")}>
+                <FaTimes aria-hidden="true" />
+              </button>
 
               <div className="mobile-menu-links">
                 {userRole === "jobseeker"
@@ -721,6 +804,7 @@ export default function Navbar() {
                           key={`${section.label}-${item.to}`}
                           to={item.to}
                           className={isActiveLink(item.to) ? "is-active" : ""}
+                          aria-current={isActiveLink(item.to) ? "page" : undefined}
                           onClick={closeMobileMenu}
                         >
                           {item.label}
@@ -740,6 +824,7 @@ export default function Navbar() {
                               key={`${item.label}-${subitem.to}`}
                               to={subitem.to}
                               className={isActiveLink(subitem.to) ? "is-active" : ""}
+                              aria-current={isActiveLink(subitem.to) ? "page" : undefined}
                               onClick={closeMobileMenu}
                             >
                               {subitem.label}
@@ -750,7 +835,13 @@ export default function Navbar() {
                     }
 
                     return (
-                      <Link key={item.to} to={item.to} className={isActiveLink(item.to) ? "is-active" : ""} onClick={closeMobileMenu}>
+                      <Link
+                        key={item.to}
+                        to={item.to}
+                        className={isActiveLink(item.to) ? "is-active" : ""}
+                        aria-current={isActiveLink(item.to) ? "page" : undefined}
+                        onClick={closeMobileMenu}
+                      >
                         {item.label}
                       </Link>
                     );
@@ -760,6 +851,7 @@ export default function Navbar() {
                   <Link
                     to="/notifications"
                     className={cx("messages-link", isActiveLink("/notifications") && "is-active", hideNotificationsWide)}
+                    aria-current={isActiveLink("/notifications") ? "page" : undefined}
                     onClick={closeMobileMenu}
                   >
                     <FaBell className="nav-link-icon" aria-hidden="true" />
@@ -774,6 +866,7 @@ export default function Navbar() {
                   <Link
                     to="/messages"
                     className={cx("messages-link", isActiveLink("/messages") && "is-active", hideMessagesWide)}
+                    aria-current={isActiveLink("/messages") ? "page" : undefined}
                     onClick={closeMobileMenu}
                   >
                     <FaEnvelope className="nav-link-icon" aria-hidden="true" />
