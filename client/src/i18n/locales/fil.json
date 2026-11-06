@@ -621,5 +621,97 @@
     "notifEmptyBody": "Lalabas dito ang mga update sa iyong aplikasyon, mensahe at anunsyo.",
     "notifFilterEmptyTitle": "Walang laman ang filter na ito",
     "notifFilterEmptyBody": "Subukan ang ibang filter para makita ang iba mo pang notification."
+  },
+  "employerDashboard": {
+    "hero": {
+      "title": "Bumuo ng team na",
+      "accent": "magdadala sa iyo pasulong.",
+      "body": "Mag-post ng bakante, suriin ang mga naka-rank na aplikante at panatilihing tuloy-tuloy ang bawat hire para sa {{company}}.",
+      "bodyNoCompany": "Mag-post ng bakante, suriin ang mga naka-rank na aplikante at panatilihing tuloy-tuloy ang bawat hire.",
+      "postVacancy": "Mag-post ng bakante",
+      "workspace": "Employer workspace",
+      "pendingLabel": "aplikanteng naghihintay ng iyong pagsusuri",
+      "reviewApplicants": "Suriin ang mga aplikante"
+    },
+    "tabs": {
+      "label": "Mga seksyon ng employer dashboard",
+      "overview": "Overview",
+      "jobs": "Mga Job Posting",
+      "applicants": "Mga Aplikante",
+      "matchWeights": "Matching Preferences",
+      "archived": "Naka-archive"
+    },
+    "loading": "Nilo-load ang iyong dashboard…",
+    "metrics": {
+      "pendingReview": "Naghihintay ng pagsusuri",
+      "activeJobs": "Aktibong job",
+      "totalApplicants": "Kabuuang aplikante",
+      "hired": "Na-hire",
+      "totalJobs": "Kabuuang job",
+      "shortlisted": "Na-shortlist",
+      "reviewNow": "Suriin ngayon",
+      "allCaughtUp": "Wala nang naghihintay",
+      "managePostings": "Pamahalaan ang mga posting"
+    },
+    "recent": {
+      "title": "Mga bagong aplikante",
+      "viewAll": "Tingnan lahat",
+      "emptyTitle": "Wala pang aplikante",
+      "emptyBody": "Kapag may nag-apply sa iyong mga posting, lalabas dito ang mga pinakabago.",
+      "unknownApplicant": "Hindi kilalang aplikante",
+      "unknownJob": "Hindi kilalang job",
+      "review": "Suriin"
+    },
+    "jobs": {
+      "listLabel": "Ang iyong mga job posting",
+      "noMatchTitle": "Walang posting na tugma sa hinanap mo",
+      "noMatchBody": "Subukan ang ibang job title o lokasyon.",
+      "emptyTitle": "Wala ka pang aktibong job posting",
+      "emptyBody": "Mag-post ng unang bakante para makatanggap ng mga naka-rank na aplikante.",
+      "actionsFor": "Mga aksyon para sa {{title}}",
+      "closesToday": "Magsasara ngayon",
+      "closesIn_one": "Magsasara sa loob ng {{count}} araw",
+      "closesIn_other": "Magsasara sa loob ng {{count}} araw",
+      "statApplicants": "Aplikante",
+      "statNew": "Bago",
+      "statPosted": "Na-post",
+      "slotsFilled_one": "{{hired}} sa {{count}} slot ang napunan",
+      "slotsFilled_other": "{{hired}} sa {{count}} na slot ang napunan",
+      "manageApplicants": "Pamahalaan ang mga aplikante"
+    },
+    "applicants": {
+      "noJobsTitle": "Wala ka pang aktibong job",
+      "noJobsBody": "Mag-post ng bakante para makatanggap ng mga aplikante.",
+      "selectJobTitle": "Pumili ng job",
+      "selectJobBody": "Pumili ng isa sa iyong mga posting para makita ang mga naka-rank na aplikante nito.",
+      "emptyTitle": "Walang aplikante rito",
+      "emptyAll": "Wala pang nag-apply sa job na ito.",
+      "emptyFiltered": "Walang {{status}} na aplikante sa job na ito.",
+      "loadingRanked": "Nilo-load ang mga naka-rank na aplikante…"
+    },
+    "matchGuide": {
+      "title": "Matching sa isang tingin",
+      "intro": "Bawat aplikante ay may match score batay sa mga requirement ng iyong job at sa iyong matching preferences. Nahahati ang mga score sa mga tier na ito:",
+      "range": "{{min}}–{{max}}%",
+      "tune": "I-adjust ang matching preferences",
+      "tiers": {
+        "Strong": {
+          "name": "Strong",
+          "desc": "Halos lahat ng hinahanap mo ay natutugunan."
+        },
+        "Good": {
+          "name": "Good",
+          "desc": "Natutugunan ang karamihan ng iyong requirement."
+        },
+        "Partial": {
+          "name": "Partial",
+          "desc": "Ilang requirement ang natutugunan; sulit tingnang mabuti."
+        },
+        "Low": {
+          "name": "Low",
+          "desc": "Kaunti lang sa iyong requirement ang natutugunan."
+        }
+      }
+    }
   }
 }

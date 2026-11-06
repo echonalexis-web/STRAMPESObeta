@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { normalizeApplicationStatus, statusClass } from "../utils/helpers";
 import { tierForScore, legacyMatchClassForScore, DIMENSION_LABELS } from "../utils/qualifications";
 import { FaStar, FaCheck, FaTimes, FaClock, FaBan, FaEllipsisH, FaCalendarAlt } from "react-icons/fa";
+import { useTranslation } from "react-i18next";
+import StateBlock from "./StateBlock";
 
 const getStatusIcon = (status) => {
   switch (normalizeApplicationStatus(status)) {
@@ -64,9 +66,15 @@ function RowMenu({ onShortlist, onReject, onScheduleInterview, scheduleInterview
     const close = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
+    // Named so the cleanup can remove it (an inline arrow here leaked one
+    // capture-phase scroll listener per open).
+    const closeOnScroll = () => setOpen(false);
     document.addEventListener("mousedown", close);
-    window.addEventListener("scroll", () => setOpen(false), true);
-    return () => document.removeEventListener("mousedown", close);
+    window.addEventListener("scroll", closeOnScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("scroll", closeOnScroll, true);
+    };
   }, [open]);
 
   const toggle = (e) => {
@@ -141,23 +149,20 @@ export default function RankedApplicantsTable({
   onScheduleInterview,
   onMarkNoShow,
   emptyStateMessage = "No applicants yet.",
-  emptyStateIcon = "📋",
 }) {
+  const { t } = useTranslation();
+
   if (loading) {
-    return (
-      <div className="empty-state">
-        <div className="empty-state-icon">⏳</div>
-        <p className="empty-state-text">Loading ranked applicants...</p>
-      </div>
-    );
+    return <StateBlock kind="loading" title={t("employerDashboard.applicants.loadingRanked")} />;
   }
 
   if (!applicants || applicants.length === 0) {
     return (
-      <div className="empty-state">
-        <div className="empty-state-icon">{emptyStateIcon}</div>
-        <p className="empty-state-text">{emptyStateMessage}</p>
-      </div>
+      <StateBlock
+        kind="empty"
+        title={t("employerDashboard.applicants.emptyTitle")}
+        description={emptyStateMessage}
+      />
     );
   }
 
@@ -313,7 +318,7 @@ export default function RankedApplicantsTable({
         })}
       </div>
 
-      <div className="rt-scroll">
+      <div className="rt-scroll" role="region" aria-label="Applicants table, scrolls horizontally" tabIndex={0}>
         <table className="rt-table">
           <colgroup>
             <col style={{ width: "40px" }} />

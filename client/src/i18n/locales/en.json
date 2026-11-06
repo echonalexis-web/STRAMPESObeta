@@ -621,5 +621,97 @@
     "notifEmptyBody": "Updates on your applications, messages and announcements will appear here.",
     "notifFilterEmptyTitle": "Nothing in this filter",
     "notifFilterEmptyBody": "Try another filter to see the rest of your notifications."
+  },
+  "employerDashboard": {
+    "hero": {
+      "title": "Build a team that",
+      "accent": "moves you forward.",
+      "body": "Post vacancies, review ranked applicants and keep every hire moving for {{company}}.",
+      "bodyNoCompany": "Post vacancies, review ranked applicants and keep every hire moving.",
+      "postVacancy": "Post a vacancy",
+      "workspace": "Employer workspace",
+      "pendingLabel": "applicants waiting for your review",
+      "reviewApplicants": "Review applicants"
+    },
+    "tabs": {
+      "label": "Employer dashboard sections",
+      "overview": "Overview",
+      "jobs": "Job Postings",
+      "applicants": "Applicants",
+      "matchWeights": "Matching Preferences",
+      "archived": "Archived"
+    },
+    "loading": "Loading your dashboard…",
+    "metrics": {
+      "pendingReview": "Pending review",
+      "activeJobs": "Active jobs",
+      "totalApplicants": "Total applicants",
+      "hired": "Hired",
+      "totalJobs": "Total jobs",
+      "shortlisted": "Shortlisted",
+      "reviewNow": "Review now",
+      "allCaughtUp": "All caught up",
+      "managePostings": "Manage postings"
+    },
+    "recent": {
+      "title": "Recent applicants",
+      "viewAll": "View all",
+      "emptyTitle": "No applicants yet",
+      "emptyBody": "When job seekers apply to your postings, the newest ones will show up here.",
+      "unknownApplicant": "Unknown applicant",
+      "unknownJob": "Unknown job",
+      "review": "Review"
+    },
+    "jobs": {
+      "listLabel": "Your job postings",
+      "noMatchTitle": "No postings match your search",
+      "noMatchBody": "Try a different job title or location.",
+      "emptyTitle": "No active job postings yet",
+      "emptyBody": "Post your first vacancy to start receiving ranked applicants.",
+      "actionsFor": "Actions for {{title}}",
+      "closesToday": "Closes today",
+      "closesIn_one": "Closes in {{count}} day",
+      "closesIn_other": "Closes in {{count}} days",
+      "statApplicants": "Applicants",
+      "statNew": "New",
+      "statPosted": "Posted",
+      "slotsFilled_one": "{{hired}} of {{count}} slot filled",
+      "slotsFilled_other": "{{hired}} of {{count}} slots filled",
+      "manageApplicants": "Manage applicants"
+    },
+    "applicants": {
+      "noJobsTitle": "No active jobs yet",
+      "noJobsBody": "Post a vacancy to start collecting applicants.",
+      "selectJobTitle": "Select a job",
+      "selectJobBody": "Pick one of your postings to see its ranked applicants.",
+      "emptyTitle": "No applicants here",
+      "emptyAll": "No one has applied to this job yet.",
+      "emptyFiltered": "No {{status}} applicants for this job.",
+      "loadingRanked": "Loading ranked applicants…"
+    },
+    "matchGuide": {
+      "title": "Matching at a glance",
+      "intro": "Each applicant gets a match score from your job requirements and matching preferences. Scores fall into these tiers:",
+      "range": "{{min}}–{{max}}%",
+      "tune": "Tune matching preferences",
+      "tiers": {
+        "Strong": {
+          "name": "Strong",
+          "desc": "Meets nearly everything you asked for."
+        },
+        "Good": {
+          "name": "Good",
+          "desc": "Meets most of your requirements."
+        },
+        "Partial": {
+          "name": "Partial",
+          "desc": "Meets some requirements; worth a closer look."
+        },
+        "Low": {
+          "name": "Low",
+          "desc": "Few of your requirements are met."
+        }
+      }
+    }
   }
 }

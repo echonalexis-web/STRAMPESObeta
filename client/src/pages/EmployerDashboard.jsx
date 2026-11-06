@@ -17,7 +17,7 @@ import "../styles/qualifications-editor.css";
 import RankedApplicantsTable from "../components/RankedApplicantsTable";
 import MatchBreakdownPanel from "../components/MatchBreakdownPanel";
 import MatchWeightsEditor from "../components/MatchWeightsEditor";
-import { CODE_FALLBACK_WEIGHTS } from "../utils/qualifications";
+import { CODE_FALLBACK_WEIGHTS, MATCH_TIER_THRESHOLDS, MATCH_TIER_LEGACY_CLASS } from "../utils/qualifications";
 import { JOB_TYPES as JOB_TYPES_FALLBACK, JOB_TYPE_LABELS } from "../constants/jobTypes";
 import { useSystemOptions } from "../hooks/useSystemOptions";
 import InterviewScheduleModal from "../components/InterviewScheduleModal";
@@ -25,6 +25,24 @@ import SecureFileLink from "../components/SecureFileLink";
 import ResumeViewerModal from "../components/ResumeViewerModal";
 import { useRankedApplicants } from "../hooks/useRankedApplicants";
 import { useSwipeable } from "react-swipeable";
+import { useTranslation } from "react-i18next";
+import PageHero from "../components/PageHero";
+import MetricCard from "../components/MetricCard";
+import StateBlock from "../components/StateBlock";
+import Reveal from "../components/Reveal";
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  ChevronDown,
+  Ellipsis,
+  Hourglass,
+  MapPin,
+  Plus,
+  SlidersHorizontal,
+  UserCheck,
+  Users,
+  Wallet,
+} from "lucide-react";
 import {
   FaBriefcase,
   FaMapMarkerAlt,
@@ -276,8 +294,8 @@ function SwipeableJobCard({
           </div>
           {/* Expanded details – shown on hover */}
           <div className="job-card-compact-expanded">
-            <p className="job-meta">📍 {job.location}</p>
-            <p className="job-meta">💰 {job.salary || "Negotiable"}</p>
+            <p className="job-meta"><MapPin size={16} aria-hidden="true" /> {job.location}</p>
+            <p className="job-meta"><Wallet size={16} aria-hidden="true" /> {job.salary || "Negotiable"}</p>
             <button
               type="button"
               className="view-applicants-btn"
@@ -358,6 +376,7 @@ function ArchivedPostMortem({ job }) {
 
 // ===== MAIN COMPONENT =====
 export default function EmployerDashboard() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
@@ -424,6 +443,9 @@ export default function EmployerDashboard() {
   // which step is showing; it's irrelevant on desktop, where both show at once.
   const [mobileApplicantsDrilledIn, setMobileApplicantsDrilledIn] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
+  // Purely visual: whether the "Matching at a glance" guide is expanded below
+  // 1101px (it is always open in the desktop side column via CSS).
+  const [matchGuideOpen, setMatchGuideOpen] = useState(false);
 
   const [jobToDelete, setJobToDelete] = useState(null);
   const [isDeletingJob, setIsDeletingJob] = useState(false);
@@ -1225,38 +1247,67 @@ export default function EmployerDashboard() {
   const heroStats = [
     {
       key: "pending",
-      icon: "⏳",
-      label: "Pending review",
+      icon: <Hourglass size={20} />,
+      label: t("employerDashboard.metrics.pendingReview"),
       value: stats.pendingReview || 0,
-      tone: "amber",
-      action:
+      attention: true,
+      note:
         (stats.pendingReview || 0) > 0
-          ? { label: `Review ${stats.pendingReview} applicant${stats.pendingReview === 1 ? "" : "s"} →`, tab: "applicants" }
-          : null,
+          ? t("employerDashboard.metrics.reviewNow")
+          : t("employerDashboard.metrics.allCaughtUp"),
+      action: (stats.pendingReview || 0) > 0 ? { tab: "applicants" } : null,
     },
     {
       key: "active",
-      icon: "✅",
-      label: "Active jobs",
+      icon: <BriefcaseBusiness size={20} />,
+      label: t("employerDashboard.metrics.activeJobs"),
       value: stats.activeJobs || 0,
-      tone: "green",
-      action: { label: "Manage postings →", tab: "jobs" },
+      note: t("employerDashboard.metrics.managePostings"),
+      action: { tab: "jobs" },
+    },
+    {
+      key: "applicants",
+      icon: <Users size={20} />,
+      label: t("employerDashboard.metrics.totalApplicants"),
+      value: stats.totalApplicants || 0,
+      action: null,
+    },
+    {
+      key: "hired",
+      icon: <UserCheck size={20} />,
+      label: t("employerDashboard.metrics.hired"),
+      value: stats.hired || 0,
+      action: null,
     },
   ];
   const contextStats = [
-    { label: "Total jobs", value: stats.totalJobs || 0 },
-    { label: "Total applicants", value: stats.totalApplicants || 0 },
-    { label: "Shortlisted", value: stats.shortlisted || 0 },
-    { label: "Hired", value: stats.hired || 0 },
+    { label: t("employerDashboard.metrics.totalJobs"), value: stats.totalJobs || 0 },
+    { label: t("employerDashboard.metrics.shortlisted"), value: stats.shortlisted || 0 },
   ];
 
   const tabMeta = {
-    overview: { label: "Overview", badge: null },
-    jobs: { label: "Job Postings", badge: liveJobs.length || null },
-    applicants: { label: "Applicants", badge: stats.totalApplicants || null },
-    matchWeights: { label: "Matching Preferences", badge: null },
-    archived: { label: "Archived", badge: archivedJobs.length || null },
+    overview: { label: t("employerDashboard.tabs.overview"), badge: null },
+    jobs: { label: t("employerDashboard.tabs.jobs"), badge: liveJobs.length || null },
+    applicants: { label: t("employerDashboard.tabs.applicants"), badge: stats.totalApplicants || null },
+    matchWeights: { label: t("employerDashboard.tabs.matchWeights"), badge: null },
+    archived: { label: t("employerDashboard.tabs.archived"), badge: archivedJobs.length || null },
   };
+
+  const companyName = user?.companyName || user?.name || "";
+  const pendingCount = stats.pendingReview || 0;
+  const goToTab = (tab) => {
+    setActiveTab(tab);
+    if (tab === "applicants") setMobileApplicantsDrilledIn(false);
+  };
+  // Tier rows for the "Matching at a glance" guide, read from the shared
+  // threshold table so the guide can never drift from the real scoring.
+  const matchGuideTiers = MATCH_TIER_THRESHOLDS.map((row, index) => ({
+    tier: row.tier,
+    cls: MATCH_TIER_LEGACY_CLASS[row.tier],
+    min: row.min,
+    max: index === 0 ? 100 : MATCH_TIER_THRESHOLDS[index - 1].min - 1,
+  }));
+  const isBareTab = activeTab === "overview" || activeTab === "jobs" || activeTab === "applicants";
 
   const openSwipe = (id) => setOpenSwipeId(id);
   const closeSwipe = () => setOpenSwipeId(null);
@@ -1268,7 +1319,7 @@ export default function EmployerDashboard() {
   };
 
   return (
-    <div className="dashboard-container employer-dashboard-page">
+    <div className="dashboard-container employer-dashboard-page ed-page">
       {/* Verification Modal */}
       {showVerificationModal && (
         <div className="modal-overlay" onClick={() => setShowVerificationModal(false)}>
@@ -1318,181 +1369,170 @@ export default function EmployerDashboard() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="dashboard-header emp-header">
-        <div className="emp-header-id">
-          <div className="emp-header-avatar">{getInitials(user?.companyName || user?.name || "EM")}</div>
-          <div className="emp-header-text">
-            <h1>{user?.companyName || user?.name || "Employer Dashboard"}</h1>
-            <span className="emp-header-role">Employer workspace</span>
-          </div>
-        </div>
-        <button type="button" className="emp-header-cta" onClick={openCreateJobModal}>
-          + Post Vacancy
-        </button>
+      {/* Header: one hero per view; large with the pending-review card on Overview */}
+      <PageHero
+        large={activeTab === "overview"}
+        className="ed-hero"
+        title={t("employerDashboard.hero.title")}
+        accent={t("employerDashboard.hero.accent")}
+        body={
+          companyName
+            ? t("employerDashboard.hero.body", { company: companyName })
+            : t("employerDashboard.hero.bodyNoCompany")
+        }
+        actions={
+          <button type="button" className="ds-btn ds-btn--gold ed-hero__cta" onClick={openCreateJobModal}>
+            <Plus size={18} aria-hidden="true" />
+            {t("employerDashboard.hero.postVacancy")}
+          </button>
+        }
+        aside={
+          activeTab === "overview" && !loading ? (
+            <div className="ed-hero-float">
+              <div className="ed-hero-float__id">
+                <span className="ed-hero-float__avatar" aria-hidden="true">
+                  {getInitials(companyName || "EM")}
+                </span>
+                <span className="ed-hero-float__who">
+                  <span className="ed-hero-float__name">{companyName || t("employerDashboard.hero.workspace")}</span>
+                  <span className="ed-hero-float__role">{t("employerDashboard.hero.workspace")}</span>
+                </span>
+              </div>
+              <p className="ed-hero-float__value">{pendingCount}</p>
+              <p className="ed-hero-float__label">{t("employerDashboard.hero.pendingLabel")}</p>
+              {pendingCount > 0 ? (
+                <button
+                  type="button"
+                  className="ds-btn ds-btn--secondary ed-hero-float__btn"
+                  onClick={() => goToTab("applicants")}
+                >
+                  {t("employerDashboard.hero.reviewApplicants")}
+                  <ArrowRight size={16} aria-hidden="true" />
+                </button>
+              ) : (
+                <p className="ed-hero-float__calm">{t("employerDashboard.metrics.allCaughtUp")}</p>
+              )}
+            </div>
+          ) : null
+        }
+      />
+
+      <div
+        className="employer-tabs emp-segmented ds-tabs ed-tabs"
+        role="tablist"
+        aria-label={t("employerDashboard.tabs.label")}
+        onFocus={(e) => e.target.scrollIntoView?.({ block: "nearest", inline: "nearest" })}
+      >
+        {tabList.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            className={`employer-tab ds-tab ${activeTab === tab ? "active is-active" : ""}`}
+            onClick={() => {
+              setActiveTab(tab);
+              if (tab === "applicants") setMobileApplicantsDrilledIn(false);
+            }}
+            aria-selected={activeTab === tab}
+          >
+            {tabMeta[tab].label}
+            {tabMeta[tab].badge ? <span className="emp-tab-badge ds-tab__count">{tabMeta[tab].badge}</span> : null}
+          </button>
+        ))}
       </div>
 
-      <section className="employer-shell">
-        <div className="employer-tabs emp-segmented" role="tablist" aria-label="Employer dashboard tabs">
-          {tabList.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              className={`employer-tab ${activeTab === tab ? "active" : ""}`}
-              onClick={() => {
-                setActiveTab(tab);
-                if (tab === "applicants") setMobileApplicantsDrilledIn(false);
-              }}
-              aria-selected={activeTab === tab}
-            >
-              {tabMeta[tab].label}
-              {tabMeta[tab].badge ? <span className="emp-tab-badge">{tabMeta[tab].badge}</span> : null}
-            </button>
-          ))}
-        </div>
-
-        {error && <div className="error-message" role="alert">{error}</div>}
+      <section className={`employer-shell ${isBareTab ? "ed-shell--bare" : ""}`}>
+        {error && <div className="error-message ds-alert ds-alert--error" role="alert">{error}</div>}
 
         {loading ? (
-          <p className="loading">Loading dashboard...</p>
+          <StateBlock kind="loading" title={t("employerDashboard.loading")} />
         ) : (
           <>
             {/* -------- OVERVIEW TAB -------- */}
             {activeTab === "overview" && (
-              <div className="employer-tab-panel">
-                <div className="emp-overview-summary">
-                  <div className="emp-hero-row">
-                    {heroStats.map((card) => (
-                      <article key={card.key} className={`emp-hero-tile tone-${card.tone}`}>
-                        <span className="emp-hero-icon" aria-hidden="true">{card.icon}</span>
-                        <span className="emp-hero-value">{card.value}</span>
-                        <span className="emp-hero-label">{card.label}</span>
-                        {card.action ? (
-                          <button
-                            type="button"
-                            className="emp-hero-action"
-                            onClick={() => {
-                              setActiveTab(card.action.tab);
-                              if (card.action.tab === "applicants") setMobileApplicantsDrilledIn(false);
-                            }}
-                          >
-                            {card.action.label}
-                          </button>
-                        ) : (
-                          <span className="emp-hero-action muted">All caught up</span>
-                        )}
-                      </article>
-                    ))}
-                  </div>
+              <div className="employer-tab-panel ed-overview">
+                <Reveal className="ds-metrics ds-metrics--4 ed-metrics">
+                  {heroStats.map((card) => (
+                    <MetricCard
+                      key={card.key}
+                      icon={card.icon}
+                      value={card.value}
+                      label={card.label}
+                      note={card.note}
+                      attention={Boolean(card.attention)}
+                      onClick={card.action ? () => goToTab(card.action.tab) : undefined}
+                    />
+                  ))}
+                </Reveal>
 
-                  <div className="emp-context-strip">
-                    {contextStats.map((s) => (
-                      <div key={s.label} className="emp-context-item">
-                        <span className="emp-context-value">{s.value}</span>
-                        <span className="emp-context-label">{s.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <dl className="ed-context">
+                  {contextStats.map((s) => (
+                    <div key={s.label} className="ed-context__item">
+                      <dt className="ed-context__label">{s.label}</dt>
+                      <dd className="ed-context__value">{s.value}</dd>
+                    </div>
+                  ))}
+                </dl>
 
-                <div className="table-card">
-                  <div className="table-card-header">
-                    <h2>Recent Applicants</h2>
+                <section className="ed-recent" aria-labelledby="ed-recent-title">
+                  <div className="ds-section-head ed-recent__head">
+                    <h2 id="ed-recent-title">{t("employerDashboard.recent.title")}</h2>
                     {recentApplicants.length > 0 && (
                       <button
                         type="button"
-                        className="emp-link-btn"
+                        className="ds-link ed-link-btn"
                         onClick={() => {
                           setActiveTab("applicants");
                           setMobileApplicantsDrilledIn(false);
                         }}
                       >
-                        View all
+                        {t("employerDashboard.recent.viewAll")}
                       </button>
                     )}
                   </div>
                   {!recentApplicants.length ? (
-                    <div className="recent-applicants-empty">No recent applicants yet.</div>
+                    <StateBlock
+                      kind="empty"
+                      title={t("employerDashboard.recent.emptyTitle")}
+                      description={t("employerDashboard.recent.emptyBody")}
+                    />
                   ) : (
-                    <>
-                      {!isMobile ? (
-                        <div className="table-scroll-wrap recent-applicants-table-wrap">
-                          <table className="employer-table recent-applicants-table">
-                            <colgroup>
-                              <col style={{ width: "22%" }} />
-                              <col style={{ width: "24%" }} />
-                              <col style={{ width: "14%" }} />
-                              <col style={{ width: "13%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "12%" }} />
-                            </colgroup>
-                            <thead>
-                              <tr>
-                                <th>Applicant Name</th>
-                                <th>Applied For</th>
-                                <th>Date</th>
-                                <th>Status</th>
-                                <th>Contact</th>
-                                <th>Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {recentApplicants.map((application) => (
-                                <tr key={application._id} className="applicant-row-enhanced">
-                                  <td className="applicant-name-cell">
-                                    <div className="applicant-avatar-name">
-                                      <div className="applicant-avatar">{getInitials(application.applicant?.name)}</div>
-                                      <span className="applicant-name">{application.applicant?.name || "Unknown Applicant"}</span>
-                                    </div>
-                                  </td>
-                                  <td>{application.vacancy?.title || "Unknown Job"}</td>
-                                  <td>{formatDate(application.createdAt || application.appliedAt)}</td>
-                                  <td>
-                                    <span className={`status-pill ${recentApplicantStatusClass(application.status)}`}>
-                                      {recentApplicantStatusLabel(application.status)}
-                                    </span>
-                                  </td>
-                                  <td>{getApplicantContact(application)}</td>
-                                  <td>
-                                    <button type="button" className="recent-view-btn" onClick={() => openApplicantDrawer(application)}>
-                                      View
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <div className="recent-applicants-mobile" aria-label="Recent applicants mobile list">
-                          {recentApplicants.map((application) => (
-                            <article
-                              key={`mobile-${application._id}`}
-                              className="recent-applicant-card"
+                    <ul className="ds-list ed-recent__list">
+                      {recentApplicants.map((application) => {
+                        const applicantName = application.applicant?.name || t("employerDashboard.recent.unknownApplicant");
+                        const jobTitle = application.vacancy?.title || t("employerDashboard.recent.unknownJob");
+                        return (
+                          <li key={application._id} className="ed-recent__item">
+                            <button
+                              type="button"
+                              className="ds-list-row ed-recent__row"
                               onClick={() => openApplicantDrawer(application)}
                             >
-                              <div className="recent-applicant-avatar">
+                              <span className="ds-list-row__lead ed-recent__avatar" aria-hidden="true">
                                 {getInitials(application.applicant?.name)}
-                              </div>
-                              <div className="recent-applicant-body">
-                                <div className="recent-applicant-top">
-                                  <strong>{application.applicant?.name || "Unknown Applicant"}</strong>
-                                  <span className={`status-pill ${recentApplicantStatusClass(application.status)}`}>
-                                    {recentApplicantStatusLabel(application.status)}
-                                  </span>
-                                </div>
-                                <div className="recent-applicant-meta">
-                                  {application.vacancy?.title || "Unknown Job"} · {formatDate(application.createdAt || application.appliedAt)}
-                                </div>
-                              </div>
-                            </article>
-                          ))}
-                        </div>
-                      )}
-                    </>
+                              </span>
+                              <span className="ds-list-row__main">
+                                <span className="ds-list-row__title">{applicantName}</span>
+                                <span className="ds-list-row__sub">
+                                  {jobTitle} · {formatDate(application.createdAt || application.appliedAt)}
+                                  <span className="ed-recent__contact"> · {getApplicantContact(application)}</span>
+                                </span>
+                              </span>
+                              <span className="ds-list-row__end ed-recent__end">
+                                <span className={`status-pill ed-status ${recentApplicantStatusClass(application.status)}`}>
+                                  {recentApplicantStatusLabel(application.status)}
+                                </span>
+                                <span className="ed-recent__review">
+                                  {t("employerDashboard.recent.review")}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
-                </div>
+                </section>
               </div>
             )}
 
@@ -1532,12 +1572,25 @@ export default function EmployerDashboard() {
                 </div>
 
                 {!paginatedJobs.length ? (
-                  <div className="empty-state">
-                    <div className="empty-state-icon">📋</div>
-                    <p className="empty-state-text">
-                      {jobSearch ? "No postings match your search." : "You have no active job postings yet."}
-                    </p>
-                  </div>
+                  jobSearch ? (
+                    <StateBlock
+                      kind="empty"
+                      title={t("employerDashboard.jobs.noMatchTitle")}
+                      description={t("employerDashboard.jobs.noMatchBody")}
+                    />
+                  ) : (
+                    <StateBlock
+                      kind="empty"
+                      title={t("employerDashboard.jobs.emptyTitle")}
+                      description={t("employerDashboard.jobs.emptyBody")}
+                      action={
+                        <button type="button" className="ds-btn ds-btn--primary" onClick={openCreateJobModal}>
+                          <Plus size={18} aria-hidden="true" />
+                          {t("employerDashboard.hero.postVacancy")}
+                        </button>
+                      }
+                    />
+                  )
                 ) : isMobile ? (
                   <div className="swipeable-job-list">
                     {paginatedJobs.map((job) => (
@@ -1558,99 +1611,102 @@ export default function EmployerDashboard() {
                     ))}
                   </div>
                 ) : (
-                  <div className="emp-table-wrap">
-                    <table className="emp-table jobs-table">
-                      <colgroup>
-                        <col />
-                        <col style={{ width: "104px" }} />
-                        <col style={{ width: "104px" }} />
-                        <col style={{ width: "150px" }} />
-                        <col style={{ width: "132px" }} />
-                        <col style={{ width: "56px" }} />
-                      </colgroup>
-                      <thead>
-                        <tr>
-                          <th>Job</th>
-                          <th className="num">Applicants</th>
-                          <th className="num">New</th>
-                          <th>Posted</th>
-                          <th>Status</th>
-                          <th aria-label="Actions" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedJobs.map((job) => {
-                          const f = funnelFor(job._id);
-                          const dLeft = daysUntilDeadline(job.applicationDeadline);
-                          const filled = job.slots ? f.hired >= job.slots : false;
-                          const isClosed = String(job.status || "active").toLowerCase() === "closed";
-                          const statusLabel = isClosed ? "closed" : filled ? "filled" : (job.status || "active");
-                          const statusPillClass = isClosed ? "red" : filled ? "blue" : statusClass(job.status || "active");
-                          return (
-                            <tr
-                              key={job._id}
-                              className={`emp-row ${f.total === 0 ? "is-quiet" : ""}`}
+                  /* >=768px: two-column vacancy cards. One Reveal on the grid
+                     wrapper (it persists across pagination / sort), so only the
+                     first paint of the tab animates. */
+                  <Reveal as="ul" className="ed-vac-grid" aria-label={t("employerDashboard.jobs.listLabel")}>
+                    {paginatedJobs.map((job) => {
+                      const f = funnelFor(job._id);
+                      const dLeft = daysUntilDeadline(job.applicationDeadline);
+                      const filled = job.slots ? f.hired >= job.slots : false;
+                      const isClosed = String(job.status || "active").toLowerCase() === "closed";
+                      const statusLabel = isClosed ? "closed" : filled ? "filled" : (job.status || "active");
+                      const statusPillClass = isClosed ? "red" : filled ? "blue" : statusClass(job.status || "active");
+                      const slotPct = job.slots ? Math.min(100, Math.round((f.hired / job.slots) * 100)) : 0;
+                      return (
+                        <li key={job._id} className={`ed-vac ${f.total === 0 ? "is-quiet" : ""}`}>
+                          <div className="ed-vac__head">
+                            <div className="ed-vac__titles">
+                              <h3 className="ed-vac__title">{job.title}</h3>
+                              <p className="ed-vac__loc">
+                                <MapPin size={16} aria-hidden="true" />
+                                <span>{formatJobLocation(job.location)}</span>
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="emp-menu-trigger ed-vac__menu"
+                              aria-label={t("employerDashboard.jobs.actionsFor", { title: job.title })}
+                              aria-haspopup="true"
+                              aria-expanded={openJobMenuId === job._id}
+                              onClick={(e) => {
+                                if (openJobMenuId === job._id) { setOpenJobMenuId(null); return; }
+                                const r = e.currentTarget.getBoundingClientRect();
+                                setJobMenuPos({ top: r.bottom + 6, left: Math.max(8, r.right - 212) });
+                                setOpenJobMenuId(job._id);
+                              }}
+                            >
+                              <Ellipsis size={20} aria-hidden="true" />
+                            </button>
+                          </div>
+
+                          <div className="emp-status-cell ed-vac__status">
+                            <span className={`status-pill ${statusPillClass}`}>{statusLabel}</span>
+                            {!isClosed && !filled && dLeft !== null && dLeft >= 0 && dLeft <= 3 && (
+                              <span className="emp-chip chip-amber">
+                                {dLeft === 0
+                                  ? t("employerDashboard.jobs.closesToday")
+                                  : t("employerDashboard.jobs.closesIn", { count: dLeft })}
+                              </span>
+                            )}
+                          </div>
+
+                          <dl className="ed-vac__stats">
+                            <div className="ed-vac__stat">
+                              <dt>{t("employerDashboard.jobs.statApplicants")}</dt>
+                              <dd>{f.total}</dd>
+                            </div>
+                            <div className={`ed-vac__stat ${f.new > 0 ? "is-new" : ""}`}>
+                              <dt>{t("employerDashboard.jobs.statNew")}</dt>
+                              <dd>{f.new}</dd>
+                            </div>
+                            <div className="ed-vac__stat">
+                              <dt>{t("employerDashboard.jobs.statPosted")}</dt>
+                              <dd>
+                                <span className="ed-vac__date">{formatDate(job.createdAt)}</span>
+                                <span className="ed-vac__age">{relativeAge(job.createdAt)}</span>
+                              </dd>
+                            </div>
+                          </dl>
+
+                          {job.slots ? (
+                            <div className="ed-vac__slots">
+                              <div className="ds-progress" aria-hidden="true">
+                                <span className="ds-progress__bar" style={{ "--ds-progress": `${slotPct}%` }} />
+                              </div>
+                              <p className="ed-vac__slot-line">
+                                {t("employerDashboard.jobs.slotsFilled", { hired: f.hired, count: job.slots })}
+                              </p>
+                            </div>
+                          ) : null}
+
+                          <div className="ed-vac__foot">
+                            <button
+                              type="button"
+                              className="ds-btn ds-btn--secondary ed-vac__manage"
                               onClick={() => {
                                 if (!isVerifiedEmployer) { setShowVerificationModal(true); return; }
                                 viewJobApplicants(job._id);
                               }}
                             >
-                              <td>
-                                <div className="emp-job-cell">
-                                  <strong>{job.title}</strong>
-                                  <span className="emp-job-loc">
-                                    <FaMapMarkerAlt /> {formatJobLocation(job.location)}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="num">{f.total}</td>
-                              <td className="num">
-                                {f.new > 0 ? <span className="emp-new-pill">{f.new} new</span> : <span className="emp-dash">—</span>}
-                              </td>
-                              <td>
-                                <div className="emp-stack">
-                                  <span>{formatDate(job.createdAt)}</span>
-                                  <span className="emp-muted">{relativeAge(job.createdAt)}</span>
-                                </div>
-                              </td>
-                              <td>
-                                <div className="emp-status-cell">
-                                  <span className={`status-pill ${statusPillClass}`}>{statusLabel}</span>
-                                  {!isClosed && !filled && dLeft !== null && dLeft >= 0 && dLeft <= 3 && (
-                                    <span className="emp-chip chip-amber">
-                                      {dLeft === 0 ? "Closes today" : `Closes in ${dLeft}d`}
-                                    </span>
-                                  )}
-                                </div>
-                                {job.slots ? (
-                                  <div className="emp-slot-line">
-                                    {f.hired} of {job.slots} slot{job.slots === 1 ? "" : "s"} filled
-                                  </div>
-                                ) : null}
-                              </td>
-                              <td className="emp-actions-cell" onClick={(e) => e.stopPropagation()}>
-                                <button
-                                  type="button"
-                                  className="emp-menu-trigger"
-                                  aria-label={`Actions for ${job.title}`}
-                                  aria-haspopup="true"
-                                  aria-expanded={openJobMenuId === job._id}
-                                  onClick={(e) => {
-                                    if (openJobMenuId === job._id) { setOpenJobMenuId(null); return; }
-                                    const r = e.currentTarget.getBoundingClientRect();
-                                    setJobMenuPos({ top: r.bottom + 6, left: Math.max(8, r.right - 212) });
-                                    setOpenJobMenuId(job._id);
-                                  }}
-                                >
-                                  ⋯
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              <Users size={16} aria-hidden="true" />
+                              {t("employerDashboard.jobs.manageApplicants")}
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </Reveal>
                 )}
 
                 {openJobMenuId && (() => {
@@ -1809,7 +1865,7 @@ export default function EmployerDashboard() {
                     })}
                   </div>
                 ) : (
-                  <div className="emp-table-wrap">
+                  <div className="emp-table-wrap" role="region" aria-label="Table, scrolls horizontally" tabIndex={0}>
                     <table className="emp-table archived-table">
                       <colgroup>
                         <col />
@@ -1936,10 +1992,12 @@ export default function EmployerDashboard() {
                 {(!isMobile || !mobileApplicantsDrilledIn) && (
                 <aside className={`job-list-panel emp-job-rail ${isMobile ? "emp-job-rail--standalone" : railJobs.length > RAIL_CHIP_LIMIT ? "is-picker" : ""}`}>
                   {!railJobs.length ? (
-                    <>
-                      <h3>Your Jobs</h3>
-                      <p className="empty-muted">No active jobs yet.</p>
-                    </>
+                    <StateBlock
+                      kind="empty"
+                      className="ed-rail-empty"
+                      title={t("employerDashboard.applicants.noJobsTitle")}
+                      description={t("employerDashboard.applicants.noJobsBody")}
+                    />
                   ) : isMobile ? (
                     <>
                       {railJobs.map((job) => {
@@ -1990,8 +2048,8 @@ export default function EmployerDashboard() {
                         </select>
                       </label>
                       <div className="emp-job-picker-nav">
-                        <button type="button" onClick={() => stepSelectedJob(-1)} aria-label="Previous job">‹</button>
-                        <button type="button" onClick={() => stepSelectedJob(1)} aria-label="Next job">›</button>
+                        <button type="button" onClick={() => stepSelectedJob(-1)} aria-label="Previous job"><FaChevronLeft aria-hidden="true" /></button>
+                        <button type="button" onClick={() => stepSelectedJob(1)} aria-label="Next job"><FaChevronRight aria-hidden="true" /></button>
                       </div>
                       {selectedJob && (() => {
                         const f = funnelFor(selectedJob._id);
@@ -2068,7 +2126,7 @@ export default function EmployerDashboard() {
                     </div>
 
                     {selectedJob && (
-                      <div className="emp-funnel" role="tablist" aria-label="Filter by status">
+                      <div className="emp-funnel" role="tablist" aria-label="Filter by status" onFocus={(e) => e.target.scrollIntoView?.({ block: "nearest", inline: "nearest" })}>
                         {[
                           { key: "all", label: "All" },
                           { key: "pending", label: "Pending" },
@@ -2081,7 +2139,7 @@ export default function EmployerDashboard() {
                             type="button"
                             role="tab"
                             aria-selected={statusFilter === seg.key}
-                            className={`emp-funnel-seg seg-${seg.key} ${statusFilter === seg.key ? "active" : ""}`}
+                            className={`emp-funnel-seg ds-chip seg-${seg.key} ${statusFilter === seg.key ? "active is-active" : ""}`}
                             onClick={() => setStatusFilter(seg.key)}
                           >
                             <span className="emp-funnel-count">{funnelCounts[seg.key] ?? 0}</span>
@@ -2161,10 +2219,11 @@ export default function EmployerDashboard() {
                   )}
 
                   {!selectedJobId ? (
-                    <div className="empty-state">
-                      <div className="empty-state-icon">📁</div>
-                      <p className="empty-state-text">Select a job to view applicants.</p>
-                    </div>
+                    <StateBlock
+                      kind="empty"
+                      title={t("employerDashboard.applicants.selectJobTitle")}
+                      description={t("employerDashboard.applicants.selectJobBody")}
+                    />
                   ) : (
                     <RankedApplicantsTable
                       applicants={paginatedApplicants}
@@ -2190,8 +2249,11 @@ export default function EmployerDashboard() {
                       onQuickStatusChange={handleQuickStatusChange}
                       onScheduleInterview={handleOpenScheduleInterview}
                       onMarkNoShow={handleMarkNoShow}
-                      emptyStateMessage={statusFilter === "all" ? "No applicants for this job yet." : `No ${statusFilter} applicants found.`}
-                      emptyStateIcon={statusFilter === "all" ? "👥" : "🔍"}
+                      emptyStateMessage={
+                        statusFilter === "all"
+                          ? t("employerDashboard.applicants.emptyAll")
+                          : t("employerDashboard.applicants.emptyFiltered", { status: statusFilter })
+                      }
                     />
                   )}
 
@@ -2244,6 +2306,54 @@ export default function EmployerDashboard() {
                     </nav>
                   ) : null}
                 </section>
+                )}
+
+                {(!isMobile || mobileApplicantsDrilledIn) && (
+                  <aside
+                    className={`ed-guide ${matchGuideOpen ? "is-open" : ""}`}
+                    aria-labelledby="ed-guide-title"
+                  >
+                    <button
+                      type="button"
+                      className="ed-guide__toggle"
+                      aria-expanded={matchGuideOpen}
+                      aria-controls="ed-guide-body"
+                      onClick={() => setMatchGuideOpen((open) => !open)}
+                    >
+                      <span className="ed-guide__toggle-text">{t("employerDashboard.matchGuide.title")}</span>
+                      <ChevronDown size={18} className="ed-guide__chevron" aria-hidden="true" />
+                    </button>
+                    <h2 id="ed-guide-title" className="ed-guide__title">{t("employerDashboard.matchGuide.title")}</h2>
+                    <div id="ed-guide-body" className="ed-guide__body">
+                      <p className="ed-guide__intro">{t("employerDashboard.matchGuide.intro")}</p>
+                      <ul className="ed-guide__tiers">
+                        {matchGuideTiers.map((row) => (
+                          <li key={row.tier} className={`ed-guide__tier tier-${row.cls}`}>
+                            <span className="ed-guide__swatch" aria-hidden="true" />
+                            <span className="ed-guide__tier-text">
+                              <span className="ed-guide__tier-name">
+                                {t(`employerDashboard.matchGuide.tiers.${row.tier}.name`)}
+                              </span>
+                              <span className="ed-guide__tier-desc">
+                                {t(`employerDashboard.matchGuide.tiers.${row.tier}.desc`)}
+                              </span>
+                            </span>
+                            <span className="ed-guide__range">
+                              {t("employerDashboard.matchGuide.range", { min: row.min, max: row.max })}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <button
+                        type="button"
+                        className="ds-btn ds-btn--secondary ed-guide__tune"
+                        onClick={() => setActiveTab("matchWeights")}
+                      >
+                        <SlidersHorizontal size={16} aria-hidden="true" />
+                        {t("employerDashboard.matchGuide.tune")}
+                      </button>
+                    </div>
+                  </aside>
                 )}
               </div>
             )}
