@@ -889,5 +889,78 @@
       "notFound": "Hindi nahanap ang profile ng user",
       "notFoundDescription": "Maaaring natanggal na ang account na ito, o mali ang link."
     }
+  },
+  "superadmin": {
+    "console": {
+      "subtitle": "Gumawa ng admin account para sa staff ng LMDPESO at pamahalaan ang mga setting ng buong platform.",
+      "rosterTitle": "Mga Pinamamahalaang Admin Account",
+      "totalCount": "{{count}} lahat",
+      "provision": "Gumawa ng Bagong Admin",
+      "searchPlaceholder": "Hanapin ang pangalan, email o tala",
+      "searchLabel": "Hanapin ang mga admin account",
+      "clearSearch": "I-clear ang paghahanap",
+      "filterLabel": "I-filter ayon sa status",
+      "filters": {
+        "all": "Lahat",
+        "active": "Aktibo",
+        "pending": "Nakabinbin",
+        "disabled": "Naka-disable"
+      },
+      "loading": "Nilo-load ang mga admin account…",
+      "emptyTitle": "Wala pang admin account",
+      "emptyDescription": "Gumawa ng unang account para sa staff ng LMDPESO para makapagsimula.",
+      "noMatchTitle": "Walang tugma",
+      "noMatchSearch": "Walang account na tugma sa “{{query}}”.",
+      "noMatchSearchInView": "Walang account na tugma sa “{{query}}” sa view na ito.",
+      "noMatchInView": "Walang account sa view na ito.",
+      "noMatch": "Walang account.",
+      "clearFilters": "I-clear ang mga filter"
+    },
+    "users": {
+      "subtitle": "Bantayan ang akreditasyon ng mga employer at ang mga profile ng jobseeker.",
+      "summaryLabel": "Buod ng kabuuang user",
+      "tabsLabel": "Mga tab ng user management",
+      "tabs": {
+        "employers": "Pamamahala ng Employer",
+        "jobseekers": "Pamamahala ng Jobseeker"
+      },
+      "loading": "Nilo-load ang mga user…",
+      "empty": {
+        "employersTitle": "Walang nahanap na employer",
+        "jobseekersTitle": "Walang nahanap na jobseeker",
+        "description": "Lalabas dito ang mga bagong account sa sandaling mag-register sila."
+      }
+    },
+    "moderation": {
+      "subtitle": "Suriin ang mga report mula sa mga user at magpasya sa mga apela sa suspensyon.",
+      "back": "Bumalik sa User Management",
+      "tabsLabel": "Mga tab ng moderation",
+      "tabs": {
+        "reports": "Mga Report ng User",
+        "appeals": "Mga Apela sa Suspensyon"
+      },
+      "loadingReports": "Nilo-load ang mga report…",
+      "loadingAppeals": "Nilo-load ang mga apela…",
+      "emptyReportsTitle": "Walang report sa view na ito",
+      "emptyReportsDescription": "Subukan ang ibang status filter. Lalabas dito ang mga bagong report mula sa mga user.",
+      "emptyAppealsTitle": "Walang naisumiteng apela",
+      "emptyAppealsDescription": "Lalabas dito ang mga apela mula sa mga suspendido o naka-ban na account."
+    },
+    "audit": {
+      "subtitle": "Suriin ang aktibidad sa platform, mga security event, at mga aksyong pang-administratibo na naitala ng system.",
+      "sectionTitle": "Monitor ng Aktibidad ng System",
+      "loading": "Nilo-load ang mga audit log…",
+      "errorTitle": "Hindi ma-load ang mga audit log",
+      "emptyTitle": "Walang nahanap na audit entry",
+      "emptyDescription": "Ililista dito ang aktibidad sa platform habang nangyayari ito.",
+      "noMatchTitle": "Walang tugmang aktibidad",
+      "noMatchDescription": "Walang activity log na tugma sa mga napiling filter.",
+      "clearFilters": "I-clear ang mga filter"
+    },
+    "pagination": {
+      "label": "Pagination",
+      "previous": "Nakaraang pahina",
+      "next": "Susunod na pahina"
+    }
   }
 }

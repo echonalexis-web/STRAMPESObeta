@@ -3,33 +3,38 @@
    over the shared light STRAM PESO admin palette.
    ============================================================ */
 
+/* UI refresh (phase 5): the --mq-* palette maps onto the shared design
+   tokens instead of slate / rose / indigo. */
 .mq-scope {
-  --mq-surface: #ffffff;
-  --mq-page: #f8fafc;
-  --mq-border: #e8ecf0;
-  --mq-border-strong: #dbe2ea;
-  --mq-heading: #1a2a3a;
-  --mq-muted: #64748b;
-  --mq-faint: #94a3b8;
+  --mq-surface: var(--ds-surface);
+  --mq-page: var(--ds-ink-50);
+  --mq-border: var(--ds-border);
+  --mq-border-strong: var(--ds-ink-300);
+  --mq-heading: var(--ds-ink-900);
+  --mq-muted: var(--ds-muted);
+  --mq-faint: var(--ds-ink-500);
 }
 
-/* Reports = harm to someone → rose. Appeals = restoring access → indigo. */
+/* Reports = forest green accent. Appeals = gold accent (text on gold uses
+   the deep green; gold-tinted text uses --ds-warning for contrast). */
 .mq-panel--reports,
 .mq-drawer--reports,
 .mq-tab--reports.active {
-  --mq-accent: #e11d48;
-  --mq-accent-strong: #be123c;
-  --mq-tint: #fff1f3;
-  --mq-tint-border: #fecdd3;
+  --mq-accent: var(--ds-green);
+  --mq-accent-strong: var(--ds-green-deep);
+  --mq-accent-on: #fff;
+  --mq-tint: var(--ds-mint);
+  --mq-tint-border: color-mix(in srgb, var(--ds-green) 24%, transparent);
 }
 
 .mq-panel--appeals,
 .mq-drawer--appeals,
 .mq-tab--appeals.active {
-  --mq-accent: #6366f1;
-  --mq-accent-strong: #4338ca;
-  --mq-tint: #eef2ff;
-  --mq-tint-border: #c7d2fe;
+  --mq-accent: var(--ds-gold);
+  --mq-accent-strong: var(--ds-warning);
+  --mq-accent-on: var(--ds-green-deep);
+  --mq-tint: var(--ds-warning-bg);
+  --mq-tint-border: color-mix(in srgb, var(--ds-gold) 50%, transparent);
 }
 
 /* ---------- Header with a section-specific icon ---------- */
@@ -1012,5 +1017,548 @@
 @media (min-width: 769px) {
   .mq-mobile-list {
     display: none;
+  }
+}
+
+/* ============================================ */
+/* UI refresh (phase 5): Reports & Appeals       */
+/* ============================================ */
+
+/* Scoped under .mq-scope (only UserModeration renders it). Overrides the
+   legacy rules above: no coloured edge stripes, .ds-table / .ds-tab looks,
+   44px controls and 16px fields below 768px. */
+
+/* Back link: 44px tap target */
+.mq-scope .admin-backlink {
+  width: auto;
+  max-width: var(--ds-page-max);
+  min-height: var(--ds-tap);
+  margin: 0 0 var(--ds-space-3);
+  padding: 0 var(--ds-space-2);
+  border-radius: var(--ds-radius-btn);
+  color: var(--ds-green);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+}
+.mq-scope .admin-backlink:hover {
+  color: var(--ds-green-deep);
+}
+
+/* Tabs: .ds-tab look; the active tab takes its queue's accent */
+.mq-scope .mq-tab-bar {
+  max-width: var(--ds-page-max);
+  margin: 0 0 var(--ds-space-4);
+  gap: var(--ds-space-2);
+}
+.mq-scope .mq-tab {
+  position: static;
+  gap: var(--ds-space-2);
+  color: var(--ds-ink-700);
+}
+.mq-scope .mq-tab__icon {
+  color: var(--ds-ink-500);
+  font-size: 14px;
+}
+.mq-scope .mq-tab.is-active {
+  border-color: var(--mq-accent);
+  background: var(--mq-accent);
+  color: var(--mq-accent-on);
+}
+.mq-scope .mq-tab.is-active .mq-tab__icon {
+  color: inherit;
+}
+.mq-scope .mq-tab__badge {
+  position: static;
+  height: auto;
+  min-width: 20px;
+  padding: 0 6px;
+  background: var(--ds-mint);
+  color: var(--ds-green);
+  font-size: var(--ds-text-xs);
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.mq-scope .mq-tab.is-active .mq-tab__badge {
+  background: var(--ds-surface);
+  color: var(--ds-green-deep);
+}
+@media (max-width: 768px) {
+  .mq-scope .mq-tab-bar .mq-tab {
+    flex: 0 0 auto;
+    min-height: var(--ds-tap);
+    padding: 0 var(--ds-space-4);
+    white-space: nowrap;
+  }
+}
+
+/* Queue panel: plain bordered card, accent as a small dot by the heading */
+.mq-scope .mq-panel {
+  border-top: 1px solid var(--ds-border);
+}
+.mq-scope .mq-panel__heading h2,
+.mq-scope .mq-panel__heading h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  margin: 0;
+  color: var(--ds-text);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-h3);
+  font-weight: 800;
+  line-height: var(--ds-leading-snug);
+  text-wrap: balance;
+}
+.mq-scope .mq-panel__accent {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--mq-accent);
+}
+.mq-scope .mq-panel__heading p {
+  max-width: 75ch;
+  margin: var(--ds-space-1) 0 0;
+  color: var(--ds-muted);
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-body);
+}
+.mq-scope .mq-select {
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  border-color: var(--ds-ink-300);
+  border-radius: var(--ds-radius-btn);
+  background-color: var(--ds-surface);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-md);
+}
+.mq-scope .mq-select:focus {
+  border-color: var(--ds-green);
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+/* Stat strip: bordered tiles, tone carried by the number colour (no stripes) */
+.mq-scope .mq-stat {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+}
+.mq-scope .mq-stat__value {
+  font-family: var(--ds-font-display);
+  font-variant-numeric: tabular-nums;
+}
+.mq-scope .mq-stat__label {
+  color: var(--ds-ink-500);
+  font-size: var(--ds-text-xs);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.mq-scope .mq-stat--danger .mq-stat__value { color: var(--ds-danger); }
+.mq-scope .mq-stat--warn .mq-stat__value { color: var(--ds-warning); }
+.mq-scope .mq-stat--info .mq-stat__value { color: var(--ds-info); }
+.mq-scope .mq-stat--success .mq-stat__value { color: var(--ds-success); }
+@media (max-width: 768px) {
+  .mq-scope .mq-stat__label {
+    font-size: var(--ds-text-xs);
+    line-height: 1.25;
+  }
+}
+
+/* Table: .ds-table look, severity carried by the dot + text (no row stripes) */
+.mq-scope .mq-table-wrap {
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+}
+.mq-scope .mq-table {
+  color: var(--ds-ink-900);
+  font-size: var(--ds-text-sm);
+}
+.mq-scope .mq-table thead th {
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border-bottom-color: var(--ds-border);
+  background: var(--ds-ink-50);
+  color: var(--ds-ink-500);
+  font-size: var(--ds-text-xs);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+.mq-scope .mq-table tbody td {
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border-bottom-color: var(--ds-ink-100);
+  color: var(--ds-ink-900);
+}
+.mq-scope .mq-row {
+  border-left: 0;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+.mq-scope .mq-row:hover {
+  background: var(--ds-ink-50);
+}
+.mq-scope .mq-state-cell {
+  padding: var(--ds-space-4);
+}
+.mq-scope .mq-state-cell .ds-state,
+.mq-scope .mq-mobile-list .ds-state {
+  border-style: dashed;
+}
+
+.mq-scope .mq-dot--high { background: var(--ds-danger); box-shadow: 0 0 0 3px var(--ds-danger-bg); }
+.mq-scope .mq-dot--medium { background: var(--ds-gold); box-shadow: 0 0 0 3px var(--ds-warning-bg); }
+.mq-scope .mq-dot--low { background: var(--ds-ink-300); }
+.mq-scope .mq-dot--appeal-pending { background: var(--ds-gold); }
+.mq-scope .mq-dot--appeal-under_review { background: var(--ds-info); }
+.mq-scope .mq-dot--appeal-approved { background: var(--ds-success); }
+.mq-scope .mq-dot--appeal-denied { background: var(--ds-ink-300); }
+
+.mq-scope .mq-linklike {
+  color: var(--ds-green);
+  text-underline-offset: 2px;
+}
+.mq-scope .mq-repeat {
+  background: var(--ds-danger-bg);
+  color: var(--ds-danger);
+  font-size: var(--ds-text-xs);
+}
+.mq-scope .mq-muted {
+  color: var(--ds-ink-500);
+  font-size: var(--ds-text-xs);
+}
+.mq-scope .mq-reason__sev {
+  font-size: var(--ds-text-xs);
+}
+.mq-scope .mq-reason__sev--danger,
+.mq-scope .mq-sev--danger { color: var(--ds-danger); }
+.mq-scope .mq-reason__sev--warn,
+.mq-scope .mq-sev--warn { color: var(--ds-warning); }
+.mq-scope .mq-reason__sev--muted,
+.mq-scope .mq-sev--muted { color: var(--ds-ink-500); }
+
+/* Status / type chips: semantic tokens, always with text */
+.mq-scope .mq-status,
+.mq-scope .mq-pill {
+  padding: 2px var(--ds-space-3);
+  border: 1px solid transparent;
+  font-size: var(--ds-text-xs);
+  line-height: 1.5;
+}
+.mq-scope .mq-status--open { border-color: color-mix(in srgb, var(--ds-danger) 25%, transparent); background: var(--ds-danger-bg); color: var(--ds-danger); }
+.mq-scope .mq-status--under_review { border-color: color-mix(in srgb, var(--ds-info) 25%, transparent); background: var(--ds-info-bg); color: var(--ds-info); }
+.mq-scope .mq-status--action_taken,
+.mq-scope .mq-status--approved { border-color: color-mix(in srgb, var(--ds-success) 25%, transparent); background: var(--ds-success-bg); color: var(--ds-success); }
+.mq-scope .mq-status--dismissed,
+.mq-scope .mq-status--denied { border-color: var(--ds-ink-100); background: var(--ds-ink-50); color: var(--ds-ink-700); }
+.mq-scope .mq-status--pending { border-color: color-mix(in srgb, var(--ds-gold) 50%, transparent); background: var(--ds-warning-bg); color: var(--ds-warning); }
+.mq-scope .mq-pill--success { background: var(--ds-success-bg); color: var(--ds-success); }
+.mq-scope .mq-pill--danger { border-color: color-mix(in srgb, var(--ds-danger) 25%, transparent); background: var(--ds-danger-bg); color: var(--ds-danger); }
+.mq-scope .mq-pill--critical { background: var(--ds-danger); color: #fff; }
+
+/* Buttons: 44px, token colours */
+.mq-scope .mq-btn {
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-4);
+  border-radius: var(--ds-radius-btn);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    border-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+.mq-scope .mq-btn--review {
+  border-color: var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-green);
+}
+.mq-scope .mq-btn--review:hover {
+  background: var(--ds-mint);
+}
+.mq-scope .mq-btn--primary {
+  background: var(--mq-accent);
+  color: var(--mq-accent-on);
+}
+.mq-scope .mq-btn--primary:hover:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--mq-accent) 86%, #000);
+}
+.mq-scope .mq-btn--ghost {
+  border-color: var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-ink-700);
+}
+.mq-scope .mq-btn--ghost:hover:not(:disabled) {
+  background: var(--ds-ink-50);
+}
+@media (min-width: 769px) and (pointer: fine) {
+  .mq-scope .mq-row__action .mq-btn {
+    min-height: 36px;
+  }
+}
+
+/* Review drawer: tokens only — Esc / overlay-close behaviour unchanged */
+.mq-scope .mq-drawer-overlay {
+  background: color-mix(in srgb, var(--ds-ink-900) 50%, transparent);
+}
+.mq-scope .mq-drawer {
+  height: 100vh;
+  height: 100dvh;
+  border-left: 0;
+  background: var(--ds-surface);
+  box-shadow: var(--ds-elev-2);
+}
+.mq-scope .mq-drawer__head {
+  border-bottom-color: var(--ds-border);
+  background: var(--mq-tint);
+}
+.mq-scope .mq-drawer__icon {
+  border-color: var(--mq-tint-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--mq-accent-strong);
+}
+.mq-scope .mq-drawer__head h3 {
+  margin: 0;
+  color: var(--ds-text);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-h3);
+  font-weight: 800;
+  text-wrap: balance;
+}
+/* The queue type ("User report", "Suspension appeal") now sits under the
+   title as plain meta text, not as an uppercase kicker above it. */
+.mq-scope .mq-drawer__eyebrow {
+  margin: var(--ds-space-1) 0 0;
+  color: var(--mq-accent-strong);
+  font-size: var(--ds-text-xs);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.mq-scope .mq-drawer__sub {
+  color: var(--ds-muted);
+  font-size: var(--ds-text-xs);
+}
+.mq-scope .mq-drawer__close {
+  width: var(--ds-tap);
+  height: var(--ds-tap);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-surface);
+  color: var(--ds-ink-700);
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+.mq-scope .mq-drawer__close:hover {
+  border-color: var(--ds-border);
+  background: var(--ds-ink-50);
+  color: var(--ds-text);
+}
+.mq-scope .mq-drawer__close-svg {
+  position: static;
+  width: 16px;
+  height: 16px;
+  opacity: 1;
+}
+.mq-scope .mq-drawer__body {
+  padding-bottom: calc(var(--ds-space-4) + env(safe-area-inset-bottom));
+}
+.mq-scope .mq-drawer-section__title,
+.mq-scope .mq-details strong {
+  color: var(--ds-ink-700);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-sm);
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.mq-scope .mq-ctx-row {
+  border-bottom: 1px solid var(--ds-ink-100);
+  font-size: var(--ds-text-sm);
+}
+.mq-scope .mq-details {
+  border-color: var(--ds-border);
+  background: var(--ds-ink-50);
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+}
+.mq-scope .mq-usercard {
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-md);
+}
+.mq-scope .mq-usercard__meta {
+  color: var(--ds-muted);
+  font-size: var(--ds-text-xs);
+}
+.mq-scope .mq-usercard__stats > div {
+  border-color: var(--ds-ink-100);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-ink-50);
+}
+.mq-scope .mq-usercard__stats strong {
+  font-variant-numeric: tabular-nums;
+}
+.mq-scope .mq-usercard__stats span {
+  color: var(--ds-ink-500);
+  font-size: var(--ds-text-xs);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.mq-scope .mq-usercard__stats > div.is-flagged {
+  border-color: color-mix(in srgb, var(--ds-danger) 25%, transparent);
+  background: var(--ds-danger-bg);
+}
+.mq-scope .mq-usercard__stats > div.is-flagged strong {
+  color: var(--ds-danger);
+}
+.mq-scope .mq-linkbtn {
+  min-height: var(--ds-tap);
+  color: var(--ds-green);
+  font-size: var(--ds-text-sm);
+}
+.mq-scope .mq-decision-block {
+  border-color: var(--mq-tint-border);
+  border-radius: var(--ds-radius-md);
+}
+.mq-scope .mq-decision {
+  min-height: var(--ds-tap);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-surface);
+  transition: border-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    box-shadow var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+.mq-scope .mq-decision:hover {
+  border-color: var(--ds-ink-300);
+}
+.mq-scope .mq-decision.is-selected {
+  box-shadow: 0 0 0 2px currentColor;
+}
+.mq-scope .mq-decision__label {
+  color: var(--ds-text);
+  font-size: var(--ds-text-sm);
+}
+.mq-scope .mq-decision__hint {
+  color: var(--ds-muted);
+  font-size: var(--ds-text-xs);
+}
+.mq-scope .mq-decision--neutral.is-selected { border-color: var(--ds-ink-500); color: var(--ds-ink-500); }
+.mq-scope .mq-decision--warn.is-selected { border-color: var(--ds-gold); color: var(--ds-gold); }
+.mq-scope .mq-decision--warn.is-selected .mq-decision__label { color: var(--ds-warning); }
+.mq-scope .mq-decision--danger.is-selected,
+.mq-scope .mq-decision--critical.is-selected { border-color: var(--ds-danger); color: var(--ds-danger); }
+.mq-scope .mq-decision--danger.is-selected .mq-decision__label,
+.mq-scope .mq-decision--critical.is-selected .mq-decision__label { color: var(--ds-danger); }
+.mq-scope .mq-decision--success.is-selected { border-color: var(--ds-success); color: var(--ds-success); }
+.mq-scope .mq-decision--success.is-selected .mq-decision__label { color: var(--ds-success); }
+.mq-scope .mq-field > span {
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+}
+.mq-scope .mq-field textarea {
+  min-height: 96px;
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border-color: var(--ds-ink-300);
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-size: var(--ds-text-md);
+  line-height: var(--ds-leading-body);
+}
+.mq-scope .mq-field textarea:focus {
+  border-color: var(--ds-green);
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+.mq-scope .mq-error {
+  color: var(--ds-danger);
+  font-size: var(--ds-text-sm);
+}
+.mq-scope .mq-drawer__foot {
+  border-top-color: var(--ds-border);
+  background: var(--ds-surface);
+}
+@media (min-width: 768px) {
+  .mq-scope .mq-select,
+  .mq-scope .mq-field textarea {
+    font-size: var(--ds-text-sm);
+  }
+}
+
+/* Pagination: 44px buttons on touch / below 768px */
+.mq-scope .mq-pagination {
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+}
+.mq-scope .mq-pagination__info {
+  color: var(--ds-muted);
+  font-size: var(--ds-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.mq-scope .mq-pagination__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-surface);
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.mq-scope .mq-pagination__btn:hover:not(:disabled):not(.is-active) {
+  border-color: var(--ds-green);
+  background: var(--ds-mint);
+  color: var(--ds-green);
+}
+.mq-scope .mq-pagination__btn.is-active {
+  border-color: var(--ds-green);
+  background: var(--ds-green);
+  color: #fff;
+}
+@media (max-width: 768px) {
+  .mq-scope .mq-pagination__btn {
+    min-width: var(--ds-tap);
+    height: var(--ds-tap);
+  }
+}
+
+/* Mobile card list: matches the table look (no coloured edge stripes) */
+@media (max-width: 768px) {
+  .mq-scope .mq-mobile-card {
+    border: 1px solid var(--ds-border);
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-surface);
+    box-shadow: none;
+  }
+  .mq-scope .mq-mobile-card__meta label {
+    color: var(--ds-ink-500);
+    font-size: var(--ds-text-xs);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .mq-scope .mq-mobile-card__meta p {
+    color: var(--ds-ink-900);
+    font-size: var(--ds-text-sm);
+  }
+  .mq-scope .mq-linklike {
+    min-height: var(--ds-tap);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mq-scope .mq-drawer {
+    animation: none;
+  }
+  .mq-scope .mq-row,
+  .mq-scope .mq-btn,
+  .mq-scope .mq-decision,
+  .mq-scope .mq-drawer__close {
+    transition: none;
   }
 }

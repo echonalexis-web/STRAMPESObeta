@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FaChevronDown, FaSlidersH } from "react-icons/fa";
 import { adminAPI } from "../../services/api";
+import StateBlock from "../../components/StateBlock";
 import "../../styles/admin.css";
 import "../../styles/audit-trail.css";
 import AdminHeader from "./AdminHeader";
@@ -58,6 +60,7 @@ const getPaginationItems = (currentPage, totalPages, siblingCount = 1) => {
 };
 
 export default function AuditTrail() {
+  const { t } = useTranslation();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -149,20 +152,51 @@ export default function AuditTrail() {
     setRowsPerPage(10);
   };
 
+  // Shared loading / error / empty block for the table body and the mobile list.
+  const renderListState = () => {
+    if (loading) {
+      return <StateBlock kind="loading" className="audit-state" title={t("superadmin.audit.loading")} />;
+    }
+    if (error) {
+      return (
+        <StateBlock
+          kind="error"
+          className="audit-state"
+          title={t("superadmin.audit.errorTitle")}
+          description={error}
+        />
+      );
+    }
+    return (
+      <StateBlock
+        kind="empty"
+        className="audit-state"
+        title={hasActiveFilters ? t("superadmin.audit.noMatchTitle") : t("superadmin.audit.emptyTitle")}
+        description={
+          hasActiveFilters ? t("superadmin.audit.noMatchDescription") : t("superadmin.audit.emptyDescription")
+        }
+        action={
+          hasActiveFilters ? (
+            <button type="button" className="admin-filter-reset" onClick={resetFilters}>
+              {t("superadmin.audit.clearFilters")}
+            </button>
+          ) : null
+        }
+      />
+    );
+  };
+
   return (
-    <div className="admin-page-container">
+    <div className="admin-page-container audit-page">
       <AdminHeader
-        title="Audit Trail"
-        description="Review platform activity, security events, and administrative actions captured by the backend."
+        title={t("navbar.auditTrail")}
+        description={t("superadmin.audit.subtitle")}
       />
 
       <section className="admin-panel-card">
         <div className="admin-card-header">
-          <h3>System Activity Monitor</h3>
+          <h2 className="audit-page__section-title">{t("superadmin.audit.sectionTitle")}</h2>
         </div>
-
-        {error ? <div className="admin-form-error">{error}</div> : null}
-
         <div className="admin-audit-toolbar">
           <div className="admin-filter-row">
             <div className="admin-filter-group admin-filter-search">
@@ -284,19 +318,9 @@ export default function AuditTrail() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {loading || logs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="admin-loading">Loading audit logs...</td>
-                </tr>
-              ) : logs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="admin-empty-state admin-audit-empty-state">
-                    <p>
-                      {hasActiveFilters
-                        ? "No activity logs found matching the selected filters."
-                        : "No audit entries found."}
-                    </p>
-                  </td>
+                  <td colSpan={5} className="audit-state-cell">{renderListState()}</td>
                 </tr>
               ) : (
                 logs.map((log) => {
@@ -322,16 +346,8 @@ export default function AuditTrail() {
         </div>
 
         <div className="admin-audit-mobile-list" aria-label="Audit log mobile list">
-          {loading ? (
-            <p className="admin-loading">Loading audit logs...</p>
-          ) : logs.length === 0 ? (
-            <div className="admin-empty-state admin-audit-empty-state">
-              <p>
-                {hasActiveFilters
-                  ? "No activity logs found matching the selected filters."
-                  : "No audit entries found."}
-              </p>
-            </div>
+          {loading || logs.length === 0 ? (
+            renderListState()
           ) : (
             logs.map((log) => {
               const { severityClass, severityLabel } = getSeverityMeta(log.severity);
@@ -372,7 +388,7 @@ export default function AuditTrail() {
             Showing {startEntry}-{endEntry} of {totalEntries} entries
           </div>
 
-          <div className="admin-audit-pagination__controls">
+          <nav className="admin-audit-pagination__controls" aria-label={t("superadmin.pagination.label")}>
             <button
               type="button"
               className="admin-audit-pagination__button"
@@ -396,6 +412,7 @@ export default function AuditTrail() {
                   key={item}
                   type="button"
                   className={`admin-audit-pagination__button ${safeCurrentPage === item ? "admin-audit-pagination__button--active" : ""}`}
+                  aria-current={safeCurrentPage === item ? "page" : undefined}
                   onClick={() => setCurrentPage(item)}
                 >
                   {item}
@@ -411,7 +428,7 @@ export default function AuditTrail() {
             >
               Next
             </button>
-          </div>
+          </nav>
 
           <div className="admin-audit-pagination__rows">
             <label htmlFor="audit-rows-per-page">Rows per page</label>

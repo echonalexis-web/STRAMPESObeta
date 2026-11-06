@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   FaUserShield,
   FaUserPlus,
@@ -14,6 +15,8 @@ import {
 import NsrpTemplateSettings from "../../components/NsrpTemplateSettings";
 import MatchWeightBoundsSettings from "../../components/MatchWeightBoundsSettings";
 import SystemOptionsSettings from "../../components/SystemOptionsSettings";
+import StateBlock from "../../components/StateBlock";
+import useParallaxLayer from "../../hooks/useParallaxLayer";
 import { superadminAPI } from "../../services/api";
 import "../../styles/superadmin-console.css";
 
@@ -59,7 +62,15 @@ const STATUS_META = {
   disabled: { label: "Disabled", className: "sac-badge--disabled" },
 };
 
+// Decorative ring art for the page-header band — the console's single
+// parallax layer (leaf element, aria-hidden).
+const PageHeadArt = () => {
+  const artRef = useParallaxLayer(0.1, 24);
+  return <span ref={artRef} className="ds-pagehead__art mx-parallax" aria-hidden="true" />;
+};
+
 export default function SuperadminConsole() {
+  const { t } = useTranslation();
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -238,90 +249,108 @@ export default function SuperadminConsole() {
     <div className="sac">
       <main className="sac__main">
 
+        {/* Page-header band (.ds-pagehead) — holds the page's only <h1>. */}
+        <header className="sac__pagehead-band ds-pagehead">
+          <PageHeadArt />
+          <div className="ds-pagehead__text">
+            <h1 className="ds-pagehead__title">{t("navbar.superadminConsole")}</h1>
+            <p className="ds-pagehead__sub">{t("superadmin.console.subtitle")}</p>
+          </div>
+        </header>
+
         {error ? (
-          <div className="sac__error" role="alert">
-            <FaTriangleExclamation /> <span>{error}</span>
+          <div className="sac__error ds-alert ds-alert--error" role="alert">
+            <FaTriangleExclamation aria-hidden="true" /> <span className="ds-alert__body">{error}</span>
           </div>
         ) : null}
 
         <section className="sac__card sac__roster">
           <header className="sac__roster-head">
             <div className="sac__roster-heading">
-              <h2><FaUserShield /> Managed Admin Accounts</h2>
-              <span className="sac__count">{counts.all} total</span>
+              <h2><FaUserShield aria-hidden="true" /> {t("superadmin.console.rosterTitle")}</h2>
+              <span className="sac__count">{t("superadmin.console.totalCount", { count: counts.all })}</span>
             </div>
             <button
               type="button"
               className="sac__primary sac__provision-trigger"
               onClick={() => setDrawerOpen(true)}
             >
-              <FaUserPlus /> Provision New Admin
+              <FaUserPlus aria-hidden="true" /> {t("superadmin.console.provision")}
             </button>
           </header>
 
-          <div className="sac__toolbar">
+          <div className="sac__toolbar ds-toolbar">
             <div className="sac__search">
-              <FaMagnifyingGlass />
+              <FaMagnifyingGlass aria-hidden="true" />
               <input
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search name, email or note"
-                aria-label="Search admin accounts"
+                placeholder={t("superadmin.console.searchPlaceholder")}
+                aria-label={t("superadmin.console.searchLabel")}
               />
               {search ? (
-                <button type="button" onClick={() => setSearch("")} aria-label="Clear search">
-                  <FaXmark />
+                <button type="button" onClick={() => setSearch("")} aria-label={t("superadmin.console.clearSearch")}>
+                  <FaXmark aria-hidden="true" />
                 </button>
               ) : null}
             </div>
-            <div className="sac__tabs" role="tablist" aria-label="Filter by status">
+            <div className="sac__tabs ds-tabs" role="tablist" aria-label={t("superadmin.console.filterLabel")}>
               {FILTERS.map((tab) => (
                 <button
                   key={tab.key}
                   type="button"
                   role="tab"
                   aria-selected={filter === tab.key}
-                  className={`sac__tab${filter === tab.key ? " is-active" : ""}`}
+                  className={`sac__tab ds-tab${filter === tab.key ? " is-active" : ""}`}
                   onClick={() => setFilter(tab.key)}
                 >
-                  {tab.label}
-                  <span className="sac__tab-count">{counts[tab.key]}</span>
+                  {t(`superadmin.console.filters.${tab.key}`)}
+                  <span className="sac__tab-count ds-tab__count">{counts[tab.key]}</span>
                 </button>
               ))}
             </div>
           </div>
 
           {loading ? (
-            <div className="sac__state">Loading admin accounts…</div>
+            <StateBlock kind="loading" className="sac__stateblock" title={t("superadmin.console.loading")} />
           ) : !hasAnyAdmins ? (
-            <div className="sac__state">
-              <span className="sac__state-icon"><FaUserShield /></span>
-              <strong>No admin accounts yet</strong>
-              <p>Provision the first LMDPESO staff account to get started.</p>
-              <button type="button" className="sac__primary" onClick={() => setDrawerOpen(true)}>
-                <FaUserPlus /> Provision New Admin
-              </button>
-            </div>
+            <StateBlock
+              kind="empty"
+              className="sac__stateblock"
+              title={t("superadmin.console.emptyTitle")}
+              description={t("superadmin.console.emptyDescription")}
+              action={
+                <button type="button" className="sac__primary" onClick={() => setDrawerOpen(true)}>
+                  <FaUserPlus aria-hidden="true" /> {t("superadmin.console.provision")}
+                </button>
+              }
+            />
           ) : filteredAdmins.length === 0 ? (
-            <div className="sac__state">
-              <span className="sac__state-icon"><FaMagnifyingGlass /></span>
-              <strong>No matches</strong>
-              <p>
-                {search ? <>No accounts match “<b>{search}</b>”</> : "No accounts"}
-                {filter !== "all" ? " in this view" : ""}.
-              </p>
-              <button
-                type="button"
-                className="sac__ghost"
-                onClick={() => {
-                  setSearch("");
-                  setFilter("all");
-                }}
-              >
-                Clear filters
-              </button>
-            </div>
+            <StateBlock
+              kind="empty"
+              className="sac__stateblock"
+              title={t("superadmin.console.noMatchTitle")}
+              description={
+                search
+                  ? t(filter !== "all" ? "superadmin.console.noMatchSearchInView" : "superadmin.console.noMatchSearch", {
+                      query: search,
+                    })
+                  : t(filter !== "all" ? "superadmin.console.noMatchInView" : "superadmin.console.noMatch")
+              }
+              action={
+                <button
+                  type="button"
+                  className="sac__ghost"
+                  onClick={() => {
+                    setSearch("");
+                    setFilter("all");
+                  }}
+                >
+                  {t("superadmin.console.clearFilters")}
+                </button>
+              }
+            />
           ) : (
             <div className="sac__table-wrap">
               <table className="sac__table">

@@ -1,18 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { Building2, TriangleAlert, UserRound } from "lucide-react";
 import { adminAPI } from "../../services/api";
+import MetricCard from "../../components/MetricCard";
+import StateBlock from "../../components/StateBlock";
 import "../../styles/admin.css";
 import AdminHeader from "./AdminHeader";
 
 const tabMeta = {
   employers: {
-    label: "Employers Management",
-    emoji: "🏢",
+    labelKey: "superadmin.users.tabs.employers",
+    Icon: Building2,
     badgeKey: "employerCount",
   },
   jobseekers: {
-    label: "Jobseekers Management",
-    emoji: "👤",
+    labelKey: "superadmin.users.tabs.jobseekers",
+    Icon: UserRound,
     badgeKey: "jobseekerCount",
   },
 };
@@ -27,31 +31,38 @@ const formatDate = (value) => {
 };
 
 function UserStatCards({ employers, jobseekers }) {
+  const { t } = useTranslation();
   const stats = [
-    { label: "Employers", value: employers, tone: "info", icon: "🏢" },
-    { label: "Jobseekers", value: jobseekers, tone: "success", icon: "👤" },
+    { key: "employers", label: t("admin.kpi.employers"), value: employers, icon: <Building2 size={20} /> },
+    { key: "jobseekers", label: t("admin.kpi.jobSeekers"), value: jobseekers, icon: <UserRound size={20} /> },
   ];
 
   return (
-    <section className="admin-user-summary" aria-label="User totals summary">
+    <section className="admin-user-summary ds-metrics um-summary" aria-label={t("superadmin.users.summaryLabel")}>
       {stats.map((stat) => (
-        <article key={stat.label} className={`admin-user-summary-card admin-user-summary-card--${stat.tone}`}>
-          <div className="admin-user-summary-card__icon">{stat.icon}</div>
-          <div className="admin-user-summary-card__content">
-            <span className="admin-user-summary-card__label">{stat.label}</span>
-            <strong>{stat.value}</strong>
-          </div>
-        </article>
+        <MetricCard key={stat.key} icon={stat.icon} value={stat.value} label={stat.label} />
       ))}
     </section>
   );
 }
 
-function UserDirectoryCards({ title, data, onToggleStatus, onViewProfile }) {
+function UserDirectoryEmpty({ role }) {
+  const { t } = useTranslation();
+  return (
+    <StateBlock
+      kind="empty"
+      className="um-state"
+      title={t(`superadmin.users.empty.${role}Title`)}
+      description={t("superadmin.users.empty.description")}
+    />
+  );
+}
+
+function UserDirectoryCards({ title, role, data, onToggleStatus, onViewProfile }) {
   return (
     <div className="admin-mobile-user-list" aria-label={`${title} mobile directory`}>
       {data.length === 0 ? (
-        <div className="admin-empty-state"><p>No {title.toLowerCase()} found.</p></div>
+        <UserDirectoryEmpty role={role} />
       ) : (
         data.map((user) => (
           <article key={user._id} className="admin-mobile-user-card">
@@ -108,7 +119,7 @@ function EmployersDirectory({ data, onToggleStatus, onViewProfile }) {
           <tbody>
             {data.length === 0 ? (
               <tr>
-                <td colSpan={5} className="admin-empty-state"><p>No employers found.</p></td>
+                <td colSpan={5} className="um-empty-cell"><UserDirectoryEmpty role="employers" /></td>
               </tr>
             ) : (
               data.map((user) => (
@@ -137,7 +148,7 @@ function EmployersDirectory({ data, onToggleStatus, onViewProfile }) {
           </tbody>
         </table>
       </div>
-      <UserDirectoryCards title="Employers" data={data} onToggleStatus={onToggleStatus} onViewProfile={onViewProfile} />
+      <UserDirectoryCards title="Employers" role="employers" data={data} onToggleStatus={onToggleStatus} onViewProfile={onViewProfile} />
     </div>
   );
 }
@@ -162,7 +173,7 @@ function JobseekersDirectory({ data, onToggleStatus, onViewProfile }) {
           <tbody>
             {data.length === 0 ? (
               <tr>
-                <td colSpan={5} className="admin-empty-state"><p>No jobseekers found.</p></td>
+                <td colSpan={5} className="um-empty-cell"><UserDirectoryEmpty role="jobseekers" /></td>
               </tr>
             ) : (
               data.map((user) => (
@@ -191,7 +202,7 @@ function JobseekersDirectory({ data, onToggleStatus, onViewProfile }) {
           </tbody>
         </table>
       </div>
-      <UserDirectoryCards title="Jobseekers" data={data} onToggleStatus={onToggleStatus} onViewProfile={onViewProfile} />
+      <UserDirectoryCards title="Jobseekers" role="jobseekers" data={data} onToggleStatus={onToggleStatus} onViewProfile={onViewProfile} />
     </div>
   );
 }
@@ -220,6 +231,7 @@ function buildPageList(current, total) {
 }
 
 export default function UserManagement() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("employers");
   const [users, setUsers] = useState([]);
@@ -359,7 +371,11 @@ export default function UserManagement() {
 
   const renderTabContent = () => {
     if (loading) {
-      return <div className="admin-panel-card"><p className="admin-loading">Loading users...</p></div>;
+      return (
+        <div className="admin-panel-card">
+          <StateBlock kind="loading" className="um-state" title={t("superadmin.users.loading")} />
+        </div>
+      );
     }
 
     if (activeTab === "jobseekers") return <JobseekersDirectory data={users} onToggleStatus={handleToggleUserStatus} onViewProfile={handleViewProfile} />;
@@ -367,10 +383,10 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="admin-page-container">
+    <div className="admin-page-container um-page">
       <AdminHeader
-        title="User Management"
-        description="Supervise employer accreditations and jobseeker profiles."
+        title={t("navbar.userManagement")}
+        description={t("superadmin.users.subtitle")}
       />
 
       <UserStatCards
@@ -378,16 +394,19 @@ export default function UserManagement() {
         jobseekers={counts.jobseekerCount}
       />
 
-      <div className="tab-pill-bar um-tab-bar" role="tablist" aria-label="User management tabs">
+      <div className="ds-tabs um-tabs" role="tablist" aria-label={t("superadmin.users.tabsLabel")}>
         {Object.entries(tabMeta).map(([key, meta]) => (
           <button
             key={key}
             type="button"
-            className={`tab-pill ${activeTab === key ? "active" : ""}`}
+            role="tab"
+            aria-selected={activeTab === key}
+            className={`ds-tab um-tab ${activeTab === key ? "is-active" : ""}`}
             onClick={() => setActiveTab(key)}
           >
-            <span>{meta.emoji} {meta.label}</span>
-            <span className="badge">
+            <meta.Icon size={18} aria-hidden="true" />
+            <span>{t(meta.labelKey)}</span>
+            <span className="ds-tab__count">
               {counts[meta.badgeKey]}
             </span>
           </button>
@@ -397,7 +416,7 @@ export default function UserManagement() {
       <div className="tab-content">{renderTabContent()}</div>
 
       {!loading && (
-        <div className="admin-pagination um-pagination">
+        <nav className="admin-pagination um-pagination" aria-label={t("superadmin.pagination.label")}>
           <button
             type="button"
             disabled={page === 1}
@@ -432,17 +451,22 @@ export default function UserManagement() {
           >
             Next
           </button>
-        </div>
+        </nav>
       )}
 
       {selectedUser ? (
         <div className="admin-warning-modal-backdrop" onClick={() => setSelectedUser(null)}>
-          <div className="admin-warning-modal" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="admin-warning-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="um-warning-title"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="admin-warning-modal-header">
-              <div className="admin-warning-modal-icon">!</div>
+              <div className="admin-warning-modal-icon" aria-hidden="true"><TriangleAlert size={22} /></div>
               <div>
-                <p>Account action</p>
-                <h3>{selectedUser.isActive === false ? "Reactivate user" : "Deactivate user"}</h3>
+                <h3 id="um-warning-title">{selectedUser.isActive === false ? "Reactivate user" : "Deactivate user"}</h3>
               </div>
             </div>
 

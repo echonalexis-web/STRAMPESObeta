@@ -889,5 +889,78 @@
       "notFound": "User profile not found",
       "notFoundDescription": "This account may have been removed, or the link is incorrect."
     }
+  },
+  "superadmin": {
+    "console": {
+      "subtitle": "Provision LMDPESO staff admin accounts and manage platform-wide settings.",
+      "rosterTitle": "Managed Admin Accounts",
+      "totalCount": "{{count}} total",
+      "provision": "Provision New Admin",
+      "searchPlaceholder": "Search name, email or note",
+      "searchLabel": "Search admin accounts",
+      "clearSearch": "Clear search",
+      "filterLabel": "Filter by status",
+      "filters": {
+        "all": "All",
+        "active": "Active",
+        "pending": "Pending",
+        "disabled": "Disabled"
+      },
+      "loading": "Loading admin accounts…",
+      "emptyTitle": "No admin accounts yet",
+      "emptyDescription": "Provision the first LMDPESO staff account to get started.",
+      "noMatchTitle": "No matches",
+      "noMatchSearch": "No accounts match “{{query}}”.",
+      "noMatchSearchInView": "No accounts match “{{query}}” in this view.",
+      "noMatchInView": "No accounts in this view.",
+      "noMatch": "No accounts.",
+      "clearFilters": "Clear filters"
+    },
+    "users": {
+      "subtitle": "Supervise employer accreditations and jobseeker profiles.",
+      "summaryLabel": "User totals summary",
+      "tabsLabel": "User management tabs",
+      "tabs": {
+        "employers": "Employers Management",
+        "jobseekers": "Jobseekers Management"
+      },
+      "loading": "Loading users…",
+      "empty": {
+        "employersTitle": "No employers found",
+        "jobseekersTitle": "No jobseekers found",
+        "description": "New accounts appear here as soon as they register."
+      }
+    },
+    "moderation": {
+      "subtitle": "Review user-submitted reports and decide on suspension appeals.",
+      "back": "Back to User Management",
+      "tabsLabel": "Moderation tabs",
+      "tabs": {
+        "reports": "User Reports",
+        "appeals": "Suspension Appeals"
+      },
+      "loadingReports": "Loading reports…",
+      "loadingAppeals": "Loading appeals…",
+      "emptyReportsTitle": "No reports in this view",
+      "emptyReportsDescription": "Try another status filter. New reports from users appear here.",
+      "emptyAppealsTitle": "No appeals submitted",
+      "emptyAppealsDescription": "Appeals from suspended or banned accounts appear here."
+    },
+    "audit": {
+      "subtitle": "Review platform activity, security events, and administrative actions captured by the backend.",
+      "sectionTitle": "System Activity Monitor",
+      "loading": "Loading audit logs…",
+      "errorTitle": "Couldn't load audit logs",
+      "emptyTitle": "No audit entries found",
+      "emptyDescription": "Platform activity will be listed here as it happens.",
+      "noMatchTitle": "No matching activity",
+      "noMatchDescription": "No activity logs match the selected filters.",
+      "clearFilters": "Clear filters"
+    },
+    "pagination": {
+      "label": "Pagination",
+      "previous": "Previous page",
+      "next": "Next page"
+    }
   }
 }

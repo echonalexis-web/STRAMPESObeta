@@ -4527,3 +4527,505 @@
     transition: none;
   }
 }
+
+/* ============================================ */
+/* UI refresh (phase 5): user management + audit trail */
+/* ============================================ */
+
+/* ---------- User Management (scoped to .um-page) ---------- */
+.um-page .um-summary {
+  max-width: var(--ds-page-max);
+  margin: 0 0 var(--ds-space-4);
+}
+.um-page .um-tabs {
+  max-width: var(--ds-page-max);
+  margin: 0 0 var(--ds-space-4);
+}
+.um-page .um-tab svg {
+  flex: none;
+}
+.um-page .admin-card-header h3 {
+  color: var(--ds-text);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-h3);
+  font-weight: 800;
+  line-height: var(--ds-leading-snug);
+  text-wrap: balance;
+}
+.um-page .admin-table-wrap {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+}
+.um-page .um-empty-cell {
+  padding: var(--ds-space-4);
+  background: var(--ds-surface);
+}
+.um-page .um-state {
+  border-style: dashed;
+}
+
+/* Status chips: semantic tokens with text */
+.um-page .admin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--ds-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-pill);
+  font-size: var(--ds-text-xs);
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.um-page .admin-status-badge.active {
+  border-color: color-mix(in srgb, var(--ds-success) 22%, transparent);
+  background: var(--ds-success-bg);
+  color: var(--ds-success);
+}
+.um-page .admin-status-badge.inactive {
+  border-color: color-mix(in srgb, var(--ds-danger) 25%, transparent);
+  background: var(--ds-danger-bg);
+  color: var(--ds-danger);
+}
+.um-page .admin-inline-btn {
+  min-height: 40px;
+  border-radius: var(--ds-radius-btn);
+}
+
+/* Pagination: Previous / Next and page buttons all 44px below 768px */
+.um-page .um-pagination {
+  max-width: var(--ds-page-max);
+  border-top-color: var(--ds-ink-100);
+}
+.um-page .admin-pagination > button {
+  min-width: 0;
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-4);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-surface);
+  color: var(--ds-green);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    border-color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+.um-page .admin-pagination > button:hover:not(:disabled) {
+  border-color: var(--ds-green);
+  background: var(--ds-mint);
+  color: var(--ds-green);
+}
+.um-page .admin-pagination > button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (min-width: 769px) {
+  .um-page .um-pagination .um-pagination__page {
+    min-width: 40px;
+    height: 40px;
+  }
+}
+
+/* Mobile directory cards: same look as the table */
+@media (max-width: 768px) {
+  .um-page .admin-mobile-user-card {
+    padding: var(--ds-space-4);
+    border: 1px solid var(--ds-border);
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-surface);
+    box-shadow: none;
+  }
+  .um-page .admin-mobile-user-card__header h4 {
+    color: var(--ds-text);
+    font-family: var(--ds-font-display);
+    font-size: var(--ds-text-md);
+    font-weight: 800;
+  }
+  .um-page .admin-mobile-user-card__meta label {
+    color: var(--ds-ink-500);
+    font-size: var(--ds-text-xs);
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .um-page .admin-mobile-user-card__meta p {
+    color: var(--ds-ink-900);
+    font-size: var(--ds-text-sm);
+    word-break: normal;
+  }
+  .um-page .admin-inline-btn {
+    min-height: var(--ds-tap);
+  }
+  .um-page .admin-inline-btn--secondary {
+    border-color: var(--ds-border);
+    background: var(--ds-surface);
+    color: var(--ds-ink-900);
+  }
+  .um-page .admin-pagination > button {
+    padding: 0 var(--ds-space-3);
+  }
+}
+
+/* Deactivate / reactivate warning modal (restyle only) */
+.um-page .admin-warning-modal-backdrop {
+  padding: var(--ds-space-4);
+  padding-bottom: calc(var(--ds-space-4) + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--ds-ink-900) 50%, transparent);
+}
+.um-page .admin-warning-modal {
+  max-height: calc(100dvh - 2 * var(--ds-space-4));
+  overflow-y: auto;
+  padding: var(--ds-space-6);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  box-shadow: var(--ds-elev-2);
+}
+.um-page .admin-warning-modal-icon {
+  flex: none;
+  border: 0;
+  background: var(--ds-danger-bg);
+  color: var(--ds-danger);
+}
+.um-page .admin-warning-modal-header h3 {
+  margin: 0;
+  color: var(--ds-text);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-h3);
+  font-weight: 800;
+  text-wrap: balance;
+}
+.um-page .admin-warning-modal-text {
+  max-width: 75ch;
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-body);
+}
+.um-page .admin-warning-modal-text strong {
+  color: var(--ds-text);
+}
+.um-page .admin-suspend-fields > label {
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+}
+.um-page .admin-suspend-fields input[type="text"] {
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  border: 1px solid var(--ds-ink-300);
+  border-radius: var(--ds-radius-btn);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-md);
+  font-weight: 400;
+}
+.um-page .admin-suspend-permanent input {
+  accent-color: var(--ds-danger);
+}
+.um-page .admin-suspend-permanent span {
+  color: var(--ds-ink-700);
+  font-weight: 500;
+}
+.um-page .admin-warning-cancel,
+.um-page .admin-warning-confirm {
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-5);
+  border-radius: var(--ds-radius-btn);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+.um-page .admin-warning-cancel {
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-ink-700);
+}
+.um-page .admin-warning-confirm {
+  background: var(--ds-danger);
+  color: #fff;
+}
+.um-page .admin-warning-cancel:hover {
+  transform: none;
+  filter: none;
+  background: var(--ds-ink-50);
+}
+.um-page .admin-warning-confirm:hover {
+  transform: none;
+  filter: none;
+  background: color-mix(in srgb, var(--ds-danger) 82%, #000);
+}
+@media (min-width: 768px) {
+  .um-page .admin-suspend-fields input[type="text"] {
+    font-size: var(--ds-text-sm);
+  }
+}
+
+/* Action toast: token colours, no gradient */
+.um-page .admin-toast {
+  right: var(--ds-space-4);
+  bottom: calc(var(--ds-space-4) + env(safe-area-inset-bottom));
+  max-width: min(360px, calc(100vw - 2 * var(--ds-space-4)));
+  border-radius: var(--ds-radius-md);
+  box-shadow: var(--ds-elev-1);
+  font-size: var(--ds-text-sm);
+}
+.um-page .admin-toast--success {
+  border-color: transparent;
+  background: var(--ds-green);
+}
+.um-page .admin-toast--error {
+  border-color: transparent;
+  background: var(--ds-danger);
+}
+
+/* ---------- Audit Trail (scoped to .audit-page) ---------- */
+.audit-page .admin-card-header {
+  margin-bottom: var(--ds-space-4);
+}
+.audit-page .audit-page__section-title {
+  margin: 0;
+  color: var(--ds-text);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-h3);
+  font-weight: 800;
+  line-height: var(--ds-leading-snug);
+  text-wrap: balance;
+}
+.audit-page .admin-audit-toolbar {
+  margin: 0 0 var(--ds-space-4);
+  padding: var(--ds-space-4);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-ink-50);
+  box-shadow: none;
+}
+.audit-page .admin-filter-row {
+  gap: var(--ds-space-3);
+}
+.audit-page .admin-filter-group {
+  gap: var(--ds-space-1);
+}
+.audit-page .admin-filter-label {
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.audit-page .admin-filter-group input,
+.audit-page .admin-filter-group select,
+.audit-page .admin-audit-pagination__rows select {
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  border: 1px solid var(--ds-ink-300);
+  border-radius: var(--ds-radius-btn);
+  background-color: var(--ds-surface);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-md);
+  transition: border-color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+.audit-page .admin-filter-group input:focus,
+.audit-page .admin-filter-group select:focus,
+.audit-page .admin-audit-pagination__rows select:focus {
+  border-color: var(--ds-green);
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+.audit-page .admin-filter-reset,
+.audit-page .admin-filter-toggle {
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-4);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-surface);
+  color: var(--ds-green);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    border-color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+.audit-page .admin-filter-reset:hover,
+.audit-page .admin-filter-toggle:hover {
+  transform: none;
+  border-color: var(--ds-green);
+  background: var(--ds-mint);
+}
+.audit-page .admin-filter-toggle__badge {
+  background: var(--ds-green);
+  color: #fff;
+  font-size: var(--ds-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.audit-page .admin-filter-toggle__chevron {
+  transition: transform var(--ds-motion-base) var(--ds-motion-ease-out);
+}
+@media (min-width: 768px) {
+  .audit-page .admin-filter-group input,
+  .audit-page .admin-filter-group select,
+  .audit-page .admin-audit-pagination__rows select {
+    font-size: var(--ds-text-sm);
+  }
+}
+
+.audit-page .admin-table-wrap {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+}
+.audit-page .admin-table td:first-child {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.audit-page .audit-state-cell {
+  padding: var(--ds-space-4);
+  background: var(--ds-surface);
+}
+.audit-page .audit-state {
+  border-style: dashed;
+}
+.audit-page .audit-state.ds-state--error {
+  border-style: solid;
+}
+
+/* Severity chips: semantic tokens with text */
+.audit-page .admin-severity-pill {
+  padding: 2px var(--ds-space-3);
+  font-size: var(--ds-text-xs);
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.5;
+  box-shadow: none;
+  transition: none;
+}
+.audit-page .admin-severity-pill.critical {
+  border-color: color-mix(in srgb, var(--ds-danger) 25%, transparent);
+  background-color: var(--ds-danger-bg);
+  color: var(--ds-danger);
+}
+.audit-page .admin-severity-pill.critical::before {
+  background-color: var(--ds-danger);
+  box-shadow: none;
+}
+.audit-page .admin-severity-pill.warning {
+  border-color: color-mix(in srgb, var(--ds-gold) 50%, transparent);
+  background-color: var(--ds-warning-bg);
+  color: var(--ds-warning);
+}
+.audit-page .admin-severity-pill.warning::before {
+  background-color: var(--ds-gold);
+  box-shadow: none;
+}
+.audit-page .admin-severity-pill.info {
+  border-color: color-mix(in srgb, var(--ds-info) 25%, transparent);
+  background-color: var(--ds-info-bg);
+  color: var(--ds-info);
+}
+.audit-page .admin-severity-pill.info::before {
+  background-color: var(--ds-info);
+  box-shadow: none;
+}
+
+/* Mobile card list: matches the table look (no coloured edge stripe) */
+@media (max-width: 768px) {
+  .audit-page .admin-audit-card {
+    padding: var(--ds-space-4);
+    border: 1px solid var(--ds-border);
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-surface);
+    box-shadow: none;
+  }
+  .audit-page .admin-audit-card__time {
+    color: var(--ds-ink-500);
+    font-size: var(--ds-text-xs);
+    font-variant-numeric: tabular-nums;
+  }
+  .audit-page .admin-audit-card__action label,
+  .audit-page .admin-audit-card__meta label {
+    color: var(--ds-ink-500);
+    font-size: var(--ds-text-xs);
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .audit-page .admin-audit-card__action p {
+    color: var(--ds-text);
+    font-size: var(--ds-text-md);
+  }
+  .audit-page .admin-audit-card__meta p {
+    color: var(--ds-ink-900);
+    font-size: var(--ds-text-sm);
+  }
+}
+
+/* Pagination: 44px buttons and rows-per-page select below 768px */
+.audit-page .admin-audit-pagination {
+  margin-top: var(--ds-space-4);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+}
+.audit-page .admin-audit-pagination__info,
+.audit-page .admin-audit-pagination__rows {
+  color: var(--ds-muted);
+  font-size: var(--ds-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.audit-page .admin-audit-pagination__button {
+  min-width: 40px;
+  height: 40px;
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  background: var(--ds-surface);
+  color: var(--ds-ink-700);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    border-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+.audit-page .admin-audit-pagination__button:hover:not(:disabled) {
+  border-color: var(--ds-green);
+  background: var(--ds-mint);
+  color: var(--ds-green);
+}
+.audit-page .admin-audit-pagination__button--active,
+.audit-page .admin-audit-pagination__button--active:hover:not(:disabled) {
+  border-color: var(--ds-green);
+  background: var(--ds-green);
+  color: #fff;
+  box-shadow: none;
+}
+.audit-page .admin-audit-pagination__ellipsis {
+  height: 40px;
+  color: var(--ds-ink-500);
+}
+@media (max-width: 768px) {
+  .audit-page .admin-audit-pagination__button {
+    min-width: var(--ds-tap);
+    height: var(--ds-tap);
+  }
+  .audit-page .admin-audit-pagination__ellipsis {
+    height: var(--ds-tap);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .um-page .admin-pagination > button,
+  .um-page .admin-warning-cancel,
+  .um-page .admin-warning-confirm,
+  .audit-page .admin-filter-group input,
+  .audit-page .admin-filter-group select,
+  .audit-page .admin-filter-reset,
+  .audit-page .admin-filter-toggle,
+  .audit-page .admin-filter-toggle__chevron,
+  .audit-page .admin-audit-pagination__button {
+    transition: none;
+  }
+}

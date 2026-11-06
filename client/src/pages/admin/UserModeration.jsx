@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { FaArrowLeft, FaShieldAlt, FaFlag, FaEnvelopeOpenText } from "react-icons/fa";
 import "../../styles/admin.css";
 import "../../styles/moderation.css";
@@ -7,11 +8,12 @@ import AdminHeader from "./AdminHeader";
 import { ReportsQueue, AppealsQueue } from "./ModerationQueues";
 
 const TABS = {
-  reports: { label: "User Reports", icon: <FaFlag aria-hidden="true" />, accent: "reports" },
-  appeals: { label: "Suspension Appeals", icon: <FaEnvelopeOpenText aria-hidden="true" />, accent: "appeals" },
+  reports: { labelKey: "superadmin.moderation.tabs.reports", icon: <FaFlag aria-hidden="true" />, accent: "reports" },
+  appeals: { labelKey: "superadmin.moderation.tabs.appeals", icon: <FaEnvelopeOpenText aria-hidden="true" />, accent: "appeals" },
 };
 
 export default function UserModeration() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
@@ -32,16 +34,16 @@ export default function UserModeration() {
   return (
     <div className={`admin-page-container mq-scope mq-scope--${activeTab}`}>
       <AdminHeader
-        title="Reports & Appeals"
-        description="Review user-submitted reports and decide on suspension appeals."
+        title={t("navbar.reportsAppeals")}
+        description={t("superadmin.moderation.subtitle")}
         icon={<FaShieldAlt aria-hidden="true" />}
       />
 
       <button type="button" className="admin-backlink" onClick={() => navigate("/admin/users")}>
-        <FaArrowLeft aria-hidden="true" /> Back to User Management
+        <FaArrowLeft aria-hidden="true" /> {t("superadmin.moderation.back")}
       </button>
 
-      <div className="tab-pill-bar mq-tab-bar" role="tablist" aria-label="Moderation tabs">
+      <div className="ds-tabs mq-tab-bar" role="tablist" aria-label={t("superadmin.moderation.tabsLabel")}>
         {Object.entries(TABS).map(([key, meta]) => {
           const badge = tabBadge(key);
           return (
@@ -50,13 +52,12 @@ export default function UserModeration() {
               type="button"
               role="tab"
               aria-selected={activeTab === key}
-              className={`tab-pill mq-tab mq-tab--${meta.accent} ${activeTab === key ? "active" : ""}`}
+              className={`ds-tab mq-tab mq-tab--${meta.accent} ${activeTab === key ? "active is-active" : ""}`}
               onClick={() => selectTab(key)}
             >
-              <span className="mq-tab__dot" aria-hidden="true" />
               <span className="mq-tab__icon">{meta.icon}</span>
-              <span className="mq-tab__label">{meta.label}</span>
-              {badge ? <span className="mq-tab__badge">{badge}</span> : null}
+              <span className="mq-tab__label">{t(meta.labelKey)}</span>
+              {badge ? <span className="mq-tab__badge ds-tab__count">{badge}</span> : null}
             </button>
           );
         })}

@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { FaTimes, FaExternalLinkAlt, FaUserShield, FaFileAlt } from "react-icons/fa";
 import { adminAPI } from "../../services/api";
 import { useToast } from "../../components/feedback/context";
+import StateBlock from "../../components/StateBlock";
 
 const REPORT_CATEGORY_LABELS = {
   illegal_job: "Illegal / fake job",
@@ -139,6 +142,7 @@ function StatStrip({ items }) {
 
 // Always rendered — even for a single page — so the queue's size is always legible.
 function Pagination({ page, total, onPage }) {
+  const { t } = useTranslation();
   const pageCount = Math.max(1, Math.ceil((total || 0) / PAGE_SIZE));
   const current = Math.min(Math.max(page, 1), pageCount);
   const from = total === 0 ? 0 : (current - 1) * PAGE_SIZE + 1;
@@ -153,15 +157,15 @@ function Pagination({ page, total, onPage }) {
       <span className="mq-pagination__info">
         {total === 0 ? "No entries" : `Showing ${from}–${to} of ${total}`}
       </span>
-      <div className="mq-pagination__controls">
+      <nav className="mq-pagination__controls" aria-label={t("superadmin.pagination.label")}>
         <button
           type="button"
           className="mq-pagination__btn"
           onClick={() => onPage(current - 1)}
           disabled={current <= 1}
-          aria-label="Previous page"
+          aria-label={t("superadmin.pagination.previous")}
         >
-          ‹
+          <ChevronLeft size={18} aria-hidden="true" />
         </button>
         {pages.map((p) => (
           <button
@@ -179,13 +183,21 @@ function Pagination({ page, total, onPage }) {
           className="mq-pagination__btn"
           onClick={() => onPage(current + 1)}
           disabled={current >= pageCount}
-          aria-label="Next page"
+          aria-label={t("superadmin.pagination.next")}
         >
-          ›
+          <ChevronRight size={18} aria-hidden="true" />
         </button>
-      </div>
+      </nav>
     </div>
   );
+}
+
+// Loading / empty block shared by the queue tables and their mobile lists.
+function QueueState({ loading, loadingTitle, emptyTitle, emptyDescription }) {
+  if (loading) {
+    return <StateBlock kind="loading" className="mq-state" title={loadingTitle} />;
+  }
+  return <StateBlock kind="empty" className="mq-state" title={emptyTitle} description={emptyDescription} />;
 }
 
 function SeverityBadge({ severity }) {
@@ -232,13 +244,12 @@ function DrawerShell({ variant, eyebrow, title, subtitle, icon, onClose, childre
           <div className="mq-drawer__headmain">
             <span className="mq-drawer__icon" aria-hidden="true">{icon}</span>
             <div>
-              <p className="mq-drawer__eyebrow">{eyebrow}</p>
               <h3>{title}</h3>
+              <p className="mq-drawer__eyebrow">{eyebrow}</p>
               {subtitle ? <p className="mq-drawer__sub">{subtitle}</p> : null}
             </div>
           </div>
           <button type="button" className="mq-drawer__close" onClick={onClose} aria-label="Close">
-            <span className="mq-drawer__close-icon" aria-hidden="true">×</span>
             <FaTimes aria-hidden="true" className="mq-drawer__close-svg" />
           </button>
         </header>
@@ -447,12 +458,16 @@ function ReportReviewDrawer({ report, onClose, onResolved }) {
 }
 
 function ReportMobileCards({ reports, loading, onReview, onNavigate }) {
+  const { t } = useTranslation();
   return (
     <div className="mq-mobile-list" aria-label="User reports mobile list">
-      {loading ? (
-        <p className="mq-empty">Loading reports…</p>
-      ) : reports.length === 0 ? (
-        <p className="mq-empty">No reports in this view.</p>
+      {loading || reports.length === 0 ? (
+        <QueueState
+          loading={loading}
+          loadingTitle={t("superadmin.moderation.loadingReports")}
+          emptyTitle={t("superadmin.moderation.emptyReportsTitle")}
+          emptyDescription={t("superadmin.moderation.emptyReportsDescription")}
+        />
       ) : (
         reports.map((report) => {
           const severity = REPORT_CATEGORY_SEVERITY[report.category] || "low";
@@ -521,6 +536,7 @@ function ReportMobileCards({ reports, loading, onReview, onNavigate }) {
 }
 
 export function ReportsQueue({ onStats }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [counts, setCounts] = useState(null);
@@ -574,7 +590,7 @@ export function ReportsQueue({ onStats }) {
     <div className="admin-panel-card mq-panel mq-panel--reports">
       <div className="mq-panel__head">
         <div className="mq-panel__heading">
-          <h3><span className="mq-panel__accent" aria-hidden="true" />User Reports</h3>
+          <h2><span className="mq-panel__accent" aria-hidden="true" />{t("superadmin.moderation.tabs.reports")}</h2>
           <p>Incoming complaints from users about jobs, profiles, and content.</p>
         </div>
         <select
@@ -612,10 +628,17 @@ export function ReportsQueue({ onStats }) {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr><td colSpan={6} className="mq-empty">Loading reports…</td></tr>
-            ) : reports.length === 0 ? (
-              <tr><td colSpan={6} className="mq-empty">No reports in this view.</td></tr>
+            {loading || reports.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="mq-state-cell">
+                  <QueueState
+                    loading={loading}
+                    loadingTitle={t("superadmin.moderation.loadingReports")}
+                    emptyTitle={t("superadmin.moderation.emptyReportsTitle")}
+                    emptyDescription={t("superadmin.moderation.emptyReportsDescription")}
+                  />
+                </td>
+              </tr>
             ) : (
               reports.map((report) => {
                 const severity = REPORT_CATEGORY_SEVERITY[report.category] || "low";
@@ -812,12 +835,16 @@ function AppealReviewDrawer({ appeal, onClose, onResolved }) {
 }
 
 function AppealMobileCards({ appeals, loading, onReview, onNavigate }) {
+  const { t } = useTranslation();
   return (
     <div className="mq-mobile-list" aria-label="Suspension appeals mobile list">
-      {loading ? (
-        <p className="mq-empty">Loading appeals…</p>
-      ) : appeals.length === 0 ? (
-        <p className="mq-empty">No appeals submitted.</p>
+      {loading || appeals.length === 0 ? (
+        <QueueState
+          loading={loading}
+          loadingTitle={t("superadmin.moderation.loadingAppeals")}
+          emptyTitle={t("superadmin.moderation.emptyAppealsTitle")}
+          emptyDescription={t("superadmin.moderation.emptyAppealsDescription")}
+        />
       ) : (
         appeals.map((appeal) => {
           const priorReports = appeal.context?.reportsAgainstUser || 0;
@@ -873,6 +900,7 @@ function AppealMobileCards({ appeals, loading, onReview, onNavigate }) {
 }
 
 export function AppealsQueue({ onStats }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [appeals, setAppeals] = useState([]);
   const [counts, setCounts] = useState(null);
@@ -916,7 +944,7 @@ export function AppealsQueue({ onStats }) {
     <div className="admin-panel-card mq-panel mq-panel--appeals">
       <div className="mq-panel__head">
         <div className="mq-panel__heading">
-          <h3><span className="mq-panel__accent" aria-hidden="true" />Suspension Appeals</h3>
+          <h2><span className="mq-panel__accent" aria-hidden="true" />{t("superadmin.moderation.tabs.appeals")}</h2>
           <p>Reactivation requests from suspended and banned accounts.</p>
         </div>
       </div>
@@ -943,10 +971,17 @@ export function AppealsQueue({ onStats }) {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr><td colSpan={5} className="mq-empty">Loading appeals…</td></tr>
-            ) : appeals.length === 0 ? (
-              <tr><td colSpan={5} className="mq-empty">No appeals submitted.</td></tr>
+            {loading || appeals.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="mq-state-cell">
+                  <QueueState
+                    loading={loading}
+                    loadingTitle={t("superadmin.moderation.loadingAppeals")}
+                    emptyTitle={t("superadmin.moderation.emptyAppealsTitle")}
+                    emptyDescription={t("superadmin.moderation.emptyAppealsDescription")}
+                  />
+                </td>
+              </tr>
             ) : (
               appeals.map((appeal) => {
                 const priorReports = appeal.context?.reportsAgainstUser || 0;
