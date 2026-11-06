@@ -712,6 +712,92 @@
           "desc": "Few of your requirements are met."
         }
       }
+    },
+    "archived": {
+      "sumJobs": "Archived jobs",
+      "sumApplicants": "Total applicants",
+      "sumAvgDays": "Avg. days active",
+      "sumHired": "Hired candidates",
+      "title": "Archived postings",
+      "searchPlaceholder": "Search archived jobs by title or location…",
+      "searchLabel": "Search archived jobs",
+      "clearSearch": "Clear search",
+      "results_one": "Showing {{from}}–{{to}} of {{count}} archived job",
+      "results_other": "Showing {{from}}–{{to}} of {{count}} archived jobs",
+      "noMatchTitle": "No archived jobs match your search",
+      "emptyTitle": "No archived jobs yet",
+      "emptyBody": "Closed and filled postings move here, with a short report on how each one went.",
+      "listLabel": "Archived job postings",
+      "applicantsCount_one": "{{count}} applicant",
+      "applicantsCount_other": "{{count}} applicants",
+      "hiredCount_one": "{{count}} hired",
+      "hiredCount_other": "{{count}} hired",
+      "daysCount_one": "{{count}} day active",
+      "daysCount_other": "{{count}} days active",
+      "closedOn": "Closed {{date}}",
+      "statApplicants": "Applicants",
+      "statQualified": "Qualified",
+      "statHired": "Hired",
+      "statDays": "Days",
+      "viewReport": "View report",
+      "hideReport": "Hide report",
+      "pagination": "Archived jobs pagination",
+      "prevPage": "Previous page",
+      "nextPage": "Next page"
+    },
+    "matchWeights": {
+      "title": "Matching preferences",
+      "intro": "Set how much each factor counts toward an applicant's match percentage on your job postings. Weights must add up to exactly 100%. Individual jobs can still override this from their own edit page.",
+      "totalLabel": "Total weight",
+      "custom": "Using your own custom weights.",
+      "loading": "Loading matching preferences…",
+      "errorTitle": "Couldn't load matching preferences",
+      "mustEqual": "Your weights add up to {{total}}%. Adjust the sliders until the total is exactly 100% to save.",
+      "idealTitle": "Your ideal candidate",
+      "idealIntro": "With these weights, applicants rank highest when they are strong in:",
+      "idealEmpty": "Move a slider above 0% to see what matters most.",
+      "idealNote": "This preview follows the sliders. Changes apply to ranking only after you save."
     }
+  },
+  "jobPosting": {
+    "back": "Back to Dashboard",
+    "title": "Post a new job",
+    "stepsLabel": "Posting sections",
+    "steps": {
+      "basics": "Job basics",
+      "pay": "Pay & location",
+      "eligibility": "Eligibility",
+      "qualifications": "Qualifications",
+      "matchWeights": "Matching weights"
+    },
+    "status": {
+      "done": "Done",
+      "required": "Required",
+      "optional": "Optional"
+    },
+    "sections": {
+      "basicsSub": "What the role is and how many people you need.",
+      "paySub": "Where the work is, what it pays, and when applications close.",
+      "qualificationsSub": "Skills, licences and clearances. Required = must-have, Preferred = nice to have.",
+      "matchWeightsSub": "Override how much each factor counts toward an applicant's match percentage, just for this job."
+    },
+    "preview": {
+      "title": "Live preview",
+      "hint": "As jobseekers see it"
+    },
+    "checklist": {
+      "heading": "Before you post",
+      "progress": "{{done}} of {{total}}",
+      "title": "Job title",
+      "description": "Description (40+ characters)",
+      "industry": "Industry",
+      "location": "Work location",
+      "qualification": "At least one qualification"
+    },
+    "ready": "Ready to post.",
+    "remaining_one": "{{count}} required item left before you can post.",
+    "remaining_other": "{{count}} required items left before you can post.",
+    "posting": "Posting…",
+    "submit": "Post job vacancy"
   }
 }

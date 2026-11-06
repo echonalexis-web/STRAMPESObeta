@@ -712,6 +712,92 @@
           "desc": "Kaunti lang sa iyong requirement ang natutugunan."
         }
       }
+    },
+    "archived": {
+      "sumJobs": "Mga naka-archive na job",
+      "sumApplicants": "Kabuuang aplikante",
+      "sumAvgDays": "Karaniwang araw na bukas",
+      "sumHired": "Mga natanggap",
+      "title": "Mga naka-archive na posting",
+      "searchPlaceholder": "Hanapin ang naka-archive na job ayon sa titulo o lokasyon…",
+      "searchLabel": "Hanapin ang mga naka-archive na job",
+      "clearSearch": "I-clear ang paghahanap",
+      "results_one": "Ipinapakita ang {{from}}–{{to}} sa {{count}} naka-archive na job",
+      "results_other": "Ipinapakita ang {{from}}–{{to}} sa {{count}} naka-archive na job",
+      "noMatchTitle": "Walang naka-archive na job na tugma sa hinanap mo",
+      "emptyTitle": "Wala pang naka-archive na job",
+      "emptyBody": "Dito napupunta ang mga sarado at napunang posting, kasama ang maikling ulat kung paano ito tumakbo.",
+      "listLabel": "Mga naka-archive na job posting",
+      "applicantsCount_one": "{{count}} aplikante",
+      "applicantsCount_other": "{{count}} aplikante",
+      "hiredCount_one": "{{count}} natanggap",
+      "hiredCount_other": "{{count}} natanggap",
+      "daysCount_one": "{{count}} araw na bukas",
+      "daysCount_other": "{{count}} araw na bukas",
+      "closedOn": "Isinara noong {{date}}",
+      "statApplicants": "Aplikante",
+      "statQualified": "Kwalipikado",
+      "statHired": "Natanggap",
+      "statDays": "Araw",
+      "viewReport": "Tingnan ang ulat",
+      "hideReport": "Itago ang ulat",
+      "pagination": "Pagination ng mga naka-archive na job",
+      "prevPage": "Nakaraang pahina",
+      "nextPage": "Susunod na pahina"
+    },
+    "matchWeights": {
+      "title": "Mga matching preference",
+      "intro": "Itakda kung gaano kabigat ang bawat salik sa match percentage ng aplikante sa iyong mga job posting. Dapat eksaktong 100% ang kabuuan. Puwede pa ring baguhin ito ng bawat job sa sarili nitong edit page.",
+      "totalLabel": "Kabuuang bigat",
+      "custom": "Gamit ang sarili mong custom na bigat.",
+      "loading": "Nilo-load ang mga matching preference…",
+      "errorTitle": "Hindi ma-load ang mga matching preference",
+      "mustEqual": "{{total}}% ang kabuuan ng iyong mga bigat. Ayusin ang mga slider hanggang eksaktong 100% bago i-save.",
+      "idealTitle": "Ang iyong ideal na kandidato",
+      "idealIntro": "Sa mga bigat na ito, pinakamataas ang ranggo ng mga aplikanteng malakas sa:",
+      "idealEmpty": "Itaas ang isang slider sa higit 0% para makita kung ano ang pinakamahalaga.",
+      "idealNote": "Sumusunod ang preview na ito sa mga slider. Magagamit lang ito sa ranking kapag na-save mo na."
     }
+  },
+  "jobPosting": {
+    "back": "Bumalik sa Dashboard",
+    "title": "Mag-post ng bagong job",
+    "stepsLabel": "Mga bahagi ng posting",
+    "steps": {
+      "basics": "Mga pangunahing detalye",
+      "pay": "Sahod at lokasyon",
+      "eligibility": "Eligibility",
+      "qualifications": "Mga kwalipikasyon",
+      "matchWeights": "Mga matching weight"
+    },
+    "status": {
+      "done": "Tapos na",
+      "required": "Kailangan",
+      "optional": "Opsyonal"
+    },
+    "sections": {
+      "basicsSub": "Ano ang trabaho at ilang tao ang kailangan mo.",
+      "paySub": "Saan ang trabaho, magkano ang sahod, at kailan magsasara ang aplikasyon.",
+      "qualificationsSub": "Mga skill, lisensya at clearance. Required = kailangang mayroon, Preferred = mas mabuti kung mayroon.",
+      "matchWeightsSub": "Baguhin kung gaano kabigat ang bawat salik sa match percentage ng aplikante, para lang sa job na ito."
+    },
+    "preview": {
+      "title": "Live preview",
+      "hint": "Kung paano ito makikita ng mga jobseeker"
+    },
+    "checklist": {
+      "heading": "Bago ka mag-post",
+      "progress": "{{done}} sa {{total}}",
+      "title": "Job title",
+      "description": "Paglalarawan (40+ karakter)",
+      "industry": "Industriya",
+      "location": "Lokasyon ng trabaho",
+      "qualification": "Kahit isang kwalipikasyon"
+    },
+    "ready": "Handa nang i-post.",
+    "remaining_one": "{{count}} kailangang item pa bago ka makapag-post.",
+    "remaining_other": "{{count}} kailangang item pa bago ka makapag-post.",
+    "posting": "Pino-post…",
+    "submit": "I-post ang job vacancy"
   }
 }

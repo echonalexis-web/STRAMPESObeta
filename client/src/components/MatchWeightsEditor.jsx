@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DIMENSION_ORDER,
   DIMENSION_LABELS,
@@ -6,6 +6,17 @@ import {
   PESO_RECOMMENDED_PRESET,
 } from "../utils/qualifications";
 import "../styles/match-weights-editor.css";
+
+// Clamped view of a draft against the (possibly still-loading) bounds — see
+// the note inside the component for why clamping is display-side only.
+const clampWeights = (draft, bounds) => {
+  const out = {};
+  DIMENSION_ORDER.forEach((key) => {
+    const b = bounds?.[key] || { min: 0, max: 100 };
+    out[key] = Math.min(b.max, Math.max(b.min, Number(draft[key]) || 0));
+  });
+  return out;
+};
 
 /**
  * Shared ten-slider job-matching weight editor (§C.1) — used by the
@@ -37,6 +48,8 @@ import "../styles/match-weights-editor.css";
  *   showPreset      hide the "PESO recommended" preset button where it
  *                   doesn't make sense (e.g. the bounds editor, which isn't
  *                   a weights editor at all and doesn't use this component).
+ *   onDraftChange   optional (weights) => void, called with the clamped
+ *                   draft whenever it changes (purely for live previews).
  */
 export default function MatchWeightsEditor({
   initialWeights,
@@ -46,6 +59,7 @@ export default function MatchWeightsEditor({
   resetLabel = "Reset to platform default",
   busy = false,
   showPreset = true,
+  onDraftChange,
 }) {
   const [draft, setDraft] = useState(() => ({ ...CODE_FALLBACK_WEIGHTS, ...initialWeights }));
 
@@ -72,14 +86,16 @@ export default function MatchWeightsEditor({
   // single clamped view, so what the user sees is always what gets summed
   // and saved. Self-corrects the moment the user touches that slider either
   // way, and the server re-validates bounds independently regardless.
-  const clamp = (value, b) => Math.min(b.max, Math.max(b.min, value));
-  const displayWeights = {};
-  DIMENSION_ORDER.forEach((key) => {
-    const b = bounds?.[key] || { min: 0, max: 100 };
-    displayWeights[key] = clamp(Number(draft[key]) || 0, b);
-  });
+  const displayWeights = clampWeights(draft, bounds);
   const total = DIMENSION_ORDER.reduce((sum, key) => sum + displayWeights[key], 0);
   const isValid = total === 100;
+
+  // Optional live mirror of the clamped draft for a parent-side preview
+  // (the employer's "Your ideal candidate" card). Read-only: the parent never
+  // writes back, and callers that omit the prop are unaffected.
+  useEffect(() => {
+    if (onDraftChange) onDraftChange(clampWeights(draft, bounds));
+  }, [draft, bounds, onDraftChange]);
 
   return (
     <div className="match-weights-editor">

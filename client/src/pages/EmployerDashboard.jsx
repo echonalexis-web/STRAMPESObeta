@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useContext, Fragment } from "react";
+import { useEffect, useMemo, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { employerAPI, messageAPI } from "../services/api";
 import "../styles/employer-dashboard.css";
@@ -17,7 +17,13 @@ import "../styles/qualifications-editor.css";
 import RankedApplicantsTable from "../components/RankedApplicantsTable";
 import MatchBreakdownPanel from "../components/MatchBreakdownPanel";
 import MatchWeightsEditor from "../components/MatchWeightsEditor";
-import { CODE_FALLBACK_WEIGHTS, MATCH_TIER_THRESHOLDS, MATCH_TIER_LEGACY_CLASS } from "../utils/qualifications";
+import {
+  CODE_FALLBACK_WEIGHTS,
+  DIMENSION_LABELS,
+  DIMENSION_ORDER,
+  MATCH_TIER_THRESHOLDS,
+  MATCH_TIER_LEGACY_CLASS,
+} from "../utils/qualifications";
 import { JOB_TYPES as JOB_TYPES_FALLBACK, JOB_TYPE_LABELS } from "../constants/jobTypes";
 import { useSystemOptions } from "../hooks/useSystemOptions";
 import InterviewScheduleModal from "../components/InterviewScheduleModal";
@@ -31,17 +37,22 @@ import MetricCard from "../components/MetricCard";
 import StateBlock from "../components/StateBlock";
 import Reveal from "../components/Reveal";
 import {
+  Archive,
   ArrowRight,
   BriefcaseBusiness,
+  CalendarDays,
   ChevronDown,
   Ellipsis,
   Hourglass,
   MapPin,
   Plus,
   SlidersHorizontal,
+  Target,
+  TriangleAlert,
   UserCheck,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import {
   FaBriefcase,
@@ -521,6 +532,10 @@ export default function EmployerDashboard() {
   const [matchWeightsLoading, setMatchWeightsLoading] = useState(false);
   const [matchWeightsSaving, setMatchWeightsSaving] = useState(false);
   const [matchWeightsError, setMatchWeightsError] = useState("");
+  // Read-only mirror of the editor's live (clamped) draft, fed by
+  // MatchWeightsEditor's onDraftChange. Only drives the preview card and the
+  // header total; saving still goes through the editor's own onSave.
+  const [matchWeightsDraft, setMatchWeightsDraft] = useState(null);
 
   useEffect(() => {
     if (activeTab !== "matchWeights" || matchWeightsLoaded) return;
@@ -1307,7 +1322,31 @@ export default function EmployerDashboard() {
     min: row.min,
     max: index === 0 ? 100 : MATCH_TIER_THRESHOLDS[index - 1].min - 1,
   }));
-  const isBareTab = activeTab === "overview" || activeTab === "jobs" || activeTab === "applicants";
+  const isBareTab =
+    activeTab === "overview" ||
+    activeTab === "jobs" ||
+    activeTab === "applicants" ||
+    activeTab === "matchWeights" ||
+    activeTab === "archived";
+
+  // Matching preferences: live total + the three heaviest factors, read from
+  // the editor's draft so the preview follows the sliders before saving.
+  const previewWeights = matchWeightsDraft || matchWeights || CODE_FALLBACK_WEIGHTS;
+  const previewTotal = DIMENSION_ORDER.reduce((sum, key) => sum + (Number(previewWeights[key]) || 0), 0);
+  const previewTop = DIMENSION_ORDER
+    .map((key) => ({ key, label: DIMENSION_LABELS[key], value: Number(previewWeights[key]) || 0 }))
+    .filter((row) => row.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 3);
+
+  // Archive summary numbers (same sums the tiles always showed).
+  const archivedTotals = {
+    applicants: archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.totalApplicants || job.applicationCount || 0), 0),
+    avgDays: archivedJobs.length
+      ? (archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.daysActive || 0), 0) / archivedJobs.length).toFixed(1)
+      : "0.0",
+    hired: archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.hiredCount || 0), 0),
+  };
 
   const openSwipe = (id) => setOpenSwipeId(id);
   const closeSwipe = () => setOpenSwipeId(null);
@@ -1774,66 +1813,82 @@ export default function EmployerDashboard() {
 
             {/* -------- ARCHIVED JOBS TAB -------- */}
             {activeTab === "archived" && (
-              <div className="employer-tab-panel archived-jobs-layout">
-                <div className="emp-archived-summary">
-                  <div className="emp-sum-tile">
-                    <span className="emp-sum-value">{archivedJobs.length}</span>
-                    <span className="emp-sum-label">Archived jobs</span>
-                  </div>
-                  <div className="emp-sum-tile">
-                    <span className="emp-sum-value">
-                      {archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.totalApplicants || job.applicationCount || 0), 0)}
-                    </span>
-                    <span className="emp-sum-label">Total applicants</span>
-                  </div>
-                  <div className="emp-sum-tile">
-                    <span className="emp-sum-value">
-                      {archivedJobs.length ? (archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.daysActive || 0), 0) / archivedJobs.length).toFixed(1) : "0.0"}
-                    </span>
-                    <span className="emp-sum-label">Avg. days active</span>
-                  </div>
-                  <div className="emp-sum-tile is-primary">
-                    <span className="emp-sum-value">
-                      {archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.hiredCount || 0), 0)}
-                    </span>
-                    <span className="emp-sum-label">Hired candidates</span>
-                  </div>
-                </div>
-
-                <div className="archived-search-bar">
-                  <FaSearch className="archived-search-icon" />
-                  <input
-                    type="text"
-                    className="archived-search-input"
-                    placeholder="Search archived jobs by title or location..."
-                    value={archivedSearch}
-                    onChange={(event) => setArchivedSearch(event.target.value)}
+              <div className="employer-tab-panel archived-jobs-layout ed-arch">
+                <Reveal className="ds-metrics ds-metrics--4 ed-metrics ed-arch__metrics">
+                  <MetricCard
+                    icon={<Archive size={20} />}
+                    value={archivedJobs.length}
+                    label={t("employerDashboard.archived.sumJobs")}
                   />
-                  {archivedSearch ? (
-                    <button
-                      type="button"
-                      className="archived-search-clear"
-                      onClick={() => setArchivedSearch("")}
-                      aria-label="Clear search"
-                    >
-                      ×
-                    </button>
-                  ) : null}
+                  <MetricCard
+                    icon={<Users size={20} />}
+                    value={archivedTotals.applicants}
+                    label={t("employerDashboard.archived.sumApplicants")}
+                  />
+                  <MetricCard
+                    icon={<CalendarDays size={20} />}
+                    value={archivedTotals.avgDays}
+                    label={t("employerDashboard.archived.sumAvgDays")}
+                  />
+                  <MetricCard
+                    icon={<UserCheck size={20} />}
+                    value={archivedTotals.hired}
+                    label={t("employerDashboard.archived.sumHired")}
+                    className="ed-arch__metric--hired"
+                  />
+                </Reveal>
+
+                <div className="ed-arch__head">
+                  <h2 className="ed-arch__title">{t("employerDashboard.archived.title")}</h2>
+                  <div className="archived-search-bar">
+                    <FaSearch className="archived-search-icon" aria-hidden="true" />
+                    <input
+                      type="text"
+                      className="archived-search-input"
+                      placeholder={t("employerDashboard.archived.searchPlaceholder")}
+                      aria-label={t("employerDashboard.archived.searchLabel")}
+                      value={archivedSearch}
+                      onChange={(event) => setArchivedSearch(event.target.value)}
+                    />
+                    {archivedSearch ? (
+                      <button
+                        type="button"
+                        className="archived-search-clear"
+                        onClick={() => setArchivedSearch("")}
+                        aria-label={t("employerDashboard.archived.clearSearch")}
+                      >
+                        <X size={16} aria-hidden="true" />
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
 
                 {filteredArchivedJobs.length ? (
-                  <div className="archived-results-row">
-                    Showing {(archivedPage - 1) * ARCHIVED_PAGE_SIZE + 1}–{Math.min(archivedPage * ARCHIVED_PAGE_SIZE, filteredArchivedJobs.length)} of {filteredArchivedJobs.length} archived job{filteredArchivedJobs.length !== 1 ? "s" : ""}
+                  <div className="archived-results-row" role="status">
+                    {t("employerDashboard.archived.results", {
+                      from: (archivedPage - 1) * ARCHIVED_PAGE_SIZE + 1,
+                      to: Math.min(archivedPage * ARCHIVED_PAGE_SIZE, filteredArchivedJobs.length),
+                      count: filteredArchivedJobs.length,
+                    })}
                   </div>
                 ) : null}
 
                 {!paginatedArchivedJobs.length ? (
-                  <div className="empty-state archived-empty-state">
-                    <div className="empty-state-icon">🗂️</div>
-                    <p className="empty-state-text">
-                      {archivedJobs.length ? "No archived jobs match your search." : "No archived jobs yet."}
-                    </p>
-                  </div>
+                  archivedJobs.length ? (
+                    <StateBlock
+                      kind="empty"
+                      className="archived-empty-state"
+                      title={t("employerDashboard.archived.noMatchTitle")}
+                      description={t("employerDashboard.jobs.noMatchBody")}
+                    />
+                  ) : (
+                    <StateBlock
+                      kind="empty"
+                      className="archived-empty-state"
+                      title={t("employerDashboard.archived.emptyTitle")}
+                      description={t("employerDashboard.archived.emptyBody")}
+                    />
+                  )
                 ) : isMobile ? (
                   <div className="emp-archived-cards">
                     {paginatedArchivedJobs.map((job) => {
@@ -1847,16 +1902,21 @@ export default function EmployerDashboard() {
                             aria-expanded={isExpanded}
                             onClick={() => toggleArchivedJobDetails(job._id)}
                           >
+                            <span className="ed-arch__tile" aria-hidden="true">
+                              <Archive size={18} />
+                            </span>
                             <span className="emp-archived-card-title">
                               <strong>{job.title}</strong>
-                              <span className="emp-job-loc"><FaMapMarkerAlt /> {formatJobLocation(job.location)}</span>
+                              <span className="emp-job-loc">
+                                <MapPin size={14} aria-hidden="true" /> {formatJobLocation(job.location)}
+                              </span>
                             </span>
-                            <span className={`emp-caret ${isExpanded ? "open" : ""}`}>›</span>
+                            <ChevronDown size={20} className={`ed-arch__chev ${isExpanded ? "is-open" : ""}`} aria-hidden="true" />
                           </button>
                           <div className="emp-archived-card-stats">
-                            <span>{m.totalApplicants ?? job.applicationCount ?? 0} applicants</span>
-                            <span>{m.hiredCount ?? 0} hired</span>
-                            <span>{m.daysActive ?? 0}d</span>
+                            <span>{t("employerDashboard.archived.applicantsCount", { count: m.totalApplicants ?? job.applicationCount ?? 0 })}</span>
+                            <span>{t("employerDashboard.archived.hiredCount", { count: m.hiredCount ?? 0 })}</span>
+                            <span>{t("employerDashboard.archived.daysCount", { count: m.daysActive ?? 0 })}</span>
                             {job.archiveReason && <span className="emp-chip">{archiveReasonLabel(job.archiveReason)}</span>}
                           </div>
                           {isExpanded && <ArchivedPostMortem job={job} />}
@@ -1865,82 +1925,87 @@ export default function EmployerDashboard() {
                     })}
                   </div>
                 ) : (
-                  <div className="emp-table-wrap" role="region" aria-label="Table, scrolls horizontally" tabIndex={0}>
-                    <table className="emp-table archived-table">
-                      <colgroup>
-                        <col />
-                        <col style={{ width: "104px" }} />
-                        <col style={{ width: "96px" }} />
-                        <col style={{ width: "80px" }} />
-                        <col style={{ width: "80px" }} />
-                        <col style={{ width: "170px" }} />
-                      </colgroup>
-                      <thead>
-                        <tr>
-                          <th>Job</th>
-                          <th className="num">Applicants</th>
-                          <th className="num">Qualified</th>
-                          <th className="num">Hired</th>
-                          <th className="num">Days</th>
-                          <th>Closed</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedArchivedJobs.map((job) => {
-                          const isExpanded = !!expandedArchivedJobs[job._id];
-                          const m = job.archivedMetrics || {};
-                          return (
-                            <Fragment key={job._id}>
-                              <tr
-                                className={`emp-row emp-row-toggle ${isExpanded ? "is-open" : ""}`}
-                                onClick={() => toggleArchivedJobDetails(job._id)}
-                              >
-                                <td>
-                                  <div className="emp-job-cell">
-                                    <strong>
-                                      <span className={`emp-caret ${isExpanded ? "open" : ""}`}>›</span> {job.title}
-                                    </strong>
-                                    <span className="emp-job-loc">
-                                      <FaMapMarkerAlt /> {formatJobLocation(job.location)}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="num">{m.totalApplicants ?? job.applicationCount ?? 0}</td>
-                                <td className="num">{m.qualifiedCount ?? 0}</td>
-                                <td className="num">{m.hiredCount ?? 0}</td>
-                                <td className="num">{m.daysActive ?? 0}</td>
-                                <td>
-                                  <div className="emp-stack">
-                                    <span>{formatDate(job.closedAt || job.archivedAt || m.archivedAt)}</span>
-                                    {job.archiveReason && (
-                                      <span className="emp-chip">{archiveReasonLabel(job.archiveReason)}</span>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                              {isExpanded && (
-                                <tr className="emp-detail-row">
-                                  <td colSpan={6}>
-                                    <ArchivedPostMortem job={job} />
-                                  </td>
-                                </tr>
-                              )}
-                            </Fragment>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  /* >=768px: archive rows in the shared list-row look. Each
+                     row is a real button (aria-expanded) that toggles the same
+                     post-mortem report the old table detail row showed. */
+                  <ul className="ds-list ed-arch__list" aria-label={t("employerDashboard.archived.listLabel")}>
+                    {paginatedArchivedJobs.map((job) => {
+                      const isExpanded = !!expandedArchivedJobs[job._id];
+                      const m = job.archivedMetrics || {};
+                      const reportId = `ed-arch-report-${job._id}`;
+                      return (
+                        <li key={job._id} className={`ed-arch__item ${isExpanded ? "is-open" : ""}`}>
+                          <button
+                            type="button"
+                            className="ds-list-row ed-arch__row"
+                            aria-expanded={isExpanded}
+                            aria-controls={reportId}
+                            onClick={() => toggleArchivedJobDetails(job._id)}
+                          >
+                            <span className="ds-list-row__lead ed-arch__tile" aria-hidden="true">
+                              <Archive size={18} />
+                            </span>
+                            <span className="ds-list-row__main">
+                              <span className="ds-list-row__title">{job.title}</span>
+                              <span className="ds-list-row__sub ed-arch__sub">
+                                <span>{formatJobLocation(job.location)}</span>
+                                <span aria-hidden="true"> · </span>
+                                <span>
+                                  {t("employerDashboard.archived.closedOn", {
+                                    date: formatDate(job.closedAt || job.archivedAt || m.archivedAt),
+                                  })}
+                                </span>
+                                {job.archiveReason && (
+                                  <span className="emp-chip ed-arch__reason">{archiveReasonLabel(job.archiveReason)}</span>
+                                )}
+                              </span>
+                            </span>
+                            <span className="ds-list-row__end ed-arch__end">
+                              <span className="ed-arch__stats">
+                                <span className="ed-arch__stat">
+                                  <span className="ed-arch__stat-value">{m.totalApplicants ?? job.applicationCount ?? 0}</span>
+                                  <span className="ed-arch__stat-label">{t("employerDashboard.archived.statApplicants")}</span>
+                                </span>
+                                <span className="ed-arch__stat">
+                                  <span className="ed-arch__stat-value">{m.qualifiedCount ?? 0}</span>
+                                  <span className="ed-arch__stat-label">{t("employerDashboard.archived.statQualified")}</span>
+                                </span>
+                                <span className="ed-arch__stat is-hired">
+                                  <span className="ed-arch__stat-value">{m.hiredCount ?? 0}</span>
+                                  <span className="ed-arch__stat-label">{t("employerDashboard.archived.statHired")}</span>
+                                </span>
+                                <span className="ed-arch__stat">
+                                  <span className="ed-arch__stat-value">{m.daysActive ?? 0}</span>
+                                  <span className="ed-arch__stat-label">{t("employerDashboard.archived.statDays")}</span>
+                                </span>
+                              </span>
+                              <span className="ed-arch__toggle">
+                                {isExpanded
+                                  ? t("employerDashboard.archived.hideReport")
+                                  : t("employerDashboard.archived.viewReport")}
+                                <ChevronDown size={16} className={`ed-arch__chev ${isExpanded ? "is-open" : ""}`} aria-hidden="true" />
+                              </span>
+                            </span>
+                          </button>
+                          {isExpanded && (
+                            <div id={reportId} className="ed-arch__report">
+                              <ArchivedPostMortem job={job} />
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 )}
 
                 {filteredArchivedJobs.length > 0 ? (
-                  <nav className="emp-pager" aria-label="Archived jobs pagination">
+                  <nav className="emp-pager" aria-label={t("employerDashboard.archived.pagination")}>
                     <button
                       type="button"
                       className="emp-pager-btn"
                       onClick={() => setArchivedPage((p) => Math.max(1, p - 1))}
                       disabled={archivedPage === 1}
-                      aria-label="Previous page"
+                      aria-label={t("employerDashboard.archived.prevPage")}
                     >
                       <FaChevronLeft />
                     </button>
@@ -1975,7 +2040,7 @@ export default function EmployerDashboard() {
                       className="emp-pager-btn"
                       onClick={() => setArchivedPage((p) => Math.min(archivedTotalPages, p + 1))}
                       disabled={archivedPage === archivedTotalPages}
-                      aria-label="Next page"
+                      aria-label={t("employerDashboard.archived.nextPage")}
                     >
                       <FaChevronRight />
                     </button>
@@ -2360,26 +2425,48 @@ export default function EmployerDashboard() {
 
             {/* -------- MATCHING PREFERENCES TAB (§C.1) -------- */}
             {activeTab === "matchWeights" && (
-              <div className="employer-tab-panel">
-                <div className="emp-match-weights-panel">
-                  <h2>Matching Preferences</h2>
-                  <p className="emp-match-weights-intro">
-                    Set how much each factor counts toward an applicant's match percentage on
-                    your job postings. Weights must add up to exactly 100%. Individual jobs can
-                    still override this from their own edit page.
-                  </p>
+              <div className="employer-tab-panel ed-mw">
+                <section className="emp-match-weights-panel ed-mw__editor" aria-labelledby="ed-mw-title">
+                  <div className="ed-mw__head">
+                    <div className="ed-mw__heading">
+                      <h2 id="ed-mw-title">{t("employerDashboard.matchWeights.title")}</h2>
+                      <p className="emp-match-weights-intro">{t("employerDashboard.matchWeights.intro")}</p>
+                    </div>
+                    {matchWeightsLoaded && (
+                      <p
+                        className={`ed-mw__total ${previewTotal === 100 ? "is-valid" : "is-invalid"}`}
+                        role="status"
+                        aria-live="polite"
+                      >
+                        <span className="ed-mw__total-value">{previewTotal}%</span>
+                        <span className="ed-mw__total-label">{t("employerDashboard.matchWeights.totalLabel")}</span>
+                      </p>
+                    )}
+                  </div>
                   {matchWeightsIsCustom && (
-                    <p className="emp-match-weights-status">Using your own custom weights.</p>
+                    <p className="emp-match-weights-status">{t("employerDashboard.matchWeights.custom")}</p>
                   )}
 
                   {matchWeightsLoading && !matchWeightsLoaded ? (
-                    <p className="loading">Loading matching preferences...</p>
+                    <StateBlock kind="loading" title={t("employerDashboard.matchWeights.loading")} />
                   ) : matchWeightsError && !matchWeightsLoaded ? (
-                    <div className="error-message" role="alert">{matchWeightsError}</div>
+                    <StateBlock
+                      kind="error"
+                      title={t("employerDashboard.matchWeights.errorTitle")}
+                      description={matchWeightsError}
+                    />
                   ) : (
                     <>
                       {matchWeightsError && (
-                        <div className="error-message" role="alert">{matchWeightsError}</div>
+                        <div className="error-message ds-alert ds-alert--error" role="alert">{matchWeightsError}</div>
+                      )}
+                      {previewTotal !== 100 && (
+                        <div className="ds-alert ds-alert--warning ed-mw__alert">
+                          <TriangleAlert size={18} aria-hidden="true" />
+                          <span className="ds-alert__body">
+                            {t("employerDashboard.matchWeights.mustEqual", { total: previewTotal })}
+                          </span>
+                        </div>
                       )}
                       <MatchWeightsEditor
                         initialWeights={matchWeights || CODE_FALLBACK_WEIGHTS}
@@ -2387,10 +2474,39 @@ export default function EmployerDashboard() {
                         onSave={handleSaveMatchWeights}
                         onReset={matchWeightsIsCustom ? handleResetMatchWeights : undefined}
                         busy={matchWeightsSaving}
+                        onDraftChange={setMatchWeightsDraft}
                       />
                     </>
                   )}
-                </div>
+                </section>
+
+                {matchWeightsLoaded && (
+                  <aside className="ed-mw__ideal" aria-labelledby="ed-mw-ideal-title">
+                    <span className="ed-mw__ideal-icon" aria-hidden="true">
+                      <Target size={20} />
+                    </span>
+                    <h2 id="ed-mw-ideal-title" className="ed-mw__ideal-title">
+                      {t("employerDashboard.matchWeights.idealTitle")}
+                    </h2>
+                    <p className="ed-mw__ideal-intro">{t("employerDashboard.matchWeights.idealIntro")}</p>
+                    {previewTop.length ? (
+                      <ol className="ed-mw__ideal-list">
+                        {previewTop.map((row) => (
+                          <li key={row.key} className="ed-mw__ideal-row">
+                            <span className="ed-mw__ideal-name">{row.label}</span>
+                            <span className="ed-mw__ideal-value">{row.value}%</span>
+                            <span className="ed-mw__ideal-bar" aria-hidden="true">
+                              <span style={{ "--ed-mw-pct": `${Math.min(100, row.value)}%` }} />
+                            </span>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="ed-mw__ideal-empty">{t("employerDashboard.matchWeights.idealEmpty")}</p>
+                    )}
+                    <p className="ed-mw__ideal-note">{t("employerDashboard.matchWeights.idealNote")}</p>
+                  </aside>
+                )}
               </div>
             )}
           </>

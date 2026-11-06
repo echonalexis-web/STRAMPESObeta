@@ -1539,3 +1539,407 @@ body:has(.pj-page) .dtb-root {
   background: var(--pj-primary-light);
   color: var(--pj-primary-dark);
 }
+
+/* ═══ UI-11: mobile-first modernization (design-system tokens) ═══
+   Appended block; everything scoped to .pj-page. Base = <=360px. */
+.pj-page {
+  min-height: 100dvh;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+/* body is the scroll container on this app shell: keep a focused field
+   clear of the sticky top bars and the sticky submit bar. */
+html:has(.pj-page),
+body:has(.pj-page) {
+  scroll-padding-top: 150px;
+  scroll-padding-bottom: 150px;
+}
+.pj-page .pj-section {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-1);
+}
+.pj-page .pj-section-header h2 {
+  font-family: var(--ds-font-display);
+  color: var(--ds-green-deep);
+}
+.pj-page .pj-field label {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-text);
+  overflow-wrap: anywhere;
+}
+.pj-page .pj-field input,
+.pj-page .pj-field select,
+.pj-page .pj-field textarea,
+.pj-page .location-select select,
+.pj-page .br-num,
+.pj-page .br-education {
+  font-size: 16px;
+  min-height: var(--ds-tap);
+  min-width: 0;
+  max-width: 100%;
+}
+.pj-page .pj-field-error {
+  color: var(--ds-danger);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.pj-page .pj-error-input {
+  border-color: var(--ds-danger);
+}
+.pj-page :is(button, input, select, textarea, a):focus-visible {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 2px;
+}
+/* Touch targets for every chip / pill / repeater control in the form */
+.pj-page :is(.pj-chip, .pj-seg-btn, .pj-back-btn, .pj-btn, .pj-link-btn,
+  .br-quick-btn, .br-pill, .qe-role-chip, .qe-show-all-btn, .qe-link-btn,
+  .qe-manage-btn, .qe-seg-btn, .qe-tag-remove, .qe-tab, .qe-palette-pill) {
+  min-height: var(--ds-tap);
+}
+.pj-page .pj-stepper-btn {
+  width: var(--ds-tap);
+  height: var(--ds-tap);
+  flex-basis: var(--ds-tap);
+}
+.pj-page .qe-show-all-btn,
+.pj-page .qe-link-btn {
+  min-width: var(--ds-tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: left;
+}
+/* Remove buttons in the qualification repeater (icon-only) */
+.pj-page [class*="qe-"][class*="remove"],
+.pj-page [class*="qe-"][class*="delete"] {
+  min-width: var(--ds-tap);
+  min-height: var(--ds-tap);
+}
+/* Repeaters / salary range stack on narrow screens */
+.pj-page .pj-salary-range-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--ds-space-2);
+}
+.pj-page .pj-salary-range-sep {
+  text-align: center;
+}
+.pj-page .pj-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  min-height: var(--ds-tap);
+  cursor: pointer;
+}
+.pj-page .pj-toggle-row input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  min-height: 0;
+  flex: 0 0 24px;
+  accent-color: var(--ds-green-secondary);
+}
+.pj-page .pj-sticky-actions {
+  padding-left: 12px;
+  padding-right: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+@media (min-width: 480px) {
+  .pj-page .pj-salary-range-row {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+@media (min-width: 768px) {
+  .pj-page .pj-sticky-actions {
+    padding-left: 32px;
+    padding-right: 100px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pj-page *,
+  .pj-page *::before,
+  .pj-page *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =====================================================================
+   Phase 3b - Post a vacancy refresh. Appended block, scoped to .pj-page
+   (PostJob + the admin edit view). Maps the page's own --pj-* palette onto
+   the design-system tokens, so every legacy rule above picks up the brand
+   colours without being rewritten; then restyles the step bar, cards,
+   fields and sticky bars. Still one scrolling form; no layout behaviour
+   (sticky offsets, scroll padding, messenger lift, top-bar hiding) changes.
+   ===================================================================== */
+.pj-page {
+  --pj-primary: var(--ds-green);
+  --pj-primary-dark: var(--ds-green-deep);
+  --pj-primary-light: var(--ds-mint);
+  --pj-accent: var(--ds-gold);
+  --pj-accent-light: var(--ds-warning-bg);
+  --pj-danger: var(--ds-danger);
+  --pj-danger-light: var(--ds-danger-bg);
+  --pj-success: var(--ds-success);
+  --pj-success-light: var(--ds-success-bg);
+  --pj-text: var(--ds-text);
+  --pj-text-secondary: var(--ds-ink-700);
+  --pj-text-muted: var(--ds-muted);
+  --pj-border: var(--ds-border);
+  --pj-border-focus: var(--ds-green-secondary);
+  --pj-bg: var(--ds-bg);
+  --pj-card: var(--ds-surface);
+  --pj-radius: var(--ds-radius-card);
+  --pj-radius-sm: var(--ds-radius-md);
+  --pj-shadow: none;
+  --pj-shadow-lg: var(--ds-elev-2);
+  --pj-transition: background-color var(--ds-motion-base) var(--ds-motion-ease-out),
+    border-color var(--ds-motion-base) var(--ds-motion-ease-out),
+    color var(--ds-motion-base) var(--ds-motion-ease-out),
+    box-shadow var(--ds-motion-base) var(--ds-motion-ease-out);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+}
+
+/* ---- Top bar: the page's single h1 ---- */
+.pj-page .pj-topbar {
+  border-bottom-color: var(--ds-border);
+  box-shadow: none;
+}
+.pj-page h1.pj-topbar-title {
+  margin: 0;
+  color: var(--ds-text);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-lg);
+  font-weight: 800;
+  line-height: var(--ds-leading-snug);
+  text-wrap: balance;
+}
+.pj-page .pj-topbar-title svg { flex: none; color: var(--ds-green); }
+.pj-page .pj-back-btn {
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-btn);
+  color: var(--ds-green);
+  font-weight: 700;
+}
+.pj-page .pj-back-btn:hover:not(:disabled) {
+  background: var(--ds-mint);
+  border-color: var(--ds-green-secondary);
+  color: var(--ds-green);
+}
+
+/* ---- Step bar: stepper cards (active = green, done = mint + check) ---- */
+.pj-page .pj-step-bar {
+  gap: var(--ds-space-2);
+  border-bottom-color: var(--ds-border);
+  background: var(--ds-bg);
+  box-shadow: none;
+}
+.pj-page .pj-step {
+  gap: var(--ds-space-3);
+  min-height: var(--ds-tap);
+  padding: var(--ds-space-2) var(--ds-space-4) var(--ds-space-2) var(--ds-space-2);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+}
+.pj-page .pj-step:hover { background: var(--ds-ink-50); }
+.pj-page .pj-step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-ink-50);
+  color: var(--ds-ink-700);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-sm);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.pj-page .pj-step-label {
+  color: var(--ds-text);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pj-page .pj-step-status {
+  color: var(--ds-muted);
+  font-size: var(--ds-text-xs);
+  font-weight: 600;
+}
+.pj-page .pj-step.is-done {
+  border-color: #b8dfc5;
+  background: var(--ds-mint);
+}
+.pj-page .pj-step.is-done .pj-step-num {
+  background: var(--ds-green-secondary);
+  color: #fff;
+}
+.pj-page .pj-step.is-done .pj-step-status { color: var(--ds-success); }
+.pj-page .pj-step.is-active {
+  border-color: var(--ds-green);
+  background: var(--ds-green);
+}
+.pj-page .pj-step.is-active .pj-step-num {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--ds-gold);
+}
+.pj-page .pj-step.is-active .pj-step-label { color: #fff; }
+.pj-page .pj-step.is-active .pj-step-status { color: rgba(255, 255, 255, 0.86); }
+.pj-page .pj-step.is-active:focus-visible { outline-color: var(--ds-gold); }
+
+/* ---- Sections + sidebar cards: border-first ---- */
+.pj-page .pj-section,
+.pj-page .pj-sidebar-card {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
+  box-shadow: none;
+}
+.pj-page .pj-section:hover { box-shadow: none; }
+.pj-page .pj-section-header {
+  border-bottom: 1px solid var(--ds-ink-100);
+}
+.pj-page .pj-section-icon {
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-mint);
+  color: var(--ds-green);
+}
+.pj-page .pj-section-header h2 {
+  color: var(--ds-text);
+  font-size: var(--ds-text-h3);
+  font-weight: 800;
+  line-height: var(--ds-leading-snug);
+  text-wrap: balance;
+}
+.pj-page .pj-section-header p {
+  max-width: 65ch;
+  color: var(--ds-muted);
+  line-height: var(--ds-leading-body);
+}
+.pj-page .pj-sidebar-card h3 {
+  color: var(--ds-text);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-md);
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.pj-page .pj-preview-card { background: var(--ds-surface); }
+.pj-page .pj-preview-hint,
+.pj-page .pj-checklist-progress {
+  color: var(--ds-muted);
+  font-size: var(--ds-text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.pj-page .pj-preview-stage {
+  border: 1px solid var(--ds-ink-100);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-bg);
+}
+
+/* Checklist */
+.pj-page .pj-checklist li {
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-sm);
+}
+.pj-page .pj-checklist li.is-done { color: var(--ds-text); }
+.pj-page .pj-checklist-dot {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--ds-ink-300);
+}
+.pj-page .pj-checklist li.is-done .pj-checklist-dot {
+  border-color: var(--ds-green-secondary);
+  background: var(--ds-green-secondary);
+}
+
+/* ---- Fields: .ds-input look ---- */
+.pj-page .pj-field label { font-weight: 700; }
+.pj-page .pj-field input,
+.pj-page .pj-field select,
+.pj-page .pj-field textarea {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+}
+.pj-page .pj-field input:hover,
+.pj-page .pj-field select:hover,
+.pj-page .pj-field textarea:hover {
+  border-color: var(--ds-ink-300);
+  background: var(--ds-surface);
+}
+.pj-page .pj-field input:focus,
+.pj-page .pj-field select:focus,
+.pj-page .pj-field textarea:focus {
+  border-color: var(--ds-green-secondary);
+  background: var(--ds-surface);
+  box-shadow: 0 0 0 3px rgba(11, 112, 75, 0.12);
+}
+.pj-page .pj-field input::placeholder,
+.pj-page .pj-field textarea::placeholder { color: var(--ds-muted); }
+.pj-page .pj-char-count.warning { color: var(--ds-warning); }
+.pj-page .pj-field-hint,
+.pj-page .pj-hint { color: var(--ds-muted); }
+
+/* Alerts in tokens (no slide-in shake beyond the existing keyframes) */
+.pj-page .pj-alert { border-radius: var(--ds-radius-md); }
+.pj-page .pj-alert-error { border-color: #f1bdb6; color: #7f1a12; }
+.pj-page .pj-alert-success { border-color: #b8dfc5; color: var(--ds-success); }
+.pj-page .pj-address-missing-warning {
+  border-color: #ecd58a;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-warning-bg);
+  color: var(--ds-warning);
+}
+.pj-page .pj-template-cta {
+  border-color: #b8dfc5;
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-mint);
+}
+.pj-page .pj-template-cta h3 { color: var(--ds-green-deep); font-family: var(--ds-font-display); }
+.pj-page .pj-template-cta p { color: var(--ds-ink-700); }
+.pj-page .pj-template-cta-row input {
+  min-height: var(--ds-tap);
+  border-color: var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  font-size: 16px;
+}
+.pj-page .pj-template-cta-error { color: var(--ds-danger); }
+
+/* ---- Buttons + sticky action bar ---- */
+.pj-page .pj-btn {
+  min-height: var(--ds-tap);
+  border-radius: var(--ds-radius-btn);
+  font-weight: 700;
+}
+.pj-page .pj-btn-primary {
+  background: var(--ds-green);
+  color: #fff;
+  box-shadow: none;
+}
+.pj-page .pj-btn-primary:hover:not(:disabled) {
+  background: var(--ds-green-secondary);
+  transform: none;
+  box-shadow: none;
+}
+.pj-page .pj-btn-secondary {
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-green);
+}
+.pj-page .pj-btn-secondary:hover:not(:disabled) {
+  border-color: var(--ds-green-secondary);
+  background: var(--ds-mint);
+  color: var(--ds-green);
+}
+.pj-page .pj-sticky-actions {
+  border-top-color: var(--ds-border);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-elev-1);
+}
+.pj-page .pj-sticky-actions-note { color: var(--ds-ink-700); font-size: var(--ds-text-sm); }

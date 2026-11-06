@@ -255,6 +255,29 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
     }
   };
 
+  // Unchecking "Use custom matching weights" represents "remove my saved
+  // override," not just a local display toggle — if an override is actually
+  // saved server-side, flipping this off has to go through the same removal
+  // flow as the "Remove override" button inside MatchWeightsEditor, and the
+  // checkbox only flips once the server confirms the removal. Until then it
+  // stays checked (and disabled, via matchWeightsSaving) so a failed removal
+  // never leaves the UI claiming the default is active while the server
+  // still has the override in effect.
+  const handleToggleCustomMatchWeights = async (checked) => {
+    if (checked) {
+      setUseCustomMatchWeights(true);
+      return;
+    }
+    if (!matchWeightsOverride) {
+      // Nothing saved server-side yet (the editor was opened but never
+      // saved) — there's nothing to remove, so this is purely local.
+      setUseCustomMatchWeights(false);
+      setMatchWeightsError("");
+      return;
+    }
+    await handleRemoveMatchWeightsOverride();
+  };
+
   const loadQualTemplates = async () => {
     try {
       const res = await employerAPI.getQualificationTemplates();
@@ -550,11 +573,11 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
 
   // ---- "Before you post" checklist — also gates the submit button ----
   const checklist = [
-    { id: "title", label: "Job title", done: Boolean(formData.title.trim()) },
-    { id: "description", label: "Description (40+ characters)", done: formData.description.trim().length >= 40 },
-    { id: "industry", label: "Industry", done: formData.industry.length > 0 },
-    { id: "location", label: "Work location", done: Boolean(formData.location.trim()) },
-    { id: "qualification", label: "At least one qualification", done: formData.qualifications.length > 0 },
+    { id: "title", label: t("jobPosting.checklist.title"), done: Boolean(formData.title.trim()) },
+    { id: "description", label: t("jobPosting.checklist.description"), done: formData.description.trim().length >= 40 },
+    { id: "industry", label: t("jobPosting.checklist.industry"), done: formData.industry.length > 0 },
+    { id: "location", label: t("jobPosting.checklist.location"), done: Boolean(formData.location.trim()) },
+    { id: "qualification", label: t("jobPosting.checklist.qualification"), done: formData.qualifications.length > 0 },
   ];
   const remainingRequired = checklist.filter((c) => !c.done).length;
   const canPost = remainingRequired === 0;
@@ -677,14 +700,14 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
   };
 
   const sections = [
-    { id: "basics", label: "Job basics", icon: <FaClipboardList />, required: true, done: checklist[0].done && checklist[1].done && checklist[2].done },
-    { id: "pay", label: "Pay & location", icon: <FaCoins />, required: true, done: checklist[3].done },
-    { id: "eligibility", label: "Eligibility", icon: <FaUsers />, required: false, done: false },
-    { id: "qualifications", label: "Qualifications", icon: <FaListUl />, required: true, done: checklist[4].done },
+    { id: "basics", label: t("jobPosting.steps.basics"), icon: <FaClipboardList />, required: true, done: checklist[0].done && checklist[1].done && checklist[2].done },
+    { id: "pay", label: t("jobPosting.steps.pay"), icon: <FaCoins />, required: true, done: checklist[3].done },
+    { id: "eligibility", label: t("jobPosting.steps.eligibility"), icon: <FaUsers />, required: false, done: false },
+    { id: "qualifications", label: t("jobPosting.steps.qualifications"), icon: <FaListUl />, required: true, done: checklist[4].done },
     // Matching weights are a separate saved resource keyed by this job's id
     // (see the useCustomMatchWeights state block above), so this step only
     // exists once the job itself already has one to save against.
-    ...(isEditing ? [{ id: "matchWeights", label: "Matching weights", icon: <FaSlidersH />, required: false, done: false }] : []),
+    ...(isEditing ? [{ id: "matchWeights", label: t("jobPosting.steps.matchWeights"), icon: <FaSlidersH />, required: false, done: false }] : []),
   ];
 
   const scrollToSection = (id) => {
@@ -696,27 +719,34 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
     <div className="pj-page">
       <div className="pj-topbar">
         <button className="pj-back-btn" onClick={handleCancel} disabled={loading}>
-          <FaArrowLeft /> {isEditing ? t("jobEditing.back") : "Back to Dashboard"}
+          <FaArrowLeft aria-hidden="true" /> {isEditing ? t("jobEditing.back") : t("jobPosting.back")}
         </button>
-        <div className="pj-topbar-title">
-          <FaBriefcase /> {isEditing ? t("jobEditing.title") : "Post a New Job"}
-        </div>
+        <h1 className="pj-topbar-title">
+          <FaBriefcase aria-hidden="true" /> {isEditing ? t("jobEditing.title") : t("jobPosting.title")}
+        </h1>
         <div className="pj-topbar-spacer" />
       </div>
 
       {!success && (
-        <nav className="pj-step-bar" aria-label="Posting sections">
+        <nav className="pj-step-bar" aria-label={t("jobPosting.stepsLabel")}>
           {sections.map((sec, index) => (
             <button
               key={sec.id}
               type="button"
               className={`pj-step ${activeSection === sec.id ? "is-active" : ""} ${sec.done ? "is-done" : ""}`}
+              aria-current={activeSection === sec.id ? "step" : undefined}
               onClick={() => scrollToSection(sec.id)}
             >
-              <span className="pj-step-num">{sec.done ? <FaCheck /> : index + 1}</span>
+              <span className="pj-step-num" aria-hidden="true">{sec.done ? <FaCheck /> : index + 1}</span>
               <span className="pj-step-text">
                 <span className="pj-step-label">{sec.label}</span>
-                <span className="pj-step-status">{sec.done ? "Done" : sec.required ? "Required" : "Optional"}</span>
+                <span className="pj-step-status">
+                  {sec.done
+                    ? t("jobPosting.status.done")
+                    : sec.required
+                      ? t("jobPosting.status.required")
+                      : t("jobPosting.status.optional")}
+                </span>
               </span>
             </button>
           ))}
@@ -794,12 +824,12 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
           ) : (
           <>
           <form id="pj-posting-form" className="pj-form" onSubmit={handleSubmit} noValidate>
-            <section id="section-basics" className="pj-section">
+            <section id="section-basics" className="pj-section" aria-labelledby="pj-h-basics">
               <div className="pj-section-header">
                 <div className="pj-section-icon"><FaClipboardList /></div>
                 <div>
-                  <h2>Job basics</h2>
-                  <p>What the role is and how many people you need.</p>
+                  <h2 id="pj-h-basics">{t("jobPosting.steps.basics")}</h2>
+                  <p>{t("jobPosting.sections.basicsSub")}</p>
                 </div>
               </div>
 
@@ -951,6 +981,8 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                   onChange={handleChange}
                   onBlur={handleBlur}
                   className={validationErrors.description && touched.description ? "pj-error-input" : ""}
+                  aria-invalid={Boolean(validationErrors.description && touched.description)}
+                  aria-describedby={validationErrors.description && touched.description ? "description-error" : undefined}
                   rows={8}
                   maxLength={5000}
                   required
@@ -958,7 +990,7 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                 />
                 <div className="pj-field-footer">
                   {validationErrors.description && touched.description ? (
-                    <span className="pj-field-error">{validationErrors.description}</span>
+                    <span className="pj-field-error" id="description-error" role="alert">{validationErrors.description}</span>
                   ) : (
                     <span />
                   )}
@@ -988,12 +1020,12 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
               </div>
             </section>
 
-            <section id="section-pay" className="pj-section">
+            <section id="section-pay" className="pj-section" aria-labelledby="pj-h-pay">
               <div className="pj-section-header">
                 <div className="pj-section-icon"><FaCoins /></div>
                 <div>
-                  <h2>Pay &amp; location</h2>
-                  <p>Where the work is, what it pays, and when applications close.</p>
+                  <h2 id="pj-h-pay">{t("jobPosting.steps.pay")}</h2>
+                  <p>{t("jobPosting.sections.paySub")}</p>
                 </div>
               </div>
 
@@ -1074,6 +1106,8 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                       onChange={handleChange}
                       onBlur={handleBlur}
                       className={validationErrors.salaryMin && touched.salaryMin ? "pj-error-input" : ""}
+                      aria-invalid={Boolean(validationErrors.salaryMin && touched.salaryMin)}
+                      aria-describedby={validationErrors.salaryMin && touched.salaryMin ? "salaryMin-error" : undefined}
                       disabled={loading}
                     />
                     <span className="pj-salary-range-sep">to</span>
@@ -1087,15 +1121,17 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                       onChange={handleChange}
                       onBlur={handleBlur}
                       className={validationErrors.salaryMax && touched.salaryMax ? "pj-error-input" : ""}
+                      aria-invalid={Boolean(validationErrors.salaryMax && touched.salaryMax)}
+                      aria-describedby={validationErrors.salaryMax && touched.salaryMax ? "salaryMax-error" : undefined}
                       disabled={loading}
                     />
                   </div>
                 )}
                 {(validationErrors.salaryMin && touched.salaryMin) && (
-                  <span className="pj-field-error">{validationErrors.salaryMin}</span>
+                  <span className="pj-field-error" id="salaryMin-error" role="alert">{validationErrors.salaryMin}</span>
                 )}
                 {(validationErrors.salaryMax && touched.salaryMax) && (
-                  <span className="pj-field-error">{validationErrors.salaryMax}</span>
+                  <span className="pj-field-error" id="salaryMax-error" role="alert">{validationErrors.salaryMax}</span>
                 )}
               </div>
 
@@ -1116,6 +1152,8 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                     onBlur={handleBlur}
                     min={new Date().toISOString().split("T")[0]}
                     className={`pj-deadline-date ${validationErrors.applicationDeadline && touched.applicationDeadline ? "pj-error-input" : ""}`}
+                    aria-invalid={Boolean(validationErrors.applicationDeadline && touched.applicationDeadline)}
+                    aria-describedby={validationErrors.applicationDeadline && touched.applicationDeadline ? "applicationDeadline-error" : undefined}
                     disabled={loading}
                   />
                   {DEADLINE_QUICK_PICKS.map((pick) => (
@@ -1139,7 +1177,7 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                   </button>
                 </div>
                 {validationErrors.applicationDeadline && touched.applicationDeadline && (
-                  <span className="pj-field-error">{validationErrors.applicationDeadline}</span>
+                  <span className="pj-field-error" id="applicationDeadline-error" role="alert">{validationErrors.applicationDeadline}</span>
                 )}
               </div>
             </section>
@@ -1157,12 +1195,12 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
               </div>
             </section>
 
-            <section id="section-qualifications" className="pj-section">
+            <section id="section-qualifications" className="pj-section" aria-labelledby="pj-h-qual">
               <div className="pj-section-header">
                 <div className="pj-section-icon"><FaListUl /></div>
                 <div>
-                  <h2>Qualifications</h2>
-                  <p>Skills, licences and clearances. Required = must-have, Preferred = nice to have.</p>
+                  <h2 id="pj-h-qual">{t("jobPosting.steps.qualifications")}</h2>
+                  <p>{t("jobPosting.sections.qualificationsSub")}</p>
                 </div>
               </div>
 
@@ -1187,12 +1225,12 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
               its own endpoint (jobAPI.updateMatchWeights), not as part of
               the job-posting submit. */}
           {isEditing && (
-            <section id="section-matchWeights" className="pj-section">
+            <section id="section-matchWeights" className="pj-section" aria-labelledby="pj-h-weights">
               <div className="pj-section-header">
                 <div className="pj-section-icon"><FaSlidersH /></div>
                 <div>
-                  <h2>Matching weights</h2>
-                  <p>Override how much each factor counts toward an applicant's match percentage, just for this job.</p>
+                  <h2 id="pj-h-weights">{t("jobPosting.steps.matchWeights")}</h2>
+                  <p>{t("jobPosting.sections.matchWeightsSub")}</p>
                 </div>
               </div>
 
@@ -1202,7 +1240,7 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                     type="checkbox"
                     checked={useCustomMatchWeights}
                     disabled={matchWeightsLoading || matchWeightsSaving}
-                    onChange={(e) => setUseCustomMatchWeights(e.target.checked)}
+                    onChange={(e) => handleToggleCustomMatchWeights(e.target.checked)}
                   />
                   <span>Use custom matching weights for this job</span>
                 </label>
@@ -1240,8 +1278,8 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
           <aside className="pj-sidebar">
             <div className="pj-sidebar-card pj-preview-card">
               <div className="pj-card-head-row">
-                <h3>Live Preview</h3>
-                <span className="pj-preview-hint">As jobseekers see it</span>
+                <h3>{t("jobPosting.preview.title")}</h3>
+                <span className="pj-preview-hint">{t("jobPosting.preview.hint")}</span>
               </div>
               <div className="pj-preview-stage">
                 <VacancyCard
@@ -1264,13 +1302,15 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
 
             <div className="pj-sidebar-card pj-checklist-card">
               <div className="pj-card-head-row">
-                <h3>Before you post</h3>
-                <span className="pj-checklist-progress">{checklist.length - remainingRequired} of {checklist.length}</span>
+                <h3>{t("jobPosting.checklist.heading")}</h3>
+                <span className="pj-checklist-progress">
+                  {t("jobPosting.checklist.progress", { done: checklist.length - remainingRequired, total: checklist.length })}
+                </span>
               </div>
               <ul className="pj-checklist">
                 {checklist.map((item) => (
                   <li key={item.id} className={item.done ? "is-done" : ""}>
-                    <span className="pj-checklist-dot">{item.done && <FaCheck />}</span>
+                    <span className="pj-checklist-dot" aria-hidden="true">{item.done && <FaCheck />}</span>
                     {item.label}
                   </li>
                 ))}
@@ -1283,7 +1323,7 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
       {!success && (
         <div className="pj-sticky-actions">
           <span className="pj-sticky-actions-note">
-            {canPost ? "Ready to post." : `${remainingRequired} required item${remainingRequired === 1 ? "" : "s"} left before you can post.`}
+            {canPost ? t("jobPosting.ready") : t("jobPosting.remaining", { count: remainingRequired })}
           </span>
           <div className="pj-actions">
             <button
@@ -1302,11 +1342,11 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
             >
               {loading ? (
                 <>
-                  <FaSpinner className="pj-spin" /> {isEditing ? t("jobEditing.saving") : "Posting..."}
+                  <FaSpinner className="pj-spin" aria-hidden="true" /> {isEditing ? t("jobEditing.saving") : t("jobPosting.posting")}
                 </>
               ) : (
                 <>
-                  <FaSave /> {isEditing ? t("common.save") : "Post Job Vacancy"}
+                  <FaSave aria-hidden="true" /> {isEditing ? t("common.save") : t("jobPosting.submit")}
                 </>
               )}
             </button>
