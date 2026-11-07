@@ -2,9 +2,9 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FaHeart, FaRegHeart, FaSearch } from "react-icons/fa";
-import { ArrowRight } from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
-import { newsAPI, newsLikeAPI, resolveAssetUrl } from "../services/api";
+import { newsAPI, newsLikeAPI } from "../services/api";
+import NewsCard from "../components/NewsCard";
 import useParallaxLayer from "../hooks/useParallaxLayer";
 import "../styles/news-feed.css";
 
@@ -17,32 +17,6 @@ const CATEGORIES = [
   { label: "Advisory", value: "advisory" },
   { label: "SPES", value: "spes" },
 ];
-
-// Human label per stored category value (feed cards + badges).
-const CATEGORY_LABEL = {
-  general: "General",
-  hiring: "Hiring",
-  training: "Training",
-  event: "Events",
-  advisory: "Advisory",
-  spes: "SPES Program",
-};
-
-const formatDate = (value) => {
-  if (!value) return "Unknown date";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown date";
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-};
-
-// Plain-text excerpt from the announcement body.
-const excerpt = (text, max = 180) => {
-  const flat = String(text || "").replace(/\s+/g, " ").trim();
-  if (!flat) return "No details available.";
-  return flat.length > max ? `${flat.slice(0, max).trimEnd()}…` : flat;
-};
-
-const categoryKey = (value) => (CATEGORY_LABEL[value] ? value : "general");
 
 export default function NewsFeed() {
   const navigate = useNavigate();
@@ -237,13 +211,14 @@ export default function NewsFeed() {
             <span className="ds-sr-only">Loading announcements...</span>
             <div className="news-grid" aria-hidden="true">
               {[0, 1, 2].map((n) => (
-                <div key={n} className="news-card news-card--skeleton">
-                  <span className="ds-skeleton news-sk-media" />
+                <div key={n} className={`news-card news-card--skeleton${n === 1 ? " news-card--text" : ""}`}>
+                  {n === 1 ? <span className="ds-skeleton news-sk-band" /> : <span className="ds-skeleton news-sk-media" />}
                   <div className="news-card__body">
                     <span className="ds-skeleton news-sk-line news-sk-line--badge" />
                     <span className="ds-skeleton news-sk-line news-sk-line--title" />
                     <span className="ds-skeleton news-sk-line" />
                     <span className="ds-skeleton news-sk-line news-sk-line--short" />
+                    {n === 1 ? <span className="ds-skeleton news-sk-line" /> : null}
                   </div>
                 </div>
               ))}
@@ -264,41 +239,13 @@ export default function NewsFeed() {
         ) : null}
 
         {featured ? (
-          <article
-            className="news-featured"
-            data-category={categoryKey(featured.category)}
-            onClick={() => openPost(featured._id)}
-            role="link"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") openPost(featured._id);
-            }}
-          >
-            <div className={`news-featured__media${featured.imageUrl ? "" : " news-featured__media--placeholder"}`}>
-              {featured.imageUrl ? (
-                <img src={resolveAssetUrl(featured.imageUrl)} alt={featured.title || "Announcement"} loading="lazy" />
-              ) : (
-                <span className="news-featured__glyph">{CATEGORY_LABEL[categoryKey(featured.category)]}</span>
-              )}
-            </div>
-            <div className="news-featured__body">
-              <span className="news-badge">{CATEGORY_LABEL[categoryKey(featured.category)]}</span>
-              <h2>{featured.title || "Untitled update"}</h2>
-              <p className="news-featured__excerpt">{excerpt(featured.content, 260)}</p>
-              <div className="news-featured__foot">
-                {renderLikeButton(featured)}
-                <span>{formatDate(featured.publishedAt || featured.createdAt)}</span>
-                <span>{featured.author?.name || "PESO Admin"}</span>
-              </div>
-              {/* Signed-in banner only: a visual cue, not a second control —
-                  the whole article is already the link. */}
-              {isLoggedIn ? (
-                <span className="ds-btn ds-btn--gold news-featured__cta" aria-hidden="true">
-                  {t("news.readStory")} <ArrowRight size={16} />
-                </span>
-              ) : null}
-            </div>
-          </article>
+          <NewsCard
+            item={featured}
+            variant="featured"
+            isLoggedIn={isLoggedIn}
+            onOpen={openPost}
+            likeButton={renderLikeButton(featured)}
+          />
         ) : null}
 
         {isLoggedIn && rest.length > 0 ? (
@@ -306,45 +253,15 @@ export default function NewsFeed() {
         ) : null}
 
         <div className="news-grid">
-          {rest.map((item) => {
-            const id = String(item?._id || "");
-            const key = categoryKey(item?.category);
-            return (
-              <article
-                key={id}
-                className="news-card"
-                data-category={key}
-                onClick={() => openPost(id)}
-                role="link"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") openPost(id);
-                }}
-              >
-                <div className={`news-card__media${item?.imageUrl ? "" : " news-card__media--placeholder"}`}>
-                  {item?.imageUrl ? (
-                    <img src={resolveAssetUrl(item.imageUrl)} alt={item?.title || "Announcement"} loading="lazy" />
-                  ) : (
-                    <span>{CATEGORY_LABEL[key]}</span>
-                  )}
-                </div>
-                <div className="news-card__body">
-                  <span className="news-badge">{CATEGORY_LABEL[key]}</span>
-                  <h2 className="news-card__title">{item?.title || "Untitled update"}</h2>
-                  <p className="news-card__excerpt">{excerpt(item?.content, 140)}</p>
-                  <div className="news-card__foot">
-                    {renderLikeButton(item)}
-                    <span>{formatDate(item?.publishedAt || item?.createdAt)}</span>
-                    {isLoggedIn ? (
-                      <span className="news-card__more" aria-hidden="true">
-                        {t("news.readMore")} <ArrowRight size={14} />
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+          {rest.map((item) => (
+            <NewsCard
+              key={String(item?._id || "")}
+              item={item}
+              isLoggedIn={isLoggedIn}
+              onOpen={openPost}
+              likeButton={renderLikeButton(item)}
+            />
+          ))}
         </div>
       </section>
     </main>

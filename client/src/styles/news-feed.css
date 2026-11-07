@@ -1863,3 +1863,221 @@ body.app-with-sidebar .news-article-page .news-article-body p {
     transform: none;
   }
 }
+
+/* ============================================================
+   Text-only cards (components/NewsCard.jsx)
+   An item with no image, or whose image fails to load, renders
+   .news-card--text / .news-featured--text instead of the image card.
+   Same outer box, border, radius, hover lift and footer as the image
+   card so both sit in one grid; the saved image height goes to the
+   title and excerpt. Palette is the existing design tokens only.
+   ============================================================ */
+
+/* Title link (both layouts): inherits the heading, never breaks the box */
+.news-feed-page .news-card__link {
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.news-feed-page .news-card__link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.news-feed-page .news-card__link:focus-visible {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 3px;
+  border-radius: var(--ds-radius-sm, 4px);
+}
+
+/* Ring the whole card when its title link has keyboard focus */
+.news-feed-page .news-card:has(.news-card__link:focus-visible),
+.news-feed-page .news-featured:has(.news-card__link:focus-visible) {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 2px;
+}
+
+.news-feed-page .news-card:has(.news-card__link:focus-visible) .news-card__link,
+.news-feed-page .news-featured:has(.news-card__link:focus-visible) .news-card__link {
+  outline: none;
+}
+
+.news-feed-page .news-card__title,
+.news-feed-page .news-card__excerpt,
+.news-feed-page .news-featured__body h2,
+.news-feed-page .news-featured__excerpt {
+  overflow-wrap: anywhere;
+}
+
+/* ---- Grid card ---- */
+.news-feed-page .news-card--text {
+  min-width: 0;
+}
+
+.news-feed-page .news-card__band {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  min-height: 64px;
+  padding: var(--ds-space-3) var(--ds-space-4);
+  overflow: hidden;
+  background-color: var(--ds-mint);
+  /* faint dot pattern, decorative only */
+  background-image: radial-gradient(circle, rgba(7, 85, 58, 0.14) 1.2px, transparent 1.7px);
+  background-size: 14px 14px;
+  border-bottom: 1px solid var(--ds-ink-100, #e6ede9);
+}
+
+/* Chip on the band: white so it stays legible on every category tint */
+.news-feed-page .news-card__band .news-badge {
+  background: #fff;
+  color: var(--cat-ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cat) 30%, transparent);
+}
+
+.news-feed-page .news-card__band-icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--ds-radius-md, 12px);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ds-green);
+  box-shadow: inset 0 0 0 1px rgba(7, 85, 58, 0.14);
+}
+
+/* Title is the visual anchor: display font, larger, up to 3 lines */
+.news-feed-page .news-card--text .news-card__title {
+  font-family: var(--ds-font-display);
+  font-size: clamp(1.125rem, 0.9rem + 0.8vw, 1.375rem);
+  font-weight: 800;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Excerpt takes the height the missing image would have used */
+.news-feed-page .news-card--text .news-card__excerpt {
+  flex: 1 1 auto;
+  min-height: 0;
+  font-size: var(--ds-text-md);
+  line-height: 1.55;
+  -webkit-line-clamp: 6;
+}
+
+/* ---- Featured banner without an image: green hero with gold accents ---- */
+.news-feed-page .news-featured.news-featured--text {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
+  background: linear-gradient(160deg, var(--ds-green), var(--ds-green-deep));
+  border-color: var(--ds-green-deep);
+  color: #fff;
+}
+
+.news-feed-page .news-featured__icon {
+  position: absolute;
+  top: var(--ds-space-4);
+  right: var(--ds-space-4);
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--ds-radius-lg);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ds-gold);
+  pointer-events: none;
+}
+
+.news-feed-page .news-featured__icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.news-feed-page .news-featured--text .news-featured__body {
+  position: relative;
+  max-width: 760px;
+  padding-right: calc(var(--ds-space-5) + 72px + var(--ds-space-3));
+}
+
+.news-feed-page .news-featured--text .news-badge {
+  background: var(--ds-gold);
+  color: var(--ds-green-deep);
+  box-shadow: none;
+}
+
+.news-feed-page .news-featured--text .news-featured__body h2,
+.news-feed-page .news-featured--text .news-featured__excerpt {
+  color: #fff;
+}
+
+.news-feed-page .news-featured--text .news-featured__body h2 {
+  font-family: var(--ds-font-display);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.news-feed-page .news-featured--text .news-featured__excerpt {
+  color: rgba(255, 255, 255, 0.9);
+  -webkit-line-clamp: 5;
+}
+
+.news-feed-page .news-featured--text .news-featured__foot {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.news-feed-page .news-featured--text .news-card__link:focus-visible {
+  outline-color: var(--ds-gold);
+}
+
+.news-feed-page .news-featured--text:has(.news-card__link:focus-visible) {
+  outline-color: var(--ds-gold);
+}
+
+/* ---- Loading skeleton for the text-only card ---- */
+.news-sk-band {
+  display: block;
+  width: 100%;
+  height: 64px;
+}
+
+/* ---- Small screens: one column, tighter text, no icon crowding ---- */
+@media (max-width: 640px) {
+  .news-feed-page .news-card--text .news-card__excerpt {
+    -webkit-line-clamp: 4;
+  }
+
+  .news-feed-page .news-featured__icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .news-feed-page .news-featured__icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .news-feed-page .news-featured--text .news-featured__body {
+    padding-right: calc(var(--ds-space-5) + 48px + var(--ds-space-2));
+  }
+}
+
+/* ---- Motion: no lift or transition when the user asks for less ---- */
+@media (prefers-reduced-motion: reduce) {
+  .news-feed-page .news-card,
+  .news-feed-page .news-featured {
+    transition: none;
+  }
+
+  .news-feed-page .news-card:hover,
+  .news-feed-page .news-featured:hover {
+    transform: none;
+  }
+}
