@@ -165,6 +165,13 @@ api.interceptors.response.use(
       if (token) {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
+        // The server now answers an expired or invalid token with 401 (it used
+        // to be a 403 that nothing here acted on). Clearing storage alone
+        // leaves AuthContext's in-memory user/token pointing at the dead
+        // session on pages that don't redirect (public paths below), so tell
+        // it to drop them too. No redirect loop is possible: the token is
+        // already gone, so later requests send none and never reach this branch.
+        window.dispatchEvent(new Event("auth:session-ended"));
         const publicPaths = ['/login', '/register', '/', '/home'];
         const currentPath = window.location.pathname;
         // Same batching hazard as the 403 branches above — a page that fires

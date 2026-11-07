@@ -92,8 +92,19 @@ export const AuthProvider = ({ children }) => {
       setUserState(nextUserRaw ? normalizeUser(JSON.parse(nextUserRaw)) : null);
     };
 
+    // Same-tab counterpart: the Axios interceptor (services/api.js) clears
+    // storage when the server rejects the token with 401, and a storage event
+    // never fires in the tab that made the change.
+    const handleSessionEnded = () => {
+      setToken(null);
+      setUserState(null);
+    };
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    window.addEventListener("auth:session-ended", handleSessionEnded);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("auth:session-ended", handleSessionEnded);
+    };
   }, []);
 
   const setUser = (value) => {

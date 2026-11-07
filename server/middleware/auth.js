@@ -2,6 +2,39 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const SystemSettings = require("../models/SystemSettings");
 const { isSpesEligibleAge, isJobVacancyEligibleAge } = require("../utils/age");
+const logger = require("../utils/logger");
+const { redact, describeOperation } = require("../utils/sendError");
+
+// Maps a failure inside verifyToken to a response. A bad or expired token is
+// the caller's problem (401: the client should drop the session and sign in
+// again). Anything else — a Mongo outage during the user lookup, a missing
+// JWT_SECRET — is OUR fault and must not read as an auth failure: that
+// used to come back as 403 "Invalid token", which made a database blip look
+// like every user being logged out, and left no log line to diagnose it.
+const respondToAuthFailure = (req, res, error, decoded) => {
+  if (error && error.name === "TokenExpiredError") {
+    return res.status(401).json({
+      code: "TOKEN_EXPIRED",
+      message: "Your session has expired. Please sign in again.",
+    });
+  }
+  if (error && (error.name === "JsonWebTokenError" || error.name === "NotBeforeError") && process.env.JWT_SECRET) {
+    return res.status(401).json({ code: "TOKEN_INVALID", message: "Invalid token" });
+  }
+
+  logger.error("Auth check failed", {
+    operation: describeOperation(req),
+    userId: decoded && decoded.id ? String(decoded.id) : null,
+    role: decoded && decoded.role ? decoded.role : null,
+    status: 503,
+    error: redact(error && error.message),
+    stack: redact(error && error.stack),
+  });
+  return res.status(503).json({
+    code: "AUTH_UNAVAILABLE",
+    message: "We could not verify your session right now. Please try again in a moment.",
+  });
+};
 
 // ============================================
 // STANDARD AUTH (requires valid token)
@@ -13,8 +46,9 @@ exports.verifyToken = async (req, res, next) => {
     return res.status(401).json({ message: "No token provided" });
   }
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // An "appeal-only" token may not be used for normal API access.
     if (decoded.scope === "appeal") {
@@ -99,7 +133,7 @@ exports.verifyToken = async (req, res, next) => {
     };
     next();
   } catch (error) {
-    return res.status(403).json({ message: "Invalid token" });
+    return respondToAuthFailure(req, res, error, decoded);
   }
 };
 
