@@ -43,10 +43,14 @@
   color: var(--ds-gold);
 }
 
-.news-toast__msg {
+.news-toast .news-toast__msg {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
+  /* Set explicitly: a global `p { color }` rule (index.css, style.css) would
+     otherwise win over the white inherited from .news-toast and turn the
+     message grey on the green background. */
+  color: #fff;
   font-family: var(--ds-font-display);
   font-size: var(--ds-text-sm);
   font-weight: 700;
