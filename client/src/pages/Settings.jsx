@@ -60,6 +60,8 @@ const EMAIL_NOTIFICATION_DEFAULTS = {
 const PRIVACY_DEFAULTS = {
   profileVisibility: "public",
   allowMessagesFrom: "anyone",
+  // "Show my active status": on unless the user turned it off.
+  showActiveStatus: true,
 };
 
 const SYSTEM_DEFAULTS = {
@@ -70,9 +72,9 @@ const SYSTEM_DEFAULTS = {
 
 const SECTIONS_BY_ROLE = {
   jobseeker: ["account", "language", "notifications", "privacy", "system", "about", "danger"],
-  employer: ["account", "language", "templates", "notifications", "system", "about", "danger"],
-  admin: ["account", "notifications", "access", "system", "about"],
-  superadmin: ["account", "system", "admin-tools", "about"],
+  employer: ["account", "language", "templates", "notifications", "privacy", "system", "about", "danger"],
+  admin: ["account", "notifications", "privacy", "access", "system", "about"],
+  superadmin: ["account", "privacy", "system", "admin-tools", "about"],
 };
 
 const SECTION_ICON = {
@@ -231,7 +233,7 @@ export default function Settings() {
   const goBack = () => setActiveSection(null);
 
   // ── Notification preferences + privacy (jobseeker / employer / admin) ──
-  const hasAccountSettings = ["jobseeker", "employer", "admin"].includes(role);
+  const hasAccountSettings = ["jobseeker", "employer", "admin", "superadmin"].includes(role);
   const [notifPrefs, setNotifPrefs] = useState(NOTIFICATION_DEFAULTS);
   const [emailNotifPrefs, setEmailNotifPrefs] = useState(EMAIL_NOTIFICATION_DEFAULTS);
   const [privacy, setPrivacy] = useState(PRIVACY_DEFAULTS);
@@ -296,7 +298,7 @@ export default function Settings() {
       await authAPI.updateSettings({ privacy: { [key]: value } });
     } catch {
       setPrivacy(previous);
-      toast.error(t("settings.saveError"));
+      toast.error(key === "showActiveStatus" ? t("settings.privacy.activeStatusError") : t("settings.saveError"));
     }
   };
 
@@ -429,6 +431,7 @@ export default function Settings() {
               )}
               {current === "privacy" && (
                 <PrivacySection
+                  role={role}
                   privacy={privacy}
                   loading={accountSettingsLoading}
                   onChange={savePrivacyField}
@@ -1262,17 +1265,30 @@ function NotificationsSection({ role, prefs, emailPrefs, loading, onToggle, onEm
   );
 }
 
-function PrivacySection({ privacy, loading, onChange }) {
+function PrivacySection({ role, privacy, loading, onChange }) {
   const { t } = useTranslation();
+  // Profile visibility and "who can message me" are jobseeker-only settings;
+  // every role that can use messaging gets the active-status switch.
+  const isJobseeker = role === "jobseeker";
   return (
     <section className="set-card">
       <SectionHead
         title={t("settings.privacy.title")}
-        subtitle={t("settings.privacy.subtitle")}
+        subtitle={isJobseeker ? t("settings.privacy.subtitle") : t("settings.privacy.subtitleActiveOnly")}
       />
 
       {loading && <p className="set-hint">{t("common.loading")}</p>}
 
+      <Toggle
+        id="privacy-show-active-status"
+        checked={privacy.showActiveStatus !== false}
+        disabled={loading}
+        onChange={(value) => onChange("showActiveStatus", value)}
+        label={t("settings.privacy.showActiveStatus")}
+        hint={t("settings.privacy.showActiveStatusHint")}
+      />
+
+      {isJobseeker && (<>
       <label className="set-field">
         <span className="set-field__label">{t("settings.privacy.profileVisibility")}</span>
         <select
@@ -1297,6 +1313,7 @@ function PrivacySection({ privacy, loading, onChange }) {
           <option value="employers">{t("settings.privacy.messageEmployers")}</option>
         </select>
       </label>
+      </>)}
     </section>
   );
 }

@@ -70,6 +70,10 @@ const userSchema = new mongoose.Schema(
     // Updated on every successful login so the superadmin console can show which
     // admin accounts are dormant.
     lastLoginAt: { type: Date, default: null },
+    // Last moment this user was really active in the app (see
+    // services/activeStatusService.js). Written on state changes and at most
+    // about once a minute, never on every heartbeat. null = never active.
+    lastActiveAt: { type: Date, default: null },
 
     // ===== Common profile fields =====
     about: { type: String, default: "" },
@@ -260,7 +264,7 @@ const userSchema = new mongoose.Schema(
       notifyLikes: { type: Boolean, default: true },
     },
 
-    // ===== Settings: privacy (jobseeker) =====
+    // ===== Settings: privacy =====
     privacy: {
       profileVisibility: {
         type: String,
@@ -272,6 +276,10 @@ const userSchema = new mongoose.Schema(
         enum: ["anyone", "employers"],
         default: "anyone",
       },
+      // "Show my active status" (Settings > Privacy). Missing = on, so existing
+      // users need no migration. When off, others can't see this user's
+      // status and this user can't see anyone else's (reciprocal).
+      showActiveStatus: { type: Boolean, default: true },
     },
 
     // ===== Password reset =====

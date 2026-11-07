@@ -332,7 +332,11 @@
       "visibilityHidden": "Hidden — only me and the PESO office",
       "whoCanMessage": "Who can message me",
       "messageAnyone": "Anyone signed in",
-      "messageEmployers": "Employers only"
+      "messageEmployers": "Employers only",
+      "subtitleActiveOnly": "Control whether others can see when you're active.",
+      "showActiveStatus": "Show my active status",
+      "showActiveStatusHint": "When off, others can't see when you're active, and you can't see when others are active.",
+      "activeStatusError": "We couldn't save your active status setting. Please try again."
     },
     "access": {
       "title": "Your Access",
@@ -616,6 +620,16 @@
     "readStory": "Read story",
     "moreFrom": "More from STRAM PESO",
     "readMore": "Read more"
+  },
+  "presence": {
+    "activeNow": "Active now",
+    "activeJustNow": "Active just now",
+    "activeMinutes_one": "Active {{count}} minute ago",
+    "activeMinutes_other": "Active {{count}} minutes ago",
+    "activeHours_one": "Active {{count}} hour ago",
+    "activeHours_other": "Active {{count}} hours ago",
+    "activeYesterday": "Active yesterday",
+    "inactive": "Inactive"
   },
   "newsToast": {
     "single": "New announcement posted",

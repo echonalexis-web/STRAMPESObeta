@@ -605,6 +605,17 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
 
   app.set("io", io);
 
+  // Messenger-style active status (activity tracking, sweep, privacy-aware
+  // broadcasts). In memory only; see services/activeStatusService.js.
+  const { createActiveStatusService } = require("./services/activeStatusService");
+  const activeStatus = createActiveStatusService({
+    io,
+    User: require("./models/User"),
+    Conversation: require("./models/Conversation"),
+  });
+  app.set("activeStatus", activeStatus);
+  activeStatus.start();
+
   // Socket authentication middleware
   io.use(async (socket, next) => {
     const token = socket.handshake.auth.token;
@@ -658,6 +669,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
 
     // Join a user-specific room for real-time notifications.
     socket.join(`user:${String(socket.userId)}`);
+
+    // Active status: per-socket activity, aggregated per user. Never throws.
+    activeStatus.handleConnection(socket);
 
     // Track user's active sockets
     if (!userConnections.has(socket.userId)) {

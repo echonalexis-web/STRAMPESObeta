@@ -2,6 +2,8 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
+import { usePresence } from "../hooks/usePresence";
+import { ActiveAvatar, ActiveStatusLine, ActiveStatusText } from "../components/ActiveStatus";
 import { messageAPI, resolveAssetUrl } from "../services/api";
 import { useToast, useConfirm } from "../components/feedback/context";
 import "../styles/messages.css";
@@ -194,6 +196,13 @@ export default function Messages() {
 
   const currentUserId = getEntityId(user?._id || user?.id || user);
   const [conversations, setConversations] = useState([]);
+  // Active status: ask for a fresh snapshot when the list of people changes
+  // (a single request, not one per conversation).
+  const { refreshSnapshot } = usePresence();
+  const conversationCount = conversations.length;
+  useEffect(() => {
+    refreshSnapshot();
+  }, [conversationCount, refreshSnapshot]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [messagesByConversation, setMessagesByConversation] = useState({});
@@ -815,13 +824,15 @@ export default function Messages() {
                     className="conversation-btn"
                     onClick={() => handleSelectConversation(conversation._id)}
                   >
-                    <span className={`user-avatar ${unavailable ? "unavailable" : ""}`}>
-                      {unavailable
-                        ? "?"
-                        : getUserAvatarUrl(otherUser)
-                          ? <img src={getUserAvatarUrl(otherUser)} alt="" />
-                          : (otherUser?.name || "U").trim().charAt(0).toUpperCase()}
-                    </span>
+                    <ActiveAvatar userId={unavailable ? null : getParticipantId(otherUser)}>
+                      <span className={`user-avatar ${unavailable ? "unavailable" : ""}`}>
+                        {unavailable
+                          ? "?"
+                          : getUserAvatarUrl(otherUser)
+                            ? <img src={getUserAvatarUrl(otherUser)} alt="" />
+                            : (otherUser?.name || "U").trim().charAt(0).toUpperCase()}
+                      </span>
+                    </ActiveAvatar>
                     <div className="conversation-info">
                       <div className="conversation-top">
                         <strong>{getParticipantDisplayName(otherUser)}</strong>
@@ -829,6 +840,7 @@ export default function Messages() {
                           {formatListTime(conversation.lastMessageAt || conversation.createdAt)}
                         </span>
                       </div>
+                      {unavailable ? null : <ActiveStatusText userId={getParticipantId(otherUser)} className="conversation-status" />}
                       <div className="conversation-bottom">
                         <span className="conversation-preview">
                           {conversation.lastMessage || "No messages yet"}
@@ -876,19 +888,26 @@ export default function Messages() {
                 >
                   <FaArrowLeft />
                 </button>
-                <span className={`chat-avatar ${participantUnavailable ? "unavailable" : ""}`}>
-                  {participantUnavailable
-                    ? "?"
-                    : getUserAvatarUrl(selectedParticipant)
-                      ? <img src={getUserAvatarUrl(selectedParticipant)} alt="" />
-                      : (selectedParticipant?.name || "U").trim().charAt(0).toUpperCase()}
-                </span>
+                <ActiveAvatar userId={participantUnavailable ? null : getParticipantId(selectedParticipant)}>
+                  <span className={`chat-avatar ${participantUnavailable ? "unavailable" : ""}`}>
+                    {participantUnavailable
+                      ? "?"
+                      : getUserAvatarUrl(selectedParticipant)
+                        ? <img src={getUserAvatarUrl(selectedParticipant)} alt="" />
+                        : (selectedParticipant?.name || "U").trim().charAt(0).toUpperCase()}
+                  </span>
+                </ActiveAvatar>
                 <div className="chat-user-info">
                   <strong>{getParticipantDisplayName(selectedParticipant)}</strong>
                   <p>
-                    {participantUnavailable
-                      ? "This user is unavailable"
-                      : getRoleLabel(selectedParticipant?.role)}
+                    {participantUnavailable ? (
+                      "This user is unavailable"
+                    ) : (
+                      <ActiveStatusLine
+                        userId={getParticipantId(selectedParticipant)}
+                        suffix={getRoleLabel(selectedParticipant?.role)}
+                      />
+                    )}
                   </p>
                 </div>
                 {!participantUnavailable && getParticipantId(selectedParticipant) ? (

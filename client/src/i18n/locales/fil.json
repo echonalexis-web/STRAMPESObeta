@@ -332,7 +332,11 @@
       "visibilityHidden": "Nakatago — ako at ang opisina ng PESO lamang",
       "whoCanMessage": "Sino ang makakapagmensahe sa akin",
       "messageAnyone": "Kahit sinong naka-sign in",
-      "messageEmployers": "Mga employer lamang"
+      "messageEmployers": "Mga employer lamang",
+      "subtitleActiveOnly": "Kontrolin kung makikita ng iba kung kailan ka aktibo.",
+      "showActiveStatus": "Ipakita ang aking aktibong status",
+      "showActiveStatusHint": "Kapag naka-off, hindi makikita ng iba kung kailan ka aktibo, at hindi mo rin makikita kung kailan aktibo ang iba.",
+      "activeStatusError": "Hindi namin nai-save ang setting ng iyong aktibong status. Pakisubukang muli."
     },
     "access": {
       "title": "Iyong Access",
@@ -616,6 +620,16 @@
     "readStory": "Basahin ang balita",
     "moreFrom": "Iba pa mula sa STRAM PESO",
     "readMore": "Magbasa pa"
+  },
+  "presence": {
+    "activeNow": "Aktibo ngayon",
+    "activeJustNow": "Kakaaktibo lang",
+    "activeMinutes_one": "Aktibo {{count}} minuto ang nakalipas",
+    "activeMinutes_other": "Aktibo {{count}} minuto ang nakalipas",
+    "activeHours_one": "Aktibo {{count}} oras ang nakalipas",
+    "activeHours_other": "Aktibo {{count}} oras ang nakalipas",
+    "activeYesterday": "Aktibo kahapon",
+    "inactive": "Hindi aktibo"
   },
   "newsToast": {
     "single": "May bagong anunsyo",

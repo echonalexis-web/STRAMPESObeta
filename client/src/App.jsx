@@ -4,6 +4,8 @@ import { BrowserRouter, Navigate, Routes, Route, useLocation, useNavigate } from
 import { AuthProvider } from "./context/AuthContext";
 import { AuthContext } from "./context/AuthContext";
 import { SocketProvider, useSocket } from "./context/SocketContext";
+import PresenceProvider from "./context/PresenceProvider";
+import ActiveStatusReporter from "./components/ActiveStatusReporter";
 import { FeedbackProvider } from "./components/feedback/FeedbackProvider";
 import NewsPublishedToast from "./components/NewsPublishedToast";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
@@ -156,12 +158,14 @@ function AppRoutes() {
 
   return (
     <SocketProvider userId={userId}>
+      <PresenceProvider>
       <BrowserRouter>
         <SiteChrome />
         <DashboardTopBar />
         <TermsGate />
         <CookieConsentBanner />
         <ForcedLogoutListener />
+        <ActiveStatusReporter />
         <NewsPublishedToast key={userId || "anonymous"} />
         <FloatingMessenger />
         <Routes>
@@ -223,6 +227,7 @@ function AppRoutes() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </PresenceProvider>
     </SocketProvider>
   );
 }

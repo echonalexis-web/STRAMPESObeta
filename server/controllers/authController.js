@@ -2217,6 +2217,11 @@ exports.updateSettings = async (req, res) => {
       if (ALLOW_MESSAGES_FROM_VALUES.includes(privacy.allowMessagesFrom)) {
         $set["privacy.allowMessagesFrom"] = privacy.allowMessagesFrom;
       }
+      // "Show my active status": strictly a boolean; anything else is ignored
+      // (and rejected with 400 below if it was the only field sent).
+      if (typeof privacy.showActiveStatus === "boolean") {
+        $set["privacy.showActiveStatus"] = privacy.showActiveStatus;
+      }
     }
 
     if (Object.keys($set).length === 0) {
@@ -2227,6 +2232,14 @@ exports.updateSettings = async (req, res) => {
       "notificationPreferences emailNotificationPreferences privacy"
     );
     if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Takes effect immediately over the existing sockets (no reconnect): peers
+    // are told hidden / the current state, and this user gets a fresh
+    // snapshot or a reset. Best-effort: the service never throws.
+    if (Object.prototype.hasOwnProperty.call($set, "privacy.showActiveStatus")) {
+      const activeStatus = req.app && req.app.get("activeStatus");
+      if (activeStatus) activeStatus.onVisibilityChanged(userId);
+    }
 
     res.json({
       message: "Settings saved.",

@@ -1,0 +1,69 @@
+/* ============================================================
+   Active status (components/ActiveStatus.jsx)
+   Green dot with a white ring on the avatar, only for "Active now";
+   small muted text for everything else. The dot is never the only
+   signal: it carries visually hidden text (.ds-sr-only).
+   Colours are existing tokens; the muted text is #5a6c65 on white
+   (5.6:1), the active text is forest green on white (8.9:1).
+   ============================================================ */
+
+.active-avatar {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.active-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ds-success, #1c6b3a);
+  /* white ring so the dot reads on any avatar photo */
+  box-shadow: 0 0 0 2px #fff;
+  pointer-events: none;
+}
+
+.active-status-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ds-font-body, "DM Sans", system-ui, sans-serif);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--ds-muted, #5a6c65);
+}
+
+.active-status-text.is-active {
+  color: var(--ds-green, #07553a);
+  font-weight: 700;
+}
+
+/* Inactive: muted, never the active colour */
+.active-status-text.is-inactive {
+  color: var(--ds-muted, #5a6c65);
+}
+
+/* On the green messenger header the text sits on a dark-to-mid green */
+.fm-panel-header .active-status-text,
+.fm-panel-header .active-status-text.is-active,
+.fm-panel-header .active-status-text.is-inactive {
+  display: inline;
+  color: #fff;
+  opacity: 0.95;
+  font-weight: 500;
+}
+
+.fm-panel-header .active-status-text.is-active {
+  font-weight: 700;
+}
+
+/* The messenger header capitalises its second line (for the role); keep the
+   status text in sentence case ("Active 15 minutes ago"). */
+.fm-header-status .active-status-text {
+  text-transform: none;
+}

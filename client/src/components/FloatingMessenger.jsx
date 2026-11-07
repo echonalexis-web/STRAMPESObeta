@@ -3,6 +3,8 @@ import { useLocation } from "react-router-dom";
 import DOMPurify from "dompurify";
 import { AuthContext } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
+import { usePresence } from "../hooks/usePresence";
+import { ActiveAvatar, ActiveStatusLine, ActiveStatusText } from "./ActiveStatus";
 import { messageAPI, resolveAssetUrl } from "../services/api";
 import { useToast } from "./feedback/context";
 import "../styles/floating-messenger.css";
@@ -365,6 +367,14 @@ export default function FloatingMessenger() {
     if (isOpen) panelRef.current?.focus();
   }, [isOpen]);
 
+  // Ask for a fresh presence snapshot when the list of people changes (one
+  // request, not one per conversation).
+  const { refreshSnapshot } = usePresence();
+  const conversationCount = conversations.length;
+  useEffect(() => {
+    refreshSnapshot();
+  }, [conversationCount, refreshSnapshot]);
+
   if (hideWidget) return null;
 
   const selectedConversation = conversations.find((conversation) => conversation._id === selectedId) || null;
@@ -460,18 +470,22 @@ export default function FloatingMessenger() {
                   <FaArrowLeft />
                 </button>
                 <div className="fm-header-identity">
-                  {getAvatarUrl(otherParticipant) ? (
-                    <img src={getAvatarUrl(otherParticipant)} alt="" className="fm-avatar-img" />
-                  ) : (
-                    <span className="fm-avatar-fallback">{getInitials(otherParticipant?.name)}</span>
-                  )}
+                  <ActiveAvatar userId={participantUnavailable ? null : getParticipantId(otherParticipant)}>
+                    {getAvatarUrl(otherParticipant) ? (
+                      <img src={getAvatarUrl(otherParticipant)} alt="" className="fm-avatar-img" />
+                    ) : (
+                      <span className="fm-avatar-fallback">{getInitials(otherParticipant?.name)}</span>
+                    )}
+                  </ActiveAvatar>
                   <div className="fm-header-text">
                     <span className="fm-header-name">
                       {participantUnavailable ? "Unavailable user" : otherParticipant?.name || "Unknown User"}
                     </span>
                     <span className="fm-header-status">
-                      {isConnected ? "Online" : "Offline"}
-                      {otherParticipant?.role ? ` · ${otherParticipant.role}` : ""}
+                      <ActiveStatusLine
+                        userId={participantUnavailable ? null : getParticipantId(otherParticipant)}
+                        suffix={otherParticipant?.role || ""}
+                      />
                     </span>
                   </div>
                 </div>
@@ -551,11 +565,13 @@ export default function FloatingMessenger() {
                         className="fm-conversation-item"
                         onClick={() => openConversation(conversation)}
                       >
-                        {getAvatarUrl(other) ? (
-                          <img src={getAvatarUrl(other)} alt="" className="fm-avatar-img" />
-                        ) : (
-                          <span className="fm-avatar-fallback">{getInitials(other?.name)}</span>
-                        )}
+                        <ActiveAvatar userId={unavailable ? null : getParticipantId(other)}>
+                          {getAvatarUrl(other) ? (
+                            <img src={getAvatarUrl(other)} alt="" className="fm-avatar-img" />
+                          ) : (
+                            <span className="fm-avatar-fallback">{getInitials(other?.name)}</span>
+                          )}
+                        </ActiveAvatar>
                         <span className="fm-conversation-body">
                           <span className="fm-conversation-top">
                             <span className="fm-conversation-name">
@@ -563,6 +579,7 @@ export default function FloatingMessenger() {
                             </span>
                             <span className="fm-conversation-time">{formatListTime(conversation.lastMessageAt)}</span>
                           </span>
+                          {unavailable ? null : <ActiveStatusText userId={getParticipantId(other)} />}
                           <span className="fm-conversation-preview">
                             {conversation.lastMessage || "No messages yet"}
                           </span>
