@@ -194,12 +194,16 @@ const persistFields = (fieldCategoryMap) => async (req, res, next) => {
   }
 };
 
-// On an error response, remove anything already persisted for this request.
+// On an error response, remove anything already persisted for this request —
+// but only if the database write that references those files did NOT commit.
+// A controller sets `req.uploadsCommitted = true` right after its write
+// succeeds; from then on the files belong to a saved record, and a later
+// failure (e.g. a notification) must never delete them.
 const cleanupUploadedFiles = (req, res, next) => {
   const originalJson = res.json.bind(res);
   res.json = (data) => {
     const isError = res.statusCode >= 400 || (data && data.error);
-    if (isError && Array.isArray(req.uploadedObjects) && req.uploadedObjects.length > 0) {
+    if (isError && !req.uploadsCommitted && Array.isArray(req.uploadedObjects) && req.uploadedObjects.length > 0) {
       Promise.allSettled(req.uploadedObjects.map((value) => storageService.remove(value)));
     }
     return originalJson(data);

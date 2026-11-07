@@ -15,6 +15,7 @@ const { createNotificationForUser } = require("../services/notificationService")
 const storageService = require("../services/storageService");
 const { logAuditEvent } = require("../services/auditService");
 const logger = require("../utils/logger");
+const { runPostCommit } = require("../utils/postCommit");
 
 // Helper to check if a job is past its deadline
 const isJobPastDeadline = (job) => {
@@ -371,6 +372,10 @@ exports.applyToJob = async (req, res) => {
   const coverLetterUpload = Array.isArray(req.files?.coverLetterFile) ? req.files.coverLetterFile[0] : null;
   // Orphan cleanup on error is handled by the cleanupUploadedFiles middleware.
   let session;
+  // Flips to true once commitTransaction succeeds. Before that, any failure
+  // aborts the transaction and lets the upload cleanup run; after it, the
+  // application is saved and later steps are best-effort only.
+  let committed = false;
 
   try {
     const job = await JobVacancy.findById(req.params.id);
@@ -484,24 +489,34 @@ exports.applyToJob = async (req, res) => {
     }
 
     await session.commitTransaction();
+    committed = true;
+    // The application row now references the uploaded files, so from here on
+    // nothing may delete them (see cleanupUploadedFiles in middleware/upload.js).
+    req.uploadsCommitted = true;
 
+    // Everything below is best-effort: the application is saved, so a failing
+    // notification or audit write must not turn this into an error response
+    // (the user would retry and get "already applied", with files deleted).
+    const postCommitCtx = { req, resourceType: "application", resourceId: application[0]._id };
     const io = req.app.get("io");
-    await createNotificationForUser({
-      recipientId: job.employer,
-      actorId: req.user.id,
-      type: "job_application",
-      title: "New job application",
-      message: `A candidate applied for ${job.title}.`,
-      relatedEntityType: "application",
-      relatedEntityId: application[0]._id,
-      actionUrl: "/employer",
-      metadata: {
-        jobId: String(job._id),
-        applicationId: String(application[0]._id),
-      },
-      io,
-      preferenceKey: "notifyNewApplicant",
-    });
+    await runPostCommit("application.notify_employer", postCommitCtx, () =>
+      createNotificationForUser({
+        recipientId: job.employer,
+        actorId: req.user.id,
+        type: "job_application",
+        title: "New job application",
+        message: `A candidate applied for ${job.title}.`,
+        relatedEntityType: "application",
+        relatedEntityId: application[0]._id,
+        actionUrl: "/employer",
+        metadata: {
+          jobId: String(job._id),
+          applicationId: String(application[0]._id),
+        },
+        io,
+        preferenceKey: "notifyNewApplicant",
+      })
+    );
 
     // Fresh activity — this vacancy is no longer a candidate for the
     // "about to auto-close" warning until it goes quiet again.
@@ -511,21 +526,39 @@ exports.applyToJob = async (req, res) => {
 
     logger.info(`Application submitted: ${application[0]._id} for job ${job._id} by user ${req.user.id}`);
 
-    await logAuditEvent({
-      req,
-      actorId: req.user.id,
-      actorRole: "jobseeker",
-      action: "job.application.created",
-      targetType: "application",
-      targetId: String(application[0]._id),
-      severity: "info",
-      metadata: { jobId: String(job._id), jobTitle: job.title },
-    });
+    await runPostCommit("application.audit", postCommitCtx, () =>
+      logAuditEvent({
+        req,
+        actorId: req.user.id,
+        actorRole: "jobseeker",
+        action: "job.application.created",
+        targetType: "application",
+        targetId: String(application[0]._id),
+        severity: "info",
+        metadata: { jobId: String(job._id), jobTitle: job.title },
+      })
+    );
 
-    res.json({ message: "Application submitted successfully", application: application[0] });
+    return res.json({ message: "Application submitted successfully", application: application[0] });
   } catch (error) {
-    // Uploaded files are cleaned up by the cleanupUploadedFiles middleware on error responses.
-    if (session?.inTransaction()) await session.abortTransaction();
+    // Uploaded files are cleaned up by the cleanupUploadedFiles middleware on
+    // error responses — unless the transaction already committed (above), in
+    // which case the saved application owns them.
+    //
+    // Abort only a transaction that is still open, and never let a failing
+    // abort mask the error that got us here (it used to skip the E11000
+    // mapping and the log line below).
+    if (!committed && session?.inTransaction()) {
+      try {
+        await session.abortTransaction();
+      } catch (abortError) {
+        logger.error("Failed to abort application transaction", {
+          userId: req.user?.id,
+          jobId: req.params.id,
+          error: abortError.message,
+        });
+      }
+    }
 
     // Two near-simultaneous requests can both pass the findOne duplicate
     // check above; the unique (applicant, vacancy) index on JobApplication
