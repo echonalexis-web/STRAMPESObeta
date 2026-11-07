@@ -70,6 +70,11 @@ const hashResetToken = hashToken; // kept for existing call sites
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Reset / verification links are only echoed back in API responses when this
+// is explicitly opted into (local development without SMTP). Off by default
+// in every environment, including when NODE_ENV is unset.
+const exposeDevLinks = () => process.env.EXPOSE_DEV_LINKS === "true";
+
 // Every save on `user` below passes `{ validateModifiedOnly: true }`.
 // Without it, Mongoose re-validates EVERY path on the document on every
 // save — not just the ones this particular call actually changed — so a
@@ -93,7 +98,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Called right after a password-based registration. Never throws — sendMail
 // itself already falls back to a console log instead of throwing, so a dead
 // SMTP transport can't fail registration.
-// @returns {Promise<string|null>} the dev-mode verify URL (non-production only)
+// @returns {Promise<string|null>} the verify URL only when EXPOSE_DEV_LINKS=true
 const issueEmailVerification = async (user) => {
   const rawToken = crypto.randomBytes(32).toString("hex");
   user.emailVerificationToken = hashToken(rawToken);
@@ -109,7 +114,7 @@ const issueEmailVerification = async (user) => {
     expiresHours: EMAIL_VERIFICATION_TTL_HOURS,
   });
 
-  return process.env.NODE_ENV !== "production" ? verifyUrl : null;
+  return exposeDevLinks() ? verifyUrl : null;
 };
 
 // Best-effort: assigns an available username derived from the email's local
@@ -818,8 +823,10 @@ exports.forgotPassword = async (req, res) => {
       severity: "warning",
     });
 
-    // No mailer yet — surface the link so the flow is usable outside production.
-    if (process.env.NODE_ENV !== "production") {
+    // Local convenience only: the link is returned in the response solely
+    // when EXPOSE_DEV_LINKS=true. Never tied to NODE_ENV, so an unset
+    // NODE_ENV on a host can't hand a reset link to whoever asks for it.
+    if (exposeDevLinks()) {
       return res.json({ ...generic, devResetUrl: resetUrl });
     }
     return res.json(generic);
@@ -953,7 +960,7 @@ exports.requestEmailChange = async (req, res) => {
     });
 
     const body = { message: `We sent a confirmation link to ${newEmail}. Open it to finish the change.` };
-    if (process.env.NODE_ENV !== "production") body.devVerifyUrl = verifyUrl;
+    if (exposeDevLinks()) body.devVerifyUrl = verifyUrl;
     return res.json(body);
   } catch (error) {
     return sendError(res, error, "Could not start the email change");
@@ -1126,7 +1133,7 @@ exports.requestRecoveryEmail = async (req, res) => {
     });
 
     const body = { message: `We sent a confirmation link to ${newRecoveryEmail}. Open it to finish setting it up.` };
-    if (process.env.NODE_ENV !== "production") body.devVerifyUrl = verifyUrl;
+    if (exposeDevLinks()) body.devVerifyUrl = verifyUrl;
     return res.json(body);
   } catch (error) {
     return sendError(res, error, "Could not set the recovery email");
