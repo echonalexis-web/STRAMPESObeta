@@ -14,7 +14,8 @@ const { redact } = require("./sendError");
 
 /**
  * @param {string} step  short name of the step, e.g. "application.notify_employer"
- * @param {{req?: object, resourceId?: string, resourceType?: string}} ctx
+ * @param {{req?: object, userId?: string, role?: string, resourceId?: string, resourceType?: string}} ctx
+ *        userId/role are used when no `req` is available (helpers shared by several handlers).
  * @param {() => Promise<any>} fn
  * @returns {Promise<boolean>} true when the step completed, false when it failed
  */
@@ -29,8 +30,8 @@ const runPostCommit = async (step, ctx, fn) => {
         step,
         resourceType: (ctx && ctx.resourceType) || undefined,
         resourceId: ctx && ctx.resourceId ? String(ctx.resourceId) : undefined,
-        userId: req && req.user && req.user.id ? String(req.user.id) : null,
-        role: (req && req.user && req.user.role) || null,
+        userId: req && req.user && req.user.id ? String(req.user.id) : ctx && ctx.userId ? String(ctx.userId) : null,
+        role: (req && req.user && req.user.role) || (ctx && ctx.role) || null,
         error: redact(error && error.message),
         stack: redact(error && error.stack),
       });

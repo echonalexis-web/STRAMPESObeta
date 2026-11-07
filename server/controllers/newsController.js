@@ -2,6 +2,7 @@ const Announcement = require("../models/Announcement");
 const NewsLike = require("../models/NewsLike");
 const User = require("../models/User");
 const { logAuditEvent } = require("../services/auditService");
+const { runPostCommit } = require("../utils/postCommit");
 const { notifyManyUsers } = require("../services/notificationService");
 const storageService = require("../services/storageService");
 const { escapeRegex } = require("../utils/sanitize");
@@ -192,9 +193,17 @@ exports.createNews = async (req, res) => {
       doc.spes = normalizeSpesConfig(spesConfig);
     }
     const created = await Announcement.create(doc);
+    // The announcement references the uploaded image; a later failure must
+    // not let the upload cleanup delete it.
+    req.uploadsCommitted = true;
 
-    const populated = await Announcement.findById(created._id).populate("author", "name email");
-    await logAuditEvent({
+    // Saved; the populate, audit and fan-out notification are best-effort.
+    const postCommitCtx = { req, resourceType: "news", resourceId: created._id };
+    let populated = created;
+    await runPostCommit("news_create.populate", postCommitCtx, async () => {
+      populated = await Announcement.findById(created._id).populate("author", "name email");
+    });
+    await runPostCommit("news_create.audit", postCommitCtx, () => logAuditEvent({
       req,
       actorId: req.user.id,
       actorRole: "admin",
@@ -203,10 +212,12 @@ exports.createNews = async (req, res) => {
       targetId: String(created._id),
       severity: "info",
       metadata: { category: created.category },
-    });
+    }));
 
     if (created.isActive) {
-      await notifyNewsPublished({ announcement: created, authorId: req.user.id, io: req.app.get("io") });
+      await runPostCommit("news_create.notify_users", postCommitCtx, () =>
+        notifyNewsPublished({ announcement: created, authorId: req.user.id, io: req.app.get("io") })
+      );
     }
 
     return res.status(201).json({ message: "News post created", item: populated });

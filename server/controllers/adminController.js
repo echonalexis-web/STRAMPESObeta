@@ -9,6 +9,7 @@ const EmployerProfile = require("../models/EmployerProfile");
 const AuditLog = require("../models/AuditLog");
 const { getApplicationCountMap, normalizeFeaturedOrdering } = require("../utils/jobDisplay");
 const { logAuditEvent } = require("../services/auditService");
+const { runPostCommit } = require("../utils/postCommit");
 const { createNotificationForUser } = require("../services/notificationService");
 const { forceLogout } = require("../services/sessionService");
 const { escapeRegex } = require("../utils/sanitize");
@@ -938,7 +939,9 @@ exports.toggleHomepageFeature = async (req, res) => {
 
     const updatedJob = await JobVacancy.findById(id).populate("employer", "name email companyName verificationStatus");
 
-    await logAuditEvent({
+    // The change is saved; audit and notification are best-effort.
+    const postCommitCtx = { req, resourceType: "job", resourceId: job._id };
+    await runPostCommit("job_feature.audit", postCommitCtx, () => logAuditEvent({
       req,
       actorId: req.user.id,
       actorRole: "admin",
@@ -949,10 +952,10 @@ exports.toggleHomepageFeature = async (req, res) => {
       metadata: {
         isFeatured: desiredFeatured,
       },
-    });
+    }));
 
     if (desiredFeatured) {
-      await createNotificationForUser({
+      await runPostCommit("job_feature.notify_employer", postCommitCtx, () => createNotificationForUser({
         recipientId: job.employer,
         actorId: req.user.id,
         type: "admin_action",
@@ -962,7 +965,7 @@ exports.toggleHomepageFeature = async (req, res) => {
         relatedEntityId: job._id,
         actionUrl: "/employer",
         io: req.app.get("io"),
-      });
+      }));
     }
 
     return res.json({
@@ -1006,7 +1009,9 @@ exports.updateUserRole = async (req, res) => {
     // issueEmailVerification.
     await user.save({ validateModifiedOnly: true });
 
-    await logAuditEvent({
+    // The role change is saved; audit and notification are best-effort.
+    const postCommitCtx = { req, resourceType: "user", resourceId: user._id };
+    await runPostCommit("user_role.audit", postCommitCtx, () => logAuditEvent({
       req,
       actorId: req.user.id,
       actorRole: "admin",
@@ -1018,9 +1023,9 @@ exports.updateUserRole = async (req, res) => {
       metadata: {
         newRole: role,
       },
-    });
+    }));
 
-    await createNotificationForUser({
+    await runPostCommit("user_role.notify_user", postCommitCtx, () => createNotificationForUser({
       recipientId: user._id,
       actorId: req.user.id,
       type: "admin_action",
@@ -1031,7 +1036,7 @@ exports.updateUserRole = async (req, res) => {
       actionUrl: "/profile",
       metadata: { newRole: role },
       io: req.app.get("io"),
-    });
+    }));
 
     return res.json({
       message: "User role updated",
@@ -1087,7 +1092,9 @@ exports.deactivateUser = async (req, res) => {
       suspendedAt: user.suspendedAt,
     });
 
-    await logAuditEvent({
+    // The suspension is saved; audit and notification are best-effort.
+    const postCommitCtx = { req, resourceType: "user", resourceId: user._id };
+    await runPostCommit("user_deactivate.audit", postCommitCtx, () => logAuditEvent({
       req,
       actorId: req.user.id,
       actorRole: "admin",
@@ -1097,9 +1104,9 @@ exports.deactivateUser = async (req, res) => {
       targetId: String(user._id),
       severity: "critical",
       metadata: { accountStatus: user.accountStatus, reason },
-    });
+    }));
 
-    await createNotificationForUser({
+    await runPostCommit("user_deactivate.notify_user", postCommitCtx, () => createNotificationForUser({
       recipientId: user._id,
       actorId: req.user.id,
       type: "admin_action",
@@ -1110,7 +1117,7 @@ exports.deactivateUser = async (req, res) => {
       relatedEntityType: "user",
       relatedEntityId: user._id,
       io: req.app.get("io"),
-    });
+    }));
 
     return res.json({ message: `User ${permanent ? "banned" : "suspended"}`, user });
   } catch (error) {
@@ -1135,7 +1142,9 @@ exports.reactivateUser = async (req, res) => {
     // issueEmailVerification.
     await user.save({ validateModifiedOnly: true });
 
-    await logAuditEvent({
+    // The reactivation is saved; audit and notification are best-effort.
+    const postCommitCtx = { req, resourceType: "user", resourceId: user._id };
+    await runPostCommit("user_reactivate.audit", postCommitCtx, () => logAuditEvent({
       req,
       actorId: req.user.id,
       actorRole: "admin",
@@ -1144,9 +1153,9 @@ exports.reactivateUser = async (req, res) => {
       targetType: "user",
       targetId: String(user._id),
       severity: "warning",
-    });
+    }));
 
-    await createNotificationForUser({
+    await runPostCommit("user_reactivate.notify_user", postCommitCtx, () => createNotificationForUser({
       recipientId: user._id,
       actorId: req.user.id,
       type: "admin_action",
@@ -1155,7 +1164,7 @@ exports.reactivateUser = async (req, res) => {
       relatedEntityType: "user",
       relatedEntityId: user._id,
       io: req.app.get("io"),
-    });
+    }));
 
     return res.json({ message: "User reactivated", user });
   } catch (error) {
@@ -1320,7 +1329,9 @@ exports.updateJobStatus = async (req, res) => {
 
     await job.save();
 
-    await logAuditEvent({
+    // The status change is saved; audit and notification are best-effort.
+    const postCommitCtx = { req, resourceType: "job", resourceId: job._id };
+    await runPostCommit("job_status.audit", postCommitCtx, () => logAuditEvent({
       req,
       actorId: req.user.id,
       actorRole: "admin",
@@ -1331,9 +1342,9 @@ exports.updateJobStatus = async (req, res) => {
       metadata: {
         status,
       },
-    });
+    }));
 
-    await createNotificationForUser({
+    await runPostCommit("job_status.notify_employer", postCommitCtx, () => createNotificationForUser({
       recipientId: job.employer,
       actorId: req.user.id,
       type: "admin_action",
@@ -1343,7 +1354,7 @@ exports.updateJobStatus = async (req, res) => {
       relatedEntityId: job._id,
       actionUrl: "/employer",
       io: req.app.get("io"),
-    });
+    }));
 
     return res.json({
       message: status === "closed" ? "Job closed" : "Job reopened",

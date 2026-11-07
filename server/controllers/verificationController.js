@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const { createNotificationForUser } = require("../services/notificationService");
 const { logAuditEvent } = require("../services/auditService");
+const { runPostCommit } = require("../utils/postCommit");
 const { postSystemMessage } = require("./messageController");
 const { escapeRegex } = require("../utils/sanitize");
 const { sendError } = require("../utils/sendError");
@@ -88,7 +89,9 @@ const applyVerificationDecision = async ({ userId, verificationStatus, note, req
     return { error: { status: 400, message: "Only employers can be verified" } };
   }
 
-  await logAuditEvent({
+  // The decision is saved; audit, notification and message are best-effort.
+  const postCommitCtx = { req, resourceType: "user", resourceId: user._id };
+  await runPostCommit("verification_decision.audit", postCommitCtx, () => logAuditEvent({
     req,
     actorId: req.user.id,
     actorRole: req.user.role,
@@ -98,7 +101,7 @@ const applyVerificationDecision = async ({ userId, verificationStatus, note, req
     targetId: String(user._id),
     severity: ["verified", "under_review"].includes(verificationStatus) ? "info" : "warning",
     metadata: { verificationStatus, note: trimmedNote || undefined },
-  });
+  }));
 
   const io = req.app.get("io");
   const verificationMessages = {
@@ -112,7 +115,7 @@ const applyVerificationDecision = async ({ userId, verificationStatus, note, req
   const resultMessage =
     verificationMessages[verificationStatus] || "Your employer verification status was updated.";
 
-  await createNotificationForUser({
+  await runPostCommit("verification_decision.notify_employer", postCommitCtx, () => createNotificationForUser({
     recipientId: user._id,
     actorId: req.user.id,
     type: "admin_action",
@@ -123,7 +126,7 @@ const applyVerificationDecision = async ({ userId, verificationStatus, note, req
     actionUrl: "/employer",
     metadata: { verificationStatus },
     io,
-  });
+  }));
 
   // Deliver the decision into a message thread the employer can reply to.
   // under_review is a lightweight status ping, not a decision — no thread post.
@@ -292,10 +295,15 @@ exports.submitEmployerVerificationWithDocuments = async (req, res) => {
     // validateModifiedOnly — see authController.js's note above
     // issueEmailVerification.
     await user.save({ validateModifiedOnly: true });
+    // The user row now references the uploaded permit/registration files, so
+    // a later failure must not let the upload cleanup delete them.
+    req.uploadsCommitted = true;
 
-    await notifySubmissionReceived(user, req);
+    // Saved; notifying admins and the audit write are best-effort.
+    const postCommitCtx = { req, resourceType: "user", resourceId: user._id };
+    await runPostCommit("verification_submit.notify_admins", postCommitCtx, () => notifySubmissionReceived(user, req));
 
-    await logAuditEvent({
+    await runPostCommit("verification_submit.audit", postCommitCtx, () => logAuditEvent({
       req,
       actorId: actingId,
       actorRole: "employer",
@@ -304,7 +312,7 @@ exports.submitEmployerVerificationWithDocuments = async (req, res) => {
       targetType: "user",
       targetId: String(user._id),
       severity: "info",
-    });
+    }));
 
     return res.json({
       success: true,

@@ -4,6 +4,7 @@ const User = require("../models/User");
 const JobVacancy = require("../models/JobVacancy");
 const JobApplication = require("../models/JobApplication");
 const { logAuditEvent } = require("../services/auditService");
+const { runPostCommit } = require("../utils/postCommit");
 const { createNotificationForUser } = require("../services/notificationService");
 const { forceLogout } = require("../services/sessionService");
 const { sendError } = require("../utils/sendError");
@@ -215,7 +216,9 @@ exports.deleteJob = async (req, res) => {
       JobVacancy.findByIdAndDelete(job._id),
     ]);
 
-    await logAuditEvent({
+    // The job is already deleted; audit and notification are best-effort.
+    const postCommitCtx = { req, resourceType: "job", resourceId: job._id };
+    await runPostCommit("job_takedown.audit", postCommitCtx, () => logAuditEvent({
       req,
       actorId: req.user.id,
       actorRole: "superadmin",
@@ -229,10 +232,10 @@ exports.deleteJob = async (req, res) => {
         reason: reason || null,
         removedApplications,
       },
-    });
+    }));
 
     if (job.employer) {
-      await createNotificationForUser({
+      await runPostCommit("job_takedown.notify_employer", postCommitCtx, () => createNotificationForUser({
         recipientId: job.employer,
         actorId: req.user.id,
         type: "admin_action",
@@ -242,7 +245,7 @@ exports.deleteJob = async (req, res) => {
           : `"${job.title}" was permanently removed for a policy violation.`,
         relatedEntityType: "job",
         io: req.app.get("io"),
-      });
+      }));
     }
 
     return res.json({ message: "Job permanently removed.", removedApplications });

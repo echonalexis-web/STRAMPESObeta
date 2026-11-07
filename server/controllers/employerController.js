@@ -8,6 +8,7 @@ const Follow = require("../models/Follow");
 const { createNotificationForUser } = require("../services/notificationService");
 const { MIN_ACCOUNT_AGE } = require("../utils/age");
 const { logAuditEvent } = require("../services/auditService");
+const { runPostCommit } = require("../utils/postCommit");
 const SystemSettings = require("../models/SystemSettings");
 const { sendError } = require("../utils/sendError");
 
@@ -672,7 +673,12 @@ exports.updateApplicationStatus = async (req, res) => {
       rejected: "employer.application.rejected",
       hired: "employer.application.hired",
     };
-    await logAuditEvent({
+    // The status change is saved. Everything from here to the refetch is
+    // best-effort: a failing audit write, notification or auto-message must
+    // not turn this into a 500 (the employer would retry a change that
+    // already happened and the applicant could be notified twice).
+    const postCommitCtx = { req, resourceType: "application", resourceId: application._id };
+    await runPostCommit("application_status.audit", postCommitCtx, () => logAuditEvent({
       req,
       actorId: employerId,
       actorRole: "employer",
@@ -681,10 +687,10 @@ exports.updateApplicationStatus = async (req, res) => {
       targetId: String(application._id),
       severity: status === "hired" ? "warning" : "info",
       metadata: { status, jobTitle: application.vacancy?.title || null },
-    });
+    }));
 
     const io = req.app.get("io");
-    await createNotificationForUser({
+    await runPostCommit("application_status.notify_applicant", postCommitCtx, () => createNotificationForUser({
       recipientId: application.applicant?._id,
       actorId: employerId,
       type: "application_status",
@@ -699,10 +705,11 @@ exports.updateApplicationStatus = async (req, res) => {
       },
       io,
       preferenceKey: "notifyApplicationUpdate",
-    });
+    }));
 
     // Send automated status update message to jobseeker
     if (["under_review", "shortlisted", "approved", "rejected", "hired"].includes(status)) {
+      await runPostCommit("application_status.auto_message", postCommitCtx, async () => {
       const conversation = await ensureConversationBetweenUsers(employerId, application.applicant);
 
       const applicantName = application.applicant?.name || "there";
@@ -751,6 +758,7 @@ exports.updateApplicationStatus = async (req, res) => {
           isRead: false,
         });
       }
+      });
     }
 
     // Refetch with full details and profile
@@ -809,6 +817,9 @@ const applyInterviewSchedule = async (application, employerId, { scheduledAt, mo
   };
   await application.save();
 
+  // Interview is saved; the notification and auto-message below are
+  // best-effort so a failure there cannot report the scheduling as failed.
+  const postCommitCtx = { userId: employerId, role: "employer", resourceType: "application", resourceId: application._id };
   const applicantName = application.applicant?.name || "there";
   const jobTitle = application.vacancy?.title || "this role";
   const dateLabel = application.interview.scheduledAt.toLocaleString("en-PH", {
@@ -821,7 +832,7 @@ const applyInterviewSchedule = async (application, employerId, { scheduledAt, mo
     : `Onsite at: ${application.interview.location}`;
   const notesLine = application.interview.notes ? ` ${application.interview.notes}` : "";
 
-  await createNotificationForUser({
+  await runPostCommit("interview.notify_applicant", postCommitCtx, () => createNotificationForUser({
     recipientId: application.applicant?._id,
     actorId: employerId,
     type: "application_status",
@@ -836,31 +847,33 @@ const applyInterviewSchedule = async (application, employerId, { scheduledAt, mo
     },
     io,
     preferenceKey: "notifyApplicationUpdate",
-  });
+  }));
 
-  const conversation = await ensureConversationBetweenUsers(employerId, application.applicant);
-  const autoContent = `Hi ${applicantName}, your interview for ${jobTitle} is ${isReschedule ? "now re" : ""}scheduled on ${dateLabel}. ${modeLabel}.${notesLine}`;
+  await runPostCommit("interview.auto_message", postCommitCtx, async () => {
+    const conversation = await ensureConversationBetweenUsers(employerId, application.applicant);
+    const autoContent = `Hi ${applicantName}, your interview for ${jobTitle} is ${isReschedule ? "now re" : ""}scheduled on ${dateLabel}. ${modeLabel}.${notesLine}`;
 
-  const autoMessage = await Message.create({
-    conversationId: conversation._id,
-    sender: employerId,
-    content: autoContent,
-    isRead: false,
-  });
-  conversation.lastMessage = autoMessage.content;
-  conversation.lastMessageAt = autoMessage.createdAt;
-  await conversation.save();
-
-  if (io) {
-    io.to(String(conversation._id)).emit("receive_message", {
-      _id: autoMessage._id,
+    const autoMessage = await Message.create({
       conversationId: conversation._id,
       sender: employerId,
-      content: autoMessage.content,
-      createdAt: autoMessage.createdAt,
+      content: autoContent,
       isRead: false,
     });
-  }
+    conversation.lastMessage = autoMessage.content;
+    conversation.lastMessageAt = autoMessage.createdAt;
+    await conversation.save();
+
+    if (io) {
+      io.to(String(conversation._id)).emit("receive_message", {
+        _id: autoMessage._id,
+        conversationId: conversation._id,
+        sender: employerId,
+        content: autoMessage.content,
+        createdAt: autoMessage.createdAt,
+        isRead: false,
+      });
+    }
+  });
 
   return application;
 };
@@ -986,8 +999,10 @@ exports.markInterviewNoShow = async (req, res) => {
     const io = req.app.get("io");
     const applicantName = application.applicant?.name || "there";
     const jobTitle = application.vacancy?.title || "this role";
+    // The no-show is saved; notification and message are best-effort.
+    const postCommitCtx = { req, resourceType: "application", resourceId: application._id };
 
-    await createNotificationForUser({
+    await runPostCommit("no_show.notify_applicant", postCommitCtx, () => createNotificationForUser({
       recipientId: application.applicant?._id,
       actorId: employerId,
       type: "application_status",
@@ -999,31 +1014,33 @@ exports.markInterviewNoShow = async (req, res) => {
       metadata: { status: "rejected", jobTitle, reason: "interview_no_show" },
       io,
       preferenceKey: "notifyApplicationUpdate",
-    });
+    }));
 
-    const conversation = await ensureConversationBetweenUsers(employerId, application.applicant);
-    const autoContent = `Hi ${applicantName}, we were expecting you at your scheduled interview for ${jobTitle} but weren't able to connect. Since we didn't hear from you, we've moved forward with other candidates for this role. If this was a mistake, please reach out and let us know.`;
+    await runPostCommit("no_show.auto_message", postCommitCtx, async () => {
+      const conversation = await ensureConversationBetweenUsers(employerId, application.applicant);
+      const autoContent = `Hi ${applicantName}, we were expecting you at your scheduled interview for ${jobTitle} but weren't able to connect. Since we didn't hear from you, we've moved forward with other candidates for this role. If this was a mistake, please reach out and let us know.`;
 
-    const autoMessage = await Message.create({
-      conversationId: conversation._id,
-      sender: employerId,
-      content: autoContent,
-      isRead: false,
-    });
-    conversation.lastMessage = autoMessage.content;
-    conversation.lastMessageAt = autoMessage.createdAt;
-    await conversation.save();
-
-    if (io) {
-      io.to(String(conversation._id)).emit("receive_message", {
-        _id: autoMessage._id,
+      const autoMessage = await Message.create({
         conversationId: conversation._id,
         sender: employerId,
-        content: autoMessage.content,
-        createdAt: autoMessage.createdAt,
+        content: autoContent,
         isRead: false,
       });
-    }
+      conversation.lastMessage = autoMessage.content;
+      conversation.lastMessageAt = autoMessage.createdAt;
+      await conversation.save();
+
+      if (io) {
+        io.to(String(conversation._id)).emit("receive_message", {
+          _id: autoMessage._id,
+          conversationId: conversation._id,
+          sender: employerId,
+          content: autoMessage.content,
+          createdAt: autoMessage.createdAt,
+          isRead: false,
+        });
+      }
+    });
 
     return res.json(application);
   } catch (error) {

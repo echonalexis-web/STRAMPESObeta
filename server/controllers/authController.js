@@ -9,6 +9,7 @@ const { GOVERNMENT_ID_TYPE_OTHER } = require("../data/governmentIdTypes");
 const { computeProfileCompleteness } = require("../utils/profileCompleteness");
 const storageService = require("../services/storageService");
 const { logAuditEvent } = require("../services/auditService");
+const { runPostCommit } = require("../utils/postCommit");
 const { notifyManyUsers } = require("../services/notificationService");
 const { forceLogout } = require("../services/sessionService");
 const { sendError } = require("../utils/sendError");
@@ -1926,6 +1927,10 @@ exports.updateProfile = async (req, res) => {
       // legacy value, the way a narrow .save() elsewhere in this file could
       // be (see validateModifiedOnly on those).
       await User.findByIdAndUpdate(userId, cleanCommon, { runValidators: true, context: "query" });
+      // The user row now references any newly uploaded files (ID, resume,
+      // permit, ...). A failure in a later step must not let the upload
+      // cleanup delete files the saved record points at.
+      req.uploadsCommitted = true;
     }
 
     // ---- 6. Build role‑specific profile data (NSRP fields) ----
@@ -2067,7 +2072,9 @@ exports.updateProfile = async (req, res) => {
     // ---- 9. Fetch updated user ----
     const updatedUser = await User.findById(userId).select(CLIENT_UNSAFE_FIELDS);
 
-    await logAuditEvent({
+    // Profile is saved; the audit write is best-effort so a failure cannot
+    // turn this into an error response (or skip scheduling OCR below).
+    await runPostCommit("profile_update.audit", { req, resourceType: "user", resourceId: userId }, () => logAuditEvent({
       req,
       actorId: userId,
       actorRole: currentUser.role,
@@ -2075,7 +2082,7 @@ exports.updateProfile = async (req, res) => {
       targetType: "user",
       targetId: String(userId),
       severity: "info",
-    });
+    }));
 
     if (ocrRunId && !req.ocrCancelled) {
       req.ocrScheduled = true;

@@ -3,6 +3,7 @@ const Announcement = require("../models/Announcement");
 const User = require("../models/User");
 const { createNotificationForUser, notifyManyUsers } = require("../services/notificationService");
 const { logAuditEvent } = require("../services/auditService");
+const { runPostCommit } = require("../utils/postCommit");
 const { sendError } = require("../utils/sendError");
 const { isSpesEligibleAge } = require("../utils/age");
 
@@ -101,25 +102,33 @@ exports.applyToSpes = async (req, res) => {
       status: "submitted",
     });
 
+    // The application references the uploaded documents; a later failure must
+    // not let the upload cleanup delete them.
+    req.uploadsCommitted = true;
+
     const io = req.app.get("io");
 
-    const admins = await User.find({ role: "admin" }).select("_id");
-    if (admins.length > 0) {
-      await notifyManyUsers({
-        recipientIds: admins.map((a) => a._id),
-        actorId: userId,
-        type: "spes",
-        title: "New SPES application",
-        message: `${user.name || "An applicant"} applied to "${announcement.title}".`,
-        relatedEntityType: "spes_application",
-        relatedEntityId: application._id,
-        actionUrl: "/admin/spes",
-        io,
-        preferenceKey: "notifySpesSubmission",
-      });
-    }
+    // Saved; admin/applicant notifications and the audit write are best-effort.
+    const postCommitCtx = { req, resourceType: "spes_application", resourceId: application._id };
+    await runPostCommit("spes_apply.notify_admins", postCommitCtx, async () => {
+      const admins = await User.find({ role: "admin" }).select("_id");
+      if (admins.length > 0) {
+        await notifyManyUsers({
+          recipientIds: admins.map((a) => a._id),
+          actorId: userId,
+          type: "spes",
+          title: "New SPES application",
+          message: `${user.name || "An applicant"} applied to "${announcement.title}".`,
+          relatedEntityType: "spes_application",
+          relatedEntityId: application._id,
+          actionUrl: "/admin/spes",
+          io,
+          preferenceKey: "notifySpesSubmission",
+        });
+      }
+    });
 
-    await createNotificationForUser({
+    await runPostCommit("spes_apply.notify_applicant", postCommitCtx, () => createNotificationForUser({
       recipientId: userId,
       type: "spes",
       title: "SPES application received",
@@ -130,9 +139,9 @@ exports.applyToSpes = async (req, res) => {
       actionUrl: "/spes/applications",
       io,
       preferenceKey: "notifyApplicationUpdate",
-    });
+    }));
 
-    await logAuditEvent({
+    await runPostCommit("spes_apply.audit", postCommitCtx, () => logAuditEvent({
       req,
       actorId: userId,
       actorRole: "jobseeker",
@@ -141,7 +150,7 @@ exports.applyToSpes = async (req, res) => {
       targetId: String(application._id),
       severity: "info",
       metadata: { announcementId },
-    });
+    }));
 
     return res.status(201).json({ message: "Application submitted", application });
   } catch (error) {
