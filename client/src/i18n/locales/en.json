@@ -40,7 +40,7 @@
     "blocked": {
       "onboarding": "Finish setting up your profile first. This page opens after that.",
       "password": "Please change your password first. This page opens after that.",
-      "verification": "Your company must be verified before you can use this page. You can check your verification on your dashboard.",
+      "verification": "Your company must be verified before you can use this page. You can check your verification on My Profile, in the Verification section.",
       "age-min": "This page isn't available for your age group. This page may help instead:",
       "age-max": "This page is for younger applicants. This page may help instead:"
     },
