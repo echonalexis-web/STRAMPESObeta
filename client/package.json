@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "chatbot:export": "node scripts/chatbot-export.mjs",
     "test": "node --test \"src/chatbot/**/*.test.js\" \"src/data/**/*.test.js\" \"src/utils/**/*.test.js\"",
     "preview": "vite preview"
   },
