@@ -29,6 +29,16 @@ const schema = new Schema({
   resolvedAt: { type: Date, default: null },
   expiresAt: { type: Date, required: true },
   redeemedAt: Date,
+  // Outcome of emailing the one-time recovery link after approval. Holds no
+  // token and no error text, only whether it was delivered and by which
+  // channel, so staff can see "failed" in the queue and resend.
+  delivery: {
+    status: { type: String, enum: ["sent", "failed"] },
+    attempts: { type: Number, default: 0 },
+    lastAttemptAt: Date,
+    lastAttemptBy: { type: Schema.Types.ObjectId, ref: "User" },
+    channel: { type: String, maxlength: 20 },
+  },
   filesDeletedAt: Date,
   ipAddress: String,
   userAgent: String,

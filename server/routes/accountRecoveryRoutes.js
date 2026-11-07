@@ -22,4 +22,5 @@ router.get("/", controller.list);
 router.get("/report", isSuperadmin, controller.report);
 router.get("/:id", validateMongoId("id"), validateRequest, controller.detail);
 router.post("/:id/review", sensitiveOperationLimiter(10, 3600000), validateMongoId("id"), validateRequest, sanitizeRequestBody, detectMaliciousPayload, controller.review);
+router.post("/:id/resend", sensitiveOperationLimiter(10, 3600000), validateMongoId("id"), validateRequest, sanitizeRequestBody, detectMaliciousPayload, controller.resend);
 module.exports = router;

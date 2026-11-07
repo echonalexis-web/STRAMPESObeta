@@ -22,6 +22,8 @@ export default function AccountRecoveryQueue() {
   const [reason, setReason] = useState("");
   const [matched, setMatched] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   useEffect(() => {
     let alive = true;
@@ -29,17 +31,31 @@ export default function AccountRecoveryQueue() {
     return () => { alive = false; };
   }, [status, page, revision, t]);
   const open = async (id) => {
-    setDetail(null); setPassword(""); setReason(""); setMatched(false); setError("");
+    setDetail(null); setPassword(""); setReason(""); setMatched(false); setError(""); setNotice("");
     try { const { data } = await staffRecoveryAPI.detail(id); setDetail(data); }
     catch { setError(t("staffRecovery.error")); }
   };
   const decide = async (decision) => {
-    setSaving(true); setError("");
+    setSaving(true); setError(""); setNotice("");
     try {
-      await staffRecoveryAPI.review(detail.request._id, { decision, revision: detail.request.revision, currentPassword: password, reason, identityMatched: matched });
+      const { data } = await staffRecoveryAPI.review(detail.request._id, { decision, revision: detail.request.revision, currentPassword: password, reason, identityMatched: matched });
       setDetail(null); setPassword(""); setRevision((value) => value + 1);
+      // The approval is saved even when the email could not be delivered;
+      // say so now, because the request moves out of the pending list.
+      if (data?.delivery?.status === "failed") setError(t("staffRecovery.delivery.failedHint"));
     } catch (err) { setError(err.response?.data?.message || t("staffRecovery.error")); }
     finally { setSaving(false); }
+  };
+  const resend = async () => {
+    setResending(true); setError(""); setNotice("");
+    try {
+      const { data } = await staffRecoveryAPI.resend(detail.request._id, password);
+      setPassword(""); setRevision((value) => value + 1);
+      setDetail((current) => current && { ...current, request: { ...current.request, delivery: { ...current.request.delivery, ...data.delivery } } });
+      if (data?.delivery?.status === "sent") setNotice(t("staffRecovery.delivery.resent"));
+      else setError(t("staffRecovery.delivery.resendFailed"));
+    } catch (err) { setError(err.response?.data?.message || t("staffRecovery.error")); }
+    finally { setResending(false); }
   };
   const loadReport = async (reportPage = 1) => {
     try { const { data } = await staffRecoveryAPI.report(reportPage); setReport(data); }
@@ -50,6 +66,7 @@ export default function AccountRecoveryQueue() {
   const allowed = user?.role === "jobseeker" && user.isActive !== false && user.validIdFile && recovery?.contactVerifiedAt && matched;
   return <div className="admin-page-container recovery-queue"><AdminHeader title={t("staffRecovery.queue")} description={t("staffRecovery.policy")} />
     {error && <p className="ds-alert ds-alert--error recovery-queue__alert" role="alert">{error}</p>}
+    {notice && <p className="ds-alert ds-alert--success recovery-queue__alert" role="status">{notice}</p>}
     <section className="admin-panel-card id-ocr">
       <label className="recovery-queue__filter">{t("staffRecovery.status")} <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>{["pending", "under_review", "approved", "rejected", "expired"].map((key) => <option key={key} value={key}>{t(`staffRecovery.statuses.${key}`)}</option>)}</select></label>
       <ul className="recovery-queue__list">
@@ -61,6 +78,9 @@ export default function AccountRecoveryQueue() {
               <span className={`recovery-queue__chip${request.contactVerifiedAt ? " is-verified" : ""}`}>
                 {t(`staffRecovery.${request.contactVerifiedAt ? "verified" : "unverified"}`)}
               </span>
+              {request.status === "approved" && request.delivery?.status === "failed" && (
+                <>{" "}<span className="recovery-queue__chip is-failed">{t("staffRecovery.delivery.failed")}</span></>
+              )}
             </button>
           </li>
         ))}
@@ -88,6 +108,17 @@ export default function AccountRecoveryQueue() {
         </> : <p>{t("staffRecovery.noAccount")}</p>}</div>
       </div>
       <table className="admin-table"><thead><tr><th>{t("staffRecovery.field")}</th><th>{t("staffRecovery.submitted")}</th><th>{t("staffRecovery.onFile")}</th><th>{t("staffRecovery.match")}</th></tr></thead><tbody>{[["fullName", recovery.fullName, user?.name], ["dateOfBirth", recovery.dateOfBirth?.slice(0, 10), user?.dateOfBirth?.slice(0, 10)], ["idNumberDeclared", recovery.idNumberDeclared, user?.governmentIdNumber]].map(([key, submitted, onFile]) => <tr key={key}><th>{t(`staffRecovery.fields.${key}`)}</th><td>{submitted || "—"}</td><td>{onFile || "—"}</td><td>{t(`staffRecovery.${submitted && onFile ? submitted.toLowerCase() === onFile.toLowerCase() ? "yes" : "no" : "unknown"}`)}</td></tr>)}</tbody></table>
+      {recovery.status === "approved" && recovery.delivery?.status && <div className="recovery-queue__delivery">
+        <p>
+          <span className={`recovery-queue__chip${recovery.delivery.status === "failed" ? " is-failed" : " is-verified"}`}>{t(`staffRecovery.delivery.${recovery.delivery.status}`)}</span>{" "}
+          <span className="recovery-queue__meta">{t("staffRecovery.delivery.attempts", { count: recovery.delivery.attempts || 0 })}</span>
+        </p>
+        {recovery.delivery.status === "failed" && !recovery.redeemedAt && <>
+          <p>{t("staffRecovery.delivery.failedHint")}</p>
+          <label>{t("staffRecovery.currentPassword")}<input autoComplete="current-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+          <button type="button" disabled={resending || !password} onClick={resend}>{resending ? t("staffRecovery.delivery.resending") : t("staffRecovery.delivery.resend")}</button>
+        </>}
+      </div>}
       {["pending", "under_review"].includes(recovery.status) && <div className="id-ocr-grid">
         <label>{t("staffRecovery.reason")}<textarea maxLength={2000} value={reason} onChange={(e) => setReason(e.target.value)} /></label>
         <label>{t("staffRecovery.currentPassword")}<input autoComplete="current-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>

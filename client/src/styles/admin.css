@@ -4483,6 +4483,24 @@
   background: var(--ds-success-bg);
   color: var(--ds-success);
 }
+.admin-page-container.recovery-queue .recovery-queue__chip.is-failed {
+  background: var(--ds-danger-bg);
+  color: var(--ds-danger);
+}
+.admin-page-container.recovery-queue .recovery-queue__delivery {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin-top: var(--ds-space-4);
+}
+.admin-page-container.recovery-queue .recovery-queue__delivery label {
+  display: grid;
+  gap: var(--ds-space-1);
+  max-width: 360px;
+}
+.admin-page-container.recovery-queue .recovery-queue__delivery button {
+  justify-self: start;
+  min-height: 44px;
+}
 .admin-page-container.recovery-queue .recovery-queue__state {
   margin: var(--ds-space-4) 0;
 }

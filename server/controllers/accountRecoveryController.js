@@ -9,6 +9,7 @@ const { normalizeEmail } = require("../utils/normalizeEmail");
 const { parseDate, parseIdText } = require("../utils/idOcrParser");
 const { getActiveValues } = require("../services/systemOptionService");
 const { logAuditEvent } = require("../services/auditService");
+const { runPostCommit } = require("../utils/postCommit");
 const { notifyManyUsers } = require("../services/notificationService");
 const ocrService = require("../services/ocrService");
 const storage = require("../services/storageService");
@@ -115,7 +116,7 @@ exports.list = async (req, res) => {
   try {
     const status = ["pending", "under_review", "approved", "rejected", "expired"].includes(req.query.status) ? req.query.status : "pending";
     const page = Math.max(1, Math.min(10000, Math.floor(Number(req.query.page)) || 1));
-    const requests = await Request.find({ status }).select("fullName claimedIdentifier contactEmail contactVerifiedAt status createdAt expiresAt revision").sort({ createdAt: 1 }).skip((page - 1) * 25).limit(25);
+    const requests = await Request.find({ status }).select("fullName claimedIdentifier contactEmail contactVerifiedAt status createdAt expiresAt revision delivery").sort({ createdAt: 1 }).skip((page - 1) * 25).limit(25);
     return res.json({ requests, page });
   } catch (error) { return sendError(res, error); }
 };
@@ -174,14 +175,77 @@ exports.review = async (req, res) => {
       return { request, user };
     });
     const { request, user } = outcome;
+    let delivery = null;
     if (decision === "approve") {
-      sendLater(mail.sendRecoveryApproved({ to: request.contactEmail, token: rawToken }));
+      // The approval is committed and the raw token exists only in this email,
+      // so the send result must be recorded: a silent failure used to leave
+      // the user locked out with nothing telling staff to resend.
+      delivery = await deliverApproval({ request, user, rawToken, actor, req });
       for (const to of new Set([user.email, user.recoveryEmail].filter(Boolean))) sendLater(mail.sendRecoveryAlert({ to }));
       forceLogout(req.app.get("io"), user._id, { code: "SESSION_EXPIRED", message: "Your account is being recovered by PESO staff." });
     } else if (decision === "reject" && request.contactVerifiedAt) sendLater(mail.sendRecoveryRejected({ to: request.contactEmail, reason: request.adminResponse }));
-    await logAuditEvent({ req, actorId: actor._id, actorRole: actor.role, action: decision === "approve" ? "auth.account.recovered" : `admin.recovery_request.${decision}`, targetType: "user", targetId: String(request.resolvedUser || ""), severity: decision === "approve" ? "critical" : "warning", metadata: { requestId: String(request._id), googleUnlinked: Boolean(user?.googleId) } });
-    return res.json({ message: "Review recorded", status: request.status });
+    await runPostCommit("recovery_review.audit", { req, resourceType: "account_recovery_request", resourceId: request._id }, () => logAuditEvent({ req, actorId: actor._id, actorRole: actor.role, action: decision === "approve" ? "auth.account.recovered" : `admin.recovery_request.${decision}`, targetType: "user", targetId: String(request.resolvedUser || ""), severity: decision === "approve" ? "critical" : "warning", metadata: { requestId: String(request._id), googleUnlinked: Boolean(user?.googleId) } }));
+    return res.json({ message: "Review recorded", status: request.status, ...(delivery ? { delivery } : {}) });
   } catch (error) { return sendError(res, error, error.status ? error.message : "Could not record recovery decision", error.status || 500); }
+};
+
+// Sends the approval email and records the outcome on the request. Never
+// throws and never logs or returns the token. `delivered` is true only when
+// the mail transport actually accepted the message: the console fallback
+// (no SMTP configured, or an SMTP error) counts as failed.
+async function deliverApproval({ request, user, rawToken, actor, req }) {
+  let result = null;
+  let sendFailure = null;
+  try {
+    result = await mail.sendRecoveryApproved({ to: request.contactEmail, token: rawToken });
+  } catch (error) {
+    sendFailure = error;
+  }
+  const delivered = !sendFailure && result?.delivered === true;
+  const status = delivered ? "sent" : "failed";
+  const channel = String(sendFailure ? "error" : result?.channel || "unknown").slice(0, 20);
+  const attemptedAt = new Date();
+  if (!delivered) {
+    logger.error("Recovery approval email was not delivered", {
+      requestId: String(request._id),
+      recipientRole: user?.role || null,
+      channel,
+      reviewerId: actor?._id ? String(actor._id) : null,
+    });
+  }
+  try {
+    await Request.updateOne({ _id: request._id }, {
+      $set: { "delivery.status": status, "delivery.channel": channel, "delivery.lastAttemptAt": attemptedAt, "delivery.lastAttemptBy": actor?._id },
+      $inc: { "delivery.attempts": 1 },
+    });
+  } catch (error) {
+    logger.error("Failed to record recovery delivery outcome", { requestId: String(request._id), status });
+  }
+  return { status, channel, attemptedAt };
+}
+
+// Staff re-send for an approved request whose email did not arrive. Issues a
+// NEW one-time token and overwrites the stored hash, so the previous link
+// stops working. Same guards as `review`: admin session plus password.
+exports.resend = async (req, res) => {
+  try {
+    const actor = await User.findById(req.user.id);
+    if (!actor?.password) return res.status(400).json({ message: "Set a password first (Settings → Security → Add a password) before reviewing recovery requests." });
+    if (!await bcrypt.compare(String(req.body.currentPassword || ""), actor.password)) return res.status(403).json({ message: "Current password is incorrect" });
+    const rawToken = randomToken();
+    const outcome = await transaction(async (session) => {
+      const request = await Request.findOne({ _id: req.params.id, status: "approved", redeemedAt: null }).session(session);
+      if (!request) fail(409, "Only an approved request that has not been completed can be resent.");
+      const user = request.resolvedUser ? await User.findById(request.resolvedUser).select("+staffRecoveryRequest").session(session) : null;
+      if (!user || user.role !== "jobseeker" || user.isActive === false || user.staffRecoveryPending !== true || String(user.staffRecoveryRequest) !== String(request._id)) fail(409, "This recovery is no longer waiting for the email link.");
+      await User.updateOne({ _id: user._id, staffRecoveryRequest: request._id }, { $set: { staffRecoveryToken: hash(rawToken), staffRecoveryExpires: new Date(Date.now() + 30 * 60000) } }, { session });
+      return { request, user };
+    });
+    const { request, user } = outcome;
+    const delivery = await deliverApproval({ request, user, rawToken, actor, req });
+    await runPostCommit("recovery_resend.audit", { req, resourceType: "account_recovery_request", resourceId: request._id }, () => logAuditEvent({ req, actorId: actor._id, actorRole: actor.role, action: "admin.recovery_request.resent", targetType: "user", targetId: String(request.resolvedUser || ""), severity: "warning", metadata: { requestId: String(request._id), delivery: delivery.status } }));
+    return res.json({ message: delivery.status === "sent" ? "Recovery email resent" : "Recovery email could not be delivered", delivery });
+  } catch (error) { return sendError(res, error, error.status ? error.message : "Could not resend the recovery email", error.status || 500); }
 };
 
 exports.finish = async (req, res) => {

@@ -243,6 +243,7 @@ export const staffRecoveryAPI = {
   list: (status, page = 1) => api.get('/account-recovery-requests', { ...getAuthHeader(), params: { status, page } }),
   detail: (id) => api.get(`/account-recovery-requests/${id}`, getAuthHeader()),
   review: (id, payload) => api.post(`/account-recovery-requests/${id}/review`, payload, getAuthHeader()),
+  resend: (id, currentPassword) => api.post(`/account-recovery-requests/${id}/resend`, { currentPassword }, getAuthHeader()),
   report: (page = 1) => api.get('/account-recovery-requests/report', { ...getAuthHeader(), params: { page } }),
 };
 

@@ -439,6 +439,16 @@
     "policy": "Online recovery is for jobseekers only. Employer and staff accounts require in-person verification at the PESO counter.",
     "requestLink": "No backup code? Request a PESO staff review",
     "notificationHint": "Contact-verified account recovery requests awaiting staff review.",
+    "delivery": {
+      "sent": "Email sent",
+      "failed": "Email not delivered",
+      "attempts": "Delivery attempts: {{count}}",
+      "failedHint": "The recovery link email could not be delivered, so this person cannot finish recovery yet. Resend it to issue a new link. The old link stops working.",
+      "resend": "Resend recovery email",
+      "resending": "Resending…",
+      "resent": "Recovery email resent.",
+      "resendFailed": "The email could not be delivered again. Check the mail settings and try again."
+    },
     "fields": {
       "identifier": "Username or sign-in email",
       "fullName": "Full name",

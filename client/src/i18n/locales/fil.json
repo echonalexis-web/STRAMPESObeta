@@ -439,6 +439,16 @@
     "policy": "Para lamang sa mga jobseeker ang online recovery. Kailangang personal na magpaberipika sa PESO counter ang mga employer at kawani.",
     "requestLink": "Walang backup code? Humiling ng pagsusuri ng kawani ng PESO",
     "notificationHint": "Mga kahilingang may kumpirmadong contact email na naghihintay ng pagsusuri.",
+    "delivery": {
+      "sent": "Naipadala ang email",
+      "failed": "Hindi naihatid ang email",
+      "attempts": "Mga pagsubok sa pagpapadala: {{count}}",
+      "failedHint": "Hindi naihatid ang email na may recovery link, kaya hindi pa matatapos ng tao ang recovery. I-resend para magbigay ng bagong link. Hindi na gagana ang lumang link.",
+      "resend": "I-resend ang recovery email",
+      "resending": "Nire-resend…",
+      "resent": "Naipadala muli ang recovery email.",
+      "resendFailed": "Hindi muling naihatid ang email. Suriin ang mail settings at subukang muli."
+    },
     "fields": {
       "identifier": "Username o email sa pag-sign in",
       "fullName": "Buong pangalan",
