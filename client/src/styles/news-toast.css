@@ -1,0 +1,136 @@
+/* ============================================================
+   Realtime "new announcement" toast (components/NewsPublishedToast.jsx)
+   Bottom centre, persistent until Refresh / View / dismiss.
+   Palette is the existing tokens: forest green surface, white text,
+   gold action. z-index sits above the cookie banner (900) and drawers
+   but below the messenger (3500), so an open messenger covers it.
+   ============================================================ */
+
+.news-toast-region {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: max(var(--ds-space-6, 24px), env(safe-area-inset-bottom));
+  z-index: 3400;
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--ds-space-4);
+  box-sizing: border-box;
+  /* The region itself never blocks clicks; only the toast does. */
+  pointer-events: none;
+}
+
+.news-toast {
+  pointer-events: auto;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  width: 100%;
+  max-width: 520px;
+  min-height: 56px;
+  padding: var(--ds-space-2) var(--ds-space-2) var(--ds-space-2) var(--ds-space-4);
+  background: var(--ds-green);
+  color: #fff;
+  border: 1px solid var(--ds-green-deep);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-elev-1, 0 8px 24px rgba(4, 60, 42, 0.18));
+  animation: news-toast-in 200ms ease-out both;
+}
+
+.news-toast__icon {
+  flex: none;
+  color: var(--ds-gold);
+}
+
+.news-toast__msg {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.news-toast__action,
+.news-toast__close {
+  flex: none;
+  min-height: var(--ds-tap);
+  border: 0;
+  cursor: pointer;
+  font-family: var(--ds-font-body);
+}
+
+.news-toast__action {
+  padding: 0 var(--ds-space-4);
+  border-radius: 999px;
+  background: var(--ds-gold);
+  color: var(--ds-green-deep);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+}
+
+.news-toast__action:hover {
+  filter: brightness(1.06);
+}
+
+.news-toast__close {
+  display: inline-grid;
+  place-items: center;
+  width: var(--ds-tap);
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.news-toast__close:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.news-toast__action:focus-visible,
+.news-toast__close:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Phones: full width with side margins, lifted above the messenger bubble
+   (52px + 20px offset) so the two never overlap. */
+@media (max-width: 760px) {
+  .news-toast-region {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
+  }
+}
+
+/* Very narrow phones: the megaphone is decorative, so drop it to give the
+   message room instead of wrapping it onto three lines. */
+@media (max-width: 380px) {
+  .news-toast {
+    gap: var(--ds-space-2);
+    padding-left: var(--ds-space-3);
+  }
+
+  .news-toast__icon {
+    display: none;
+  }
+}
+
+@keyframes news-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .news-toast {
+    animation: none;
+  }
+}

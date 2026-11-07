@@ -5,6 +5,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { AuthContext } from "./context/AuthContext";
 import { SocketProvider, useSocket } from "./context/SocketContext";
 import { FeedbackProvider } from "./components/feedback/FeedbackProvider";
+import NewsPublishedToast from "./components/NewsPublishedToast";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { JobVacancyAgeGate } from "./routes/JobVacancyAgeGate";
 import AccountInactiveModal from "./components/AccountInactiveModal";
@@ -161,6 +162,7 @@ function AppRoutes() {
         <TermsGate />
         <CookieConsentBanner />
         <ForcedLogoutListener />
+        <NewsPublishedToast key={userId || "anonymous"} />
         <FloatingMessenger />
         <Routes>
           <Route path="/" element={<HomeRoute />} />

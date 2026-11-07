@@ -617,6 +617,14 @@
     "moreFrom": "More from STRAM PESO",
     "readMore": "Read more"
   },
+  "newsToast": {
+    "single": "New announcement posted",
+    "multiple_one": "{{count}} new announcement",
+    "multiple_other": "{{count}} new announcements",
+    "refresh": "Refresh",
+    "view": "View",
+    "dismiss": "Dismiss"
+  },
   "applications": {
     "loading": "Loading your applications…",
     "emptyTitle": "You haven't applied to any jobs yet",

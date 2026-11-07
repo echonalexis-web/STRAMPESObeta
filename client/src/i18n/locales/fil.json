@@ -617,6 +617,14 @@
     "moreFrom": "Iba pa mula sa STRAM PESO",
     "readMore": "Magbasa pa"
   },
+  "newsToast": {
+    "single": "May bagong anunsyo",
+    "multiple_one": "{{count}} bagong anunsyo",
+    "multiple_other": "{{count}} bagong anunsyo",
+    "refresh": "I-refresh",
+    "view": "Tingnan",
+    "dismiss": "Isara"
+  },
   "applications": {
     "loading": "Nilo-load ang iyong mga aplikasyon…",
     "emptyTitle": "Wala ka pang ina-apply-an na trabaho",

@@ -6,6 +6,7 @@ import { AuthContext } from "../context/AuthContext";
 import { newsAPI, newsLikeAPI } from "../services/api";
 import NewsCard from "../components/NewsCard";
 import useParallaxLayer from "../hooks/useParallaxLayer";
+import { NEWS_FEED_LOADED_EVENT, NEWS_REFRESH_EVENT, newsItemTime } from "../utils/newsEvents";
 import "../styles/news-feed.css";
 
 const CATEGORIES = [
@@ -34,6 +35,9 @@ export default function NewsFeed() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pendingLikes, setPendingLikes] = useState({});
+  // Bumped by the realtime toast's Refresh button: reloads the feed in place
+  // with the current category / search, without a full page reload.
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -42,8 +46,21 @@ export default function NewsFeed() {
         setLoading(true);
         const { data } = await newsAPI.list({ category: category || undefined, search: search || undefined, page: 1, limit: 30 });
         if (!active) return;
-        setItems(Array.isArray(data?.items) ? data.items : []);
+        const loaded = Array.isArray(data?.items) ? data.items : [];
+        setItems(loaded);
         setError("");
+        // Tell the realtime toast what is on screen, so it can drop those
+        // items from its "new" count. Only an unfiltered load is a valid
+        // "newest item" marker.
+        window.dispatchEvent(
+          new CustomEvent(NEWS_FEED_LOADED_EVENT, {
+            detail: {
+              ids: loaded.map((item) => String(item?._id || "")).filter(Boolean),
+              newestAt: Math.max(0, ...loaded.map(newsItemTime)),
+              filtered: Boolean(category || search),
+            },
+          }),
+        );
       } catch (err) {
         if (!active) return;
         setItems([]);
@@ -61,7 +78,19 @@ export default function NewsFeed() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [category, search]);
+  }, [category, search, refreshKey]);
+
+  // Realtime toast -> "Refresh": reload with the current filters and go back
+  // to the top, where the new items appear.
+  useEffect(() => {
+    const handleRefreshRequest = () => {
+      setRefreshKey((key) => key + 1);
+      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+    };
+    window.addEventListener(NEWS_REFRESH_EVENT, handleRefreshRequest);
+    return () => window.removeEventListener(NEWS_REFRESH_EVENT, handleRefreshRequest);
+  }, []);
 
   const title = useMemo(() => (category ? `${category[0].toUpperCase()}${category.slice(1)} Updates` : "Community Announcements"), [category]);
 

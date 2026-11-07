@@ -4,14 +4,11 @@ const User = require("../models/User");
 const { logAuditEvent } = require("../services/auditService");
 const { runPostCommit } = require("../utils/postCommit");
 const { notifyManyUsers } = require("../services/notificationService");
+const { JOBSEEKER_ONLY_CATEGORIES, emitNewsPublished } = require("../services/newsRealtimeService");
 const storageService = require("../services/storageService");
 const { escapeRegex } = require("../utils/sanitize");
 const { sendError } = require("../utils/sendError");
 const logger = require("../utils/logger");
-
-// Categories that only matter to jobseekers get scoped to that role; general
-// updates and events go out to everyone so the audience matches the content.
-const JOBSEEKER_ONLY_CATEGORIES = ["hiring", "training", "advisory", "spes"];
 
 const NEWS_CATEGORIES = ["general", "hiring", "training", "event", "advisory", "spes"];
 
@@ -199,6 +196,13 @@ exports.createNews = async (req, res) => {
 
     // Saved; the populate, audit and fan-out notification are best-effort.
     const postCommitCtx = { req, resourceType: "news", resourceId: created._id };
+    // Realtime "new announcement" toast: published items only (not drafts),
+    // best-effort, and independent of the bell notifications below.
+    if (created.isActive) {
+      await runPostCommit("news_create.emit_published", postCommitCtx, () =>
+        emitNewsPublished({ io: req.app.get("io"), announcement: created, authorId: req.user.id })
+      );
+    }
     let populated = created;
     await runPostCommit("news_create.populate", postCommitCtx, async () => {
       populated = await Announcement.findById(created._id).populate("author", "name email");
@@ -288,6 +292,11 @@ exports.updateNews = async (req, res) => {
     });
 
     if (!existing.isActive && updated.isActive) {
+      // Draft just went live: same realtime prompt as a fresh publish.
+      // Best-effort; a socket problem must not fail the update.
+      await runPostCommit("news_update.emit_published", { req, resourceType: "news", resourceId: updated._id }, () =>
+        emitNewsPublished({ io: req.app.get("io"), announcement: updated, authorId: req.user.id })
+      );
       await notifyNewsPublished({ announcement: updated, authorId: req.user.id, io: req.app.get("io") });
     }
 
