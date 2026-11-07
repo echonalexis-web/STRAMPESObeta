@@ -990,7 +990,7 @@ exports.updateUserRole = async (req, res) => {
       });
     }
 
-    const user = await User.findById(id).select("-password");
+    const user = await User.findById(id).select("-password -backupCodes -recoveryEmailToken -governmentIdOcr.rawText");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -1002,7 +1002,9 @@ exports.updateUserRole = async (req, res) => {
     }
 
     user.role = role;
-    await user.save();
+    // validateModifiedOnly — see authController.js's note above
+    // issueEmailVerification.
+    await user.save({ validateModifiedOnly: true });
 
     await logAuditEvent({
       req,
@@ -1048,7 +1050,7 @@ exports.deactivateUser = async (req, res) => {
       return res.status(400).json({ message: "Admin cannot deactivate their own account" });
     }
 
-    const user = await User.findById(id).select("-password");
+    const user = await User.findById(id).select("-password -backupCodes -recoveryEmailToken -governmentIdOcr.rawText");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -1065,7 +1067,9 @@ exports.deactivateUser = async (req, res) => {
     user.suspensionReason = reason;
     user.suspendedAt = new Date();
     user.suspendedBy = req.user.id;
-    await user.save();
+    // validateModifiedOnly — see authController.js's note above
+    // issueEmailVerification.
+    await user.save({ validateModifiedOnly: true });
 
     // End any session this account already has open right now — the
     // isActive check in verifyToken only catches their *next* request, which
@@ -1117,7 +1121,7 @@ exports.deactivateUser = async (req, res) => {
 exports.reactivateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id).select("-password");
+    const user = await User.findById(id).select("-password -backupCodes -recoveryEmailToken -governmentIdOcr.rawText");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -1127,7 +1131,9 @@ exports.reactivateUser = async (req, res) => {
     user.suspensionReason = null;
     user.suspendedAt = null;
     user.suspendedBy = null;
-    await user.save();
+    // validateModifiedOnly — see authController.js's note above
+    // issueEmailVerification.
+    await user.save({ validateModifiedOnly: true });
 
     await logAuditEvent({
       req,
@@ -1224,7 +1230,7 @@ exports.deleteUser = async (req, res) => {
 exports.getUserProfileDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id).select("-password");
+    const user = await User.findById(id).select("-password -backupCodes -recoveryEmailToken -governmentIdOcr.rawText");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });

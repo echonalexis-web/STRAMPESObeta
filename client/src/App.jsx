@@ -26,6 +26,10 @@ import ChangePassword from "./pages/ChangePassword";
 import SuperadminConsole from "./pages/superadmin/SuperadminConsole";
 import VerifyEmail from "./pages/VerifyEmail";
 import ConfirmEmail from "./pages/ConfirmEmail";
+import VerifyRecoveryEmail from "./pages/VerifyRecoveryEmail";
+import AccountRecovery from "./pages/AccountRecovery";
+import StaffAccountRecovery from "./pages/StaffAccountRecovery";
+import AccountRecoveryQueue from "./pages/admin/AccountRecoveryQueue";
 import AccountSuspended from "./pages/AccountSuspended";
 import TermsGate from "./components/TermsGate";
 import CookieConsentBanner from "./components/CookieConsentBanner";
@@ -172,6 +176,10 @@ function AppRoutes() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/confirm-email" element={<ConfirmEmail />} />
+          <Route path="/verify-recovery-email" element={<VerifyRecoveryEmail />} />
+          <Route path="/account-recovery" element={<AccountRecovery />} />
+          <Route path="/staff-account-recovery" element={<StaffAccountRecovery />} />
+          <Route path="/admin/account-recovery" element={<ProtectedRoute requiredRole={["admin", "superadmin"]}><AccountRecoveryQueue /></ProtectedRoute>} />
           <Route path="/account-suspended" element={<AccountSuspended />} />
           <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
           <Route path="/superadmin" element={<ProtectedRoute requiredRole="superadmin"><SuperadminConsole /></ProtectedRoute>} />

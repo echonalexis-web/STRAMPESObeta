@@ -11,7 +11,14 @@ const {
   markNotificationRead,
   markAllNotificationsRead,
   deleteNotification,
+  unsubscribeFromEmailCategory,
 } = require("../controllers/notificationController");
+
+// Deliberately public and registered BEFORE router.use(protect) below —
+// reached by clicking a link in a notification email, where the reader has
+// no session on that device. Its own HMAC signature (see
+// utils/emailUnsubscribe.js) is what authorizes the one write it makes.
+router.get("/unsubscribe", sanitizeQueryParams, unsubscribeFromEmailCategory);
 
 router.use(protect);
 

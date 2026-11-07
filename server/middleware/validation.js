@@ -67,7 +67,7 @@ const sanitizeQueryParams = (req, res, next) => {
 const validateUserUpdate = (req, res, next) => {
   const { 
     name, email, phone, address, bio,
-    civilStatus, placeOfBirth, citizenship, height, weight,
+    civilStatus, civilStatusOther, placeOfBirth, citizenship, height, weight,
     landline, mobileSecondary,
     presentAddress, permanentAddress,
     disability, is4psBeneficiary, _4psHouseholdId,
@@ -104,8 +104,20 @@ const validateUserUpdate = (req, res, next) => {
   }
 
   if (req.user?.role === 'jobseeker' || !req.user) {
-    if (civilStatus !== undefined && !["Single", "Married", "Widowed", "Separated", "Divorced"].includes(civilStatus)) {
+    // Allow-list kept in sync with client/src/constants/civilStatus.js's
+    // CIVIL_STATUS_OPTIONS (which already included "Live-in" and "Prefer not
+    // to say" in the UI; "Other" added for items 14/15's "please specify"
+    // fallback). Truthy-guarded like every other optional field on this
+    // route, so an explicitly blank/cleared civilStatus is "not provided"
+    // rather than a 400.
+    if (civilStatus !== undefined && civilStatus && !["Divorced", "Live-in", "Married", "Other", "Separated", "Single", "Widowed", "Prefer not to say"].includes(civilStatus)) {
       errors.push('Invalid civil status');
+    }
+    // "Other, please specify" fallback (items 14/15) — mirrors governmentIdTypeOther's
+    // shape; civil status itself is required during onboarding, so its free-text
+    // companion is required too once "Other" is the selected value.
+    if (civilStatus === "Other" && (!civilStatusOther || !String(civilStatusOther).trim())) {
+      errors.push('Please specify your civil status');
     }
     if (placeOfBirth !== undefined && placeOfBirth && placeOfBirth.length > 100) {
       errors.push('Place of birth too long');
@@ -319,21 +331,30 @@ const validateUserRegistration = (req, res, next) => {
 };
 
 const validateUserLogin = (req, res, next) => {
-  const { email, password } = req.body;
+  const { password } = req.body;
+  // `identifier` (preferred) is an email OR a username; `email` is kept as
+  // an alias so an existing client payload still works unchanged — see
+  // authController.login. Only shapes that LOOK like an attempted email
+  // (contain "@") are held to the email regex; a plain username is validated
+  // for real (charset, reserved words, …) server-side in authController, not
+  // here — this layer is just "something non-empty was provided".
+  const identifier = String(req.body.identifier || req.body.email || '').trim();
   const errors = [];
 
-  if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+  if (!identifier) {
+    errors.push('Please provide your email or username');
+  } else if (identifier.includes('@') && !/^\S+@\S+\.\S+$/.test(identifier)) {
     errors.push('Please provide a valid email');
   }
-  
+
   if (!password) {
     errors.push('Password is required');
   }
-  
+
   if (errors.length > 0) {
     return res.status(400).json({ errors, message: errors[0] });
   }
-  
+
   next();
 };
 

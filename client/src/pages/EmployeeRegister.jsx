@@ -5,7 +5,8 @@ import { authAPI } from "../services/api";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 import { useToast } from "../components/feedback/context";
 import RegistrationLayout from "../components/RegistrationLayout";
-import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaUserPlus } from "react-icons/fa";
+import { useUsernameAvailability } from "../hooks/useUsernameAvailability";
+import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaAt, FaUserPlus } from "react-icons/fa";
 
 const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
@@ -79,7 +80,10 @@ export default function EmployerRegister() {
     name: "",
     email: "",
     password: "",
+    username: "",
   });
+  // Optional — see Register.jsx's matching comment.
+  const usernameCheck = useUsernameAvailability(formData.username, { enabled: true });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [devVerifyUrl, setDevVerifyUrl] = useState("");
@@ -172,6 +176,12 @@ export default function EmployerRegister() {
       return;
     }
 
+    // Optional field — see Register.jsx's matching comment.
+    if (formData.username.trim() && usernameCheck.status === "unavailable") {
+      showError(usernameCheck.message || "That username is already taken.");
+      return;
+    }
+
     if (!agreedToTerms) {
       showError("Please agree to the Terms of Service and Privacy Policy to continue.");
       return;
@@ -184,10 +194,11 @@ export default function EmployerRegister() {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
+        username: formData.username.trim(),
       };
 
       const response = await authAPI.registerEmployer(trimmedData);
-      
+
       if (response.data?.message || response.status === 201 || response.status === 200) {
         setSuccess("Account created! We've sent a verification link to your email — verify it, then log in to upload your business documents for verification.");
         setDevVerifyUrl(response.data?.devVerifyUrl || "");
@@ -195,6 +206,7 @@ export default function EmployerRegister() {
           name: "",
           email: "",
           password: "",
+          username: "",
         });
         setTouched({});
         setTimeout(() => {
@@ -323,6 +335,33 @@ export default function EmployerRegister() {
               className={touched.email && !formData.email.trim() ? "is-error" : ""}
             />
           </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="username">Username <span className="optional-label">(optional)</span></label>
+          <div className="auth-input-wrap">
+            <FaAt className="auth-input-icon" aria-hidden="true" />
+            <input
+              id="username"
+              type="text"
+              name="username"
+              placeholder="A second way to sign in"
+              value={formData.username}
+              onChange={handleChange}
+              disabled={loading}
+              autoComplete="username"
+              maxLength={30}
+            />
+          </div>
+          {usernameCheck.status === "checking" && (
+            <span className="password-valid" style={{ color: "#64748b" }}>Checking…</span>
+          )}
+          {usernameCheck.status === "available" && (
+            <span className="password-valid">✓ That username is available</span>
+          )}
+          {usernameCheck.status === "unavailable" && (
+            <span className="password-error">{usernameCheck.message}</span>
+          )}
         </div>
 
         <div className="form-group">

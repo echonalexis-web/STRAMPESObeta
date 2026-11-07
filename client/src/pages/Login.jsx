@@ -135,11 +135,11 @@ export default function Login() {
     setTouched(newTouched);
 
     if (!formData.email.trim() && !formData.password) {
-      showError("Please enter your email and password.");
+      showError("Please enter your email or username, and password.");
       return;
     }
     if (!formData.email.trim()) {
-      showError("Please enter your email address.");
+      showError("Please enter your email or username.");
       return;
     }
     if (!formData.password) {
@@ -152,8 +152,13 @@ export default function Login() {
     setIsRedirecting(false);
 
     try {
+      // `identifier` — an email OR a username, resolved server-side by
+      // shape (see authController.login). Lowercased the same way for
+      // either: emails are case-insensitive by normalization, and a
+      // username is compared case-insensitively too, so this is harmless
+      // either way and keeps the request consistent.
       const loginPayload = {
-        email: formData.email.trim().toLowerCase(),
+        identifier: formData.email.trim().toLowerCase(),
         password: formData.password,
       };
 
@@ -343,19 +348,26 @@ export default function Login() {
 
             <form className="auth-form" onSubmit={handleSubmit} noValidate>
               <div className="form-group">
-                <label htmlFor="email">Email Address</label>
+                <label htmlFor="email">Email or Username</label>
                 <div className="auth-input-wrap">
                   <FaEnvelope className="auth-input-icon" aria-hidden="true" />
                   <input
                     id="email"
-                    type="email"
+                    // Not type="email": this field also accepts a username,
+                    // and a browser enforces its own email-shape validation
+                    // on type="email" inputs regardless of the form's
+                    // noValidate. autoComplete="username" is the token
+                    // password managers actually key the saved credential
+                    // pair on (paired with current-password below) —
+                    // correct for a login field even when it holds an email.
+                    type="text"
                     name="email"
-                    placeholder="name@example.com"
+                    placeholder="Email or username"
                     value={formData.email}
                     onChange={handleChange}
                     required
                     disabled={loading || isRedirecting}
-                    autoComplete="email"
+                    autoComplete="username"
                     className={touched.email && !formData.email.trim() ? "is-error" : ""}
                   />
                 </div>

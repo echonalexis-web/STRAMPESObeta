@@ -370,12 +370,22 @@ exports.applyToJob = async (req, res) => {
   const resumeUpload = Array.isArray(req.files?.resume) ? req.files.resume[0] : req.file;
   const coverLetterUpload = Array.isArray(req.files?.coverLetterFile) ? req.files.coverLetterFile[0] : null;
   // Orphan cleanup on error is handled by the cleanupUploadedFiles middleware.
-  const session = await JobApplication.startSession();
+  let session;
 
   try {
     const job = await JobVacancy.findById(req.params.id);
     if (!job) {
       return res.status(404).json({ message: "Job not found" });
+    }
+
+    // A stale page or direct API call must not bypass the same publication,
+    // deadline and employer-state rules used by the job board.
+    if (job.status !== "active" || !isJobVisibleToJobseekers(job)) {
+      return res.status(400).json({ message: "This job is no longer accepting applications." });
+    }
+    const employer = job.employer && await User.findById(job.employer).select("isActive");
+    if (!employer || employer.isActive === false) {
+      return res.status(400).json({ message: "This job is no longer accepting applications." });
     }
 
     // A saved-document reference is only used when no fresh file was
@@ -387,6 +397,7 @@ exports.applyToJob = async (req, res) => {
       ? null
       : await resolveOwnedDocument(req.body.coverLetterDocumentId, req.user.id, "coverLetter");
 
+    session = await JobApplication.startSession();
     session.startTransaction();
 
     const existingApplication = await JobApplication.findOne({
@@ -398,19 +409,16 @@ exports.applyToJob = async (req, res) => {
     // existing for this (applicant, vacancy) pair blocks a second apply.
     if (existingApplication && existingApplication.status !== "withdrawn") {
       await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ message: "You have already applied to this job" });
     }
 
     if (!resumeUpload && !resumeDocument) {
       await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ message: "Please attach your resume before applying." });
     }
 
     if (!coverLetterUpload && !coverLetterDocument) {
       await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ message: "Please attach a cover letter before applying." });
     }
 
@@ -422,7 +430,6 @@ exports.applyToJob = async (req, res) => {
     // tailored document as a choice, so a direct API call can't skip it.
     if (coverLetterDocument && String(coverLetterDocument.sourceJobId || "") !== String(job._id)) {
       await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ message: "Please tailor your cover letter for this job before applying." });
     }
 
@@ -477,7 +484,6 @@ exports.applyToJob = async (req, res) => {
     }
 
     await session.commitTransaction();
-    session.endSession();
 
     const io = req.app.get("io");
     await createNotificationForUser({
@@ -519,8 +525,7 @@ exports.applyToJob = async (req, res) => {
     res.json({ message: "Application submitted successfully", application: application[0] });
   } catch (error) {
     // Uploaded files are cleaned up by the cleanupUploadedFiles middleware on error responses.
-    await session.abortTransaction();
-    session.endSession();
+    if (session?.inTransaction()) await session.abortTransaction();
 
     // Two near-simultaneous requests can both pass the findOne duplicate
     // check above; the unique (applicant, vacancy) index on JobApplication
@@ -541,6 +546,8 @@ exports.applyToJob = async (req, res) => {
         ? "Failed to submit application. Please try again later."
         : error.message
     });
+  } finally {
+    if (session) await session.endSession();
   }
 };
 

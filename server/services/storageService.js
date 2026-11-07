@@ -50,6 +50,7 @@ const CATEGORY_CONFIG = {
   },
   resume: { dir: "resumes", resourceType: "auto", visibility: "private" },
   validId: { dir: "ids", resourceType: "auto", visibility: "private" },
+  recoverySelfie: { dir: "recovery-selfies", resourceType: "auto", visibility: "private" },
   permit: { dir: "permits", resourceType: "auto", visibility: "private" },
   registration: { dir: "registration", resourceType: "auto", visibility: "private" },
   applicationResume: { dir: "applications", resourceType: "auto", visibility: "private" },
@@ -188,15 +189,15 @@ const getSignedUrl = async (value, ttlSeconds = SIGNED_URL_TTL_SECONDS) => {
   return value;
 };
 
-/** Best-effort delete. Never throws. */
-const remove = async (value) => {
+/** Best-effort by default; retention jobs opt into throwing so they can retry. */
+const remove = async (value, { strict = false } = {}) => {
   if (!value || typeof value !== "string") return;
   try {
     if (isPrivateRef(value)) {
       const ref = decodeRef(value);
-      if (ref) {
-        await cloudinary.uploader.destroy(ref.p, { resource_type: ref.r || "image", type: ref.t || "private", invalidate: true });
-      }
+      if (!ref) throw new Error("Invalid storage ref");
+      const result = await cloudinary.uploader.destroy(ref.p, { resource_type: ref.r || "image", type: ref.t || "private", invalidate: true });
+      if (!["ok", "not found"].includes(result.result)) throw new Error("Storage deletion failed");
       return;
     }
     if (/res\.cloudinary\.com/i.test(value)) {
@@ -212,11 +213,13 @@ const remove = async (value) => {
     }
     if (value.startsWith("/uploads/") || value.startsWith("uploads/")) {
       const rel = value.replace(/^\/?uploads\//, "");
-      const full = path.join(__dirname, "..", "uploads", rel);
+      const root = path.resolve(__dirname, "..", "uploads");
+      const full = path.resolve(root, rel);
+      if (!full.startsWith(`${root}${path.sep}`)) throw new Error("Invalid storage path");
       if (fs.existsSync(full)) fs.unlinkSync(full);
     }
-  } catch (_) {
-    /* best-effort cleanup */
+  } catch (error) {
+    if (strict) throw error;
   }
 };
 

@@ -177,7 +177,9 @@ exports.submitEmployerVerification = async (req, res) => {
     user.verificationStatus = "pending";
     user.verificationSubmittedAt = new Date();
     user.verificationNote = null;
-    await user.save();
+    // validateModifiedOnly — see authController.js's note above
+    // issueEmailVerification.
+    await user.save({ validateModifiedOnly: true });
 
     await notifySubmissionReceived(user, req);
 
@@ -287,7 +289,9 @@ exports.submitEmployerVerificationWithDocuments = async (req, res) => {
     user.verificationStatus = "pending";
     user.verificationSubmittedAt = new Date();
     user.verificationNote = null;
-    await user.save();
+    // validateModifiedOnly — see authController.js's note above
+    // issueEmailVerification.
+    await user.save({ validateModifiedOnly: true });
 
     await notifySubmissionReceived(user, req);
 

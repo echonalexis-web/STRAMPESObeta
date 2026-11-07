@@ -1,69 +1,102 @@
+/* Cookie notice. Mobile-first: compact bottom strip at <=360px, roomier from 480px.
+   z-index sits BELOW the navbar/drawer layers (they are 1000+), so an open
+   navigation drawer or modal always covers the notice instead of the notice
+   hiding drawer actions (e.g. "Register as Employer"); closing the drawer
+   reveals the notice again, still reachable by keyboard and touch. */
 .cookie-banner {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1000;
-  background: #0f2540;
-  box-shadow: 0 -4px 20px rgba(15, 37, 64, 0.25);
-  padding: 0.9rem 1.25rem;
+  z-index: 900;
+  background: var(--ds-green-deep);
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 -4px 20px rgba(4, 60, 42, 0.25);
+  padding: var(--ds-space-3) max(var(--ds-space-4), env(safe-area-inset-right))
+    max(var(--ds-space-3), env(safe-area-inset-bottom)) max(var(--ds-space-4), env(safe-area-inset-left));
+  font-family: var(--ds-font-body);
 }
 
 .cookie-banner-inner {
   max-width: 1080px;
   margin: 0 auto;
   display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--ds-space-2);
 }
 
+/* Icon is decorative and costs vertical space on small phones */
 .cookie-banner-icon {
-  color: #4ade80;
+  display: none;
+  color: var(--ds-gold);
   font-size: 1.3rem;
   flex: none;
 }
 
 .cookie-banner-text {
-  flex: 1 1 420px;
   margin: 0;
-  color: #e2e8f0;
-  font-size: 0.85rem;
-  line-height: 1.5;
+  color: #fff;
+  font-size: var(--ds-text-sm);
+  line-height: 1.45;
 }
 
 .cookie-banner-text a {
-  color: #86efac;
+  display: inline-block;
+  min-height: 24px;
+  color: var(--ds-gold);
   font-weight: 600;
   text-decoration: underline;
 }
 
 .cookie-banner-text a:hover {
-  color: #bbf7d0;
+  color: #fff;
 }
 
 .cookie-banner-accept {
   flex: none;
-  background: #16a34a;
-  color: #fff;
+  min-height: var(--ds-tap);
+  width: 100%;
+  background: var(--ds-gold);
+  color: var(--ds-green-deep);
   border: none;
-  border-radius: 8px;
-  padding: 0.55rem 1.4rem;
+  border-radius: var(--ds-radius-md);
+  padding: 0 var(--ds-space-6);
+  font-family: inherit;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: var(--ds-text-sm);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: opacity var(--ds-dur-fast, 0.15s) ease;
 }
 
 .cookie-banner-accept:hover {
-  background: #15803d;
+  opacity: 0.9;
 }
 
-@media (max-width: 640px) {
+.cookie-banner :is(a, button):focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+@media (min-width: 480px) {
   .cookie-banner-inner {
-    justify-content: center;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--ds-space-4);
+  }
+  .cookie-banner-icon {
+    display: block;
+  }
+  .cookie-banner-text {
+    flex: 1 1 0;
   }
   .cookie-banner-accept {
-    width: 100%;
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cookie-banner-accept {
+    transition: none;
   }
 }

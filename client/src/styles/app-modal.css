@@ -1,0 +1,148 @@
+/* AppModal shell (UI-06). Mobile-first: bottom sheet (<768px), centered
+   dialog (>=768px). Double-class selectors (.app-modal-overlay.am-overlay)
+   beat the legacy single-class .app-modal-* rules still living in
+   dashboard.css regardless of stylesheet order. Variant: `am--full` (passed
+   by the caller as AppModal `className`) = full-height sheet on phones with
+   a pinned footer region, used by ApplyModal. */
+
+/* ---- overlay ---- */
+.app-modal-overlay.am-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--modal-z, 1350);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  background: rgba(4, 60, 42, 0.55);
+  backdrop-filter: none;
+}
+
+/* ---- card (sheet) ---- */
+.app-modal-card.am-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--ds-radius-xl) var(--ds-radius-xl) 0 0;
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-3);
+  font-family: var(--ds-font-body);
+}
+
+.app-modal-card.am-card .app-modal-title {
+  flex: none;
+  margin: 0;
+  padding: 18px 48px 12px 0;
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-lg);
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--ds-text);
+}
+
+.app-modal-card.am-card .app-modal-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  float: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ds-tap);
+  height: var(--ds-tap);
+  padding: 0;
+  border: 0;
+  border-radius: var(--ds-radius-md);
+  background: transparent;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--ds-text);
+  cursor: pointer;
+  transition: background-color var(--ds-dur-fast) var(--ds-ease);
+}
+
+.app-modal-card.am-card .app-modal-close:hover {
+  background: var(--ds-mint);
+  color: var(--ds-green-deep);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app-modal-card.am-card {
+    animation: am-sheet-in var(--ds-dur-slow) var(--ds-ease) both;
+  }
+}
+
+@keyframes am-sheet-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- full-height sheet variant (children own padding + a pinned footer) ---- */
+.am--full.app-modal-overlay.am-overlay {
+  align-items: stretch;
+}
+
+.am--full .app-modal-card.am-card {
+  height: 100dvh;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.am--full .app-modal-card.am-card .app-modal-title {
+  padding: calc(14px + env(safe-area-inset-top)) 64px 14px 16px;
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.am--full .app-modal-card.am-card .app-modal-close {
+  top: calc(6px + env(safe-area-inset-top));
+}
+
+/* ---- centered dialog ---- */
+@media (min-width: 768px) {
+  .app-modal-overlay.am-overlay,
+  .am--full.app-modal-overlay.am-overlay {
+    align-items: center;
+    padding: 24px;
+  }
+
+  .app-modal-card.am-card {
+    max-width: 560px;
+    max-height: min(90dvh, 760px);
+    padding: 0 24px 24px;
+    border-radius: var(--ds-radius-xl);
+  }
+
+  .app-modal-card.am-card .app-modal-title {
+    padding: 22px 56px 12px 0;
+    font-size: var(--ds-text-xl);
+  }
+
+  .app-modal-card.am-card .app-modal-close {
+    top: 14px;
+    right: 14px;
+  }
+
+  .am--full .app-modal-card.am-card {
+    height: auto;
+    padding: 0;
+  }
+
+  .am--full .app-modal-card.am-card .app-modal-title {
+    padding: 22px 72px 14px 24px;
+  }
+
+  .am--full .app-modal-card.am-card .app-modal-close {
+    top: 14px;
+  }
+}

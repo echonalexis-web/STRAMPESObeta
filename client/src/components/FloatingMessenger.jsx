@@ -359,6 +359,12 @@ export default function FloatingMessenger() {
     };
   }, [socket, isConnected, currentUserId, isOpen, view, selectedId, location.pathname]);
 
+  // Move focus into the panel when it opens so keyboard / screen-reader users
+  // land inside the sheet (it is a full-screen dialog on phones).
+  useEffect(() => {
+    if (isOpen) panelRef.current?.focus();
+  }, [isOpen]);
+
   if (hideWidget) return null;
 
   const selectedConversation = conversations.find((conversation) => conversation._id === selectedId) || null;
@@ -446,7 +452,7 @@ export default function FloatingMessenger() {
   return (
     <div className="fm-root">
       {isOpen && (
-        <div className="fm-panel" ref={panelRef}>
+        <div className="fm-panel" ref={panelRef} role="dialog" aria-label="Messenger" tabIndex={-1}>
           {view === "chat" && selectedConversation ? (
             <>
               <div className="fm-panel-header">

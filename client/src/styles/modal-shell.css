@@ -1,0 +1,21 @@
+/* Shared modal plumbing (UI-06). Imported by hooks/useModalA11y.js so every
+   modal that uses the hook gets it. The hook toggles `has-modal-open` on
+   <body> while any modal is open (replacing the old :has() hooks). */
+
+:root {
+  /* Modal overlay layer: above the navbar header/drawer layers (1000-1300)
+     and the sticky apply bar, below TermsGate / feedback (4000+). */
+  --modal-z: 1350;
+}
+
+/* The floating messenger (z 3500) would sit on a sheet's footer actions on
+   phones; it comes back from 768px where the dialog is centered. */
+body.has-modal-open .fm-root {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  body.has-modal-open .fm-root {
+    display: flex;
+  }
+}

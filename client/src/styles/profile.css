@@ -913,6 +913,8 @@
 }
 
 .dropzone {
+  width: 100%;
+  font: inherit;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -927,10 +929,20 @@
   transition: all 0.2s ease;
 }
 
-.dropzone:hover,
+.dropzone:not(:disabled):hover,
 .dropzone--active {
   background: #e8f5e9;
   border-color: #2e7d32;
+}
+
+.dropzone:focus-visible {
+  outline: 3px solid #166534;
+  outline-offset: 3px;
+}
+
+.dropzone:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .dropzone-icon {
@@ -2274,4 +2286,437 @@
 .password-toggle-btn:focus {
   outline: 2px solid #15803d;
   outline-offset: -2px;
+}
+
+/* ============================================================ */
+/* UI-07b - EditProfile mobile-first override (scoped to .ep-page) */
+/* Base = <=360px; enhanced at 480 / 768 / 1024. Presentational only. */
+/* ============================================================ */
+
+html:has(.ep-page),
+body:has(.ep-page) {
+  /* keep a focused field clear of the sticky save bar / on-screen keyboard */
+  scroll-padding-bottom: 120px;
+}
+
+.ep-page {
+  background: var(--ds-bg, #f5f7f3);
+  overflow-x: clip;
+}
+
+.ep-page .editprofile-rail {
+  padding: 12px max(12px, env(safe-area-inset-right)) 12px max(12px, env(safe-area-inset-left));
+}
+
+.ep-page .editprofile-rail-back {
+  width: 44px;
+  height: 44px;
+}
+
+.ep-page .editprofile-rail-topbar {
+  gap: 4px;
+}
+
+.ep-page .editprofile-tabs {
+  gap: 2px;
+  scrollbar-width: none;
+  scroll-padding-inline: 8px;
+}
+
+.ep-page .editprofile-tab {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+  align-items: center;
+}
+
+.ep-page .editprofile-tab:focus-visible,
+.ep-page .editprofile-rail-back:focus-visible,
+.ep-page .editprofile-rail-resume:focus-visible {
+  outline: 3px solid var(--ds-gold, #e6b91e);
+  outline-offset: 2px;
+}
+
+.ep-page .editprofile-rail-resume {
+  min-height: 44px;
+}
+
+/* Email card sits outside the panel inner: its 100% width + side margins used to overflow */
+.ep-page .email-change-card {
+  width: auto;
+  max-width: 760px;
+  margin: 16px 12px 0;
+  align-self: stretch;
+  overflow-wrap: anywhere;
+  border-color: var(--ds-border, #dfe8e3);
+}
+
+.ep-page .email-change-card__toggle {
+  min-height: 44px;
+}
+
+.ep-page .editprofile-panel {
+  align-items: stretch;
+}
+
+.ep-page .editprofile-panel-inner {
+  max-width: 760px;
+  width: 100%;
+  margin-inline: auto;
+  padding: 16px 12px 24px;
+}
+
+.ep-page .editprofile-panel-title {
+  font-family: var(--font-display, inherit);
+  font-size: 22px;
+}
+
+.ep-page .editprofile-card {
+  padding: 16px 14px;
+  border-radius: var(--ds-radius-lg, 16px);
+  border-color: var(--ds-border, #dfe8e3);
+}
+
+.ep-page .profile-fields {
+  gap: 20px;
+}
+
+.ep-page .profile-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display, inherit);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ds-deep, #043c2a);
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--ds-mint, #e9f4ed);
+}
+
+.ep-page .profile-section-hint {
+  font-size: 14px;
+}
+
+/* Single column by default; two columns only from 768 */
+.ep-page .profile-field-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.ep-page .profile-field {
+  min-width: 0;
+}
+
+.ep-page .profile-field label {
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.ep-page .profile-field input,
+.ep-page .profile-field textarea,
+.ep-page .profile-field select,
+.ep-page .skills-input-row input,
+.ep-page .lang-table tbody th input[type="text"] {
+  font-size: 16px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-width: 1px;
+  border-color: var(--ds-border, #dfe8e3);
+  box-sizing: border-box;
+}
+
+.ep-page .profile-field textarea {
+  min-height: 100px;
+}
+
+.ep-page .profile-field input:focus-visible,
+.ep-page .profile-field textarea:focus-visible,
+.ep-page .profile-field select:focus-visible,
+.ep-page .skills-input-row input:focus-visible {
+  outline: 3px solid var(--ds-gold, #e6b91e);
+  outline-offset: 1px;
+  border-color: var(--ds-green, #07553a);
+  box-shadow: none;
+}
+
+/* Inputs rendered by shared components (autosuggest / dropdown / location) */
+.ep-page .autosuggest input,
+.ep-page .autosuggest-list li {
+  font-size: 16px;
+}
+
+.ep-page .autosuggest-list li {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+/* Height / weight unit toggle */
+.ep-page .unit-toggle {
+  display: flex;
+  width: 100%;
+  gap: 6px;
+}
+
+.ep-page .unit-toggle-btn {
+  flex: 1;
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+
+.ep-page .unit-input-pair {
+  gap: 8px;
+}
+
+.ep-page .unit-input-pair > * {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Pills, chips, checkboxes */
+.ep-page .pill-btn,
+.ep-page .industry-pill,
+.ep-page .industry-select-trigger {
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.ep-page .custom-checkbox-label {
+  min-height: 44px;
+  align-items: center;
+  padding: 8px;
+  font-size: 14px;
+}
+
+.ep-page .checkbox-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.ep-page .industry-chip button,
+.ep-page .skill-tag-remove {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  margin: -10px -8px -10px 0;
+}
+
+.ep-page .skill-tag {
+  min-height: 40px;
+  padding: 4px 6px 4px 12px;
+  font-size: 14px;
+}
+
+.ep-page .skills-input-row {
+  flex-wrap: nowrap;
+}
+
+.ep-page .skill-add-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Repeatable rows: stacked, 44px remove / add buttons */
+.ep-page .repeat-entry-card {
+  background: var(--ds-bg, #f5f7f3);
+  border-color: var(--ds-border, #dfe8e3);
+  border-radius: var(--ds-radius-md, 12px);
+  padding: 12px;
+}
+
+.ep-page .repeat-entry-card-header {
+  font-size: 14px;
+  gap: 8px;
+}
+
+.ep-page .repeat-entry-remove {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.ep-page .add-row-btn {
+  min-height: 44px;
+  font-size: 14px;
+  border-radius: var(--ds-radius-md, 12px);
+}
+
+/* Language table scrolls inside its wrapper; bigger touch targets */
+.ep-page .lang-table-wrap {
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+.ep-page .lang-table input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+}
+
+.ep-page .lang-table td,
+.ep-page .lang-table th {
+  padding: 8px;
+}
+
+.ep-page .lang-table tbody th input[type="text"] {
+  min-width: 110px;
+}
+
+/* File dropzone / avatar: large touch targets */
+.ep-page .dropzone {
+  min-height: 120px;
+  padding: 20px 14px;
+}
+
+.ep-page .dropzone-action-btn,
+.ep-page .dropzone-file-view {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ep-page .dropzone-file-card {
+  flex-wrap: wrap;
+}
+
+.ep-page .dropzone-file-name {
+  overflow-wrap: anywhere;
+}
+
+.ep-page .editprofile-card .profile-inline-link,
+.ep-page .editprofile-card .ds-btn {
+  min-height: 44px;
+}
+
+.ep-page .alert {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+/* Sticky save bar: safe-area aware, never overlaps content (in-flow sticky) */
+.ep-page .editprofile-footer {
+  padding: 10px max(12px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  border-top-color: var(--ds-border, #dfe8e3);
+}
+
+.ep-page .editprofile-footer-inner {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.ep-page .editprofile-footer-error {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--ds-radius-sm, 8px);
+  background: #fdecea;
+  color: #912018;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  max-height: 4.2em;
+  overflow: auto;
+}
+
+.ep-page .profile-save-btn {
+  width: 100%;
+  min-height: 48px;
+  font-size: 16px;
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-green, #07553a);
+}
+
+.ep-page .profile-save-btn:hover:not(:disabled) {
+  background: var(--ds-green-secondary, #0b704b);
+  transform: none;
+}
+
+.ep-page .profile-save-btn:focus-visible {
+  outline: 3px solid var(--ds-gold, #e6b91e);
+  outline-offset: 2px;
+}
+
+@media (min-width: 480px) {
+  .ep-page .editprofile-panel-inner { padding: 20px 16px 24px; }
+  .ep-page .email-change-card { margin: 20px 16px 0; }
+  .ep-page .editprofile-card { padding: 20px 18px; }
+  .ep-page .checkbox-group { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 768px) {
+  .ep-page .profile-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ep-page .editprofile-footer-inner { flex-direction: row; align-items: center; }
+  .ep-page .editprofile-footer-error { display: none; }
+  .ep-page .profile-save-btn { width: auto; min-width: 200px; }
+  .ep-page .editprofile-tab { flex-direction: row; }
+  .ep-page .email-change-card { margin: 24px auto 0; width: calc(100% - 48px); align-self: center; }
+}
+
+@media (min-width: 1024px) {
+  .ep-page .editprofile-panel-inner { padding: 36px 24px 24px; }
+  .ep-page .editprofile-card { padding: 28px 30px; }
+  .ep-page .editprofile-footer { padding-left: 24px; padding-right: 24px; }
+  .ep-page .editprofile-rail-back { width: auto; height: auto; min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ep-page * { transition: none !important; }
+}
+
+.ep-page .suggestion-chip {
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.ep-page .location-select-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ep-page .location-select-grid label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.ep-page .location-select-grid label > span {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ds-text, #10271f);
+}
+
+@media (min-width: 768px) {
+  .ep-page .location-select-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* UI-07b retry: keep room for the select chevron (shared rule above resets padding) */
+.ep-page .profile-field select,
+.ep-page select {
+  padding-right: 40px;
+  text-overflow: ellipsis;
+}
+
+/* Email-change card actions: 44px, no wrapped labels, stacked below 480px */
+.ep-page .email-change-card__actions {
+  flex-direction: column-reverse;
+  align-items: stretch;
+}
+
+.ep-page .email-change-card__btn {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+@media (min-width: 480px) {
+  .ep-page .email-change-card__actions {
+    flex-direction: row;
+    align-items: center;
+  }
 }

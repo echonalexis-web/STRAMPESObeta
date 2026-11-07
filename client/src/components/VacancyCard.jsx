@@ -122,16 +122,16 @@ export default function VacancyCard({
       <p className="vac-facts">{facts}</p>
 
       <div className="vac-meta">
-        <span className="vac-pill vac-pill--open">Open</span>
-        {applied && <span className="vac-pill vac-pill--applied">Applied</span>}
+        <span className="ds-badge vac-pill vac-pill--open">Open</span>
+        {applied && <span className="ds-badge vac-pill vac-pill--applied"><FaCheck aria-hidden="true" /> Applied</span>}
         {followed && (
-          <span className="vac-pill vac-pill--follow" title="From an employer you follow">
-            <FaHeart /> Following
+          <span className="ds-badge vac-pill vac-pill--follow" title="From an employer you follow">
+            <FaHeart aria-hidden="true" /> Following
           </span>
         )}
         {preferred && (
-          <span className="vac-pill vac-pill--preferred" title="Matches your preferred industry">
-            <FaStar /> Preferred
+          <span className="ds-badge vac-pill vac-pill--preferred" title="Matches your preferred industry">
+            <FaStar aria-hidden="true" /> Preferred
           </span>
         )}
       </div>
@@ -164,7 +164,7 @@ export default function VacancyCard({
             const met = matchAvailable && !missingKeys.has(matchKey(q.type, q.value));
             return (
               <span key={`${q.type}-${q.value}`} className={`vac-req-pill ${met ? "is-met" : "is-missing"}`}>
-                {met ? <FaCheck /> : <FaTimes />} {q.value}
+                {met ? <FaCheck aria-hidden="true" /> : <FaTimes aria-hidden="true" />} <span className="ds-sr-only">{met ? "Met: " : "Missing: "}</span>{q.value}
               </span>
             );
           })}
@@ -173,19 +173,19 @@ export default function VacancyCard({
 
       <div className="vac-footer">
         <span className="vac-footer-meta">
-          <FaUsers /> {applicantCount} applied{posted ? ` · posted ${posted}` : ""}
+          <FaUsers aria-hidden="true" /> {applicantCount} applied{posted ? ` · posted ${posted}` : ""}
         </span>
         {!preview && (
           <div className="vac-actions" onClick={(event) => event.stopPropagation()}>
-            <button className="btn-vac btn-vac--outline" onClick={onOpen}>
+            <button className="ds-btn ds-btn--secondary btn-vac btn-vac--outline" onClick={onOpen}>
               View details
             </button>
             {applied ? (
-              <button className="btn-vac btn-vac--primary" disabled title="You have already applied to this job">
+              <button className="ds-btn ds-btn--primary btn-vac btn-vac--primary" disabled title="You have already applied to this job">
                 Applied
               </button>
             ) : (
-              <button className="btn-vac btn-vac--primary" onClick={onApply}>
+              <button className="ds-btn ds-btn--primary btn-vac btn-vac--primary" onClick={onApply}>
                 Apply now
               </button>
             )}

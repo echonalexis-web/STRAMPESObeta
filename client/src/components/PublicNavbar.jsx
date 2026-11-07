@@ -50,6 +50,36 @@ export default function PublicNavbar() {
     };
   }, [openPanel]);
 
+  // Mobile drawer: lock page scroll, move focus in, trap Tab, route change closes via link onClick / Navbar's key={location.key} remount.
+  const mobileOpen = openPanel === "mobile";
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const panel = mobilePanelRef.current;
+    const focusables = () => [mobileButtonRef.current, ...(panel?.querySelectorAll("a[href], button:not([disabled])") || [])].filter(Boolean);
+    focusables()[1]?.focus();
+    const trapTab = (event) => {
+      if (event.key !== "Tab") return;
+      const items = focusables();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", trapTab);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", trapTab);
+    };
+  }, [mobileOpen]);
+
   useEffect(() => {
     // Keep this in sync with public-navbar.css; no shared sidebar breakpoint.
     const desktop = window.matchMedia("(min-width: 1101px)");
@@ -119,7 +149,9 @@ export default function PublicNavbar() {
         </button>
       </div>
 
-      <div id="public-mobile-navigation" className="public-nav-mobile" ref={mobilePanelRef} hidden={openPanel !== "mobile"}>
+      <div className="public-nav-backdrop" hidden={!mobileOpen} aria-hidden="true"
+        onClick={() => { setOpenPanel(null); mobileButtonRef.current?.focus(); }} />
+      <div id="public-mobile-navigation" className="public-nav-mobile" ref={mobilePanelRef} hidden={!mobileOpen}>
         <div className="public-nav-mobile-links">{renderLinks()}</div>
         <div className="public-nav-mobile-auth">
           <Link to="/login" className="public-nav-button public-nav-button--green" onClick={closePanels}>

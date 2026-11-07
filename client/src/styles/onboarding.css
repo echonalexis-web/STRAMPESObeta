@@ -605,6 +605,21 @@
   letter-spacing: normal;
 }
 
+/* A field status line that isn't an error — e.g. a live username
+   availability check ("Checking…" / "✓ Available"). Same shape as
+   .onboarding-field-error, neutral by default. */
+.onboarding-field-hint {
+  display: block;
+  margin-top: 0.35rem;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.onboarding-field-hint--ok {
+  color: var(--ob-green-500);
+}
+
 .onboarding-char-counter {
   display: block;
   margin-top: 0.35rem;
@@ -1530,4 +1545,33 @@
   .onboarding-summary-value {
     max-width: 55%;
   }
+}
+
+/* UI-13 mobile-first floor: 16px fields, 44px step pills and choice pills. */
+.onboarding-fields input,
+.onboarding-fields select,
+.onboarding-fields textarea,
+.skills-entry-row input {
+  font-size: 16px;
+}
+
+.onboarding-mobile-step-pill {
+  flex: 0 0 2.75rem;
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.pill-btn { min-height: 44px; }
+
+.onboarding-mobile-step-pill:focus-visible,
+.pill-btn:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}
+
+@media (min-width: 768px) {
+  .onboarding-fields input,
+  .onboarding-fields select,
+  .onboarding-fields textarea,
+  .skills-entry-row input { font-size: 15px; }
 }

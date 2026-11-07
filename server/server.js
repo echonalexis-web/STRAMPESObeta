@@ -22,6 +22,7 @@ const { sanitizeRequestBody, sanitizeQueryParams } = require("./middleware/valid
 const { detectMaliciousPayload, securityLogger } = require("./middleware/security");
 const { canAccessRef } = require("./controllers/fileController");
 const presenceService = require("./services/presenceService");
+const { startEmailOutboxWorker } = require("./services/emailOutboxService");
 const logger = require("./utils/logger");
 const { sendError } = require("./utils/sendError");
 
@@ -287,6 +288,7 @@ app.use("/uploads", async (req, res, next) => {
   let decoded;
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.scope) return res.status(403).json({ message: "Access denied" });
   } catch {
     return res.status(403).json({ message: "Access denied" });
   }
@@ -311,6 +313,7 @@ app.use("/uploads", async (req, res, next) => {
     if (!allowed) {
       return res.status(403).json({ message: "Access denied" });
     }
+    await require("./controllers/fileController").auditIdAccess(ref, { ...req, user: { id: decoded.id, role: user.role } });
   } catch {
     return res.status(403).json({ message: "Access denied" });
   }
@@ -337,6 +340,8 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   console.log("📁 Loading route files...");
   
   const authRoutes = require("./routes/authRoutes");
+  const accountRecoveryRoutes = require("./routes/accountRecoveryRoutes");
+  const { startRecoveryMaintenanceWorker } = require("./services/recoveryMaintenanceService");
   console.log("✅ Auth routes loaded");
   
   const jobRoutes = require("./routes/jobRoutes");
@@ -413,6 +418,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     
     try {
       app.use(`${basePath}/auth`, authRoutes);
+      app.use(`${basePath}/account-recovery-requests`, accountRecoveryRoutes);
       console.log(`✅ ${basePath}/auth mounted`);
     } catch (e) {
       logger.error(`Failed to mount ${basePath}/auth`, { error: e.message });
@@ -611,6 +617,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     try {
       const jwt = require("jsonwebtoken");
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded.scope) return next(new Error("Invalid token"));
 
       // A password change/reset bumps tokenVersion server-side, invalidating
       // every token signed before it — this closes that same gap for
@@ -770,6 +777,15 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
     console.log(`🔗 API Base URL: http://localhost:${PORT}/api/v1`);
     console.log(`📝 Allowed origins: ${allowedOrigins.join(", ")}`);
+
+    // Background drain of queued notification emails (see
+    // services/emailOutboxService.js). Started here — after connectDB()
+    // above and with the server actually accepting requests — rather than
+    // at module load, so its first tick never races the DB connection.
+    // Disable with EMAIL_WORKER_ENABLED=false (e.g. in tests).
+    startEmailOutboxWorker();
+    startRecoveryMaintenanceWorker();
+
     console.log(`\n✅ All systems ready!\n`);
   });
 })();

@@ -1,11 +1,13 @@
 const User = require("../models/User");
 const JobseekerProfile = require("../models/JobseekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
+const bcrypt = require("bcryptjs");
 const authController = require("./authController");
 const { sendError } = require("../utils/sendError");
 const { getActiveValues } = require("../services/systemOptionService");
 const { isAdultAge, MIN_ACCOUNT_AGE } = require("../utils/age");
 const { logAuditEvent } = require("../services/auditService");
+const { normalizeHeightUnit, normalizeWeightUnit } = require("../utils/unitFields");
 
 // Helper to update or create profile
 const upsertProfile = async (userId, role, data) => {
@@ -149,10 +151,16 @@ exports.completeOnboarding = async (req, res) => {
     if (user.role === "jobseeker") {
       profileData = {
         civilStatus: req.body.civilStatus || null,
+        // "Other, please specify" fallback (items 14/15) — mirrors
+        // governmentIdTypeOther's clearing: only kept when civilStatus is
+        // actually "Other".
+        civilStatusOther: req.body.civilStatus === "Other" ? (req.body.civilStatusOther || null) : null,
         placeOfBirth: req.body.placeOfBirth || null,
         citizenship: req.body.citizenship || null,
         height: req.body.height ? parseFloat(req.body.height) : null,
+        heightUnit: normalizeHeightUnit(req.body.heightUnit),
         weight: req.body.weight ? parseFloat(req.body.weight) : null,
+        weightUnit: normalizeWeightUnit(req.body.weightUnit),
         landline: req.body.landline || null,
         mobileSecondary: req.body.mobileSecondary || null,
         presentAddress: parseJSON(req.body.presentAddress, { street: "", barangay: "", municipality: "", province: "", region: "" }),
@@ -281,13 +289,18 @@ exports.changePassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user.password) {
+      return res.status(400).json({ message: "Set a password before changing it." });
+    }
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) return res.status(401).json({ message: "Current password is incorrect" });
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     // Invalidates every other token issued before this change.
     user.tokenVersion = (user.tokenVersion || 0) + 1;
-    await user.save();
+    // validateModifiedOnly — see authController.js's note above
+    // issueEmailVerification.
+    await user.save({ validateModifiedOnly: true });
     res.json({ message: "Password changed successfully" });
   } catch (error) {
     sendError(res, error);

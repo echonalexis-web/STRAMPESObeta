@@ -1,6 +1,6 @@
 /* Custom Properties & Modernized Palette */
 :root {
-  --primary-green: #0b4e2f;
+  --primary-green: var(--ds-green);
   --accent-green: #2f9e44;
   --hover-green: #207a34;
   --light-green-bg: #e6f6e9;
@@ -35,7 +35,7 @@ body, html {
   overflow-x: hidden;
   background-color: var(--bg-main);
   color: var(--text-dark);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--ds-font-body);
 }
 
 .home-container {
@@ -118,7 +118,7 @@ body, html {
 .hero-main-title {
   width: 100%;
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--ds-font-display);
   font-size: clamp(2.5rem, 8vw, 5.5rem);
   font-weight: 900;
   letter-spacing: -0.02em;
@@ -1370,4 +1370,155 @@ body, html {
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
+}
+/* ============================================================ */
+/* UI-14 brand pass (scoped under .home-container, mobile-first) */
+/* Base = 320px. Hero: one memorable moment, <=70dvh on phones.  */
+/* ============================================================ */
+html body .home-container .video-hero-section {
+  margin-top: 73px; /* PublicNavbar is fixed, ~73px tall (measured) */
+  min-height: 0;
+  height: auto;
+  background: var(--ds-green-deep);
+}
+
+.home-container .video-hero-content {
+  padding: 1.25rem max(1rem, env(safe-area-inset-right)) 1.5rem max(1rem, env(safe-area-inset-left));
+}
+
+.home-container .hero-logo-container {
+  margin-bottom: 0.5rem;
+  animation: none;
+}
+
+.home-container .hero-logo {
+  width: 72px;
+  height: 72px;
+  padding: 4px;
+}
+
+.home-container .hero-main-title {
+  font-family: var(--ds-font-display);
+  font-size: clamp(1.9rem, 10vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.home-container .hero-tagline {
+  font-family: var(--ds-font-display);
+  color: var(--ds-gold);
+  font-size: 1.05rem;
+  margin: 0.4rem 0 0.75rem;
+  animation: none;
+}
+
+.home-container .hero-description {
+  margin: 0.25rem auto;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  animation: none;
+}
+
+.home-container .hero-mobile-quick-actions {
+  margin-top: 1rem;
+  max-width: 340px;
+}
+
+.home-container .hero-mobile-btn {
+  min-height: 48px;
+  font-family: var(--ds-font-display);
+}
+
+.home-container .hero-mobile-register-btn {
+  background: var(--ds-gold);
+  color: var(--ds-green-deep);
+}
+
+.home-container .scroll-down-button {
+  min-height: 44px;
+  font-family: var(--ds-font-display);
+  background: var(--ds-gold);
+  color: var(--ds-green-deep);
+  bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+.home-container .hero-ring { display: none; }
+
+.home-container .hero-mobile-btn:focus-visible,
+.home-container .scroll-down-button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Phones: filter chips and card links reach the 44px target */
+.home-container .jobs-design-chip,
+.home-container .jobs-design-details {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-container .jobs-design-search-bar input { font-size: 16px; }
+
+@media (min-width: 480px) {
+  html body .home-container .video-hero-section { min-height: min(70dvh, 560px); }
+  .home-container .hero-logo { width: 96px; height: 96px; }
+  .home-container .hero-description { font-size: 1rem; }
+}
+
+@media (min-width: 768px) {
+  html body .home-container .video-hero-section {
+    margin-top: 73px;
+    min-height: calc(100dvh - 73px);
+  }
+  .home-container .hero-logo { width: 150px; height: 150px; padding: 6px; }
+  .home-container .hero-main-title { font-size: clamp(3rem, 7vw, 5.5rem); }
+  .home-container .hero-tagline { font-size: clamp(1.3rem, 2.5vw, 1.8rem); }
+  .home-container .hero-description { font-size: 1.05rem; padding: 1.25rem 1.5rem; }
+
+  /* Layered parallax rings: decorative, desktop-only (useParallax is inert below 768 / reduced motion) */
+  .home-container .hero-ring {
+    display: block;
+    position: absolute;
+    z-index: 1;
+    border-radius: 50%;
+    border: 1.5px solid rgba(230, 185, 30, 0.35);
+    pointer-events: none;
+    transform: translate3d(0, var(--parallax-y, 0px), 0);
+    will-change: transform;
+  }
+  .home-container .hero-ring--a { width: 520px; height: 520px; left: -160px; top: -120px; }
+  .home-container .hero-ring--b { width: 340px; height: 340px; right: -90px; bottom: -110px; border-color: rgba(255, 255, 255, 0.22); }
+}
+
+@media (min-width: 1200px) {
+  html body .home-container .video-hero-section { margin-top: 73px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-container .scroll-down-button { animation: none; }
+  .home-container .hero-video { display: none; }
+}
+
+@media (max-width: 767.98px) {
+  /* Hero CTAs are already on screen; the floating hint would cover content */
+  .home-container .scroll-down-button { display: none; }
+}
+
+/* UI-14 fixes: keep hero CTAs above the fold on 320x568 and make the jobs search bar a 44px target */
+@media (max-width: 359.98px) {
+  .home-container .hero-description p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+  }
+}
+
+.home-container .jobs-design-search-bar button,
+.home-container .jobs-design-search-bar input {
+  min-height: 44px;
 }

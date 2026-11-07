@@ -25,6 +25,8 @@ export default function FileDropzone({
   const inputRef = useRef(null);
 
   const hasFile = Boolean(file || existingUrl);
+  const labelId = label && id ? `${id}-label` : undefined;
+  const hintId = hint && id ? `${id}-hint` : undefined;
 
   const handleDrag = (e, active) => {
     e.preventDefault();
@@ -48,7 +50,7 @@ export default function FileDropzone({
 
   return (
     <div className="profile-field">
-      {label && <label htmlFor={id}>{label}</label>}
+      {label && <label id={labelId} htmlFor={id}>{label}</label>}
       <input
         ref={inputRef}
         id={id}
@@ -64,21 +66,24 @@ export default function FileDropzone({
       />
 
       {!hasFile ? (
-        <div
+        <button
+          type="button"
           className={`dropzone ${dragActive ? "dropzone--active" : ""}`}
           onClick={openPicker}
           onDragEnter={(e) => handleDrag(e, true)}
           onDragOver={(e) => handleDrag(e, true)}
           onDragLeave={(e) => handleDrag(e, false)}
           onDrop={handleDrop}
-          role="button"
-          tabIndex={0}
-          aria-disabled={disabled}
+          disabled={disabled}
+          tabIndex={disabled ? -1 : 0}
+          aria-labelledby={labelId}
+          aria-label={labelId ? undefined : "Choose a file"}
+          aria-describedby={hintId}
         >
           <FaCloudUploadAlt className="dropzone-icon" />
           <span className="dropzone-title">Drag &amp; drop a file, or click to browse</span>
-          {hint && <span className="dropzone-hint">{hint}</span>}
-        </div>
+          {hint && <span id={hintId} className="dropzone-hint">{hint}</span>}
+        </button>
       ) : (
         <div className="dropzone-file-card">
           <FaFileAlt className="dropzone-file-icon" />

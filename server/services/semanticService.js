@@ -1,4 +1,9 @@
-const { TfIdf, PorterStemmer, JaroWinklerDistance } = require('natural');
+// Import only the NLP implementations used here. The package barrel eagerly
+// loads unrelated sentiment data (ESM-only afinn-165), breaking CJS/Jest loads.
+const TfIdf = require('natural/lib/natural/tfidf/tfidf');
+const PorterStemmer = require('natural/lib/natural/stemmers/porter_stemmer');
+const JaroWinklerDistance = require('natural/lib/natural/distance/jaro-winkler_distance');
+const { memoizeString } = require('../utils/memoizeString');
 const { getAgeFromDate } = require('../utils/age');
 const { parseLocationValue, normalizeLocationKey } = require('../utils/locationParser');
 
@@ -51,25 +56,12 @@ const STOPWORDS = new Set([
   'including', 'related', 'field', 'work', 'working',
 ]);
 
-// §C.2 — bestPhraseSimilarity() re-stems both sides on every comparison,
-// inside a nested loop over (qualifications × applicant skills) × jobs, so
-// the same short strings (skill names, job titles) get stemmed over and
-// over within one request. The corpus is small and highly repetitive (a
-// bounded vocabulary of skill/qualification phrases, not free user text),
-// so a plain unbounded module-level cache is the right tradeoff here —
-// unlike the tfidfCache below, which bounds itself because it stores much
-// larger per-request ranking results, not short input strings.
-const stemCache = new Map();
-function contentStems(value) {
-  const key = String(value ?? '');
-  const cached = stemCache.get(key);
-  if (cached) return cached;
-  const stems = tokenize(key)
+// Free-text skills/titles are not a fixed vocabulary. Retain only a bounded
+// number of short inputs; eviction/long inputs recompute identical stems.
+const contentStems = memoizeString((key) => tokenize(key)
     .filter((token) => token.length > 1 && !STOPWORDS.has(token))
-    .map((token) => PorterStemmer.stem(token));
-  stemCache.set(key, stems);
-  return stems;
-}
+    .map((token) => PorterStemmer.stem(token)),
+  { maxEntries: 2000, maxKeyLength: 512 });
 
 // ============================================================
 // Skill aliases — local job-market synonyms. Matching is bidirectional:

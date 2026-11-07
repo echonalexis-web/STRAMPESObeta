@@ -1,4 +1,4 @@
-import React, { useContext, useRef } from "react";
+import React, { useContext, useId, useRef } from "react";
 import { FaStar, FaUsers, FaEnvelope, FaPhone, FaGlobe, FaMapMarkerAlt, FaBriefcase, FaRegClock, FaTimes } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { useFollow } from "../hooks/useFollow";
@@ -36,28 +36,38 @@ export default function EmployerModal({ isOpen, onClose, employer }) {
   } = useFollow(employerId);
 
   const dialogRef = useRef(null);
+  const titleId = useId();
   useModalA11y(isOpen && Boolean(employer), onClose, dialogRef);
 
   if (!isOpen || !employer) return null;
 
   return (
-    <div className="employer-modal-overlay" onClick={onClose}>
+    <div
+      className="employer-modal-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          // Keep focus off <body> so the focus restore in useModalA11y sticks.
+          event.preventDefault();
+          onClose();
+        }
+      }}
+    >
       <div
         className="employer-modal"
         role="dialog"
         aria-modal="true"
-        aria-label={employer.companyName ? `${employer.companyName} details` : "Employer details"}
+        aria-labelledby={titleId}
         ref={dialogRef}
-        onClick={(e) => e.stopPropagation()}
       >
         <button className="employer-modal-close" onClick={onClose} type="button" aria-label="Close">
           <FaTimes />
         </button>
 
+        <div className="employer-modal-body">
         <div className="employer-modal-header">
           <div className="employer-avatar"><span className="employer-avatar-text">{employer.companyName?.charAt(0) || "E"}</span></div>
           <div className="employer-header-info">
-            <h2>{employer.companyName || "Unknown Employer"}</h2>
+            <h2 id={titleId}>{employer.companyName || "Unknown Employer"}</h2>
             <div className="employer-badge"><FaStar className="badge-icon" /><span>Verified Employer</span></div>
             {employerId && !isOwnProfile ? (
               <div className="employer-follow-bar">
@@ -103,6 +113,8 @@ export default function EmployerModal({ isOpen, onClose, employer }) {
         <div className="employer-section">
           <h3 className="employer-section-title">About</h3>
           <p className="employer-description">{employer.companyDescription || "No company description available."}</p>
+        </div>
+
         </div>
 
         <div className="employer-modal-footer">

@@ -4,6 +4,7 @@ import { FaArrowRight, FaSearch } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { jobAPI } from "../services/api";
 import EmployerAvatar from "../components/EmployerAvatar";
+import useParallax from "../hooks/useParallax";
 import "../styles/home.css";
 import heroVideo from "../assets/videos/hero-video.mp4";
 import pesoLogo from "../assets/images/peso-logo.png";
@@ -59,6 +60,8 @@ export default function Home() {
   const location = useLocation();
   const jobsRef = useRef(null);
   const heroRef = useRef(null);
+  const ringRefA = useParallax(0.12);
+  const ringRefB = useParallax(0.2);
 
   const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState(null);
@@ -218,6 +221,8 @@ export default function Home() {
           Your browser does not support HTML5 video.
         </video>
         <div className="video-overlay"></div>
+        <span className="hero-ring hero-ring--a" ref={ringRefA} aria-hidden="true"></span>
+        <span className="hero-ring hero-ring--b" ref={ringRefB} aria-hidden="true"></span>
         <div className="video-hero-content">
           <div className="hero-logo-container"><img src={pesoLogo} alt="PESO Marinduque Logo" className="hero-logo" /></div>
           <h1 className="hero-main-title">TRABAHO MANDIN!</h1>

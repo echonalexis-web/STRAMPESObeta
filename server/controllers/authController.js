@@ -16,14 +16,23 @@ const logger = require("../utils/logger");
 const {
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
+  sendPasswordAddedEmail,
   sendEmailVerification,
   sendEmailChangeVerification,
   sendEmailChangeAlert,
+  sendRecoveryEmailVerification,
+  sendRecoveryEmailAlert,
+  sendBackupCodesGeneratedEmail,
+  sendBackupCodeRedeemedEmail,
 } = require("../services/mailService");
 const { OAuth2Client } = require("google-auth-library");
 const { isAdultAge, MIN_ACCOUNT_AGE } = require("../utils/age");
 const { normalizeEmail } = require("../utils/normalizeEmail");
+const { normalizeHeightUnit, normalizeWeightUnit } = require("../utils/unitFields");
 const SystemSettings = require("../models/SystemSettings");
+const ReservedUsername = require("../models/ReservedUsername");
+const usernameUtil = require("../utils/username");
+const { scheduleIdOcr } = require("../services/idOcrService");
 
 // Suspension/ban appeal token lifetime, in days — configurable via
 // Settings → System Preferences (superadmin). Falls back to 14 (the
@@ -39,16 +48,17 @@ const getAppealWindowDays = async () => {
 };
 
 // Where the reset link should point (the SPA). Falls back to the first allowed
-// client origin, then localhost dev.
-const clientBaseUrl = () =>
-  (process.env.APP_URL ||
-    (process.env.CLIENT_ORIGINS || "http://localhost:5173").split(",")[0] ||
-    "http://localhost:5173")
-    .trim()
-    .replace(/\/+$/, "");
+// client origin, then localhost dev. (Moved to utils/clientUrl.js so other
+// services can build the same absolute links — see that file.)
+const { clientBaseUrl } = require("../utils/clientUrl");
 
 const PASSWORD_RESET_TTL_MINUTES = 30;
 const EMAIL_CHANGE_TTL_MINUTES = 30;
+const RECOVERY_EMAIL_TTL_MINUTES = 30;
+// Scoped token issued after redeeming a valid backup code — short-lived
+// since its only job is to carry the user from "just proved who they are"
+// to "has a new password set", not to be a general session.
+const RECOVERY_TOKEN_TTL_MINUTES = 15;
 // Longer than the password-reset/email-change links above: verifying a
 // registration email isn't a security-sensitive action the way changing a
 // password or an email address is, so there's no reason to force a quick
@@ -60,6 +70,25 @@ const hashResetToken = hashToken; // kept for existing call sites
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Every save on `user` below passes `{ validateModifiedOnly: true }`.
+// Without it, Mongoose re-validates EVERY path on the document on every
+// save — not just the ones this particular call actually changed — so a
+// narrow action like setting a username or adding a password can fail with
+// an unrelated 500 if the account happens to be carrying a legacy value in
+// some other field that predates a later schema tightening (this is exactly
+// what happened: an old `workExperience` enum value blocked
+// POST /auth/username for several accounts until
+// scripts/migrateWorkExperienceLegacyValues.js cleaned the data up — see
+// scripts/checkEnumDrift.js to check for any more of this). This flag
+// doesn't weaken validation of the fields each call actually touches, and
+// document-level hooks (e.g. companySize's pre("validate") normalizer)
+// still run regardless — it only skips re-checking paths nothing here
+// modified. updateProfile is the one write path that sets several of these
+// enum fields directly from request input, which needed the complementary
+// fix instead — see its own findByIdAndUpdate(..., { runValidators: true })
+// comment below, which enforces the enum going forward without being
+// blocked by unrelated fields the way a full-document .save() would be.
+//
 // Generates a verification token for `user`, saves it, and emails the link.
 // Called right after a password-based registration. Never throws — sendMail
 // itself already falls back to a console log instead of throwing, so a dead
@@ -69,7 +98,7 @@ const issueEmailVerification = async (user) => {
   const rawToken = crypto.randomBytes(32).toString("hex");
   user.emailVerificationToken = hashToken(rawToken);
   user.emailVerificationExpires = new Date(Date.now() + EMAIL_VERIFICATION_TTL_HOURS * 60 * 60 * 1000);
-  await user.save();
+  await user.save({ validateModifiedOnly: true });
 
   const verifyUrl = `${clientBaseUrl()}/confirm-email?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
@@ -81,6 +110,51 @@ const issueEmailVerification = async (user) => {
   });
 
   return process.env.NODE_ENV !== "production" ? verifyUrl : null;
+};
+
+// Best-effort: assigns an available username derived from the email's local
+// part to a freshly created account, so a day-one user already has a
+// username to sign in with even if they never bother to set one in
+// Settings. Deliberately does NOT set usernameChangedAt — an auto-suggested
+// default isn't a user-initiated change, so it must not start the 30-day
+// change cooldown (utils/username.js's getChangeCooldown) against a name
+// the user never actually chose. Never throws: account creation must
+// succeed whether or not a username could be found.
+const assignSuggestedUsername = async (user) => {
+  try {
+    const suggested = await usernameUtil.suggestFromEmailLocalPart(user.email.split("@")[0]);
+    if (suggested) {
+      user.username = suggested;
+      await user.save({ validateModifiedOnly: true });
+    }
+  } catch (err) {
+    logger.error("Failed to suggest a username at account creation", {
+      userId: String(user._id),
+      error: err.message,
+    });
+  }
+};
+
+// Resolves an OPTIONAL, user-CHOSEN username at registration (as opposed to
+// the auto-suggested one assignSuggestedUsername falls back to when this
+// returns `{ username: null }`, i.e. the field was left blank).
+//
+// Unlike the auto-suggestion path, a username the user actually typed and
+// submitted is never silently swapped for something else: an invalid
+// format or a collision is reported back as a real error so registration
+// can be retried with a different choice, same as it already is for a
+// taken email — see both register() and registerEmployer()'s callers.
+const resolveChosenUsername = async (rawUsername) => {
+  const trimmed = String(rawUsername || "").trim();
+  if (!trimmed) return { username: null };
+
+  const format = usernameUtil.validateFormat(trimmed);
+  if (!format.ok) return { error: format.error };
+
+  const available = await usernameUtil.isAvailable(format.normalized);
+  if (!available) return { error: "That username is already taken." };
+
+  return { username: format.normalized };
 };
 
 // Lazily-built Google OAuth client. GOOGLE_CLIENT_ID is the same Web client ID
@@ -160,19 +234,40 @@ exports.register = async (req, res) => {
       }
     }
 
+    // Optional — a blank/omitted field falls back to assignSuggestedUsername
+    // after the account exists, same as it always has.
+    const usernameChoice = await resolveChosenUsername(req.body.username);
+    if (usernameChoice.error) {
+      return res.status(400).json({ message: usernameChoice.error, field: "username" });
+    }
+
     const hashed = await bcrypt.hash(password, 10);
     const composedName = [firstName, middleName, surname, suffix].filter(Boolean).join(" ").trim();
-    const user = await User.create({
-      name: composedName || name,
-      surname: surname || null,
-      firstName: firstName || null,
-      middleName: middleName || null,
-      suffix: suffix || null,
-      dateOfBirth: dateOfBirth || null,
-      email,
-      password: hashed,
-      role: "jobseeker",
-    });
+    let user;
+    try {
+      user = await User.create({
+        name: composedName || name,
+        surname: surname || null,
+        firstName: firstName || null,
+        middleName: middleName || null,
+        suffix: suffix || null,
+        dateOfBirth: dateOfBirth || null,
+        email,
+        password: hashed,
+        role: "jobseeker",
+        ...(usernameChoice.username ? { username: usernameChoice.username } : {}),
+      });
+    } catch (createError) {
+      // A concurrent registration can still win a race against the
+      // isAvailable() check above — the username's own unique index is the
+      // final word. keyPattern tells us which index actually fired, so a
+      // rare username collision here doesn't get mislabeled as the (much
+      // more common) email one below.
+      if (createError.code === 11000 && createError.keyPattern?.username) {
+        return res.status(400).json({ message: "That username is already taken.", field: "username" });
+      }
+      throw createError;
+    }
 
     await logAuditEvent({
       req,
@@ -189,6 +284,10 @@ exports.register = async (req, res) => {
 
     user.isEmailVerified = false;
     const devVerifyUrl = await issueEmailVerification(user);
+    // Only auto-suggest when the user didn't choose their own above.
+    if (!usernameChoice.username) {
+      await assignSuggestedUsername(user);
+    }
 
     // Deliberately no session token here: the account exists but stays
     // inert (can't sign in — see the isEmailVerified check in login()) until
@@ -217,19 +316,36 @@ exports.registerEmployer = async (req, res) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ message: "Email already exists" });
 
+    // Optional — see register()'s matching comment.
+    const usernameChoice = await resolveChosenUsername(req.body.username);
+    if (usernameChoice.error) {
+      return res.status(400).json({ message: usernameChoice.error, field: "username" });
+    }
+
     const hashed = await bcrypt.hash(password, 10);
-    const user = await User.create({
-      name,
-      email,
-      password: hashed,
-      role: "employer",
-      // Left at the schema default ("unverified") — "pending" is reserved for
-      // once the employer has actually uploaded and submitted their business
-      // permit + DTI/SEC registration for review (see
-      // submitEmployerVerification). Setting it here meant every new
-      // employer landed in the admin verification queue immediately, before
-      // they'd submitted anything to review.
-    });
+    let user;
+    try {
+      user = await User.create({
+        name,
+        email,
+        password: hashed,
+        role: "employer",
+        // Left at the schema default ("unverified") — "pending" is reserved for
+        // once the employer has actually uploaded and submitted their business
+        // permit + DTI/SEC registration for review (see
+        // submitEmployerVerification). Setting it here meant every new
+        // employer landed in the admin verification queue immediately, before
+        // they'd submitted anything to review.
+        ...(usernameChoice.username ? { username: usernameChoice.username } : {}),
+      });
+    } catch (createError) {
+      // See register()'s matching comment — keyPattern disambiguates a rare
+      // username-collision race from the far more common email one below.
+      if (createError.code === 11000 && createError.keyPattern?.username) {
+        return res.status(400).json({ message: "That username is already taken.", field: "username" });
+      }
+      throw createError;
+    }
 
     await logAuditEvent({
       req,
@@ -246,6 +362,9 @@ exports.registerEmployer = async (req, res) => {
 
     user.isEmailVerified = false;
     const devVerifyUrl = await issueEmailVerification(user);
+    if (!usernameChoice.username) {
+      await assignSuggestedUsername(user);
+    }
 
     const admins = await User.find({ role: "admin" }).select("_id");
     await notifyManyUsers({
@@ -284,19 +403,37 @@ exports.registerEmployer = async (req, res) => {
 // short-circuiting before the bcrypt cost is paid.
 const DUMMY_PASSWORD_HASH = "$2a$10$Lw6.qhsvJZhB3YkGv.m/4uA/edj4yKVYLcOYAkCySmNp6gajYfvdK";
 
+// Resolves an identifier — an email OR a username — to a User the same way
+// everywhere this needs to happen (currently login() and redeemBackupCode()):
+// anything containing "@" is looked up as an email; everything else as a
+// username. A username can never collide with this check (the format
+// validated in utils/username.js rejects "@" entirely), so this is
+// unambiguous in both directions. Shared so the two call sites can't drift
+// out of sync on what "resolve an identifier" even means.
+const resolveIdentifierToUser = async (rawIdentifier) => {
+  const identifier = String(rawIdentifier || "").trim();
+  if (!identifier) return null;
+  if (identifier.includes("@")) {
+    return User.findOne({ email: normalizeEmail(identifier) });
+  }
+  return User.findOne({ username: identifier.toLowerCase() }).collation({ locale: "en", strength: 2 });
+};
+
 // ---------- Login ----------
+// Accepts `identifier` (preferred) — an email OR a username — with `email`
+// kept as an alias so no existing client payload breaks.
 exports.login = async (req, res) => {
   const { password } = req.body;
-  const email = normalizeEmail(req.body.email);
+  const rawIdentifier = req.body.identifier || req.body.email || "";
   try {
-    const user = await User.findOne({ email });
+    const user = await resolveIdentifierToUser(rawIdentifier);
 
     // Same generic message and the same bcrypt work either way, so neither
-    // the response text nor the response time discloses whether this email
-    // has an account.
+    // the response text nor the response time discloses whether this
+    // identifier has an account.
     const match = await bcrypt.compare(password || "", user?.password || DUMMY_PASSWORD_HASH);
-    if (!user || !match) {
-      return res.status(400).json({ message: "Invalid email or password" });
+    if (!user || !match || user.staffRecoveryPending) {
+      return res.status(400).json({ message: "Invalid username/email or password" });
     }
 
     if (user.isActive === false && (user.role === "admin" || user.role === "superadmin")) {
@@ -317,7 +454,7 @@ exports.login = async (req, res) => {
       user.isActive = true;
       user.accountStatus = "active";
       user.deactivatedAt = null;
-      await user.save();
+      await user.save({ validateModifiedOnly: true });
       reactivated = true;
     }
 
@@ -372,6 +509,7 @@ exports.login = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        username: user.username || null,
         role: user.role,
         verificationStatus: user.verificationStatus,
         isEmailVerified: user.isEmailVerified !== false,
@@ -425,7 +563,7 @@ exports.changePassword = async (req, res) => {
     // now stale too, so a fresh one is issued below to keep this session
     // logged in.
     user.tokenVersion = (user.tokenVersion || 0) + 1;
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
 
     sendPasswordChangedEmail({ to: user.email, name: user.name }).catch((err) =>
       logger.error("Failed to send password-changed notification email", { userId: String(user._id), error: err.message })
@@ -453,6 +591,188 @@ exports.changePassword = async (req, res) => {
   }
 };
 
+// ---------- Add a password to a Google-only account ----------
+// For accounts created via Google sign-in that have never set a local
+// password (`!user.password`). Google sign-in is otherwise this account's
+// only way in — a real problem if the owner ever loses access to that
+// Google account itself (e.g. its own 2FA challenge, with no phone on
+// hand). Letting them add a password from Settings removes that single
+// point of failure.
+//
+// Re-authenticates with a FRESH Google ID token rather than just this
+// session's JWT, mirroring why requestEmailChange() demands the current
+// password for a local account: a 30-day JWT that leaked or was left
+// signed-in on a shared device must not, by itself, be enough to plant a
+// password-based backdoor into the account.
+exports.setPassword = async (req, res) => {
+  try {
+    if (!googleClientId()) {
+      return res.status(503).json({ message: "Google sign-in is not configured on this server." });
+    }
+
+    const userId = req.user._id || req.user.id;
+    const credential = String(req.body.credential || "").trim();
+    const newPassword = String(req.body.newPassword || "");
+
+    if (!credential) return res.status(400).json({ message: "Missing Google credential." });
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: "Your new password must be at least 8 characters." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.password) {
+      return res.status(400).json({
+        message: "This account already has a password. Use Change Password instead.",
+      });
+    }
+    if (!user.googleId) {
+      return res.status(400).json({ message: "This account isn't linked to Google." });
+    }
+
+    let payload;
+    try {
+      const ticket = await getGoogleClient().verifyIdToken({
+        idToken: credential,
+        audience: googleClientId(),
+      });
+      payload = ticket.getPayload();
+    } catch {
+      return res.status(401).json({ message: "Could not verify your Google sign-in. Please try again." });
+    }
+
+    // Must be a fresh assertion for the SAME Google account already linked
+    // here — not merely "signed in with some Google account".
+    if (!payload || String(payload.sub) !== String(user.googleId)) {
+      return res.status(401).json({ message: "That Google account doesn't match this account." });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    // No other session predates "had no password" in a way that matters,
+    // but bumping tokenVersion keeps this consistent with every other
+    // credential change — any other active session is forced to
+    // re-authenticate, and a fresh token below keeps this one signed in.
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save({ validateModifiedOnly: true });
+
+    sendPasswordAddedEmail({ to: user.email, name: user.name }).catch((err) =>
+      logger.error("Failed to send password-added notification email", { userId: String(user._id), error: err.message })
+    );
+
+    await logAuditEvent({
+      req,
+      actorId: user._id,
+      actorRole: user.role,
+      action: "user.password.added",
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "warning",
+    });
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role, tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    return res.json({ message: "A password has been added to your account.", token, hasPassword: true });
+  } catch (error) {
+    return sendError(res, error, "Could not set the password");
+  }
+};
+
+// ---------- Username availability (public, rate-limited — see authRoutes.js) ----------
+// A live checker necessarily leaks SOME information about which usernames
+// exist — accepted here as a deliberate, documented trade-off (see
+// markdowns/NOTIF_EMAIL_ID_OCR_AND_ACCOUNT_RECOVERY_PLAN.md §3.5): a
+// username is a low-value identifier (not a recovery channel — email is),
+// and "submit and fail blind" is bad enough UX that users pick worse names.
+exports.checkUsernameAvailable = async (req, res) => {
+  try {
+    const format = usernameUtil.validateFormat(req.query.u);
+    if (!format.ok) {
+      return res.json({ available: false, reason: format.error });
+    }
+    const available = await usernameUtil.isAvailable(format.normalized);
+    return res.json({ available, normalized: format.normalized });
+  } catch (error) {
+    return sendError(res, error, "Could not check username availability");
+  }
+};
+
+// ---------- Set / change the signed-in user's username ----------
+exports.setUsername = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const format = usernameUtil.validateFormat(req.body.username);
+    if (!format.ok) {
+      return res.status(400).json({ message: format.error });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.username === format.normalized) {
+      return res.json({ message: "That's already your username.", username: user.username });
+    }
+
+    const cooldown = usernameUtil.getChangeCooldown(user);
+    if (!cooldown.ok) {
+      return res.status(400).json({
+        message: `You can change your username again on ${cooldown.nextAllowedAt.toLocaleDateString()}.`,
+        nextAllowedAt: cooldown.nextAllowedAt,
+      });
+    }
+
+    const available = await usernameUtil.isAvailable(format.normalized, user._id);
+    if (!available) {
+      return res.status(400).json({ message: "That username is already taken." });
+    }
+
+    const previousUsername = user.username;
+    user.username = format.normalized;
+    user.usernameChangedAt = new Date();
+
+    try {
+      await user.save({ validateModifiedOnly: true });
+    } catch (error) {
+      // A concurrent request can slip past isAvailable() above and lose the
+      // race to the unique index — surface the same clean message instead
+      // of a raw duplicate-key error.
+      if (error.code === 11000) {
+        return res.status(400).json({ message: "That username is already taken." });
+      }
+      throw error;
+    }
+
+    // Tombstone the name this account is walking away from, so it can't be
+    // immediately re-squatted by someone else (see ReservedUsername.js).
+    // Best-effort: a failure here must not undo the username change itself,
+    // which has already been saved above.
+    if (previousUsername) {
+      ReservedUsername.create({ username: previousUsername, releasedBy: user._id, reason: "changed" }).catch((err) =>
+        logger.error("Failed to tombstone released username", { username: previousUsername, error: err.message })
+      );
+    }
+
+    await logAuditEvent({
+      req,
+      actorId: user._id,
+      actorRole: user.role,
+      action: "user.username.changed",
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "info",
+      metadata: { previousUsername, newUsername: user.username },
+    });
+
+    return res.json({ message: "Your username has been updated.", username: user.username });
+  } catch (error) {
+    return sendError(res, error, "Could not set the username");
+  }
+};
+
 // ---------- Forgot password: issue a reset link ----------
 exports.forgotPassword = async (req, res) => {
   // Always answer the same way so this endpoint can't be used to probe which
@@ -461,19 +781,28 @@ exports.forgotPassword = async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
     if (!email) return res.status(400).json({ message: "Email is required" });
+    // Explicit opt-in only — never silently preferred, and never reflected
+    // in the response either way, so this can't be used to probe whether an
+    // account has a (verified) recovery email configured at all.
+    const useRecoveryEmail = req.body.useRecoveryEmail === true;
 
     const user = await User.findOne({ email });
-    if (!user) return res.json(generic);
+    if (!user || user.staffRecoveryPending) return res.json(generic);
 
     const rawToken = crypto.randomBytes(32).toString("hex");
     user.passwordResetToken = hashResetToken(rawToken);
     user.passwordResetExpires = new Date(Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000);
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
 
+    // The link itself always encodes the PRIMARY email — resetPassword()
+    // matches on that field regardless of which inbox actually received
+    // this message. Only the delivery destination changes.
     const resetUrl = `${clientBaseUrl()}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
+    const destination =
+      useRecoveryEmail && user.recoveryEmail && user.recoveryEmailVerifiedAt ? user.recoveryEmail : email;
 
     await sendPasswordResetEmail({
-      to: email,
+      to: destination,
       name: user.name,
       resetUrl,
       expiresMinutes: PASSWORD_RESET_TTL_MINUTES,
@@ -517,6 +846,7 @@ exports.resetPassword = async (req, res) => {
       email,
       passwordResetToken: hashResetToken(token),
       passwordResetExpires: { $gt: new Date() },
+      staffRecoveryPending: { $ne: true },
     });
     if (!user) {
       return res.status(400).json({
@@ -531,7 +861,7 @@ exports.resetPassword = async (req, res) => {
     // itself sends the user to a fresh login, so there's no "current
     // session" to keep alive here (unlike the self-service changePassword).
     user.tokenVersion = (user.tokenVersion || 0) + 1;
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
 
     // Security notice to the account's own address (fire-and-forget — a mail
     // hiccup must not fail a completed reset).
@@ -596,7 +926,7 @@ exports.requestEmailChange = async (req, res) => {
     user.pendingEmail = newEmail;
     user.emailChangeToken = hashToken(rawToken);
     user.emailChangeExpires = new Date(Date.now() + EMAIL_CHANGE_TTL_MINUTES * 60 * 1000);
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
 
     const verifyUrl = `${clientBaseUrl()}/verify-email?token=${rawToken}&email=${encodeURIComponent(newEmail)}`;
 
@@ -658,7 +988,7 @@ exports.confirmEmailChange = async (req, res) => {
       user.pendingEmail = null;
       user.emailChangeToken = null;
       user.emailChangeExpires = null;
-      await user.save();
+      await user.save({ validateModifiedOnly: true });
       return res.status(400).json({
         message:
           "That email was registered by someone else before you confirmed. Start the change again with a different address.",
@@ -676,7 +1006,7 @@ exports.confirmEmailChange = async (req, res) => {
     // ever confirmed.
     user.isEmailVerified = true;
     user.emailVerifiedAt = new Date();
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
 
     sendEmailChangeAlert({
       to: previousEmail,
@@ -700,6 +1030,342 @@ exports.confirmEmailChange = async (req, res) => {
     return res.json({ message: "Your email address has been updated. Please sign in with your new email." });
   } catch (error) {
     return sendError(res, error, "Could not confirm the email change");
+  }
+};
+
+/* ==================================================================== */
+/* Account recovery — recovery email (§4.3 of the account-recovery plan) */
+/* ==================================================================== */
+
+// ---------- Request a recovery email (Settings → Security) ----------
+// A second address forgotPassword can optionally send the reset link to
+// (see its useRecoveryEmail flag) when the primary inbox is itself the one
+// that's unreachable — e.g. a Google-only account locked out of Google's
+// own 2FA, whose `email` effectively IS that Google account.
+//
+// Requires the current password, the same re-auth requestEmailChange above
+// uses: without it, a hijacked session JWT could quietly point recovery at
+// an attacker's inbox, and the next password reset using it would hand
+// over the account without ever needing the real password or a live
+// Google session. A Google-only account with no password yet must add one
+// first (Settings → Security — see authController.setPassword) before it
+// can set a recovery email; this is a deliberate, small extra step for a
+// meaningfully safer feature.
+exports.requestRecoveryEmail = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const newRecoveryEmail = normalizeEmail(req.body.recoveryEmail);
+    const currentPassword = String(req.body.currentPassword || "");
+
+    if (!newRecoveryEmail) return res.status(400).json({ message: "Enter a recovery email address." });
+    if (!EMAIL_RE.test(newRecoveryEmail)) {
+      return res.status(400).json({ message: "That doesn't look like a valid email address." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (newRecoveryEmail === normalizeEmail(user.email)) {
+      return res.status(400).json({ message: "Your recovery email must be different from your sign-in email." });
+    }
+
+    if (!user.password) {
+      return res.status(400).json({
+        message: 'Set a password first (Settings → Security → Add a password) before adding a recovery email.',
+      });
+    }
+    const passwordOk = await bcrypt.compare(currentPassword, user.password);
+    if (!passwordOk) {
+      return res.status(400).json({ message: "Your current password is incorrect." });
+    }
+
+    const taken = await User.findOne({ recoveryEmail: newRecoveryEmail, _id: { $ne: user._id } });
+    if (taken) {
+      return res.status(400).json({ message: "That email is already set as the recovery email on another account." });
+    }
+
+    // Captured before overwriting below — decides the wording of the alert
+    // sent to the primary address further down.
+    const alertAction = user.recoveryEmail ? "replaced" : "added";
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    user.recoveryEmail = newRecoveryEmail;
+    user.recoveryEmailVerifiedAt = null;
+    user.recoveryEmailToken = hashToken(rawToken);
+    user.recoveryEmailExpires = new Date(Date.now() + RECOVERY_EMAIL_TTL_MINUTES * 60 * 1000);
+    await user.save({ validateModifiedOnly: true });
+
+    const verifyUrl = `${clientBaseUrl()}/verify-recovery-email?token=${rawToken}&email=${encodeURIComponent(newRecoveryEmail)}`;
+
+    await sendRecoveryEmailVerification({
+      to: newRecoveryEmail,
+      name: user.name,
+      verifyUrl,
+      expiresMinutes: RECOVERY_EMAIL_TTL_MINUTES,
+    });
+    // Always to the PRIMARY address, never the recovery address itself —
+    // catches a hijacked session quietly changing this, same purpose as
+    // sendEmailChangeAlert above.
+    sendRecoveryEmailAlert({
+      to: user.email,
+      name: user.name,
+      recoveryEmail: newRecoveryEmail,
+      action: alertAction,
+    }).catch((err) =>
+      logger.error("Failed to send recovery-email alert", { userId: String(user._id), error: err.message })
+    );
+
+    await logAuditEvent({
+      req,
+      actorId: user._id,
+      actorRole: user.role,
+      action: "user.recovery_email.requested",
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "warning",
+    });
+
+    const body = { message: `We sent a confirmation link to ${newRecoveryEmail}. Open it to finish setting it up.` };
+    if (process.env.NODE_ENV !== "production") body.devVerifyUrl = verifyUrl;
+    return res.json(body);
+  } catch (error) {
+    return sendError(res, error, "Could not set the recovery email");
+  }
+};
+
+// ---------- Confirm a recovery email with the token from the link ----------
+exports.confirmRecoveryEmail = async (req, res) => {
+  try {
+    const token = String(req.body.token || "").trim();
+    const email = normalizeEmail(req.body.email);
+
+    if (!token || !email) {
+      return res.status(400).json({ message: "This confirmation link is incomplete. Start again from Settings." });
+    }
+
+    const user = await User.findOne({
+      recoveryEmail: email,
+      recoveryEmailToken: hashToken(token),
+      recoveryEmailExpires: { $gt: new Date() },
+    });
+    if (!user) {
+      return res.status(400).json({
+        message: "This confirmation link is invalid or has expired. Start again from Settings.",
+      });
+    }
+
+    user.recoveryEmailVerifiedAt = new Date();
+    user.recoveryEmailToken = null;
+    user.recoveryEmailExpires = null;
+    await user.save({ validateModifiedOnly: true });
+
+    await logAuditEvent({
+      req,
+      actorId: user._id,
+      actorRole: user.role,
+      action: "user.recovery_email.confirmed",
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "info",
+    });
+
+    return res.json({ message: "Your recovery email has been confirmed." });
+  } catch (error) {
+    return sendError(res, error, "Could not confirm the recovery email");
+  }
+};
+
+/* ==================================================================== */
+/* Account recovery — backup codes (§4.4 of the account-recovery plan)   */
+/* ==================================================================== */
+
+// Excludes 0/O and 1/I/L — characters easy to misread when a code is
+// handwritten or read off a screen.
+const BACKUP_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const BACKUP_CODE_COUNT = 10;
+
+const generateOneBackupCode = () => {
+  let raw = "";
+  for (let i = 0; i < 8; i++) {
+    raw += BACKUP_CODE_ALPHABET[crypto.randomInt(BACKUP_CODE_ALPHABET.length)];
+  }
+  return `${raw.slice(0, 4)}-${raw.slice(4)}`;
+};
+
+// ---------- Generate backup codes (Settings → Security) ----------
+// Replaces the whole set every time — regenerating invalidates every code
+// generated before it, by design (matches the plan's "regenerating
+// invalidates all" requirement, and means a leaked old code stops working
+// the moment the owner notices and regenerates).
+exports.generateBackupCodes = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const rawCodes = Array.from({ length: BACKUP_CODE_COUNT }, generateOneBackupCode);
+    const hashedCodes = await Promise.all(rawCodes.map((code) => bcrypt.hash(code, 10)));
+
+    user.backupCodes = hashedCodes.map((hash) => ({ hash, usedAt: null }));
+    user.backupCodesGeneratedAt = new Date();
+    await user.save({ validateModifiedOnly: true });
+
+    sendBackupCodesGeneratedEmail({ to: user.email, name: user.name, count: BACKUP_CODE_COUNT }).catch((err) =>
+      logger.error("Failed to send backup-codes-generated notice", { userId: String(user._id), error: err.message })
+    );
+
+    await logAuditEvent({
+      req,
+      actorId: user._id,
+      actorRole: user.role,
+      action: "user.backup_codes.generated",
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "warning",
+    });
+
+    // The ONLY time these exist in plaintext anywhere — never stored,
+    // never logged, and unrecoverable the moment this response is sent.
+    return res.json({
+      message: "Save these codes somewhere safe. Each one works only once, and generating new codes invalidates these.",
+      codes: rawCodes,
+      generatedAt: user.backupCodesGeneratedAt,
+    });
+  } catch (error) {
+    return sendError(res, error, "Could not generate backup codes");
+  }
+};
+
+// ---------- Redeem a backup code (public — this IS the recovery path) ----------
+// The one recovery path that needs neither the password nor a live Google
+// session — reached when both of those are unavailable at once (see
+// markdowns/NOTIF_EMAIL_ID_OCR_AND_ACCOUNT_RECOVERY_PLAN.md §4.1-4.4).
+// Issues a narrow, short-lived "recovery" scope token (see
+// middleware/auth.js's verifyRecoveryToken) that permits only setting a
+// new password — never a full session.
+exports.redeemBackupCode = async (req, res) => {
+  // Always the same generic failure, whatever the actual reason — unknown
+  // identifier, no codes ever generated, a wrong code, or an already-used
+  // one. This endpoint must not become an oracle for any of those.
+  const generic = { message: "That code didn't work. Check it and try again, or contact the PESO office for help." };
+  try {
+    const rawIdentifier = String(req.body.identifier || "").trim();
+    const rawCode = String(req.body.code || "").trim().toUpperCase();
+    if (!rawIdentifier || !rawCode) {
+      return res.status(400).json(generic);
+    }
+
+    const user = await resolveIdentifierToUser(rawIdentifier);
+    const activeCodes = (user?.backupCodes || []).filter((entry) => !entry.usedAt);
+
+    let matchedEntry = null;
+    if (activeCodes.length === 0) {
+      // Pay the same bcrypt cost as a real check either way, so "no such
+      // account", "no codes ever generated", and "wrong code" are all
+      // indistinguishable by response time.
+      await bcrypt.compare(rawCode, DUMMY_PASSWORD_HASH);
+    } else {
+      for (const entry of activeCodes) {
+        // eslint-disable-next-line no-await-in-loop -- sequential by design: stop at the first match
+        if (await bcrypt.compare(rawCode, entry.hash)) {
+          matchedEntry = entry;
+          break;
+        }
+      }
+    }
+
+    if (!user || !matchedEntry || user.staffRecoveryPending) {
+      return res.status(400).json(generic);
+    }
+
+    // `matchedEntry` is the SAME subdocument reference held in
+    // user.backupCodes (filter() above copied the array, not its elements),
+    // so mutating it here is enough for save() below to persist it.
+    matchedEntry.usedAt = new Date();
+    // Invalidates every other live session; the recovery token issued below
+    // is signed with this NEW value, so for a moment it is the only thing
+    // that still works for this account at all.
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save({ validateModifiedOnly: true });
+
+    sendBackupCodeRedeemedEmail({ to: user.email, name: user.name }).catch((err) =>
+      logger.error("Failed to send backup-code-redeemed alert", { userId: String(user._id), error: err.message })
+    );
+
+    await logAuditEvent({
+      req,
+      actorId: user._id,
+      actorRole: user.role,
+      action: "auth.backup_code.redeemed",
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "critical",
+    });
+
+    const recoveryToken = jwt.sign(
+      { id: user._id, scope: "recovery", tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET,
+      { expiresIn: `${RECOVERY_TOKEN_TTL_MINUTES}m` }
+    );
+
+    return res.json({
+      message: "Code accepted. Set a new password to finish recovering your account.",
+      recoveryToken,
+      expiresInMinutes: RECOVERY_TOKEN_TTL_MINUTES,
+    });
+  } catch (error) {
+    return sendError(res, error, "Could not process the request");
+  }
+};
+
+// ---------- Finish recovery: set a new password (recovery-token only) ----------
+// Mounted behind verifyRecoveryToken, not the normal session middleware —
+// see that token's own scope check in middleware/auth.js. Deliberately the
+// ONLY action a recovery token can take (the plan's draft also allowed
+// setting a new recovery email here; dropped to keep this token's blast
+// radius as small as possible — a successful recovery already restores a
+// normal, fully-capable session below, which can set one the usual way).
+exports.recoverSetPassword = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const newPassword = String(req.body.newPassword || "");
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: "Your new password must be at least 8 characters." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    // Spends this single-use recovery token the moment it's used for its
+    // one allowed action — same bump-on-every-credential-change pattern as
+    // changePassword/resetPassword/setPassword above.
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save({ validateModifiedOnly: true });
+
+    sendPasswordChangedEmail({ to: user.email, name: user.name }).catch((err) =>
+      logger.error("Failed to send password-changed notification email", { userId: String(user._id), error: err.message })
+    );
+
+    await logAuditEvent({
+      req,
+      actorId: user._id,
+      actorRole: user.role,
+      action: "auth.account.recovered",
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "critical",
+    });
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role, tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    return res.json({ message: "Your password has been set. You're signed in.", token });
+  } catch (error) {
+    return sendError(res, error, "Could not set the new password");
   }
 };
 
@@ -741,6 +1407,9 @@ exports.googleAuth = async (req, res) => {
     const signupRole = String(req.body.intent || "").trim() === "employer" ? "employer" : "jobseeker";
 
     let user = await User.findOne({ $or: [{ googleId }, { email }] });
+    if (user?.googleSignInDisabled || user?.staffRecoveryPending) {
+      return res.status(403).json({ message: "Sign in with your password or finish your approved account recovery." });
+    }
     let isNewUser = false;
 
     if (!user) {
@@ -766,6 +1435,7 @@ exports.googleAuth = async (req, res) => {
       } else {
         await JobseekerProfile.create({ userId: user._id });
       }
+      await assignSuggestedUsername(user);
       isNewUser = true;
 
       await logAuditEvent({
@@ -809,7 +1479,7 @@ exports.googleAuth = async (req, res) => {
         user.emailVerifiedAt = new Date();
         needsSave = true;
       }
-      if (needsSave) await user.save();
+      if (needsSave) await user.save({ validateModifiedOnly: true });
     }
 
     // Self-deactivated — a successful Google sign-in already proves identity
@@ -820,7 +1490,7 @@ exports.googleAuth = async (req, res) => {
       user.isActive = true;
       user.accountStatus = "active";
       user.deactivatedAt = null;
-      await user.save();
+      await user.save({ validateModifiedOnly: true });
       reactivated = true;
     }
 
@@ -865,6 +1535,7 @@ exports.googleAuth = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        username: user.username || null,
         role: user.role,
         verificationStatus: user.verificationStatus,
         isEmailVerified: user.isEmailVerified === true,
@@ -936,7 +1607,7 @@ exports.confirmEmailVerification = async (req, res) => {
     user.emailVerifiedAt = new Date();
     user.emailVerificationToken = null;
     user.emailVerificationExpires = null;
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
 
     await logAuditEvent({
       req,
@@ -980,12 +1651,31 @@ exports.acceptTerms = async (req, res) => {
 
 exports.CURRENT_TERMS_VERSION = CURRENT_TERMS_VERSION;
 
+// Fields that must never reach the client as part of a serialized User
+// object. `password` was the original (and only) entry; `backupCodes` and
+// `recoveryEmailToken` joined it with the account-recovery feature —
+// `backupCodes` especially, since those are bcrypt hashes of a short,
+// human-typable secret (8 chars from a 32-char alphabet) rather than a
+// hash of a 32-byte random token, so an exposed hash array is far more
+// exposed to realistic offline brute-forcing than the other hashed-token
+// fields already on this model.
+const CLIENT_UNSAFE_FIELDS = "-password -backupCodes -recoveryEmailToken -governmentIdOcr.rawText";
+
 // ---------- Get current user (basic) ----------
+// True when this account has a usable local password (Google-only accounts
+// have none until they add one via setPassword, below). A separate
+// existence check rather than loading `user.password` itself, so the hash
+// never has to pass through a JS object that then gets serialized to the
+// client — one less place a future change to this function could leak it.
+const checkHasPassword = async (userId) =>
+  Boolean(await User.exists({ _id: userId, password: { $exists: true, $ne: null } }));
+
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id).select(CLIENT_UNSAFE_FIELDS);
     if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user);
+    const hasPassword = await checkHasPassword(user._id);
+    res.json({ ...user.toObject(), hasPassword });
   } catch (error) {
     sendError(res, error);
   }
@@ -995,7 +1685,7 @@ exports.getMe = async (req, res) => {
 exports.getProfile = async (req, res) => {
   try {
     const userId = req.user._id || req.user.id;
-    const user = await User.findById(userId).select("-password");
+    const user = await User.findById(userId).select(CLIENT_UNSAFE_FIELDS);
     if (!user) return res.status(404).json({ message: "User not found" });
 
     let profile = null;
@@ -1007,8 +1697,9 @@ exports.getProfile = async (req, res) => {
 
     const profileCompleteness =
       user.role === "jobseeker" ? computeProfileCompleteness(user, profile) : null;
+    const hasPassword = await checkHasPassword(user._id);
 
-    res.json({ user, profile, profileCompleteness });
+    res.json({ user: { ...user.toObject(), hasPassword }, profile, profileCompleteness });
   } catch (error) {
     sendError(res, error);
   }
@@ -1185,12 +1876,17 @@ exports.updateProfile = async (req, res) => {
     // Clearing the ID file also clears what it described — a type/number
     // left behind with no file would be stale, orphaned metadata.
     if (fieldRemovals.validIdFile === null) {
+      fieldRemovals.governmentIdOcr = { status: "none" };
       fieldRemovals.governmentIdType = null;
       fieldRemovals.governmentIdNumber = null;
       fieldRemovals.governmentIdTypeOther = null;
       fieldRemovals.governmentIdSubmittedAt = null;
     }
     Object.assign(commonUpdates, fieldRemovals);
+
+    const idFile = req.files?.supportingDocument?.[0] || req.files?.validIdFile?.[0];
+    const ocrRunId = currentUser.role === "jobseeker" && idFile?.storedValue && commonUpdates.validIdFile ? crypto.randomUUID() : null;
+    if (ocrRunId) commonUpdates.governmentIdOcr = { status: "queued", runId: ocrRunId };
 
     // Onboarding completion flag
     if (req.body.onboardingComplete === true || req.body.onboardingComplete === "true") {
@@ -1203,7 +1899,26 @@ exports.updateProfile = async (req, res) => {
       Object.entries(commonUpdates).filter(([, v]) => v !== undefined)
     );
     if (Object.keys(cleanCommon).length > 0) {
-      await User.findByIdAndUpdate(userId, cleanCommon);
+      // runValidators: enum-constrained fields here (workExperience,
+      // educationalAttainment, availabilityStatus, gender, ...) are taken
+      // straight from req.body above with no allowlist check of their own —
+      // this is the only thing stopping an arbitrary string from being
+      // written. findByIdAndUpdate skips schema validation entirely by
+      // default, which is almost certainly how a handful of pre-existing
+      // accounts ended up with values no longer in workExperience's enum
+      // (see scripts/migrateWorkExperienceLegacyValues.js) — those writes
+      // went straight through, unchecked. context:"query" is the companion
+      // Mongoose expects so a custom validator's `this` refers to the query
+      // being run, not an empty object (none of the validators on these
+      // specific fields use `this` today, but every other update-validated
+      // call in this file sets it too — see the ones below).
+      //
+      // Update validators (unlike a document's own .save()) only check the
+      // fields actually being set here, not the whole document — so this
+      // can't be blocked by some OTHER, unrelated field already holding a
+      // legacy value, the way a narrow .save() elsewhere in this file could
+      // be (see validateModifiedOnly on those).
+      await User.findByIdAndUpdate(userId, cleanCommon, { runValidators: true, context: "query" });
     }
 
     // ---- 6. Build role‑specific profile data (NSRP fields) ----
@@ -1222,11 +1937,23 @@ exports.updateProfile = async (req, res) => {
     // field (address, work history, skills, etc.) back to blank.
     if (currentUser.role === "jobseeker") {
       profileData = {};
-      if (allFields.civilStatus !== undefined) profileData.civilStatus = allFields.civilStatus || null;
+      if (allFields.civilStatus !== undefined) {
+        profileData.civilStatus = allFields.civilStatus || null;
+        // Stale "please specify" text shouldn't linger once "Other" is no
+        // longer selected — mirrors governmentIdTypeOther's clearing above.
+        if (allFields.civilStatus !== "Other") {
+          profileData.civilStatusOther = null;
+        }
+      }
+      if (allFields.civilStatusOther !== undefined && profileData.civilStatusOther === undefined) {
+        profileData.civilStatusOther = allFields.civilStatusOther || null;
+      }
       if (allFields.placeOfBirth !== undefined) profileData.placeOfBirth = allFields.placeOfBirth || null;
       if (allFields.citizenship !== undefined) profileData.citizenship = allFields.citizenship || null;
       if (allFields.height !== undefined) profileData.height = allFields.height ? parseFloat(allFields.height) : null;
+      if (allFields.heightUnit !== undefined) profileData.heightUnit = normalizeHeightUnit(allFields.heightUnit);
       if (allFields.weight !== undefined) profileData.weight = allFields.weight ? parseFloat(allFields.weight) : null;
+      if (allFields.weightUnit !== undefined) profileData.weightUnit = normalizeWeightUnit(allFields.weightUnit);
       if (allFields.landline !== undefined) profileData.landline = allFields.landline || null;
       if (allFields.mobileSecondary !== undefined) profileData.mobileSecondary = allFields.mobileSecondary || null;
       if (allFields.presentAddress !== undefined) {
@@ -1331,7 +2058,7 @@ exports.updateProfile = async (req, res) => {
     }
 
     // ---- 9. Fetch updated user ----
-    const updatedUser = await User.findById(userId).select("-password");
+    const updatedUser = await User.findById(userId).select(CLIENT_UNSAFE_FIELDS);
 
     await logAuditEvent({
       req,
@@ -1343,6 +2070,10 @@ exports.updateProfile = async (req, res) => {
       severity: "info",
     });
 
+    if (ocrRunId && !req.ocrCancelled) {
+      req.ocrScheduled = true;
+      scheduleIdOcr({ userId, file: idFile, runId: ocrRunId, io: req.app.get("io"), release: req.releaseOcrSlot });
+    }
     res.json({
       message: "Profile updated successfully",
       user: updatedUser,
@@ -1352,6 +2083,16 @@ exports.updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Update profile error:", error);
+    // A schema validation failure here (e.g. an enum field like
+    // workExperience) means the client sent a value the server won't
+    // accept — not an internal failure, and not sensitive. Surface the
+    // specific field message as a 400 instead of the generic 500 fallback,
+    // so "this value isn't valid" doesn't read to the user as "something
+    // broke" with no way to tell what to fix.
+    if (error.name === "ValidationError") {
+      const firstError = Object.values(error.errors || {})[0];
+      return sendError(res, error, firstError?.message || "Please check the values you entered and try again.", 400);
+    }
     sendError(res, error);
   }
 };
@@ -1372,7 +2113,7 @@ exports.updateAvatar = async (req, res) => {
 
     const previous = user.profileImage;
     user.profileImage = storedValue;
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
 
     // Best-effort cleanup of the replaced image (never throws).
     if (previous && previous !== storedValue) storageService.remove(previous);
@@ -1406,18 +2147,25 @@ const NOTIFICATION_PREFERENCE_KEYS = [
   "notifyVerificationRequest",
   "notifyUserReport",
   "notifySpesSubmission",
+  "notifyAccountRecovery",
 ];
+// Same categories as above, plus the "emailAll" master switch — see
+// User.emailNotificationPreferences and notificationService.queueNotificationEmail.
+const EMAIL_NOTIFICATION_PREFERENCE_KEYS = [...NOTIFICATION_PREFERENCE_KEYS, "emailAll"];
 const PROFILE_VISIBILITY_VALUES = ["public", "employers", "hidden"];
 const ALLOW_MESSAGES_FROM_VALUES = ["anyone", "employers"];
 
 exports.getSettings = async (req, res) => {
   try {
     const userId = req.user._id || req.user.id;
-    const user = await User.findById(userId).select("notificationPreferences privacy");
+    const user = await User.findById(userId).select(
+      "notificationPreferences emailNotificationPreferences privacy"
+    );
     if (!user) return res.status(404).json({ message: "User not found" });
 
     res.json({
       notificationPreferences: user.notificationPreferences,
+      emailNotificationPreferences: user.emailNotificationPreferences,
       privacy: user.privacy,
     });
   } catch (error) {
@@ -1428,7 +2176,7 @@ exports.getSettings = async (req, res) => {
 exports.updateSettings = async (req, res) => {
   try {
     const userId = req.user._id || req.user.id;
-    const { notificationPreferences, privacy } = req.body || {};
+    const { notificationPreferences, emailNotificationPreferences, privacy } = req.body || {};
 
     const $set = {};
 
@@ -1436,6 +2184,14 @@ exports.updateSettings = async (req, res) => {
       for (const key of NOTIFICATION_PREFERENCE_KEYS) {
         if (typeof notificationPreferences[key] === "boolean") {
           $set[`notificationPreferences.${key}`] = notificationPreferences[key];
+        }
+      }
+    }
+
+    if (emailNotificationPreferences && typeof emailNotificationPreferences === "object") {
+      for (const key of EMAIL_NOTIFICATION_PREFERENCE_KEYS) {
+        if (typeof emailNotificationPreferences[key] === "boolean") {
+          $set[`emailNotificationPreferences.${key}`] = emailNotificationPreferences[key];
         }
       }
     }
@@ -1454,13 +2210,14 @@ exports.updateSettings = async (req, res) => {
     }
 
     const user = await User.findByIdAndUpdate(userId, { $set }, { new: true }).select(
-      "notificationPreferences privacy"
+      "notificationPreferences emailNotificationPreferences privacy"
     );
     if (!user) return res.status(404).json({ message: "User not found" });
 
     res.json({
       message: "Settings saved.",
       notificationPreferences: user.notificationPreferences,
+      emailNotificationPreferences: user.emailNotificationPreferences,
       privacy: user.privacy,
     });
   } catch (error) {
@@ -1502,7 +2259,7 @@ exports.deactivateAccount = async (req, res) => {
     user.isActive = false;
     user.accountStatus = "deactivated";
     user.deactivatedAt = new Date();
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
 
     // Ends this session immediately, and any other device/tab this account
     // is signed into right now — not just the one that clicked Deactivate.

@@ -5,7 +5,7 @@ body:has(.login-page) { height: auto; }
   padding-top: 73px;
   background: #fff;
   color: #0f172a;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
 }
 
 .login-layout {
@@ -63,7 +63,7 @@ body:has(.login-page) { height: auto; }
 .login-branding-title {
   margin: 0 0 22px;
   color: #fff;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(42px, 5vw, 72px);
   font-weight: 800;
   line-height: 1.08;
@@ -119,7 +119,7 @@ body:has(.login-page) { height: auto; }
 .login-form-header h2 {
   margin: 0 0 12px;
   color: #0f172a;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-display);
   font-size: 34px;
   font-weight: 800;
   letter-spacing: -0.045em;
@@ -196,4 +196,18 @@ body:has(.login-page) { height: auto; }
   .login-register-btn { font-size: 13px; }
   .login-branding { padding: 44px 24px; }
   .login-branding .login-branding-tagline { font-size: 18px; }
+}
+
+/* UI-13: 16px inputs on small screens (login uses the auth-form field styles). */
+.login-page .auth-form input { font-size: 16px; }
+
+@media (min-width: 768px) {
+  .login-page .auth-form input { font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-page *, .login-page *::before, .login-page *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

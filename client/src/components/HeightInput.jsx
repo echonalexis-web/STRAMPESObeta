@@ -5,13 +5,21 @@ import { cmToFeetInches, feetInchesToCm } from "../utils/unitConversion";
  * Height field with an explicit cm / ft+in unit toggle (item 3 — modern
  * standard, replacing the old free-text-with-converted-hint pattern).
  * `value` is always canonical centimeters (string, same as before);
- * `onChange` is always called with the next canonical cm string. Which unit
- * is currently *displayed* is local, UI-only state — the feet/inches shown
- * are derived from `value` every render, never tracked separately, so there
- * is exactly one source of truth and no state-sync bugs.
+ * `onChange` is always called with the next canonical cm string.
+ *
+ * Which unit is currently *displayed* ("cm" or "ft_in") is controlled via
+ * the optional `unit`/`onUnitChange` props so a caller can persist it
+ * (JobseekerProfile.heightUnit) and have the toggle round-trip on reload
+ * instead of always resetting to cm. When the caller omits them, the
+ * toggle falls back to local-only state, preserving the original
+ * uncontrolled behavior. Either way the feet/inches shown are derived from
+ * `value` every render, never tracked separately, so there is exactly one
+ * source of truth for the number itself and no state-sync bugs.
  */
-export default function HeightInput({ value, onChange, disabled }) {
-  const [unit, setUnit] = useState("cm");
+export default function HeightInput({ value, onChange, unit: controlledUnit, onUnitChange, disabled }) {
+  const [localUnit, setLocalUnit] = useState("cm");
+  const unit = controlledUnit ?? localUnit;
+  const setUnit = onUnitChange ?? setLocalUnit;
 
   const cm = value === "" || value === null || value === undefined ? null : Number(value);
   const { feet, inches } = cmToFeetInches(cm);
@@ -41,8 +49,8 @@ export default function HeightInput({ value, onChange, disabled }) {
         </button>
         <button
           type="button"
-          className={`unit-toggle-btn ${unit === "ftin" ? "active" : ""}`}
-          onClick={() => setUnit("ftin")}
+          className={`unit-toggle-btn ${unit === "ft_in" ? "active" : ""}`}
+          onClick={() => setUnit("ft_in")}
           disabled={disabled}
         >
           ft + in

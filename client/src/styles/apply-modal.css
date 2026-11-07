@@ -1,0 +1,226 @@
+/* ApplyModal content layout (UI-05; shell moved to AppModal in UI-06).
+   The sheet/dialog shell, 44px close, title bar, overlay z-index, scroll
+   lock and focus handling live in app-modal.css / useModalA11y; this file
+   only styles what ApplyModal renders inside it. ApplyModal passes
+   className="am--full" to AppModal. The legacy apply-modal-* rules in
+   dashboard.css are overridden by the extra `.app-modal-card` ancestor
+   (higher specificity, independent of stylesheet order). Mobile-first. */
+
+.app-modal-card .apply-modal-root {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app-modal-card .apply-modal-loading {
+  margin: 0;
+  padding: 16px;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-muted);
+}
+
+.app-modal-card .apply-modal-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+}
+
+/* The only scrolling region: documents scroll, the footer stays pinned. */
+.app-modal-card .apply-modal-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ---- pickers ---- */
+.app-modal-card .apply-modal-picker-label {
+  margin-bottom: 10px;
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-md);
+  font-weight: 700;
+  color: var(--ds-text);
+}
+
+.app-modal-card .apply-modal-required,
+.app-modal-card .apply-modal-optional {
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+}
+.app-modal-card .apply-modal-required { color: var(--ds-danger); }
+.app-modal-card .apply-modal-optional { color: var(--ds-muted); }
+
+.app-modal-card .apply-modal-empty {
+  margin: 0 0 10px;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-muted);
+  opacity: 1;
+  cursor: auto;
+}
+
+.app-modal-card .apply-modal-picker-hint {
+  margin: 0 0 8px;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-muted);
+}
+
+.app-modal-card .apply-modal-doc-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.app-modal-card .apply-modal-doc-card {
+  min-height: var(--ds-tap);
+  padding: 12px 14px;
+  border: 1.5px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  font: inherit;
+  transition: border-color var(--ds-dur-fast) var(--ds-ease), background-color var(--ds-dur-fast) var(--ds-ease);
+}
+.app-modal-card .apply-modal-doc-card:hover { border-color: var(--ds-green-secondary); }
+.app-modal-card .apply-modal-doc-card.is-selected {
+  border-color: var(--ds-green-secondary);
+  background: var(--ds-mint);
+}
+
+.app-modal-card .apply-modal-doc-check {
+  top: 12px;
+  right: 12px;
+  color: var(--ds-green-secondary);
+}
+
+.app-modal-card .apply-modal-doc-title {
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  color: var(--ds-text);
+  padding-right: 24px;
+}
+
+.app-modal-card .apply-modal-doc-preview {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-tap);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-green-secondary);
+}
+
+.app-modal-card .apply-modal-upload-btn {
+  min-height: var(--ds-tap);
+  padding: 10px 14px;
+  border: 1.5px dashed var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-text);
+}
+.app-modal-card .apply-modal-upload-btn:hover {
+  border-color: var(--ds-green-secondary);
+  color: var(--ds-green-secondary);
+}
+
+.app-modal-card .apply-modal-tailor-cta {
+  min-height: var(--ds-tap);
+  margin: 2px 0 10px;
+  padding: 10px 14px;
+  border: 1.5px dashed var(--ds-green-secondary);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-mint);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  color: var(--ds-green);
+}
+.app-modal-card .apply-modal-tailor-cta:hover { background: #dcefe3; }
+
+.app-modal-card .apply-modal-builder-link {
+  min-height: var(--ds-tap);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ds-green-secondary);
+}
+
+/* ---- pinned footer ---- */
+.app-modal-card .apply-modal-error {
+  flex: none;
+  margin: 0 16px 8px;
+  padding: 10px 12px;
+  border: 1px solid #f4b9b3;
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-danger-bg);
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+  color: var(--ds-danger);
+}
+
+.app-modal-card .apply-modal-actions {
+  flex: none;
+  display: flex;
+  justify-content: stretch;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  box-shadow: 0 -6px 16px rgba(4, 60, 42, 0.06);
+}
+
+.app-modal-card .apply-modal-cancel,
+.app-modal-card .apply-modal-submit {
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: var(--ds-radius-md);
+  font: inherit;
+  font-size: var(--ds-text-md);
+  font-weight: 700;
+  transition: background-color var(--ds-dur-fast) var(--ds-ease), transform var(--ds-dur-fast) var(--ds-ease);
+}
+
+.app-modal-card .apply-modal-cancel {
+  flex: 1 1 0;
+  border: 1.5px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+}
+.app-modal-card .apply-modal-cancel:hover:not(:disabled) { background: var(--ds-bg); }
+
+.app-modal-card .apply-modal-submit {
+  flex: 2 1 0;
+  border: none;
+  background: var(--ds-green);
+  color: #fff;
+}
+.app-modal-card .apply-modal-submit:hover:not(:disabled) { background: var(--ds-green-deep); }
+.app-modal-card .apply-modal-submit:active:not(:disabled) { transform: translateY(1px); }
+
+@media (min-width: 480px) {
+  .app-modal-card .apply-modal-doc-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---- dialog padding ---- */
+@media (min-width: 768px) {
+  .app-modal-card .apply-modal-scroll { padding: 20px 24px; }
+  .app-modal-card .apply-modal-error { margin: 0 24px 8px; }
+
+  .app-modal-card .apply-modal-actions {
+    justify-content: flex-end;
+    padding: 14px 24px;
+    box-shadow: none;
+  }
+
+  .app-modal-card .apply-modal-cancel,
+  .app-modal-card .apply-modal-submit {
+    flex: 0 0 auto;
+    min-width: 120px;
+  }
+  .app-modal-card .apply-modal-submit { min-width: 200px; }
+}

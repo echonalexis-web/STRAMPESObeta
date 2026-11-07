@@ -10,7 +10,7 @@ const routeNeedsCompletedOnboarding = (role, pathname) => {
   }
 
   if (role === "employer") {
-    return pathname === "/employer-dashboard" || pathname === "/post-job";
+    return ["/employer", "/employer-dashboard", "/post-job"].includes(pathname.replace(/\/+$/, ""));
   }
 
   return false;

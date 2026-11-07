@@ -229,10 +229,26 @@ const getAppealHeader = () => {
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // API Objects
+export const staffRecoveryAPI = {
+  submit: (data) => api.post('/account-recovery-requests', data),
+  verifyContact: (token) => api.post('/account-recovery-requests/verify-contact', { token }),
+  finish: (token, newPassword) => api.post('/account-recovery-requests/finish', { token, newPassword }),
+  list: (status, page = 1) => api.get('/account-recovery-requests', { ...getAuthHeader(), params: { status, page } }),
+  detail: (id) => api.get(`/account-recovery-requests/${id}`, getAuthHeader()),
+  review: (id, payload) => api.post(`/account-recovery-requests/${id}/review`, payload, getAuthHeader()),
+  report: (page = 1) => api.get('/account-recovery-requests/report', { ...getAuthHeader(), params: { page } }),
+};
+
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
-  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  // `useRecoveryEmail: true` asks the server to deliver the reset link to
+  // the account's verified recovery email instead of its primary one (for
+  // when the primary inbox is itself unreachable) — silently falls back to
+  // primary server-side if no verified recovery email exists, so this is
+  // always safe to pass.
+  forgotPassword: (email, useRecoveryEmail = false) =>
+    api.post('/auth/forgot-password', { email, useRecoveryEmail }),
   resetPassword: (payload) => api.post('/auth/reset-password', payload),
   // `intent` ("employer" | "jobseeker") is only honoured when the Google account
   // is brand new — it decides which role/profile the account is created with.
@@ -244,6 +260,8 @@ export const authAPI = {
   registerEmployee: (data) => api.post('/auth/register/employee', data),
   generateInvite: () => api.post('/auth/invite', {}, getAuthHeader()),
   getProfile: () => api.get('/auth/profile', getAuthHeader()),
+  getIdFormats: () => api.get('/auth/id-formats', getAuthHeader()),
+  confirmIdOcr: (payload) => api.post('/auth/id-ocr/confirm', payload, getAuthHeader()),
   updateProfile: (data) => api.put('/auth/profile', data, getAuthFormHeader()),
   updateAvatar: (file) => {
     const fd = new FormData();
@@ -253,6 +271,32 @@ export const authAPI = {
   registerEmployer: (data) => api.post('/auth/register/employer', data),
   acceptTerms: (version) => api.post('/auth/accept-terms', { version }, getAuthHeader()),
   changePassword: (payload) => api.post('/auth/change-password', payload, getAuthHeader()),
+  // Add a password to a Google-only account. `credential` is a FRESH Google
+  // ID token (not the session JWT) — the server checks it matches this
+  // account's linked googleId before accepting the new password.
+  setPassword: (credential, newPassword) =>
+    api.post('/auth/set-password', { credential, newPassword }, getAuthHeader()),
+  // Live availability check — public, rate-limited server-side (10/min/IP).
+  checkUsernameAvailable: (u) => api.get('/auth/username-available', { params: { u } }),
+  setUsername: (username) => api.post('/auth/username', { username }, getAuthHeader()),
+  // Account recovery — recovery email (Settings → Security). Requires
+  // currentPassword re-auth server-side.
+  requestRecoveryEmail: (recoveryEmail, currentPassword) =>
+    api.post('/auth/recovery-email/request', { recoveryEmail, currentPassword }, getAuthHeader()),
+  confirmRecoveryEmail: (payload) => api.post('/auth/recovery-email/confirm', payload),
+  // Account recovery — backup codes (Settings → Security). `codes` in the
+  // response exists only in this one call's lifetime — never fetchable again.
+  generateBackupCodes: () => api.post('/auth/backup-codes/generate', {}, getAuthHeader()),
+  // The recovery path itself — no session. `recoveryToken` from a
+  // successful redeem is a short-lived, narrowly-scoped token (NOT a normal
+  // session) good only for recoverSetPassword below.
+  redeemBackupCode: (identifier, code) => api.post('/auth/recover/backup-code', { identifier, code }),
+  recoverSetPassword: (recoveryToken, newPassword) =>
+    api.post(
+      '/auth/recover/set-password',
+      { newPassword },
+      { headers: { Authorization: `Bearer ${recoveryToken}`, 'Content-Type': 'application/json' } }
+    ),
   exportNsrpForm1: () => api.get('/auth/nsrp-form-1/export', { ...getAuthHeader(), responseType: 'blob' }),
   exportNsrpForm2: () => api.get('/auth/nsrp-form-2/export', { ...getAuthHeader(), responseType: 'blob' }),
   // Saves a Resume Studio-generated PDF as the profile's official resume
@@ -419,6 +463,7 @@ export const newsAPI = {
 };
 
 export const filesAPI = {
+  getLocalFile: (ref) => api.get(resolveAssetUrl(ref), { ...getAuthHeader(), responseType: 'blob' }),
   // Resolve a private storage ref to a short-lived signed URL
   getSignedUrl: (ref) => api.get('/files/signed-url', { ...getAuthHeader(), params: { ref } }),
 };

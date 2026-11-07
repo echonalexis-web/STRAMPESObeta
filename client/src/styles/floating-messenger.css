@@ -378,3 +378,96 @@
     font-size: 1.25rem;
   }
 }
+
+/* ═══ UI-12: compact, non-obstructive launcher + full-height sheet on phones ═══
+   Mobile-first block (base = <768px); desktop rules above are restored from 768px. */
+.fm-root {
+  right: max(var(--ds-space-3, 12px), env(safe-area-inset-right));
+  bottom: max(var(--ds-space-3, 12px), env(safe-area-inset-bottom));
+  --fm-lift: 0px;
+}
+
+.fm-bubble-btn {
+  width: 48px;
+  height: 48px;
+  font-size: 1.2rem;
+}
+
+.fm-bubble-btn:focus-visible,
+.fm-icon-btn:focus-visible,
+.fm-send-btn:focus-visible,
+.fm-conversation-item:focus-visible {
+  outline: 3px solid var(--ds-gold, #e6b422);
+  outline-offset: 2px;
+}
+
+.fm-composer input:focus-visible {
+  outline: 2px solid var(--ds-green-deep, #0b4e2f);
+  outline-offset: 1px;
+}
+
+.fm-panel:focus { outline: none; }
+
+/* Sit above sticky bottom bars (job apply bar, post-job actions) */
+body:has(.jd-apply-bar, .pj-sticky-actions) .fm-root:not(:has(.fm-panel)) {
+  bottom: calc(76px + env(safe-area-inset-bottom));
+}
+
+/* Never stack on the cookie notice or an open applicant drawer */
+body:has(.cookie-banner) .fm-root:not(:has(.fm-panel)),
+body:has(.drawer-overlay) .fm-root:not(:has(.fm-panel)) {
+  display: none;
+}
+
+@media (max-width: 767.98px) {
+  /* Panel = full-height sheet; its own close button replaces the launcher */
+  .fm-root:has(.fm-panel) {
+    inset: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3500;
+  }
+  .fm-root:has(.fm-panel) .fm-bubble-btn { display: none; }
+
+  .fm-panel {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .fm-panel-header {
+    padding-top: max(0.85rem, env(safe-area-inset-top));
+    padding-left: max(0.9rem, env(safe-area-inset-left));
+    padding-right: max(0.9rem, env(safe-area-inset-right));
+  }
+
+  .fm-icon-btn { width: 44px; height: 44px; font-size: 1.2rem; }
+
+  .fm-conversation-item { min-height: 56px; }
+
+  .fm-composer {
+    padding: 0.6rem max(0.6rem, env(safe-area-inset-right))
+      max(0.6rem, env(safe-area-inset-bottom)) max(0.6rem, env(safe-area-inset-left));
+  }
+  .fm-composer input { font-size: 16px; min-height: 44px; }
+  .fm-messages, .fm-conversation-list { overscroll-behavior: contain; }
+}
+
+@media (min-width: 768px) {
+  .fm-root { right: 20px; bottom: 20px; }
+  .fm-bubble-btn { width: 58px; height: 58px; font-size: 1.4rem; }
+  .fm-panel { width: min(360px, calc(100vw - 2.5rem)); height: min(480px, calc(100vh - 140px)); }
+  .fm-icon-btn { width: 36px; height: 36px; }
+  .fm-composer input { font-size: 0.88rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fm-panel { animation: none; }
+  .fm-bubble-btn, .fm-send-btn { transition: none; }
+  .fm-bubble-btn:hover { transform: none; }
+}

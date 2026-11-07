@@ -5,7 +5,8 @@ import { authAPI } from "../services/api";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 import { useToast } from "../components/feedback/context";
 import RegistrationLayout from "../components/RegistrationLayout";
-import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaUserPlus } from "react-icons/fa";
+import { useUsernameAvailability } from "../hooks/useUsernameAvailability";
+import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaAt, FaUserPlus } from "react-icons/fa";
 
 const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
@@ -81,8 +82,13 @@ export default function Register() {
     suffix: "",
     email: "",
     password: "",
+    username: "",
   });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  // Optional — leaving it blank gets an auto-suggested one instead (see
+  // authController.register). Live-checked the same way Settings' own
+  // username editor does, against the same public, rate-limited endpoint.
+  const usernameCheck = useUsernameAvailability(formData.username, { enabled: true });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState([]);
@@ -189,6 +195,15 @@ export default function Register() {
       return;
     }
 
+    // Optional field — only blocks submission when it's actually been typed
+    // AND the live check already came back negative. The server re-checks
+    // regardless (the authority here), this just avoids a pointless round
+    // trip when the client already knows the answer.
+    if (formData.username.trim() && usernameCheck.status === "unavailable") {
+      showError(usernameCheck.message || "That username is already taken.");
+      return;
+    }
+
     if (!agreedToTerms) {
       showError("Please agree to the Terms of Service and Privacy Policy to continue.");
       return;
@@ -213,6 +228,7 @@ export default function Register() {
         email: normalizedEmail,
         password: formData.password,
         role: "employee",
+        username: formData.username.trim(),
       });
 
       // register() deliberately returns no session token: the account is
@@ -224,7 +240,7 @@ export default function Register() {
           "Account created! We've sent a verification link to your email — verify it, then log in."
       );
       setDevVerifyUrl(registerResponse.devVerifyUrl || "");
-      setFormData({ surname: "", firstName: "", middleName: "", suffix: "", email: "", password: "" });
+      setFormData({ surname: "", firstName: "", middleName: "", suffix: "", email: "", password: "", username: "" });
       setTouched({});
       setTimeout(() => navigate("/login"), 4000);
     } catch (err) {
@@ -390,6 +406,33 @@ export default function Register() {
               className={touched.email && !formData.email.trim() ? "is-error" : ""}
             />
           </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="username">Username <span className="optional-label">(optional)</span></label>
+          <div className="auth-input-wrap">
+            <FaAt className="auth-input-icon" aria-hidden="true" />
+            <input
+              id="username"
+              type="text"
+              name="username"
+              placeholder="A second way to sign in"
+              value={formData.username}
+              onChange={handleChange}
+              disabled={loading}
+              autoComplete="username"
+              maxLength={30}
+            />
+          </div>
+          {usernameCheck.status === "checking" && (
+            <span className="password-valid" style={{ color: "#64748b" }}>Checking…</span>
+          )}
+          {usernameCheck.status === "available" && (
+            <span className="password-valid">✓ That username is available</span>
+          )}
+          {usernameCheck.status === "unavailable" && (
+            <span className="password-error">{usernameCheck.message}</span>
+          )}
         </div>
 
         <div className="form-group">

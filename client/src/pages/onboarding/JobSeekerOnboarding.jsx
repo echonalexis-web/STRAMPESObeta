@@ -1,7 +1,9 @@
-import { useContext, useMemo, useState, useEffect, useRef } from "react";
+import { useCallback, useContext, useMemo, useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { AuthContext } from "../../context/AuthContext";
 import { authAPI } from "../../services/api";
+import IdOcrReview from "../../components/IdOcrReview";
 import "../../styles/onboarding.css";
 import LocationSelect from "../../components/LocationSelect";
 import { parseLocationValue } from "../../utils/locationParser";
@@ -19,9 +21,10 @@ import { ALL_LOCATIONS } from "../../utils/philippineLocations";
 import HeightInput from "../../components/HeightInput";
 import WeightInput from "../../components/WeightInput";
 import { useSystemOptions } from "../../hooks/useSystemOptions";
+import { useUsernameAvailability } from "../../hooks/useUsernameAvailability";
 import { VALID_INDUSTRIES as INDUSTRY_OPTIONS_FALLBACK } from "../../constants/industries";
 import { GENDER_OPTIONS } from "../../constants/gender";
-import { CIVIL_STATUS_OPTIONS } from "../../constants/civilStatus";
+import { CIVIL_STATUS_OPTIONS, CIVIL_STATUS_OTHER } from "../../constants/civilStatus";
 import { UNEMPLOYMENT_REASON_OPTIONS } from "../../constants/unemploymentReasons";
 import { WORK_HISTORY_STATUS_OPTIONS } from "../../constants/workHistoryStatus";
 
@@ -103,6 +106,12 @@ const getInitialForm = (user) => ({
   dateOfBirth: user?.dateOfBirth ? String(user.dateOfBirth).slice(0, 10) : "",
   gender: user?.gender || "",
   address: user?.address || "",
+  // Seeded from whatever the account already has (an auto-suggested one
+  // from registration/Google sign-up, or whatever the user typed at
+  // registration) — this step just lets them review/change it. Handled as
+  // its own authAPI.setUsername() call on final submit, not through this
+  // step's regular updateProfile payload — see submitProfile.
+  username: user?.username || "",
 
   // Job Preferences
   preferredOccupations: [],
@@ -134,10 +143,13 @@ const getInitialForm = (user) => ({
 
   // NSRP Demographics
   civilStatus: "",
+  civilStatusOther: "",
   placeOfBirth: "",
   citizenship: "",
   height: "",
+  heightUnit: "cm",
   weight: "",
+  weightUnit: "kg",
   religion: "",
   tin: "",
   sssGsisNo: "",
@@ -264,6 +276,7 @@ function RepeatEntryCard({ title, onRemove, disabled, children }) {
 }
 
 export default function JobSeekerOnboarding() {
+  const { t } = useTranslation();
   const { user, login, setUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -271,16 +284,16 @@ export default function JobSeekerOnboarding() {
   // old hardcoded list as a fallback for first paint / offline.
   const { options: INDUSTRY_OPTIONS } = useSystemOptions("industry", { fallback: INDUSTRY_OPTIONS_FALLBACK });
 
-  const defaultState = {
+  const defaultState = useMemo(() => ({
     form: getInitialForm(user),
     preferredIndustries: [],
     industryPreferenceLevel: 'flexible',
     skills: [],
     step: 1,
-  };
+  }), [user]);
 
   // Normalize form to ensure all nested objects exist
-  const normalizeForm = (formData) => {
+  const normalizeForm = useCallback((formData) => {
     const defaultForm = getInitialForm(user);
     return {
       ...defaultForm,
@@ -301,7 +314,7 @@ export default function JobSeekerOnboarding() {
         Others: { ...defaultForm.languageProficiency.Others, ...(formData?.languageProficiency?.Others || {}) },
       },
     };
-  };
+  }, [user]);
 
   // Scoped to the signed-in account — a bare "jobseekerOnboarding" key would
   // be shared by every account that ever uses this browser, so a new
@@ -319,15 +332,20 @@ export default function JobSeekerOnboarding() {
 
   const { form, preferredIndustries, industryPreferenceLevel, skills, step } = safeState;
 
+  // Only live-checks while the typed value actually differs from what the
+  // account already has — see getInitialForm's comment on why `username`
+  // starts out pre-filled with that existing value.
+  const usernameCheck = useUsernameAvailability(form.username, { currentValue: user?.username || "" });
+
   // Update individual pieces – ensure we always merge with the current state
-  const setForm = (updater) => setPersistedState(prev => {
+  const setForm = useCallback((updater) => setPersistedState(prev => {
     const currentState = prev || defaultState;
     // Normalize first: a draft saved to localStorage before a field existed
     // (e.g. languageProficiency) won't have it, and updaters assume it's there.
     const normalizedCurrentForm = normalizeForm(currentState.form);
     const newForm = typeof updater === 'function' ? updater(normalizedCurrentForm) : updater;
     return { ...currentState, form: newForm };
-  });
+  }), [defaultState, normalizeForm, setPersistedState]);
   const setPreferredIndustries = (updater) => setPersistedState(prev => {
     const currentState = prev || defaultState;
     const newVal = typeof updater === 'function' ? updater(currentState.preferredIndustries) : updater;
@@ -397,7 +415,7 @@ export default function JobSeekerOnboarding() {
     if (user && currentUserId && !localStorage.getItem(`jobseekerOnboarding_${currentUserId}`)) {
       setForm(getInitialForm(user));
     }
-  }, [user, navigate, finished]);
+  }, [user, navigate, finished, currentUserId, setForm]);
 
   // Registration already collects surname/first/middle/suffix, but the auth
   // context populates those fields via an async profile fetch that resolves
@@ -413,7 +431,7 @@ export default function JobSeekerOnboarding() {
       middleName: prev.middleName || user.middleName || "",
       suffix: prev.suffix || user.suffix || "",
     }));
-  }, [user?.surname, user?.firstName, user?.middleName, user?.suffix]);
+  }, [user, setForm]);
 
   const progress = useMemo(() => (Math.min(step, LAST_STEP) / LAST_STEP) * 100, [step]);
 
@@ -497,7 +515,7 @@ export default function JobSeekerOnboarding() {
       setResumeError("Invalid file type. Please upload PDF, DOC, or DOCX files.");
       return false;
     }
-    const allowedTypesWithImages = [...allowedTypes, 'image/jpeg', 'image/png', 'image/jpg'];
+    const allowedTypesWithImages = [...allowedTypes, 'image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
     if (type === "validId" && !allowedTypesWithImages.includes(file.type)) {
       setValidIdError("Invalid file type. Please upload PDF, DOC, DOCX, JPG, or PNG files.");
       return false;
@@ -549,6 +567,9 @@ export default function JobSeekerOnboarding() {
     // Step 6 (Training & Eligibility) is fully optional / skippable.
     if (step === 7) {
       if (!form.civilStatus) return setError("Please select your civil status.");
+      if (form.civilStatus === CIVIL_STATUS_OTHER && !form.civilStatusOther?.trim()) {
+        return setError("Please specify your civil status.");
+      }
       if (!form.citizenship?.trim()) return setError("Please enter your citizenship.");
       if (!form.placeOfBirth?.trim()) return setError("Please enter your place of birth.");
       const pa = form.presentAddress;
@@ -635,10 +656,13 @@ export default function JobSeekerOnboarding() {
 
       // NSRP Demographics
       data.append("civilStatus", form.civilStatus || "");
+      data.append("civilStatusOther", form.civilStatusOther || "");
       data.append("placeOfBirth", form.placeOfBirth || "");
       data.append("citizenship", form.citizenship || "");
       data.append("height", form.height || "");
+      data.append("heightUnit", form.heightUnit || "cm");
       data.append("weight", form.weight || "");
+      data.append("weightUnit", form.weightUnit || "kg");
       data.append("religion", form.religion || "");
       data.append("tin", form.tin || "");
       data.append("sssGsisNo", form.sssGsisNo || "");
@@ -667,6 +691,27 @@ export default function JobSeekerOnboarding() {
       if (validIdFile) data.append("validIdFile", validIdFile);
 
       const { data: response } = await authAPI.updateProfile(data);
+
+      // Separate call, not part of the updateProfile payload above —
+      // authController.updateProfile doesn't handle username at all, by
+      // design (see authController.setUsername's own validation/cooldown
+      // logic, which this reuses). Best-effort: only fires when the user
+      // actually changed it from what the account already has, and a
+      // failure here (a race against someone else taking it, say) must
+      // never undo everything else onboarding just saved — they can still
+      // set one afterward from Settings.
+      const trimmedUsername = (form.username || "").trim();
+      if (trimmedUsername && trimmedUsername.toLowerCase() !== (user?.username || "").toLowerCase()) {
+        try {
+          await authAPI.setUsername(trimmedUsername);
+        } catch (usernameErr) {
+          console.warn(
+            "Could not set username during onboarding:",
+            usernameErr?.response?.data?.message || usernameErr?.message
+          );
+        }
+      }
+
       const token = localStorage.getItem("token");
       if (token && response.user) login(token, response.user);
       // Clear persisted state on success
@@ -778,6 +823,30 @@ export default function JobSeekerOnboarding() {
                 disabled={saving}
                 required
               />
+            </div>
+            <div>
+              <label htmlFor="onboarding-username">
+                Username <span className="onboarding-optional">(optional)</span>
+              </label>
+              <input
+                id="onboarding-username"
+                type="text"
+                placeholder="A second way to sign in, instead of your email"
+                value={form.username || ""}
+                onChange={(e) => updateField("username", e.target.value)}
+                disabled={saving}
+                autoComplete="username"
+                maxLength={30}
+              />
+              {usernameCheck.status === "checking" && (
+                <span className="onboarding-field-hint">Checking…</span>
+              )}
+              {usernameCheck.status === "available" && (
+                <span className="onboarding-field-hint onboarding-field-hint--ok">✓ Available</span>
+              )}
+              {usernameCheck.status === "unavailable" && (
+                <span className="onboarding-field-error">{usernameCheck.message}</span>
+              )}
             </div>
           </div>
         </div>
@@ -971,12 +1040,10 @@ export default function JobSeekerOnboarding() {
                 <label>Work Experience
                   <select value={form.workExperience || ""} onChange={e => updateField("workExperience", e.target.value)} disabled={saving}>
                     <option value="">Select</option>
-                    <option value="Student">Student</option>
-                    <option value="Not Applicable / No Work Experience">Not Applicable / No Work Experience</option>
                     <option value="Fresh Graduate">Fresh Graduate</option>
                     <option value="Less than 1 year">Less than 1 year</option>
-                    <option value="1-3 years">1-3 years</option>
-                    <option value="3-5 years">3-5 years</option>
+                    <option value="1–3 years">1–3 years</option>
+                    <option value="3–5 years">3–5 years</option>
                     <option value="5+ years">5+ years</option>
                   </select>
                 </label>
@@ -1207,12 +1274,17 @@ export default function JobSeekerOnboarding() {
                   <select value={form.civilStatus || ""} onChange={e => updateField("civilStatus", e.target.value)} disabled={saving}>
                     <option value="">Select</option>
                     {CIVIL_STATUS_OPTIONS.map((cs) => (
-                      <option key={cs} value={cs}>{cs}</option>
+                      <option key={cs} value={cs}>{cs === CIVIL_STATUS_OTHER ? t("profile.civilStatus.other") : cs}</option>
                     ))}
                   </select>
                 </label>
                 <label>Citizenship <input type="text" value={form.citizenship || ""} onChange={e => updateField("citizenship", e.target.value)} disabled={saving} /></label>
               </div>
+              {form.civilStatus === CIVIL_STATUS_OTHER && (
+                <label>{t("profile.civilStatus.specifyLabel")}
+                  <input type="text" value={form.civilStatusOther || ""} onChange={e => updateField("civilStatusOther", e.target.value)} disabled={saving} required />
+                </label>
+              )}
               <label>Place of Birth
                 <LocationAutosuggest
                   id="placeOfBirth"
@@ -1261,11 +1333,23 @@ export default function JobSeekerOnboarding() {
               <div className="onboarding-field-grid">
                 <div>
                   <label>Height</label>
-                  <HeightInput value={form.height} onChange={(next) => updateField("height", next)} disabled={saving} />
+                  <HeightInput
+                    value={form.height}
+                    onChange={(next) => updateField("height", next)}
+                    unit={form.heightUnit || "cm"}
+                    onUnitChange={(next) => updateField("heightUnit", next)}
+                    disabled={saving}
+                  />
                 </div>
                 <div>
                   <label>Weight</label>
-                  <WeightInput value={form.weight} onChange={(next) => updateField("weight", next)} disabled={saving} />
+                  <WeightInput
+                    value={form.weight}
+                    onChange={(next) => updateField("weight", next)}
+                    unit={form.weightUnit || "kg"}
+                    onUnitChange={(next) => updateField("weightUnit", next)}
+                    disabled={saving}
+                  />
                 </div>
               </div>
             </div>
@@ -1524,6 +1608,10 @@ export default function JobSeekerOnboarding() {
             onUploaded={(url) => setUser((prev) => ({ ...prev, profileImage: url }))}
             disabled={saving}
           />
+          <div className="id-ocr-grid">
+            <label>{t("settings.account.idOcr.upload")}<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={handleValidIdChange} disabled={saving} />{validIdError && <span role="alert">{validIdError}</span>}</label>
+            <label>{t("settings.account.idOcr.resume")}<input type="file" accept=".pdf,.doc,.docx" onChange={handleResumeChange} disabled={saving} />{resumeError && <span role="alert">{resumeError}</span>}</label>
+          </div>
         </div>
       )}
 
@@ -1532,6 +1620,7 @@ export default function JobSeekerOnboarding() {
           <div className="success-icon">✓</div>
           <h2>You're all set, {form.firstName || form.surname || "Job Seeker"}!</h2>
           <p>Your profile is ready. Start exploring opportunities now.</p>
+          <IdOcrReview initialOcr={user?.governmentIdOcr} />
           <div className="onboarding-nav">
             <button type="button" className="onboarding-primary" onClick={() => navigate("/profile")}>View My Profile</button>
             <button type="button" className="onboarding-secondary" onClick={() => navigate("/jobs")}>Browse Jobs</button>

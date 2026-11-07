@@ -1,0 +1,16 @@
+.id-ocr { padding: 1rem; border: 1px solid #cbd5e1; border-radius: 12px; margin-block: 1rem; min-width: 0; overflow-wrap: anywhere; }
+.id-ocr p { margin-block: .5rem; font-size: .9rem; }
+.id-ocr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1rem; }
+.id-ocr-grid label { display: flex; flex-direction: column; gap: .4rem; }
+.id-ocr-grid input, .id-ocr-grid select { width: 100%; min-width: 0; padding: .6rem; border: 1px solid #94a3b8; border-radius: 6px; box-sizing: border-box; }
+.id-ocr-grid dt { font-size: .8rem; color: #475569; }
+.id-ocr-grid dd { margin: .3rem 0; }
+.id-ocr-checks { display: flex; flex-wrap: wrap; gap: .5rem; }
+.id-ocr-badge { padding: .3rem .6rem; border-radius: 6px; background: #f1f5f9; color: #334155; font-size: .8rem; }
+.staff-recovery-card label { display: flex; flex-direction: column; gap: .4rem; margin-block: .6rem; }
+.staff-recovery-card input, .recovery-queue textarea, .recovery-queue input:not([type="checkbox"]), .recovery-queue select { min-width: 0; max-width: 100%; padding: .65rem; border: 1px solid #94a3b8; border-radius: 6px; box-sizing: border-box; }
+.recovery-queue { padding-top: 6rem; }
+.recovery-queue button { padding: .55rem .8rem; margin: .3rem; border: 1px solid #94a3b8; border-radius: 6px; cursor: pointer; }
+.recovery-queue button:disabled { cursor: default; opacity: .5; }
+.recovery-queue table { width: 100%; table-layout: fixed; overflow-wrap: anywhere; }
+.id-evidence img { display: block; max-width: 100%; height: auto; max-height: 30rem; object-fit: contain; margin-block: .75rem; }

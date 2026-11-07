@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { jobAPI, resolveAssetUrl } from "../services/api";
+import { jobAPI, newsAPI, resolveAssetUrl } from "../services/api";
 import VacancyCard from "../components/VacancyCard";
 import ApplyModal from "../components/ApplyModal";
 import PageHero from "../components/PageHero";
@@ -10,7 +10,7 @@ import StateBlock from "../components/StateBlock";
 import Reveal from "../components/Reveal";
 import "../styles/dashboard.css";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowRight, Briefcase, CircleCheck, Clock, FileText, Lightbulb, Search, Star } from "lucide-react";
+import { ArrowLeft, ArrowRight, Briefcase, CircleCheck, Clock, FileText, Lightbulb, Newspaper, Search, Star } from "lucide-react";
 import { jobMatchesAnyIndustry } from "../utils/industries";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -23,6 +23,26 @@ const jobMatchPercent = (job, hasSkills) => {
   if (!hasSkills) return 0;
   if (job?.checklistMatch) return Number(job.checklistMatch.percent) || 0;
   return Math.round((job?.relevanceScore || 0) * 100);
+};
+
+const NEWS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Newest published item inside the last 7 days, or null. Future-dated
+// (scheduled) posts and unparsable dates are skipped.
+const latestRecentNews = (items) => {
+  const now = Date.now();
+  let best = null;
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    const ts = new Date(item?.publishedAt || item?.createdAt).getTime();
+    if (Number.isNaN(ts) || ts > now || now - ts > NEWS_WINDOW_MS) return;
+    if (!best || ts > best.ts) best = { item, ts };
+  });
+  return best;
+};
+
+const newsExcerpt = (text, max = 140) => {
+  const flat = String(text || "").replace(/\s+/g, " ").trim();
+  return flat.length > max ? `${flat.slice(0, max).trimEnd()}…` : flat;
 };
 
 const greetingForNow = () => {
@@ -47,9 +67,27 @@ export default function Dashboard() {
   const [hasSkills, setHasSkills] = useState(true);
   const [recPage, setRecPage] = useState(1);
   const [applyModalJobId, setApplyModalJobId] = useState(null);
+  const [latestNews, setLatestNews] = useState(null);
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  // News is a side widget: it loads independently and a failure just shows
+  // the empty state instead of breaking the dashboard.
+  useEffect(() => {
+    let cancelled = false;
+    newsAPI
+      .list({ page: 1, limit: 10 })
+      .then(({ data }) => {
+        if (!cancelled) setLatestNews(latestRecentNews(data?.items));
+      })
+      .catch(() => {
+        if (!cancelled) setLatestNews(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const fetchData = async () => {
@@ -334,6 +372,44 @@ export default function Dashboard() {
                   </ol>
                 </section>
               )}
+
+              <section className="ds-card jsd-news" aria-labelledby="jsd-news-title">
+                <div className="jsd-news__head">
+                  <h2 id="jsd-news-title" className="jsd-news__title">
+                    <Newspaper size={18} aria-hidden="true" /> {t("dashboard.newsTitle")}
+                  </h2>
+                  <button type="button" className="jsd-news__all" onClick={() => navigate("/news")}>
+                    {t("dashboard.newsAll")}
+                  </button>
+                </div>
+                {latestNews ? (
+                  <button
+                    type="button"
+                    className="jsd-news__item"
+                    onClick={() => navigate(`/news/${latestNews.item._id}`)}
+                  >
+                    {latestNews.item.imageUrl && (
+                      <span className="jsd-news__thumb">
+                        <img src={resolveAssetUrl(latestNews.item.imageUrl)} alt="" loading="lazy" />
+                      </span>
+                    )}
+                    <span className="jsd-news__body">
+                      <time className="jsd-news__date" dateTime={new Date(latestNews.ts).toISOString()}>
+                        {new Date(latestNews.ts).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                      </time>
+                      <span className="jsd-news__headline">{latestNews.item.title || t("dashboard.newsUntitled")}</span>
+                      <span className="jsd-news__excerpt">{newsExcerpt(latestNews.item.content)}</span>
+                    </span>
+                  </button>
+                ) : (
+                  <div className="jsd-news__empty">
+                    <span className="jsd-news__empty-icon" aria-hidden="true">
+                      <Newspaper size={24} />
+                    </span>
+                    <p>{t("dashboard.newsEmpty")}</p>
+                  </div>
+                )}
+              </section>
             </aside>
 
             <div className="jsd-main">

@@ -203,7 +203,10 @@ exports.resolveAppeal = async (req, res) => {
         user.suspensionReason = null;
         user.suspendedAt = null;
         user.suspendedBy = null;
-        await user.save();
+        // validateModifiedOnly — see authController.js's note above
+        // issueEmailVerification for why a narrow User update shouldn't be
+        // blocked by an unrelated legacy field elsewhere on the document.
+        await user.save({ validateModifiedOnly: true });
       }
     }
 

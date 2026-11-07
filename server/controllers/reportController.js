@@ -272,7 +272,9 @@ exports.resolveReport = async (req, res) => {
           target.suspensionReason = report.resolution.note || `Report: ${report.category}`;
           target.suspendedAt = new Date();
           target.suspendedBy = getUserId(req);
-          await target.save();
+          // validateModifiedOnly — see authController.js's note above
+          // issueEmailVerification.
+          await target.save({ validateModifiedOnly: true });
 
           forceLogout(req.app.get("io"), target._id, {
             code: "ACCOUNT_SUSPENDED",

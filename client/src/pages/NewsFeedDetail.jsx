@@ -191,7 +191,17 @@ export default function NewsFeedDetail() {
           <button type="button" className="news-article-back--plain" onClick={() => navigate("/news")}>
             <FaArrowLeft /> Back to News Feed
           </button>
-          <p className="news-state">Loading announcement...</p>
+          <div className="news-skeleton" role="status" aria-live="polite">
+            <span className="ds-sr-only">Loading announcement...</span>
+            <div aria-hidden="true">
+              <span className="ds-skeleton news-sk-media news-sk-media--hero" />
+              <span className="ds-skeleton news-sk-line news-sk-line--badge" />
+              <span className="ds-skeleton news-sk-line news-sk-line--title" />
+              <span className="ds-skeleton news-sk-line" />
+              <span className="ds-skeleton news-sk-line" />
+              <span className="ds-skeleton news-sk-line news-sk-line--short" />
+            </div>
+          </div>
         </div>
       ) : null}
       {!loading && error ? (
@@ -199,7 +209,10 @@ export default function NewsFeedDetail() {
           <button type="button" className="news-article-back--plain" onClick={() => navigate("/news")}>
             <FaArrowLeft /> Back to News Feed
           </button>
-          <p className="news-state news-state-error">{error}</p>
+          <div className="ds-empty news-empty news-state-error" role="alert">
+            <h2 className="ds-empty__title">Announcement unavailable</h2>
+            <p>{error}</p>
+          </div>
         </div>
       ) : null}
 
@@ -287,10 +300,14 @@ export default function NewsFeedDetail() {
                     <p className="news-comments__login-hint">Log in to join the conversation.</p>
                   )}
 
-                  {commentError ? <p className="news-state news-state-error">{commentError}</p> : null}
+                  {commentError ? <p className="news-state news-state-error" role="alert">{commentError}</p> : null}
 
                   {commentsLoading ? (
-                    <p className="news-state">Loading comments...</p>
+                    <div className="news-skeleton" role="status" aria-live="polite">
+                      <span className="ds-sr-only">Loading comments...</span>
+                      <span className="ds-skeleton news-sk-line" aria-hidden="true" />
+                      <span className="ds-skeleton news-sk-line news-sk-line--short" aria-hidden="true" />
+                    </div>
                   ) : comments.length === 0 ? (
                     <p className="news-comments__empty">No comments yet. Be the first to comment.</p>
                   ) : (

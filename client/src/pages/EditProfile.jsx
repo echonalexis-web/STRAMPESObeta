@@ -1,4 +1,5 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI, jobseekerDocumentAPI, resolveAssetUrl, verificationAPI } from "../services/api";
@@ -24,10 +25,11 @@ import PH_JOB_TITLES from "../data/ph_job_titles_complete.json";
 import { WORKFORCE_SIZE_OPTIONS } from "../data/employerProfile";
 import { JOB_TYPES as JOB_TYPES_FALLBACK, JOB_TYPE_LABELS } from "../constants/jobTypes";
 import { GOVERNMENT_ID_TYPES as GOVERNMENT_ID_TYPES_FALLBACK, GOVERNMENT_ID_TYPE_OTHER } from "../constants/governmentIdTypes";
+import IdOcrReview, { IdNumberHint } from "../components/IdOcrReview";
 import { VALID_INDUSTRIES as INDUSTRY_OPTIONS_FALLBACK } from "../constants/industries";
 import { useSystemOptions } from "../hooks/useSystemOptions";
 import { GENDER_OPTIONS } from "../constants/gender";
-import { CIVIL_STATUS_OPTIONS } from "../constants/civilStatus";
+import { CIVIL_STATUS_OPTIONS, CIVIL_STATUS_OTHER } from "../constants/civilStatus";
 import { UNEMPLOYMENT_REASON_OPTIONS } from "../constants/unemploymentReasons";
 import { WORK_HISTORY_STATUS_OPTIONS } from "../constants/workHistoryStatus";
 import {
@@ -147,10 +149,13 @@ const initialFormData = {
   dateOfBirth: "",
   gender: "",
   civilStatus: "",
+  civilStatusOther: "",
   placeOfBirth: "",
   citizenship: "",
   height: "",
+  heightUnit: "cm",
   weight: "",
+  weightUnit: "kg",
   religion: "",
   sssGsisNo: "",
   pagibigNo: "",
@@ -267,10 +272,16 @@ const mapMergedToFormData = (merged) => ({
   website: merged.website || "",
   companyDescription: merged.companyDescription || "",
   civilStatus: merged.civilStatus || "",
+  civilStatusOther: merged.civilStatusOther || "",
   placeOfBirth: merged.placeOfBirth || "",
   citizenship: merged.citizenship || "",
   height: merged.height || "",
+  // item 3: default sensibly ("cm"/"kg") for existing records saved before
+  // these unit fields existed, since merged.heightUnit/weightUnit will be
+  // undefined for them.
+  heightUnit: merged.heightUnit || "cm",
   weight: merged.weight || "",
+  weightUnit: merged.weightUnit || "kg",
   religion: merged.religion || "",
   sssGsisNo: merged.sssGsisNo || "",
   pagibigNo: merged.pagibigNo || "",
@@ -347,6 +358,7 @@ const getInitialPersisted = () => ({
 });
 
 export default function EditProfile() {
+  const { t } = useTranslation();
   const { user, login } = useContext(AuthContext);
   const toast = useToast();
   const confirm = useConfirm();
@@ -593,7 +605,7 @@ export default function EditProfile() {
     // SocketProvider keys its connection on, and causes the socket to
     // disconnect/reconnect — see AuthContext.jsx's mergeProfileIntoUser,
     // which strips these same fields for the same reason.
-    const { businessAddress, _id, id, userId, createdAt, updatedAt, __v, ...restProfile } = profileData;
+    const restProfile = Object.fromEntries(Object.entries(profileData).filter(([key]) => !["businessAddress", "_id", "id", "userId", "createdAt", "updatedAt", "__v"].includes(key)));
     Object.assign(merged, restProfile);
     return merged;
   };
@@ -636,7 +648,7 @@ export default function EditProfile() {
         setExistingRegistrationDoc(merged.registrationDocUrl || "");
 
         login(localStorage.getItem("token"), merged);
-      } catch (err) {
+      } catch {
         // Fallback to user context if API fails
         if (user) {
           const fallbackFormData = {
@@ -834,10 +846,13 @@ export default function EditProfile() {
         data.append("preferredJobTypes", JSON.stringify(formData.preferredJobTypes));
         data.append("preferredWorkNature", JSON.stringify(formData.preferredWorkNature));
         data.append("civilStatus", formData.civilStatus);
+        data.append("civilStatusOther", formData.civilStatusOther);
         data.append("placeOfBirth", formData.placeOfBirth);
         data.append("citizenship", formData.citizenship);
         data.append("height", formData.height || "");
+        data.append("heightUnit", formData.heightUnit || "cm");
         data.append("weight", formData.weight || "");
+        data.append("weightUnit", formData.weightUnit || "kg");
         data.append("religion", formData.religion);
         data.append("tin", formData.tin);
         data.append("sssGsisNo", formData.sssGsisNo);
@@ -873,6 +888,8 @@ export default function EditProfile() {
       if (!registrationDocFile && documentClearFlags.registrationDoc && existingRegistrationDoc) data.append("registrationDoc", "");
 
       const { data: response } = await authAPI.updateProfile(data);
+      setSupportingDocumentFile(null);
+      setExistingValidId(response.user?.validIdFile || "");
       toast.success(response.message || "Profile updated successfully");
 
       // A resume uploaded here only sets the single NSRP Form 1 slot on the
@@ -1030,7 +1047,7 @@ export default function EditProfile() {
   };
 
   return (
-    <div className="editprofile-shell">
+    <div className="editprofile-shell ep-page">
       <aside className="editprofile-rail">
         <div className="editprofile-rail-topbar">
           <Link to="/profile" className="editprofile-rail-back" onClick={(event) => guardNavigation(event, "/profile")}>
@@ -1051,7 +1068,7 @@ export default function EditProfile() {
           <ul className="editprofile-tabs">
           {tabs.map((tab) => (
             <li key={tab.id}>
-              <button type="button" className={`editprofile-tab ${activeTab === tab.id ? "active" : ""}`} onClick={() => setActiveTab(tab.id)}>
+              <button type="button" className={`editprofile-tab ${activeTab === tab.id ? "active" : ""}`} aria-label={tab.label} aria-current={activeTab === tab.id ? "true" : undefined} onClick={() => setActiveTab(tab.id)}>
                 {tab.icon}
                 <span className="editprofile-tab-label">{tab.label}</span>
                 <span className={`editprofile-tab-dot ${isTabComplete(tab.id) ? "editprofile-tab-dot--done" : ""}`} />
@@ -1098,7 +1115,7 @@ export default function EditProfile() {
             </div>
           )}
 
-          {error && <div className="alert alert-error">{error}</div>}
+          {error && <div className="alert alert-error" role="alert">{error}</div>}
           {emailChangeNotice && (
             <div className="alert alert-warning">
               Your sign-in email is now <strong>{emailChangeNotice}</strong>. If your browser or
@@ -1107,7 +1124,7 @@ export default function EditProfile() {
             </div>
           )}
 
-          <div className="editprofile-card">
+          <div className="editprofile-card ds-card">
           <div className="profile-fields">
           {/* --- PERSONAL INFO TAB --- */}
           {activeTab === "profile" && (
@@ -1450,7 +1467,7 @@ export default function EditProfile() {
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToCappedList("preferredOccupations", occupationInput, 4); setOccupationInput(""); } }}
                     disabled={formData.preferredOccupations.length >= 4}
                   />
-                  <button type="button" className="skill-add-btn" onClick={() => { addToCappedList("preferredOccupations", occupationInput, 4); setOccupationInput(""); }} disabled={formData.preferredOccupations.length >= 4}><FaPlus /></button>
+                  <button type="button" className="skill-add-btn" aria-label="Add occupation" onClick={() => { addToCappedList("preferredOccupations", occupationInput, 4); setOccupationInput(""); }} disabled={formData.preferredOccupations.length >= 4}><FaPlus /></button>
                 </div>
                 <div className="skills-tags-wrap">
                   {formData.preferredOccupations.map((occ, i) => (
@@ -1479,7 +1496,7 @@ export default function EditProfile() {
                       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToCappedList("preferredWorkLocationLocal", localLocationInput, 3); setLocalLocationInput(""); } }}
                       disabled={formData.preferredWorkLocationLocal.length >= 3}
                     />
-                    <button type="button" className="skill-add-btn" onClick={() => { addToCappedList("preferredWorkLocationLocal", localLocationInput, 3); setLocalLocationInput(""); }} disabled={formData.preferredWorkLocationLocal.length >= 3}><FaPlus /></button>
+                    <button type="button" className="skill-add-btn" aria-label="Add local work location" onClick={() => { addToCappedList("preferredWorkLocationLocal", localLocationInput, 3); setLocalLocationInput(""); }} disabled={formData.preferredWorkLocationLocal.length >= 3}><FaPlus /></button>
                   </div>
                   <datalist id="local-location-options">
                     {ALL_LOCATIONS.map((loc) => <option key={loc} value={loc} />)}
@@ -1508,7 +1525,7 @@ export default function EditProfile() {
                       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToCappedList("preferredWorkLocationOverseas", overseasLocationInput, 3); setOverseasLocationInput(""); } }}
                       disabled={formData.preferredWorkLocationOverseas.length >= 3}
                     />
-                    <button type="button" className="skill-add-btn" onClick={() => { addToCappedList("preferredWorkLocationOverseas", overseasLocationInput, 3); setOverseasLocationInput(""); }} disabled={formData.preferredWorkLocationOverseas.length >= 3}><FaPlus /></button>
+                    <button type="button" className="skill-add-btn" aria-label="Add overseas work location" onClick={() => { addToCappedList("preferredWorkLocationOverseas", overseasLocationInput, 3); setOverseasLocationInput(""); }} disabled={formData.preferredWorkLocationOverseas.length >= 3}><FaPlus /></button>
                   </div>
                   <datalist id="overseas-location-options">
                     {COUNTRY_OPTIONS.map((c) => <option key={c} value={c} />)}
@@ -1545,7 +1562,7 @@ export default function EditProfile() {
                     onChange={(e) => setSkillInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSkill(skillInput); setSkillInput(""); } }}
                   />
-                  <button type="button" className="skill-add-btn" onClick={() => { addSkill(skillInput); setSkillInput(""); }}><FaPlus /></button>
+                  <button type="button" className="skill-add-btn" aria-label="Add skill" onClick={() => { addSkill(skillInput); setSkillInput(""); }}><FaPlus /></button>
                 </div>
                 <div className="skills-tags-wrap">
                   {skills.map((skill) => (
@@ -1621,8 +1638,6 @@ export default function EditProfile() {
                   <label htmlFor="workExperience">Work Experience</label>
                   <select id="workExperience" name="workExperience" value={formData.workExperience} onChange={handleChange}>
                     <option value="">Select</option>
-                    <option value="Student">Student</option>
-                    <option value="Not Applicable / No Work Experience">Not Applicable / No Work Experience</option>
                     <option value="Fresh Graduate">Fresh Graduate</option>
                     <option value="Less than 1 year">Less than 1 year</option>
                     <option value="1–3 years">1–3 years</option>
@@ -2066,10 +2081,23 @@ export default function EditProfile() {
                     <select id="civilStatus" name="civilStatus" value={formData.civilStatus} onChange={handleChange}>
                       <option value="">Select</option>
                       {CIVIL_STATUS_OPTIONS.map((cs) => (
-                        <option key={cs} value={cs}>{cs}</option>
+                        <option key={cs} value={cs}>{cs === CIVIL_STATUS_OTHER ? t("profile.civilStatus.other") : cs}</option>
                       ))}
                     </select>
                   </div>
+                  {formData.civilStatus === CIVIL_STATUS_OTHER && (
+                    <div className="profile-field">
+                      <label htmlFor="civilStatusOther">{t("profile.civilStatus.specifyLabel")}</label>
+                      <input
+                        id="civilStatusOther"
+                        type="text"
+                        name="civilStatusOther"
+                        value={formData.civilStatusOther}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+                  )}
                   <div className="profile-field">
                     <label htmlFor="placeOfBirth">Place of Birth</label>
                     <LocationAutosuggest
@@ -2120,6 +2148,8 @@ export default function EditProfile() {
                       <HeightInput
                         value={formData.height}
                         onChange={(next) => setFormData((prev) => ({ ...prev, height: next }))}
+                        unit={formData.heightUnit || "cm"}
+                        onUnitChange={(next) => setFormData((prev) => ({ ...prev, heightUnit: next }))}
                       />
                     </div>
                     <div className="profile-field">
@@ -2127,6 +2157,8 @@ export default function EditProfile() {
                       <WeightInput
                         value={formData.weight}
                         onChange={(next) => setFormData((prev) => ({ ...prev, weight: next }))}
+                        unit={formData.weightUnit || "kg"}
+                        onUnitChange={(next) => setFormData((prev) => ({ ...prev, weightUnit: next }))}
                       />
                     </div>
                   </div>
@@ -2445,6 +2477,7 @@ export default function EditProfile() {
                   />
                   <div className="profile-field-grid">
                     <div className="profile-field">
+                      <IdOcrReview initialOcr={user?.governmentIdOcr} onConfirmed={(saved) => setFormData((previous) => ({ ...previous, governmentIdType: saved.governmentIdType, governmentIdNumber: saved.governmentIdNumber }))} />
                       <label htmlFor="governmentIdType">Government ID Type (optional)</label>
                       <select id="governmentIdType" name="governmentIdType" value={formData.governmentIdType} onChange={handleChange}>
                         <option value="">Select</option>
@@ -2464,6 +2497,7 @@ export default function EditProfile() {
                         disabled={!formData.governmentIdType}
                         placeholder={formData.governmentIdType ? "" : "Select an ID type first"}
                       />
+                      <IdNumberHint type={formData.governmentIdType} number={formData.governmentIdNumber} />
                     </div>
                   </div>
                   {formData.governmentIdType === GOVERNMENT_ID_TYPE_OTHER && (
@@ -2508,6 +2542,7 @@ export default function EditProfile() {
 
         <div className="editprofile-footer">
           <div className="editprofile-footer-inner">
+            {error && <p className="editprofile-footer-error" aria-hidden="true">{error}</p>}
             <button type="submit" form="edit-profile-form" disabled={loading} className="profile-save-btn">
               <FaSave /> {loading ? "Saving..." : "Save Profile"}
             </button>

@@ -1169,7 +1169,7 @@ body.app-with-sidebar {
   }
 
   .navbar--auth-sidebar.is-compact .sidebar-collapse-chip {
-    left: calc(var(--ds-sidebar-w-compact) - 14px);
+    left: calc(var(--ds-sidebar-w-compact) - 1px);
   }
 }
 
@@ -1188,29 +1188,44 @@ body.app-with-sidebar {
     justify-content: center;
     position: fixed;
     top: 50%;
-    left: calc(var(--ds-sidebar-w) - 14px);
+    /* 1px overlap hides any seam against the sidebar edge */
+    left: calc(var(--ds-sidebar-w) - 1px);
     transform: translateY(-50%);
-    width: 28px;
-    height: 28px;
+    width: 22px;
+    height: 56px;
     padding: 0;
-    border: 2px solid var(--ds-bg);
-    border-radius: 50%;
-    background: var(--ds-gold);
-    color: var(--ds-green-deep);
-    font-size: 0.7rem;
+    border: 0;
+    /* half-square tab: flat edge on the sidebar, rounded outer corners */
+    border-radius: 0 12px 12px 0;
+    background: var(--ds-green-deep);
     cursor: pointer;
     z-index: 1101;
-    box-shadow: 0 2px 8px rgba(11, 43, 29, 0.3);
-    transition: left 0.18s ease, background-color 0.15s ease, transform 0.15s ease;
+    box-shadow: 3px 0 8px rgba(11, 43, 29, 0.18);
+    transition: left 0.18s ease, width 0.15s ease, background-color 0.15s ease;
+  }
+
+  /* White, vertically elongated triangle: points left (collapse) */
+  .sidebar-collapse-chip__arrow {
+    display: block;
+    width: 8px;
+    height: 18px;
+    background: #fff;
+    clip-path: polygon(100% 0, 0 50%, 100% 100%);
+    transition: transform 0.18s ease;
+  }
+
+  /* Compact: points right (expand) */
+  .navbar--auth-sidebar.is-compact .sidebar-collapse-chip__arrow {
+    transform: scaleX(-1);
   }
 
   .sidebar-collapse-chip:hover {
-    background: var(--ds-gold);
-    transform: translateY(-50%) scale(1.1);
+    width: 26px;
+    background: var(--ds-green);
   }
 
   .sidebar-collapse-chip:focus-visible {
-    outline: 3px solid var(--ds-green);
+    outline: 3px solid var(--ds-gold);
     outline-offset: 2px;
   }
 }
@@ -1457,10 +1472,10 @@ body.app-with-sidebar {
   outline-offset: 2px;
 }
 
-/* The collapse chip is itself gold and its ring sits over the cream page,
-   so it keeps a green ring instead. */
+/* The collapse tab is dark green with its ring over the cream page; the
+   gold ring is visible on both. */
 .navbar--auth-sidebar .sidebar-collapse-chip:focus-visible {
-  outline-color: var(--ds-green);
+  outline-color: var(--ds-gold);
 }
 
 /* Count badges: AA red pill. In the sidebar list they sit inline at the end
@@ -1597,13 +1612,10 @@ body.app-with-sidebar {
   .navbar--auth-sidebar .auth-id-card,
   .navbar--auth-sidebar .auth-sidebar-logout,
   .sidebar-collapse-chip,
+  .sidebar-collapse-chip__arrow,
   .logout-modal {
     transition: none;
     animation: none;
-  }
-
-  .sidebar-collapse-chip:hover {
-    transform: translateY(-50%);
   }
 
   body.app-with-sidebar {

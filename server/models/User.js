@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { getActiveValues } = require("../services/systemOptionService");
+const governmentIdOcrSchema = require("./schemas/governmentIdOcr");
 
 const userSchema = new mongoose.Schema(
   {
@@ -15,6 +16,17 @@ const userSchema = new mongoose.Schema(
     // persist a non-canonical value that would otherwise slip past the
     // (case-sensitive) unique index below.
     email: { type: String, required: true, unique: true, trim: true, lowercase: true },
+    // Optional second sign-in identifier (see login() — resolved by email
+    // when the identifier contains "@", by username otherwise). Format
+    // rules (charset, reserved words, confusable normalization) are
+    // enforced in utils/username.js at the point a user sets/changes one,
+    // not here — this field only records the result. `null` (not required)
+    // for every account that hasn't set one; the index below is sparse so
+    // that's any number of accounts, not just one.
+    username: { type: String, default: null, trim: true, lowercase: true, minlength: 3, maxlength: 30 },
+    // 30-day change cooldown (see utils/username.js) is enforced against
+    // this at the point of a change request.
+    usernameChangedAt: { type: Date, default: null },
     // Not required for accounts created through Google sign-in (they have no
     // password until the user sets one via "Forgot password?").
     password: {
@@ -174,6 +186,11 @@ const userSchema = new mongoose.Schema(
     // entry — items 14/15's "Other, please specify" fallback.
     governmentIdTypeOther: { type: String, default: null },
     governmentIdSubmittedAt: { type: Date, default: null },
+    // Plan §2: OCR suggestions never replace the user's authoritative fields.
+    governmentIdOcr: { type: governmentIdOcrSchema, default: () => ({ status: "none" }) },
+    // Per-account compute budget, shared across upload aliases/instances (§2.6).
+    idUploadWindowStartedAt: { type: Date, default: null, select: false },
+    idUploadCount: { type: Number, default: 0, select: false },
     isActive: { type: Boolean, default: true },
 
     // ===== Moderation / suspension =====
@@ -209,6 +226,38 @@ const userSchema = new mongoose.Schema(
       notifyVerificationRequest: { type: Boolean, default: true },
       notifyUserReport: { type: Boolean, default: true },
       notifySpesSubmission: { type: Boolean, default: true },
+      notifyAccountRecovery: { type: Boolean, default: true },
+    },
+
+    // ===== Settings: email notification preferences =====
+    // A second, independent channel alongside notificationPreferences above
+    // (same keys, same "missing/undefined reads as opted in" semantics, so a
+    // legacy document with none of this yet still gets email unless the
+    // owner explicitly turns a category off). notificationService checks
+    // notificationPreferences FIRST — email for an event the user has
+    // already turned off in-app is never sent, regardless of these — then
+    // these, before queuing an email. `emailAll` is a single master
+    // off-switch so "stop emailing me entirely" doesn't require toggling
+    // every category.
+    emailNotificationPreferences: {
+      emailAll: { type: Boolean, default: true },
+      notifyMessages: { type: Boolean, default: true },
+      notifyJobMatch: { type: Boolean, default: true },
+      notifyApplicationUpdate: { type: Boolean, default: true },
+      notifyNewApplicant: { type: Boolean, default: true },
+      notifyJobExpiring: { type: Boolean, default: true },
+      notifyVerificationRequest: { type: Boolean, default: true },
+      notifyUserReport: { type: Boolean, default: true },
+      notifySpesSubmission: { type: Boolean, default: true },
+      notifyAccountRecovery: { type: Boolean, default: true },
+      // These 5 back notification `type`s that have no dedicated caller
+      // preferenceKey — see TYPE_TO_EMAIL_CATEGORY in notificationService.js,
+      // which must stay in sync with these field names.
+      notifySystem: { type: Boolean, default: true },
+      notifyAdminAction: { type: Boolean, default: true },
+      notifyNews: { type: Boolean, default: true },
+      notifyFollow: { type: Boolean, default: true },
+      notifyLikes: { type: Boolean, default: true },
     },
 
     // ===== Settings: privacy (jobseeker) =====
@@ -229,6 +278,15 @@ const userSchema = new mongoose.Schema(
     // A SHA-256 hash of the token that was put in the reset link (never the raw
     // token), so a database leak can't be used to reset accounts.
     passwordResetToken: { type: String, default: null },
+    // Plan §5: single-use staff capability, bound to the revoked session version.
+    staffRecoveryToken: { type: String, default: null, select: false },
+    staffRecoveryExpires: { type: Date, default: null, select: false },
+    staffRecoveryRequest: { type: mongoose.Schema.Types.ObjectId, ref: "AccountRecoveryRequest", default: null, select: false },
+    staffRecoveryVersion: { type: Number, default: null, select: false },
+    // Prevent same-email Google auto-linking from undoing a staff unlink (§5.4).
+    googleSignInDisabled: { type: Boolean, default: false },
+    // Old credentials cannot reopen an account before approved recovery finishes.
+    staffRecoveryPending: { type: Boolean, default: false },
     passwordResetExpires: { type: Date, default: null },
 
     // ===== Email verification (registration) =====
@@ -254,6 +312,36 @@ const userSchema = new mongoose.Schema(
     pendingEmail: { type: String, default: null },
     emailChangeToken: { type: String, default: null },
     emailChangeExpires: { type: Date, default: null },
+
+    // ===== Account recovery: recovery email =====
+    // A second address that can receive a password-reset link when the
+    // primary inbox (`email`) is itself unreachable — the scenario this
+    // exists for is a Google-only account locked out of Google's own 2FA,
+    // whose `email` effectively IS that Google account. Unlike pendingEmail
+    // above, this is set directly (not held pending under a separate field)
+    // since it never affects sign-in on its own — see
+    // authController.requestRecoveryEmail. Only ever used by forgotPassword
+    // once `recoveryEmailVerifiedAt` is set; an unconfirmed address is never
+    // used for actual recovery.
+    recoveryEmail: { type: String, default: null, lowercase: true, trim: true },
+    recoveryEmailVerifiedAt: { type: Date, default: null },
+    recoveryEmailToken: { type: String, default: null },
+    recoveryEmailExpires: { type: Date, default: null },
+
+    // ===== Account recovery: backup codes =====
+    // One-time-use codes, bcrypt-hashed like a password (never stored or
+    // logged in plaintext — the raw values exist only in the single
+    // generate-response the owner is shown). Redeeming one (see
+    // authController.redeemBackupCode) is the one recovery path that needs
+    // neither the primary inbox nor a Google session to work at all.
+    // Regenerating replaces the whole array, invalidating every old code.
+    backupCodes: [
+      {
+        hash: { type: String, required: true },
+        usedAt: { type: Date, default: null },
+      },
+    ],
+    backupCodesGeneratedAt: { type: Date, default: null },
 
     // ===== Terms & community-guidelines acceptance =====
     acceptedTermsAt: { type: Date, default: null },
@@ -322,6 +410,16 @@ userSchema.pre("validate", function normaliseCompanySize(next) {
 userSchema.index(
   { email: 1 },
   { unique: true, collation: { locale: "en", strength: 2 }, name: "email_unique_ci" }
+);
+
+// Same pattern as email_unique_ci above, but sparse: `username` is optional,
+// and a sparse unique index lets any number of documents share the same
+// `null` (no unique-index collision between two accounts that haven't set
+// one) while still enforcing case-insensitive uniqueness among the ones
+// that have.
+userSchema.index(
+  { username: 1 },
+  { unique: true, sparse: true, collation: { locale: "en", strength: 2 }, name: "username_unique_ci" }
 );
 
 module.exports = mongoose.model("User", userSchema);

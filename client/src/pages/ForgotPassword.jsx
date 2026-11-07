@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { authAPI } from "../services/api";
 import "../styles/auth.css";
 import pesoLogo from "../assets/images/peso-logo.png";
 import provincialSeal from "../assets/images/provincial-seal.png";
 
 export default function ForgotPassword() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
+  const [useRecoveryEmail, setUseRecoveryEmail] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
@@ -22,7 +25,11 @@ export default function ForgotPassword() {
     setError("");
     setLoading(true);
     try {
-      const { data } = await authAPI.forgotPassword(trimmed);
+      // Safe to always pass: the server only actually honors this when the
+      // account has a VERIFIED recovery email on file, and silently falls
+      // back to this primary address otherwise — the response here never
+      // reveals which happened.
+      const { data } = await authAPI.forgotPassword(trimmed, useRecoveryEmail);
       setSent(true);
       if (data?.devResetUrl) setDevResetUrl(data.devResetUrl);
     } catch (err) {
@@ -70,6 +77,11 @@ export default function ForgotPassword() {
                 If <strong>{email.trim()}</strong> is registered, a password reset link is on its way.
                 The link expires in 30 minutes.
               </p>
+              <p>
+                Signed in with &ldquo;Continue with Google&rdquo; before? This link still works —
+                opening it lets you set a password for this account, which you can use from now on
+                even if you ever lose access to that Google account.
+              </p>
               {devResetUrl && (
                 <p className="auth-notice__dev">
                   <strong>Dev:</strong> email isn&rsquo;t wired up yet &mdash;{" "}
@@ -78,28 +90,58 @@ export default function ForgotPassword() {
               )}
             </div>
           ) : (
-            <form className="auth-form" onSubmit={handleSubmit} noValidate>
-              <div className="form-group">
-                <label htmlFor="email">Email Address</label>
-                <input
-                  id="email"
-                  type="email"
-                  name="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
-                  required
-                  disabled={loading}
-                />
-              </div>
+            <>
+              <form className="auth-form" onSubmit={handleSubmit} noValidate>
+                <div className="form-group">
+                  <label htmlFor="email">Email Address</label>
+                  <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    required
+                    disabled={loading}
+                  />
+                </div>
 
-              <button type="submit" className="auth-button" disabled={loading}>
-                {loading ? "Sending..." : "Send reset link"}
-              </button>
-            </form>
+                {/* Shown to everyone, regardless of whether this account
+                    actually has one configured — checking it just tries the
+                    recovery-email path server-side, falling back to this
+                    primary address silently if there isn't one, so showing
+                    the option itself leaks nothing. */}
+                <label className="auth-checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={useRecoveryEmail}
+                    onChange={(e) => setUseRecoveryEmail(e.target.checked)}
+                    disabled={loading}
+                  />
+                  I can&rsquo;t access this email — try my recovery email instead
+                </label>
+
+                <button type="submit" className="auth-button" disabled={loading}>
+                  {loading ? "Sending..." : "Send reset link"}
+                </button>
+              </form>
+
+              {/* Deliberately generic — this page can't say whether any given
+                  email belongs to a Google-linked account without leaking
+                  which emails have accounts at all. The note below holds
+                  regardless of how this account signs in. */}
+              <p className="auth-help">
+                Usually sign in with &ldquo;Continue with Google&rdquo;? This still works for you —
+                the link goes wherever you chose above, and opening it lets you set a password.
+                If you can&rsquo;t access either inbox,{" "}
+                <Link to="/account-recovery">recover your account with a backup code</Link>, or
+                visit or call the <Link to="/about">PESO office</Link> for help.
+              </p>
+            </>
           )}
 
+          <p className="auth-link"><Link to="/staff-account-recovery">{t("staffRecovery.requestLink")}</Link></p>
           <p className="auth-link">
             Remembered it? <Link to="/login">Back to login</Link>
           </p>

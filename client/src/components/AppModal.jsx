@@ -1,7 +1,13 @@
 import { useRef } from "react";
 import { useModalA11y } from "../hooks/useModalA11y";
+import "../styles/app-modal.css";
 
-export default function AppModal({ isOpen, onClose, title, children }) {
+// Shared dialog shell: bottom sheet below 768px, centered dialog from 768px
+// (see styles/app-modal.css). `className` is added to the overlay and
+// `panelClassName` to the dialog card so a caller can opt into a variant
+// (e.g. `am--full` for a full-height sheet) or scope its own content CSS
+// without :has() hooks. Both are optional; omitting them changes nothing.
+export default function AppModal({ isOpen, onClose, title, children, className = "", panelClassName = "" }) {
   const dialogRef = useRef(null);
   useModalA11y(isOpen, onClose, dialogRef);
 
@@ -9,15 +15,18 @@ export default function AppModal({ isOpen, onClose, title, children }) {
 
   return (
     <div
-      className="app-modal-overlay"
+      className={["app-modal-overlay", "am-overlay", className].filter(Boolean).join(" ")}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
+          // Stop the browser moving focus to <body> after we close, so the
+          // focus restore in useModalA11y (back to the trigger) sticks.
+          event.preventDefault();
           onClose();
         }
       }}
     >
       <div
-        className="app-modal-card"
+        className={["app-modal-card", "am-card", panelClassName].filter(Boolean).join(" ")}
         role="dialog"
         aria-modal="true"
         aria-label={title}

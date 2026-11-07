@@ -157,7 +157,7 @@ export default function About() {
         <div className="hero-inner wrap">
           <span className="eyebrow">Province of Marinduque · Employment Portal</span>
           <h1>
-            Work, mapped across
+            Work, mapped across{" "}
             <br />
             the <em>heart</em> of the Philippines.
           </h1>

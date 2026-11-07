@@ -629,6 +629,20 @@
   color: #3f6212;
 }
 
+/* Neutral informational line — guidance that isn't a success/error state,
+   e.g. the Google-account note on the Forgot Password screen. */
+.auth-help {
+  color: #64748b;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  margin: 0 0 1.1rem;
+}
+
+.auth-help a {
+  color: #15803d;
+  font-weight: 600;
+}
+
 .auth-notice a {
   color: #15803d;
   font-weight: 700;
@@ -1095,4 +1109,46 @@ input.is-error:focus {
   .profile-title {
     font-size: 1.55rem;
   }
+}
+/* UI-13 mobile-first floor: 16px inputs (no iOS zoom), 44px legal/help links, reduced motion. */
+.auth-form input,
+.auth-form select {
+  font-size: 16px;
+}
+
+.auth-terms-footer a,
+.auth-link a,
+.auth-help a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.auth-form input:focus-visible,
+.auth-form button:focus-visible,
+.auth-link a:focus-visible,
+.auth-terms-footer a:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}
+
+@media (min-width: 768px) {
+  .auth-form input,
+  .auth-form select { font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-container *,
+  .auth-container *::before,
+  .auth-container *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* jobboard.css leaks a global `.form-group input`; win it inside auth forms. */
+.auth-form .form-group input { font-size: 16px; min-height: 44px; }
+
+@media (min-width: 768px) {
+  .auth-form .form-group input { font-size: 14px; }
 }

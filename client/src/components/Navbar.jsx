@@ -23,8 +23,6 @@ import {
   FaFileAlt,
   FaSearch,
   FaSignOutAlt,
-  FaChevronLeft,
-  FaChevronRight,
 } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { messageAPI, notificationAPI, resolveAssetUrl } from "../services/api";
@@ -764,7 +762,7 @@ export default function Navbar() {
           aria-label={isCompactNav ? t("navbar.expandSidebar") : t("navbar.collapseSidebar")}
           title={isCompactNav ? t("navbar.expandSidebar") : t("navbar.collapseSidebar")}
         >
-          {isCompactNav ? <FaChevronRight aria-hidden="true" /> : <FaChevronLeft aria-hidden="true" />}
+          <span className="sidebar-collapse-chip__arrow" aria-hidden="true" />
         </button>
 
         <button className="logout-btn auth-sidebar-logout" onClick={openLogoutModal} title={t("common.logout")}>

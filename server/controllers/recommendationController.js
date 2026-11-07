@@ -6,6 +6,7 @@ const { SEEKER_USER_FIELDS, SEEKER_PROFILE_FIELDS, buildSeekerForMatching } = re
 const { buildWeightsByJobId } = require('../services/matchWeightsService');
 const { getApplicationCountMap, getHiredCountMap } = require('../utils/jobDisplay');
 const { escapeRegex } = require('../utils/sanitize');
+const { canPersonalizeRecommendations } = require('../utils/personalizationEligibility');
 const logger = require('../utils/logger');
 
 exports.hybridSearch = async (req, res) => {
@@ -271,13 +272,33 @@ exports.hybridSearch = async (req, res) => {
     // Personalize whenever the seeker has any usable signal, not just skills /
     // industry — a freshly completed NSRP profile often has an occupation,
     // education level and work history before discrete "skills" are typed in.
-    const canPersonalize =
-      hasSkills ||
-      preferredIndustries.length > 0 ||
-      preferredOccupations.length > 0 ||
-      workHistory.length > 0 ||
-      Boolean(educationalAttainment) ||
-      Boolean(desiredJobTitle);
+    //
+    // P0-03 (markdowns/MATCHMAKING_DEPLOYMENT_CHECKLIST.md): licenses,
+    // language, salary preference, location, and employment-type are also
+    // supported signals (see the "Credential-bearing fields"/"Location/
+    // employment-type fields" comments above) and must not be silently
+    // ignored just because skills/industry/occupation/history/education/
+    // desired-title are all empty — delegated to the shared helper so the
+    // eligibility rule can be unit-tested in isolation
+    // (server/utils/personalizationEligibility.js).
+    const canPersonalize = canPersonalizeRecommendations({
+      hasSkills,
+      preferredIndustries,
+      preferredOccupations,
+      workHistory,
+      educationalAttainment,
+      desiredJobTitle,
+      professionalLicenses,
+      eligibilities,
+      vocationalTrainings,
+      languageProficiency,
+      expectedSalaryMin,
+      expectedSalaryMax,
+      presentAddress,
+      preferredWorkLocationLocal,
+      preferredJobTypes,
+      preferredWorkNature,
+    });
 
     // Starts equal to finalFilteredJobs.length; onlyMeetsRequired narrows it
     // to however many of those actually survive the checklist filter, so

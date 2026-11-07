@@ -29,6 +29,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@tesseract.js-data/eng": "^1.0.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.11.0",
     "compression": "^1.7.4",
@@ -48,7 +49,9 @@
     "natural": "^8.1.1",
     "nodemailer": "^10.0.13",
     "pdf-lib": "^1.17.1",
+    "sharp": "^0.35.5",
     "socket.io": "^4.8.1",
+    "tesseract.js": "^7.0.0",
     "uuid": "^11.1.0",
     "validator": "^13.11.0",
     "xss": "^1.0.14"

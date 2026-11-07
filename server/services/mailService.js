@@ -92,7 +92,15 @@ const logToConsole = ({ to, subject, text, reason = "no mail provider configured
 
 // Minimal, inline-styled HTML shell — email clients ignore <style> blocks and
 // external CSS, so everything is on the element.
-const renderEmail = ({ heading, paragraphs = [], button, footnote }) => {
+const renderEmail = ({ heading, paragraphs = [], button, footnote, alert }) => {
+  // Optional red warning band across the top of the card (e.g. account
+  // suspended/banned). `alert` is a server-known string, never user input.
+  const alertBanner = alert
+    ? `<tr><td style="background:#b42318;color:#ffffff;border-radius:16px 16px 0 0;padding:14px 28px;font-weight:800;font-size:14px;letter-spacing:.08em;text-transform:uppercase;">
+         &#9888;&#65039; ${alert}
+       </td></tr>`
+    : "";
+  const cardRadius = alert ? "0 0 16px 16px" : "16px";
   const body = paragraphs
     .map((p) => `<p style="margin:0 0 14px;color:#334155;font-size:15px;line-height:1.6;">${p}</p>`)
     .join("");
@@ -115,7 +123,8 @@ const renderEmail = ({ heading, paragraphs = [], button, footnote }) => {
 <html><body style="margin:0;background:#f0fdf4;padding:24px;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;">
     <tr><td style="padding:8px 4px 16px;font-weight:800;font-size:18px;color:${GREEN};letter-spacing:.02em;">${BRAND}</td></tr>
-    <tr><td style="background:#ffffff;border:1px solid #dcfce7;border-radius:16px;padding:28px;">
+    ${alertBanner}
+    <tr><td style="background:#ffffff;border:1px solid ${alert ? "#fecaca" : "#dcfce7"};border-radius:${cardRadius};padding:28px;">
       <h1 style="margin:0 0 16px;font-size:19px;color:#0f172a;">${heading}</h1>
       ${body}${cta}${foot}
     </td></tr>
@@ -186,6 +195,34 @@ const sendPasswordChangedEmail = async ({ to, name }) => {
     paragraphs: [
       `Hi ${name || "there"},`,
       `The password for your ${BRAND} account was just changed.`,
+      `If this was you, no action is needed. <strong>If it wasn't</strong>, reset your password immediately and contact the PESO office.`,
+    ],
+  });
+  return sendMail({ to, subject, text, html });
+};
+
+/**
+ * Security notice sent after a Google-only account (no prior local password)
+ * adds one from Settings → Security. Distinct from sendPasswordChangedEmail
+ * ("changed") because nothing is being replaced here — flagging the
+ * distinction matters because this email is also the first clue for the
+ * account's real owner if someone else added a password without their
+ * knowledge after hijacking a live Google session.
+ */
+const sendPasswordAddedEmail = async ({ to, name }) => {
+  const subject = "A password was added to your STRAM PESO account";
+  const text =
+    `Hi ${name || "there"},\n\n` +
+    `A password was just added to your STRAM PESO account, which previously only signed in ` +
+    `through Google. You can now sign in with either your email and this password, or ` +
+    `"Continue with Google".\n\n` +
+    `If this was you, no action is needed. If it wasn't, reset your password immediately ` +
+    `and contact the PESO office.`;
+  const html = renderEmail({
+    heading: "A password was added to your account",
+    paragraphs: [
+      `Hi ${name || "there"},`,
+      `A password was just added to your ${BRAND} account, which previously only signed in through Google. You can now sign in with either your email and this password, or "Continue with Google".`,
       `If this was you, no action is needed. <strong>If it wasn't</strong>, reset your password immediately and contact the PESO office.`,
     ],
   });
@@ -275,12 +312,120 @@ const sendEmailChangeAlert = async ({ to, name, newEmail, completed = false }) =
   return sendMail({ to, subject, text, html });
 };
 
+/* ------------------------------------------------------------------ */
+/* Account recovery: recovery email                                    */
+/* ------------------------------------------------------------------ */
+
+const sendRecoveryEmailVerification = async ({ to, name, verifyUrl, expiresMinutes = 30 }) => {
+  const subject = "Confirm your STRAM PESO recovery email";
+  const text =
+    `Hi ${name || "there"},\n\n` +
+    `You added this address as the recovery email for your STRAM PESO account. ` +
+    `Open the link below to confirm it. It expires in ${expiresMinutes} minutes.\n\n` +
+    `${verifyUrl}\n\n` +
+    `A recovery email is a second way to reset your password if you ever lose access to ` +
+    `your regular sign-in email. If you didn't request this, you can ignore it.`;
+  const html = renderEmail({
+    heading: "Confirm your recovery email",
+    paragraphs: [
+      `Hi ${name || "there"},`,
+      `You added this address as the recovery email for your ${BRAND} account. Confirm it using the button below — the link expires in <strong>${expiresMinutes} minutes</strong>.`,
+      `A recovery email is a second way to reset your password if you ever lose access to your regular sign-in email.`,
+    ],
+    button: { url: verifyUrl, label: "Confirm this recovery email" },
+    footnote: "If you didn't request this, you can ignore this email.",
+  });
+  return sendMail({ to, subject, text, html });
+};
+
+/**
+ * Security notice — always sent to the account's PRIMARY address (never
+ * the recovery address itself) whenever the recovery email is added,
+ * replaced, or removed. Catches a hijacked session quietly pointing
+ * recovery at an attacker-controlled inbox — the one place this can't be
+ * silently steered away from is the owner's own primary mail.
+ */
+const sendRecoveryEmailAlert = async ({ to, name, recoveryEmail, action }) => {
+  const actionText = { added: "added", replaced: "changed", removed: "removed" }[action] || "changed";
+  const subject = `A recovery email was ${actionText} on your STRAM PESO account`;
+  const text =
+    `Hi ${name || "there"},\n\n` +
+    `The recovery email on your STRAM PESO account was ${actionText}` +
+    `${recoveryEmail ? ` to ${recoveryEmail}` : ""}.\n\n` +
+    `If this was you, no action is needed. If it wasn't, change your password now and contact the PESO office.`;
+  const html = renderEmail({
+    heading: `A recovery email was ${actionText}`,
+    paragraphs: [
+      `Hi ${name || "there"},`,
+      `The recovery email on your ${BRAND} account was ${actionText}${recoveryEmail ? ` to <strong>${recoveryEmail}</strong>` : ""}.`,
+      `If this was you, no action is needed. <strong>If it wasn't</strong>, change your password now and contact the PESO office.`,
+    ],
+  });
+  return sendMail({ to, subject, text, html });
+};
+
+/* ------------------------------------------------------------------ */
+/* Account recovery: backup codes                                      */
+/* ------------------------------------------------------------------ */
+
+const sendBackupCodesGeneratedEmail = async ({ to, name, count = 10 }) => {
+  const subject = "New backup codes were generated for your STRAM PESO account";
+  const text =
+    `Hi ${name || "there"},\n\n` +
+    `${count} new backup codes were just generated for your STRAM PESO account. Any backup codes ` +
+    `generated before this are no longer valid.\n\n` +
+    `If this was you, no action is needed. If it wasn't, change your password now and contact the PESO office.`;
+  const html = renderEmail({
+    heading: "New backup codes were generated",
+    paragraphs: [
+      `Hi ${name || "there"},`,
+      `${count} new backup codes were just generated for your ${BRAND} account. Any backup codes generated before this are no longer valid.`,
+      `If this was you, no action is needed. <strong>If it wasn't</strong>, change your password now and contact the PESO office.`,
+    ],
+  });
+  return sendMail({ to, subject, text, html });
+};
+
+/**
+ * Sent the moment a backup code is redeemed — this is the single
+ * highest-signal event for catching someone else recovering the account,
+ * since it's the one recovery path that needs neither the password nor a
+ * live Google session.
+ */
+const sendBackupCodeRedeemedEmail = async ({ to, name }) => {
+  const subject = "A backup code was used on your STRAM PESO account";
+  const text =
+    `Hi ${name || "there"},\n\n` +
+    `A backup code was just used to start recovering your STRAM PESO account. Every other device ` +
+    `signed in has been signed out.\n\n` +
+    `If this was you, continue setting your new password. If it wasn't, contact the PESO office immediately.`;
+  const html = renderEmail({
+    heading: "A backup code was used",
+    paragraphs: [
+      `Hi ${name || "there"},`,
+      `A backup code was just used to start recovering your ${BRAND} account. Every other device signed in has been signed out.`,
+      `If this was you, continue setting your new password. <strong>If it wasn't</strong>, contact the PESO office immediately.`,
+    ],
+  });
+  return sendMail({ to, subject, text, html });
+};
+
 module.exports = {
   isEmailConfigured,
   sendMail,
+  // Exported so emailOutboxService can render a queued notification email
+  // (arbitrary heading/paragraphs/button/footnote) with the same shell as
+  // every template below, instead of this file needing a template per
+  // notification type.
+  renderEmail,
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
+  sendPasswordAddedEmail,
   sendEmailVerification,
   sendEmailChangeVerification,
   sendEmailChangeAlert,
+  sendRecoveryEmailVerification,
+  sendRecoveryEmailAlert,
+  sendBackupCodesGeneratedEmail,
+  sendBackupCodeRedeemedEmail,
 };

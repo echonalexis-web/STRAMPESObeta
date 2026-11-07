@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import '../styles/jobSearchFilters.css';
-import { FaSearch } from 'react-icons/fa';
+import { FaSearch, FaSlidersH } from 'react-icons/fa';
 import { useSystemOptions } from '../hooks/useSystemOptions';
 import { JOB_TYPES as JOB_TYPES_FALLBACK } from '../constants/jobTypes';
 import { VALID_INDUSTRIES as INDUSTRIES_FALLBACK } from '../constants/industries';
@@ -116,6 +116,11 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
   const [locationQuery, setLocationQuery] = useState(filters.location || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const locationRef = useRef(null);
+  // Mobile: everything except the keyword search lives in a collapsible
+  // panel (always shown >=768px via CSS). Desktop ignores this state.
+  const [panelOpen, setPanelOpen] = useState(false);
+  const toggleRef = useRef(null);
+  const panelId = 'job-filters-panel';
 
   // Keep location input in sync when parent resets filters externally
   useEffect(() => {
@@ -177,9 +182,31 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
   };
 
   /* ─── Submit / Reset ─── */
+  // Return focus to the toggle after collapsing, but only when the toggle is
+  // actually on screen (it is display:none >=768px, where the panel is static).
+  const closePanel = () => {
+    setPanelOpen(false);
+    const toggle = toggleRef.current;
+    if (toggle && toggle.offsetParent !== null) toggle.focus();
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (panelOpen) closePanel();
     if (onSearch) onSearch();
+  };
+
+  // Esc: first dismiss the location suggestions, then collapse the panel.
+  const handleKeyDown = (e) => {
+    if (e.key !== 'Escape') return;
+    if (showSuggestions && suggestions.length > 0) {
+      setShowSuggestions(false);
+      return;
+    }
+    if (panelOpen) {
+      e.stopPropagation();
+      closePanel();
+    }
   };
 
   const handleResetClick = () => {
@@ -188,138 +215,151 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
     if (onReset) onReset();
   };
 
+  const mustHavesOn = filters.onlyMeetsRequired === true || filters.onlyMeetsRequired === 'true';
+  const hasSalaryMin = filters.salaryMin !== undefined && filters.salaryMin !== '' && filters.salaryMin !== null;
+  const hasSalaryMax = filters.salaryMax !== undefined && filters.salaryMax !== '' && filters.salaryMax !== null;
+  // How many refinements are set (shown on the mobile toggle so a collapsed
+  // panel still tells the user filters are active).
+  const activeFilterCount = [
+    Boolean(String(filters.location || '').trim()),
+    Boolean(filters.jobType),
+    Boolean(filters.sortBy),
+    hasSalaryMin || hasSalaryMax,
+    selectedIndustries.length > 0,
+    mustHavesOn,
+  ].filter(Boolean).length;
+
   return (
-    <form className="job-search-filters" onSubmit={handleSubmit} autoComplete="off">
-      <label htmlFor="q" className="search-label">
-        <FaSearch /> Search Jobs
-      </label>
+    <form className="job-search-filters" onSubmit={handleSubmit} onKeyDown={handleKeyDown} autoComplete="off">
+      <label htmlFor="q" className="ds-sr-only">Search Jobs</label>
 
-      {/* ROW 1 — Primary Search */}
-      <div className="filter-row primary-row">
-        <input
-          type="text"
-          name="q"
-          className="filter-input filter-keyword"
-          placeholder="Search jobs, keywords, titles..."
-          value={filters.q || ''}
-          onChange={(e) => updateFilter('q', e.target.value)}
-        />
-
-        <div className="filter-location-wrapper" ref={locationRef}>
+      {/* Primary search — always visible, at every width */}
+      <div className="jsf-bar">
+        <div className="jsf-search">
+          <FaSearch className="jsf-search-icon" aria-hidden="true" />
           <input
+            id="q"
             type="text"
-            name="location"
-            className="filter-input filter-location"
-            placeholder="City, province, or region"
-            value={locationQuery}
-            onChange={handleLocationChange}
-            onFocus={() => locationQuery.trim() && setShowSuggestions(true)}
+            name="q"
+            enterKeyHint="search"
+            className="ds-input filter-input filter-keyword"
+            placeholder="Search jobs, keywords, titles..."
+            value={filters.q || ''}
+            onChange={(e) => updateFilter('q', e.target.value)}
           />
-          {showSuggestions && suggestions.length > 0 && (
-            <ul className="location-suggestions">
-              {suggestions.map((loc, idx) => (
-                <li key={idx} onMouseDown={() => pickLocation(loc)}>
-                  {loc}
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
 
-        <button type="submit" className="filter-submit-btn">
+        <button type="submit" className="ds-btn ds-btn--primary filter-submit-btn">
           Search Jobs
         </button>
-      </div>
-
-      {/* ROW 2 — Refinements */}
-      <div className="filter-row refinement-row">
-        <select
-          name="jobType"
-          className="filter-select"
-          value={filters.jobType || ''}
-          onChange={(e) => updateFilter('jobType', e.target.value)}
-        >
-          <option value="">All Job Types</option>
-          {JOB_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-
-        <select
-          name="sortBy"
-          className="filter-select"
-          value={filters.sortBy || ''}
-          onChange={(e) => updateFilter('sortBy', e.target.value)}
-          aria-label="Sort jobs by"
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.value || 'match'} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-
-        <SalaryRangeSlider
-          min={filters.salaryMin !== undefined && filters.salaryMin !== '' ? Number(filters.salaryMin) : SALARY_MIN_BOUND}
-          max={filters.salaryMax !== undefined && filters.salaryMax !== '' ? Number(filters.salaryMax) : SALARY_MAX_BOUND}
-          onChange={(nextMin, nextMax) => {
-            if (onChange) {
-              onChange({
-                ...filters,
-                salaryMin: nextMin > SALARY_MIN_BOUND ? nextMin : '',
-                salaryMax: nextMax < SALARY_MAX_BOUND ? nextMax : '',
-              });
-            }
-          }}
-        />
 
         <button
           type="button"
-          className="filter-submit-btn btn-reset"
-          onClick={handleResetClick}
+          ref={toggleRef}
+          className="ds-btn ds-btn--secondary jsf-toggle"
+          aria-expanded={panelOpen}
+          aria-controls={panelId}
+          onClick={() => setPanelOpen((open) => !open)}
         >
-          Reset
+          <FaSlidersH aria-hidden="true" />
+          <span>Filters</span>
+          {activeFilterCount > 0 && (
+            <span className="ds-badge ds-badge--gold jsf-count">
+              {activeFilterCount}
+              <span className="ds-sr-only"> selected</span>
+            </span>
+          )}
         </button>
       </div>
 
-      {/* ROW 2b — Industries (multi-select: a job can be tagged with more
-          than one, and a seeker may want to see more than one at a time) */}
-      <div className="filter-row industries-row">
-        <span className="preferred-label">Industries:</span>
-        <div className="industry-chips">
-          <button
-            type="button"
-            className={`industry-chip ${selectedIndustries.length === 0 ? 'active' : ''}`}
-            onClick={clearIndustryFilter}
-          >
-            All Industries
-          </button>
-          {INDUSTRIES.map((ind) => (
-            <button
-              key={ind}
-              type="button"
-              className={`industry-chip ${selectedIndustries.includes(ind) ? 'active' : ''}`}
-              onClick={() => toggleIndustryFilter(ind)}
-            >
-              {ind}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Refinements — collapsible below 768px, static above */}
+      <div id={panelId} className={`jsf-panel ${panelOpen ? 'is-open' : ''}`}>
+        <div className="jsf-fields">
+          <div className="filter-location-wrapper" ref={locationRef}>
+            <input
+              type="text"
+              name="location"
+              className="ds-input filter-input filter-location"
+              placeholder="City, province, or region"
+              aria-label="Location"
+              value={locationQuery}
+              onChange={handleLocationChange}
+              onFocus={() => locationQuery.trim() && setShowSuggestions(true)}
+            />
+            {showSuggestions && suggestions.length > 0 && (
+              <ul className="location-suggestions">
+                {suggestions.map((loc, idx) => (
+                  <li key={idx} onMouseDown={() => pickLocation(loc)}>
+                    {loc}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
-      {/* ROW 3 — Industry Preferences (quick picks from the seeker's own
-          preferred industries, set in Edit Profile) */}
-      {preferredIndustries.length > 0 && (
-        <div className="filter-row preferred-industries-row">
-          <span className="preferred-label">Your Industries:</span>
-          <div className="industry-chips">
-            {preferredIndustries.map((ind) => (
+          <select
+            name="jobType"
+            className="ds-input filter-select"
+            aria-label="Job type"
+            value={filters.jobType || ''}
+            onChange={(e) => updateFilter('jobType', e.target.value)}
+          >
+            <option value="">All Job Types</option>
+            {JOB_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+
+          <select
+            name="sortBy"
+            className="ds-input filter-select"
+            value={filters.sortBy || ''}
+            onChange={(e) => updateFilter('sortBy', e.target.value)}
+            aria-label="Sort jobs by"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value || 'match'} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          <SalaryRangeSlider
+            min={filters.salaryMin !== undefined && filters.salaryMin !== '' ? Number(filters.salaryMin) : SALARY_MIN_BOUND}
+            max={filters.salaryMax !== undefined && filters.salaryMax !== '' ? Number(filters.salaryMax) : SALARY_MAX_BOUND}
+            onChange={(nextMin, nextMax) => {
+              if (onChange) {
+                onChange({
+                  ...filters,
+                  salaryMin: nextMin > SALARY_MIN_BOUND ? nextMin : '',
+                  salaryMax: nextMax < SALARY_MAX_BOUND ? nextMax : '',
+                });
+              }
+            }}
+          />
+        </div>
+
+        {/* Industries (multi-select: a job can be tagged with more
+            than one, and a seeker may want to see more than one at a time) */}
+        <div className="filter-row industries-row">
+          <span className="preferred-label" id="jsf-industries-label">Industries</span>
+          <div className="industry-chips" role="group" aria-labelledby="jsf-industries-label">
+            <button
+              type="button"
+              className={`industry-chip ${selectedIndustries.length === 0 ? 'active' : ''}`}
+              aria-pressed={selectedIndustries.length === 0}
+              onClick={clearIndustryFilter}
+            >
+              All Industries
+            </button>
+            {INDUSTRIES.map((ind) => (
               <button
                 key={ind}
                 type="button"
                 className={`industry-chip ${selectedIndustries.includes(ind) ? 'active' : ''}`}
+                aria-pressed={selectedIndustries.includes(ind)}
                 onClick={() => toggleIndustryFilter(ind)}
               >
                 {ind}
@@ -327,30 +367,66 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
             ))}
           </div>
         </div>
-      )}
 
-      {/* ROW 4 — Only jobs I fully qualify for */}
-      <div className="filter-row must-haves-row">
-        <label className="must-haves-switch">
-          <input
-            type="checkbox"
-            checked={filters.onlyMeetsRequired === true || filters.onlyMeetsRequired === 'true'}
-            onChange={(e) => {
-              const next = { ...filters, onlyMeetsRequired: e.target.checked };
-              if (onChange) onChange(next);
-              // A yes/no toggle reads as broken if it doesn't take effect
-              // immediately, unlike the other filters above which are still
-              // being composed until "Search Jobs" is pressed.
-              if (onSearch) onSearch(next);
-            }}
-          />
-          <span>Only show jobs where I meet every must-have</span>
-        </label>
-        {(filters.onlyMeetsRequired === true || filters.onlyMeetsRequired === 'true') && mustHaveHiddenCount > 0 && (
-          <span className="must-haves-hidden-count">
-            Hiding {mustHaveHiddenCount} job{mustHaveHiddenCount === 1 ? "" : "s"} you don't fully qualify for
-          </span>
+        {/* Industry Preferences (quick picks from the seeker's own
+            preferred industries, set in Edit Profile) */}
+        {preferredIndustries.length > 0 && (
+          <div className="filter-row preferred-industries-row">
+            <span className="preferred-label" id="jsf-your-industries-label">Your Industries</span>
+            <div className="industry-chips" role="group" aria-labelledby="jsf-your-industries-label">
+              {preferredIndustries.map((ind) => (
+                <button
+                  key={ind}
+                  type="button"
+                  className={`industry-chip ${selectedIndustries.includes(ind) ? 'active' : ''}`}
+                  aria-pressed={selectedIndustries.includes(ind)}
+                  onClick={() => toggleIndustryFilter(ind)}
+                >
+                  {ind}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
+
+        {/* Only jobs I fully qualify for */}
+        <div className="filter-row must-haves-row">
+          <label className="must-haves-switch">
+            <input
+              type="checkbox"
+              checked={mustHavesOn}
+              onChange={(e) => {
+                const next = { ...filters, onlyMeetsRequired: e.target.checked };
+                if (onChange) onChange(next);
+                // A yes/no toggle reads as broken if it doesn't take effect
+                // immediately, unlike the other filters above which are still
+                // being composed until "Search Jobs" is pressed.
+                if (onSearch) onSearch(next);
+              }}
+            />
+            <span>Only show jobs where I meet every must-have</span>
+          </label>
+          {mustHavesOn && mustHaveHiddenCount > 0 && (
+            <span className="must-haves-hidden-count">
+              Hiding {mustHaveHiddenCount} job{mustHaveHiddenCount === 1 ? "" : "s"} you don't fully qualify for
+            </span>
+          )}
+        </div>
+
+        <div className="jsf-actions">
+          <button
+            type="button"
+            className="ds-btn ds-btn--secondary btn-reset"
+            onClick={handleResetClick}
+          >
+            Reset
+          </button>
+          {/* Second submit for the collapsed-panel layout, where the main
+              Search button may have scrolled out of view. Hidden >=768px. */}
+          <button type="submit" className="ds-btn ds-btn--primary jsf-apply">
+            Show results
+          </button>
+        </div>
       </div>
     </form>
   );

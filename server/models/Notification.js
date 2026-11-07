@@ -28,6 +28,7 @@ const notificationSchema = new Schema(
         "news",
         "like",
         "spes",
+        "account_recovery",
       ],
       default: "system",
     },

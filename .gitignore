@@ -56,3 +56,34 @@ STRAMPESO_Mock_Defense_Revision_Document.pdf
 
 # Claude local settings
 .claude/settings.local.json
+
+# Docs, plans, audits and reports (not part of the running system)
+markdowns/
+docs/
+mockups/
+postman/
+AUDIT_REPORT_*.md
+SYSTEM_AUDIT_REPORT.md
+SECURITY_AUDIT_SUMMARY.md
+IMPLEMENTATION_PROGRESS.md
+UI_REDESIGN_PROGRESS.md
+UI_UX_IMPROVEMENT_REPORT.md
+STRAMPESO_CODEX_AUDIT_AND_IMPROVEMENT.md
+LOOP.md
+stram-peso-design-spec.md
+New Text Document.txt
+
+# Scratch files and dev tooling
+ok.jsx
+client/ksjdks.jsx
+client/scratchpad/
+security-tests.ps1
+lint-loop.sh
+stop-check.sh
+
+# AI tooling output
+graphify-out/
+.graphifyignore
+.impeccable/
+.claude/agents/
+.claude/commands/

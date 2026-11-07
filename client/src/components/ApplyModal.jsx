@@ -5,6 +5,7 @@ import { FaFileAlt, FaEnvelopeOpenText, FaMagic, FaUpload, FaCheckCircle } from 
 import AppModal from "./AppModal";
 import SecureFileLink from "./SecureFileLink";
 import { jobAPI, jobseekerDocumentAPI, displayFileName } from "../services/api";
+import "../styles/apply-modal.css";
 
 const NONE = "__none__";
 
@@ -124,6 +125,10 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
 
   const effectiveJobId = job?._id || jobId;
 
+  // Scroll lock, focus trap (live) and focus restore now come from the shared
+  // AppModal/useModalA11y (UI-06); this only keeps a ref to the content root.
+  const rootRef = useRef(null);
+
   // The one saved cover letter (if any) actually generated from the Studio's
   // "tailor for this job" flow (JobseekerDocument.sourceJobId) — never the
   // whole library, so a fresh apply can't offer a letter the server would
@@ -227,86 +232,90 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
   };
 
   return (
-    <AppModal isOpen={isOpen} onClose={onClose} title={editMode ? "Update your application" : "Apply for this position"}>
-      {loadingDocs ? (
-        <p className="apply-modal-loading">Loading your documents…</p>
-      ) : (
-        <div className="apply-modal-body">
-          <DocumentPicker
-            label="Resume"
-            icon={<FaFileAlt />}
-            required
-            documents={resumes}
-            selection={resumeUploadFile ? "" : resumeSelection}
-            onSelect={(id) => {
-              setResumeUploadFile(null);
-              setResumeSelection(id);
-            }}
-            uploadFile={resumeUploadFile}
-            onUploadFile={(file) => {
-              setResumeUploadFile(file);
-              setResumeSelection("");
-            }}
-            currentFileHint={
-              editMode && existingApplication?.resume && !existingApplication?.resumeDocumentId
-                ? `Keep current: ${displayFileName(existingApplication.resume)}`
-                : undefined
-            }
-          />
+    <AppModal isOpen={isOpen} onClose={onClose} className="am--full" title={editMode ? "Update your application" : "Apply for this position"}>
+      <div className="apply-modal-root" ref={rootRef}>
+        {loadingDocs ? (
+          <p className="apply-modal-loading" role="status">Loading your documents…</p>
+        ) : (
+          <div className="apply-modal-body">
+            <div className="apply-modal-scroll">
+              <DocumentPicker
+                label="Resume"
+                icon={<FaFileAlt />}
+                required
+                documents={resumes}
+                selection={resumeUploadFile ? "" : resumeSelection}
+                onSelect={(id) => {
+                  setResumeUploadFile(null);
+                  setResumeSelection(id);
+                }}
+                uploadFile={resumeUploadFile}
+                onUploadFile={(file) => {
+                  setResumeUploadFile(file);
+                  setResumeSelection("");
+                }}
+                currentFileHint={
+                  editMode && existingApplication?.resume && !existingApplication?.resumeDocumentId
+                    ? `Keep current: ${displayFileName(existingApplication.resume)}`
+                    : undefined
+                }
+              />
 
-          <DocumentPicker
-            label="Cover Letter"
-            icon={<FaEnvelopeOpenText />}
-            required
-            documents={coverLetterDocuments}
-            selection={coverLetterUploadFile ? "" : coverLetterSelection}
-            onSelect={(id) => {
-              setCoverLetterUploadFile(null);
-              setCoverLetterSelection(id);
-            }}
-            uploadFile={coverLetterUploadFile}
-            onUploadFile={(file) => {
-              setCoverLetterUploadFile(file);
-              setCoverLetterSelection("");
-            }}
-            currentFileHint={
-              editMode && existingApplication?.coverLetterFile && !existingApplication?.coverLetterDocumentId
-                ? `Keep current: ${displayFileName(existingApplication.coverLetterFile)}`
-                : undefined
-            }
-            nonEmptyHint={!editMode ? "Tailored for this job:" : undefined}
-            emptyExtra={
-              !editMode && effectiveJobId ? (
-                <Link
-                  className="apply-modal-tailor-cta"
-                  to={`/profile/resume?mode=coverLetter&jobId=${effectiveJobId}`}
-                  onClick={onClose}
-                >
-                  <FaMagic /> Tailor a cover letter for this job
-                </Link>
-              ) : null
-            }
-          />
+              <DocumentPicker
+                label="Cover Letter"
+                icon={<FaEnvelopeOpenText />}
+                required
+                documents={coverLetterDocuments}
+                selection={coverLetterUploadFile ? "" : coverLetterSelection}
+                onSelect={(id) => {
+                  setCoverLetterUploadFile(null);
+                  setCoverLetterSelection(id);
+                }}
+                uploadFile={coverLetterUploadFile}
+                onUploadFile={(file) => {
+                  setCoverLetterUploadFile(file);
+                  setCoverLetterSelection("");
+                }}
+                currentFileHint={
+                  editMode && existingApplication?.coverLetterFile && !existingApplication?.coverLetterDocumentId
+                    ? `Keep current: ${displayFileName(existingApplication.coverLetterFile)}`
+                    : undefined
+                }
+                nonEmptyHint={!editMode ? "Tailored for this job:" : undefined}
+                emptyExtra={
+                  !editMode && effectiveJobId ? (
+                    <Link
+                      className="apply-modal-tailor-cta"
+                      to={`/profile/resume?mode=coverLetter&jobId=${effectiveJobId}`}
+                      onClick={onClose}
+                    >
+                      <FaMagic /> Tailor a cover letter for this job
+                    </Link>
+                  ) : null
+                }
+              />
 
-          <Link className="apply-modal-builder-link" to="/profile/resume" onClick={onClose}>
-            <FaMagic />{" "}
-            {resumes.length === 0 && coverLetters.length === 0
-              ? "No saved documents yet — open the Resume & Cover Letter Studio"
-              : "Need a different version? Open the Resume & Cover Letter Studio"}
-          </Link>
+              <Link className="apply-modal-builder-link" to="/profile/resume" onClick={onClose}>
+                <FaMagic />{" "}
+                {resumes.length === 0 && coverLetters.length === 0
+                  ? "No saved documents yet — open the Resume & Cover Letter Studio"
+                  : "Need a different version? Open the Resume & Cover Letter Studio"}
+              </Link>
+            </div>
 
-          {error && <p className="apply-modal-error">{error}</p>}
+            {error && <p className="apply-modal-error" role="alert">{error}</p>}
 
-          <div className="apply-modal-actions">
-            <button type="button" className="apply-modal-cancel" onClick={onClose} disabled={submitting}>
-              Cancel
-            </button>
-            <button type="button" className="apply-modal-submit" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Submitting…" : editMode ? "Save changes" : "Submit application"}
-            </button>
+            <div className="apply-modal-actions">
+              <button type="button" className="apply-modal-cancel" onClick={onClose} disabled={submitting}>
+                Cancel
+              </button>
+              <button type="button" className="apply-modal-submit" onClick={handleSubmit} disabled={submitting}>
+                {submitting ? "Submitting…" : editMode ? "Save changes" : "Submit application"}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </AppModal>
   );
 }

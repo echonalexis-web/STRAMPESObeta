@@ -58,3 +58,11 @@
   .registration-page .form-row { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .registration-role-switch { margin-bottom: 24px; }
 }
+
+/* UI-13: 16px fields on small screens; legal links get 44px targets. */
+.registration-page .auth-form input { font-size: 16px; }
+.registration-page .auth-terms-footer a { display: inline-flex; align-items: center; min-height: 44px; }
+
+@media (min-width: 768px) {
+  .registration-page .auth-form input { font-size: 14px; }
+}

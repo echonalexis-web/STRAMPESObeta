@@ -2,7 +2,7 @@ const { buildArchivedJobSnapshot } = require("../controllers/jobController");
 const { escapeRegExp, normalizeAdminJobStatus, normalizeMunicipalityLabel } = require("../controllers/adminController");
 const { getDocumentFieldRemovals } = require("../controllers/authController");
 const User = require("../models/User");
-const { MAX_FILE_SIZE } = require("../middleware/upload");
+const { MAX_FILE_SIZE, validateFile } = require("../middleware/upload");
 
 describe("Server test setup", () => {
   test("Jest is running", () => {
@@ -61,17 +61,25 @@ describe("Server test setup", () => {
     expect(/boac|capital/i.test("Boac, Marinduque")).toBe(true);
   });
 
-  test("document uploads allow a 15MB limit for saved cover letters and resumes", () => {
-    expect(MAX_FILE_SIZE).toBe(15 * 1024 * 1024);
+  test("document uploads retain the existing 5MB cap and reject oversized files", () => {
+    expect(MAX_FILE_SIZE).toBe(5 * 1024 * 1024);
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const next = jest.fn();
+    validateFile({ file: {
+      originalname: "resume.pdf", mimetype: "application/pdf",
+      size: MAX_FILE_SIZE + 1, buffer: Buffer.from("%PDF"),
+    } }, res, next);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(next).not.toHaveBeenCalled();
   });
 
   test("document removal flags clear stored profile file refs instead of leaving stale values behind", () => {
     expect(getDocumentFieldRemovals({ resumeFile: "", validIdFile: "remove", businessPermit: "clear" })).toEqual({
       resumeFile: null,
       validIdFile: null,
-      businessPermit: null,
+      businessPermitUrl: null,
     });
-    expect(getDocumentFieldRemovals({ resume: "null" })).toEqual({ resume: null });
+    expect(getDocumentFieldRemovals({ resume: "null" })).toEqual({ resumeFile: null });
   });
 
   test("legacy companySize values are normalized before validation or updates", () => {

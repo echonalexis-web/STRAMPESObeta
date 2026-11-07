@@ -125,7 +125,9 @@ exports.setAdminActive = async (req, res) => {
     admin.suspensionReason = active ? null : "Disabled by the system superadmin";
     admin.suspendedAt = active ? null : new Date();
     admin.suspendedBy = active ? null : req.user.id;
-    await admin.save();
+    // validateModifiedOnly — see authController.js's note above
+    // issueEmailVerification.
+    await admin.save({ validateModifiedOnly: true });
 
     if (!active) {
       // Staff accounts get the "disabled" code, not "suspended" — matching
@@ -172,7 +174,9 @@ exports.resetAdminPassword = async (req, res) => {
     admin.mustChangePassword = true;
     // Invalidates any token this admin already holds.
     admin.tokenVersion = (admin.tokenVersion || 0) + 1;
-    await admin.save();
+    // validateModifiedOnly — see authController.js's note above
+    // issueEmailVerification.
+    await admin.save({ validateModifiedOnly: true });
 
     await logAuditEvent({
       req,

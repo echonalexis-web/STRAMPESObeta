@@ -9,9 +9,10 @@
   --accent-border: rgba(170, 59, 255, 0.5);
   --social-bg: rgba(244, 243, 236, 0.5);
   --shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-  /* Brand type system: Poppins for display / UI, Inter for body copy. */
-  --font-display: 'Poppins', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --font-body: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  /* Brand type system: Manrope for display / UI, DM Sans for body copy
+     (Poppins / Inter kept as fallbacks). */
+  --font-display: 'Manrope', 'Poppins', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'DM Sans', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'JetBrains Mono', Consolas, monospace;
 
   /* Legacy aliases — existing `var(--sans)` / `var(--heading)` call sites

@@ -31,14 +31,25 @@ const loadGis = () => {
  * @param {(err: Error) => void} [onError]
  * @param {string} [text]  GIS button text: "signin_with" | "signup_with" | "continue_with"
  * @param {boolean} [fullWidth]  Fit the official button to its container (up to 400px).
+ * @param {boolean} [showDivider]  Render the "or" divider above the button (default true) —
+ *   set false when this is embedded somewhere that isn't a sign-in form, e.g. a re-auth
+ *   prompt inside Settings.
  */
-export default function GoogleSignInButton({ onCredential, onError, text = "continue_with", fullWidth = false }) {
+export default function GoogleSignInButton({
+  onCredential,
+  onError,
+  text = "continue_with",
+  fullWidth = false,
+  showDivider = true,
+}) {
   const targetRef = useRef(null);
   // Keep the latest callbacks without re-running the init effect.
   const onCredentialRef = useRef(onCredential);
   const onErrorRef = useRef(onError);
-  onCredentialRef.current = onCredential;
-  onErrorRef.current = onError;
+  useEffect(() => {
+    onCredentialRef.current = onCredential;
+    onErrorRef.current = onError;
+  }, [onCredential, onError]);
 
   useEffect(() => {
     if (!CLIENT_ID) return;
@@ -88,7 +99,7 @@ export default function GoogleSignInButton({ onCredential, onError, text = "cont
 
   return (
     <div className="google-signin">
-      <div className="google-signin__divider"><span>or</span></div>
+      {showDivider && <div className="google-signin__divider"><span>or</span></div>}
       <div ref={targetRef} className="google-signin__btn" />
     </div>
   );

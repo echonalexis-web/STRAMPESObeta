@@ -1,7 +1,7 @@
 import { useContext, useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
-import { usersAPI, employerAccountAPI } from "../../services/api";
+import { authAPI, usersAPI, employerAccountAPI } from "../../services/api";
 import "../../styles/onboarding.css";
 import LocationSelect from "../../components/LocationSelect";
 import AvatarPicker from "../../components/AvatarPicker";
@@ -9,6 +9,7 @@ import { usePersistentState } from "../../hooks/usePersistentState";
 import { WORKFORCE_SIZE_OPTIONS, workforceSizeLabel } from "../../data/employerProfile";
 import { useToast } from "../../components/feedback/context";
 import { useSystemOptions } from "../../hooks/useSystemOptions";
+import { useUsernameAvailability } from "../../hooks/useUsernameAvailability";
 import { VALID_INDUSTRIES as INDUSTRIES_FALLBACK } from "../../constants/industries";
 import {
   OFFICE_TYPE_OPTIONS,
@@ -38,6 +39,12 @@ const getInitialForm = (user) => ({
   contactPersonPosition: "",
   fax: "",
   businessAddressStructured: { street: "", barangay: "", municipality: "", province: "", region: "" },
+  // Seeded from whatever the account already has (auto-suggested at
+  // registration/Google sign-up, or chosen at registration) — this step
+  // just lets them review/change it. Set via its own authAPI.setUsername()
+  // call on final submit, not through the completeOnboarding payload — see
+  // submitOnboarding.
+  username: user?.username || "",
 });
 
 export default function EmployerOnboarding() {
@@ -83,6 +90,10 @@ export default function EmployerOnboarding() {
     : defaultState;
 
   const { form, step } = safeState;
+  // Only live-checks while the typed value actually differs from what the
+  // account already has — see getInitialForm's comment on why `username`
+  // starts out pre-filled with that existing value.
+  const usernameCheck = useUsernameAvailability(form.username, { currentValue: user?.username || "" });
   const setForm = (updater) => setPersistedState(prev => {
     const newForm = typeof updater === 'function' ? updater(prev.form) : updater;
     return { ...prev, form: newForm };
@@ -190,6 +201,16 @@ export default function EmployerOnboarding() {
         businessAddressStructured: form.businessAddressStructured,
       };
       const { data } = await usersAPI.completeOnboarding(payload);
+
+      const trimmedUsername = (form.username || "").trim();
+      if (trimmedUsername && trimmedUsername.toLowerCase() !== (user?.username || "").toLowerCase()) {
+        try {
+          await authAPI.setUsername(trimmedUsername);
+        } catch (usernameErr) {
+          toast.error(usernameErr?.response?.data?.message || "Could not set the username.");
+        }
+      }
+
       const token = localStorage.getItem("token");
       if (token && data.user) login(token, data.user);
       // Advance to the optional profile-photo step instead of leaving now.
@@ -371,6 +392,30 @@ export default function EmployerOnboarding() {
             <div className="onboarding-field-grid">
               <label>Contact Person Position <input type="text" value={form.contactPersonPosition} onChange={e => updateField("contactPersonPosition", e.target.value)} disabled={saving} /></label>
               <label>Fax <input type="text" value={form.fax} onChange={e => updateField("fax", e.target.value)} disabled={saving} /></label>
+            </div>
+            <div>
+              <label htmlFor="onboarding-employer-username">
+                Username <span className="onboarding-optional">(optional)</span>
+              </label>
+              <input
+                id="onboarding-employer-username"
+                type="text"
+                placeholder="A second way to sign in, instead of your email"
+                value={form.username || ""}
+                onChange={(e) => updateField("username", e.target.value)}
+                disabled={saving}
+                autoComplete="username"
+                maxLength={30}
+              />
+              {usernameCheck.status === "checking" && (
+                <span className="onboarding-field-hint">Checking…</span>
+              )}
+              {usernameCheck.status === "available" && (
+                <span className="onboarding-field-hint onboarding-field-hint--ok">✓ Available</span>
+              )}
+              {usernameCheck.status === "unavailable" && (
+                <span className="onboarding-field-error">{usernameCheck.message}</span>
+              )}
             </div>
           </div>
         </div>

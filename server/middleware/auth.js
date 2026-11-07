@@ -24,8 +24,19 @@ exports.verifyToken = async (req, res, next) => {
       });
     }
 
+    // Same restriction for a backup-code recovery token (see
+    // verifyRecoveryToken below) — it proves "this person redeemed a valid
+    // backup code", not "this is a normal signed-in session", so it must
+    // not unlock the rest of the API either.
+    if (decoded.scope === "recovery") {
+      return res.status(403).json({
+        code: "RECOVERY_TOKEN_SCOPE",
+        message: "This session can only be used to finish account recovery",
+      });
+    }
+
     const user = await User.findById(decoded.id).select(
-      "isActive role verificationStatus accountStatus suspensionReason suspendedAt tokenVersion dateOfBirth"
+      "isActive role verificationStatus accountStatus suspensionReason suspendedAt tokenVersion dateOfBirth staffRecoveryPending"
     );
 
     if (!user) {
@@ -43,7 +54,7 @@ exports.verifyToken = async (req, res, next) => {
     // signed before it. `|| 0` on both sides means a token signed before
     // this feature existed (no claim) still matches a never-changed user
     // (schema default 0) — no forced mass logout on deploy.
-    if ((decoded.tokenVersion || 0) !== (user.tokenVersion || 0)) {
+    if (user.staffRecoveryPending || (decoded.tokenVersion || 0) !== (user.tokenVersion || 0)) {
       return res.status(403).json({
         code: "SESSION_EXPIRED",
         message: "Your session has expired. Please sign in again.",
@@ -119,6 +130,48 @@ exports.verifyAppealToken = async (req, res, next) => {
     }
 
     req.user = { id: String(user._id), _id: user._id, scope: "appeal" };
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: "Invalid token" });
+  }
+};
+
+// ============================================
+// RECOVERY-ONLY AUTH
+// Accepts the short-lived (15-minute) token issued after redeeming a valid
+// backup code (authController.redeemBackupCode) — someone who got in
+// without their password or a Google session. Grants access only to the
+// narrow "finish recovering this account" endpoints (set a new password,
+// set a new recovery email), never the rest of the API — see the
+// decoded.scope === "recovery" rejection in verifyToken above.
+// ============================================
+exports.verifyRecoveryToken = async (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ message: "No token provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.scope !== "recovery") {
+      return res.status(403).json({ message: "Invalid recovery session" });
+    }
+
+    const user = await User.findById(decoded.id).select("tokenVersion role");
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    // Redeeming the backup code already bumped tokenVersion once (see
+    // redeemBackupCode) — this token was signed with that new value, so a
+    // STALE recovery token (e.g. one more backup code redeemed since, or a
+    // password already set) fails here exactly like an old session token
+    // would.
+    if ((decoded.tokenVersion || 0) !== (user.tokenVersion || 0)) {
+      return res.status(403).json({ message: "Invalid recovery session" });
+    }
+
+    req.user = { id: String(user._id), _id: user._id, role: user.role, scope: "recovery" };
     next();
   } catch (error) {
     return res.status(403).json({ message: "Invalid token" });

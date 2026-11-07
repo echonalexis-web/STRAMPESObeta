@@ -11,13 +11,25 @@ const jobseekerProfileSchema = new mongoose.Schema(
     // Personal Identity
     civilStatus: {
       type: String,
-      enum: ["Divorced", "Live-in", "Married", "Separated", "Single", "Widowed", "Prefer not to say"],
+      enum: ["Divorced", "Live-in", "Married", "Other", "Separated", "Single", "Widowed", "Prefer not to say"],
       default: null,
     },
+    // Free text shown only when civilStatus is "Other" — items 14/15's
+    // "Other, please specify" fallback, mirroring governmentIdTypeOther
+    // (server/models/User.js) exactly.
+    civilStatusOther: { type: String, default: null },
     placeOfBirth: { type: String, default: null },
     citizenship: { type: String, default: null },
     height: { type: Number, default: null },
+    // [mock-defense item 3] height/weight are stored canonically in cm/kg
+    // (same as before); these record which unit the user last chose to
+    // *display*/enter in, so the explicit selector round-trips on reload
+    // instead of always resetting to cm/kg. Existing records predating this
+    // field get the metric default via Mongoose's hydrate-time default fill —
+    // same mechanism already used for civilStatusOther/disability above.
+    heightUnit: { type: String, enum: ["cm", "ft_in"], default: "cm" },
     weight: { type: Number, default: null },
+    weightUnit: { type: String, enum: ["kg", "lb"], default: "kg" },
     religion: { type: String, default: null },
     // Government IDs (optional)
     tin: { type: String, default: null },

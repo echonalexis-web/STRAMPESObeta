@@ -5,12 +5,20 @@ import { kgToLb, lbToKg } from "../utils/unitConversion";
  * Weight field with an explicit kg / lb unit toggle (item 3 — modern
  * standard, replacing the old free-text-with-converted-hint pattern).
  * `value` is always canonical kilograms (string, same as before); `onChange`
- * is always called with the next canonical kg string. Which unit is
- * currently *displayed* is local, UI-only state — the lb value shown is
- * derived from `value` every render, never tracked separately.
+ * is always called with the next canonical kg string.
+ *
+ * Which unit is currently *displayed* ("kg" or "lb") is controlled via the
+ * optional `unit`/`onUnitChange` props so a caller can persist it
+ * (JobseekerProfile.weightUnit) and have the toggle round-trip on reload
+ * instead of always resetting to kg. When the caller omits them, the toggle
+ * falls back to local-only state, preserving the original uncontrolled
+ * behavior. Either way the lb value shown is derived from `value` every
+ * render, never tracked separately.
  */
-export default function WeightInput({ value, onChange, disabled }) {
-  const [unit, setUnit] = useState("kg");
+export default function WeightInput({ value, onChange, unit: controlledUnit, onUnitChange, disabled }) {
+  const [localUnit, setLocalUnit] = useState("kg");
+  const unit = controlledUnit ?? localUnit;
+  const setUnit = onUnitChange ?? setLocalUnit;
 
   const kg = value === "" || value === null || value === undefined ? null : Number(value);
   const lbDisplay = kg === null ? "" : kgToLb(kg);

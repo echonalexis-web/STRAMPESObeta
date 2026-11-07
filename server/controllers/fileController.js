@@ -7,11 +7,12 @@ const EmployerProfile = require("../models/EmployerProfile");
 const JobVacancy = require("../models/JobVacancy");
 const JobseekerDocument = require("../models/JobseekerDocument");
 const { sendError } = require("../utils/sendError");
+const { logAuditEvent } = require("../services/auditService");
 
 // Does `ref` belong to this user (or is the user an admin)?
 const canAccessRef = async (ref, user) => {
   if (!user) return false;
-  if (user.role === "admin") return true;
+  if (user.role === "admin" || user.role === "superadmin") return true;
 
   const userId = user.id;
 
@@ -70,6 +71,18 @@ const canAccessRef = async (ref, user) => {
 
 exports.canAccessRef = canAccessRef;
 
+const auditIdAccess = async (ref, req) => {
+  if (!["admin", "superadmin"].includes(req.user?.role)) return;
+  const owner = await User.findOne({ validIdFile: ref }).select("_id");
+  if (owner) await logAuditEvent({ req, actorId: req.user.id, actorRole: req.user.role, action: "admin.id.viewed", targetType: "user", targetId: String(owner._id) });
+  else {
+    const Recovery = require("../models/AccountRecoveryRequest");
+    const request = await Recovery.findOne({ $or: [{ governmentIdFile: ref }, { selfieFile: ref }] }).select("_id");
+    if (request) await logAuditEvent({ req, actorId: req.user.id, actorRole: req.user.role, action: "admin.id.viewed", targetType: "accountRecovery", targetId: String(request._id) });
+  }
+};
+exports.auditIdAccess = auditIdAccess;
+
 exports.getSignedUrl = async (req, res) => {
   try {
     const ref = String(req.query.ref || "").trim();
@@ -95,6 +108,8 @@ exports.getSignedUrl = async (req, res) => {
     if (!url) {
       return res.status(404).json({ message: "File not found" });
     }
+
+    await auditIdAccess(ref, req);
 
     return res.json({ url, expiresIn: SIGNED_URL_TTL_SECONDS });
   } catch (error) {
