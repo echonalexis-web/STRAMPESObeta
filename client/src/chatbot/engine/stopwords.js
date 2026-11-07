@@ -15,7 +15,7 @@ const ENGLISH = [
 const FILIPINO = [
   'ang', 'ng', 'mga', 'sa', 'na', 'ay', 'at', 'o', 'po', 'opo', 'ba', 'ko', 'ako', 'ka', 'mo', 'ikaw',
   'ito', 'iyan', 'iyon', 'dito', 'doon', 'diyan', 'para', 'kung', 'kapag', 'pag', 'mag', 'nag', 'ma',
-  'ano', 'paano', 'saan', 'bakit', 'kailan', 'sino', 'alin', 'pwede', 'puwede', 'maaari', 'gusto',
+  'ano', 'paano', 'paanu', 'pano', 'panu', 'saan', 'nasaan', 'bakit', 'kailan', 'sino', 'alin', 'pwede', 'puwede', 'maaari', 'gusto',
   'nais', 'lang', 'naman', 'din', 'rin', 'may', 'mayroon', 'meron', 'yung', 'yong', 'nung', 'nang',
   'namin', 'natin', 'nila', 'niya', 'akin', 'amin', 'kami', 'tayo', 'sila', 'siya', 'ninyo', 'niyo',
   'hindi', 'di', 'kasi', 'pero', 'ngunit', 'upang', 'daw', 'raw', 'muna', 'pa', 'ho',
@@ -23,4 +23,4 @@ const FILIPINO = [
 
 export const FILIPINO_MARKERS = new Set([...FILIPINO]);
 export const STOP_WORDS = new Set([...ENGLISH, ...FILIPINO]);
-export const HOW_CUES = new Set(['how', 'where', 'paano', 'saan']);
+export const HOW_CUES = new Set(['how', 'where', 'paano', 'paanu', 'pano', 'panu', 'saan', 'nasaan']);
