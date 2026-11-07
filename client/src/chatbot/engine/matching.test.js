@@ -27,8 +27,9 @@ test('worked example 1 (Taglish): answer profile.edit with formula-exact runner-
   assert.equal(ranked[0].score, 1);
   const { idf } = index.view('jobseeker');
   const photo = ranked.find((r) => r.id === 'jobseeker.photo.change');
-  // edit matches only via question text (0.85), profile not at all; how-cue on nav+faq (+0.05)
-  const expected = (0.85 * idf.get('edit')) / (idf.get('edit') + idf.get('profile')) + 0.05;
+  // edit matches only via question text (0.85), profile not at all; hint is separate (0.05)
+  const expected = (0.85 * idf.get('edit')) / (idf.get('edit') + idf.get('profile'));
+  assert.equal(photo.hint, 0.05);
   assert.ok(Math.abs(photo.score - expected) < 1e-9, `${photo.score} vs ${expected}`);
   assert.ok(ranked[0].score - ranked[1].score >= MARGIN_MIN);
 });
@@ -165,4 +166,22 @@ test('5,000-char input finishes fast and falls back', () => {
 test('markup input does not throw and gets a plain result', () => {
   const r = ask(index, '<script>alert(1)</script>', js);
   assert.equal(r.type, 'fallback');
+});
+
+test('hint cannot rescue: base 0.667 stays suggest, base 0.365 stays fallback', () => {
+  const t1 = 'how profile resume edit';
+  const r1 = rank(index, t1, js)[0];
+  assert.ok(r1.score > 0.65 && r1.score < ANSWER_MIN && r1.score + r1.hint >= ANSWER_MIN);
+  assert.equal(ask(index, t1, js).type, 'suggest');
+  const t2 = 'how profile upload blorp';
+  const r2 = rank(index, t2, js)[0];
+  assert.ok(r2.score > 0.35 && r2.score < SUGGEST_MIN && r2.score + r2.hint >= SUGGEST_MIN);
+  assert.deepEqual(ask(index, t2, js), { type: 'fallback' });
+});
+
+test('hint does not enter the margin, only ordering', () => {
+  const r = rank(index, 'how profile resume edit', js);
+  assert.ok(r.every((x) => x.hint === 0 || x.hint === 0.05));
+  const noHint = rank(index, 'profile resume edit', js);
+  assert.equal(r[0].score, noHint[0].score);
 });

@@ -126,21 +126,25 @@ function scoreEntry(p, q, v) {
     if (corrected) m *= scoreWeights.typo;
     num += w * m;
   }
-  if (num === 0 || den === 0) return 0;
+  if (num === 0 || den === 0) return { score: 0, hint: 0 };
   let score = num / den;
   if (p.phrases.some((ph) => containsRun(q.seq, ph))) score += scoreWeights.phrase;
-  if (q.hasHowCue && p.nav) score += scoreWeights.hint;
-  return Math.min(1, score);
+  // The how/where hint only orders candidates; thresholds and margins use the
+  // score without it, so it can never rescue a weak match.
+  const hint = q.hasHowCue && p.nav ? scoreWeights.hint : 0;
+  return { score: Math.min(1, score), hint };
 }
 
 function compare(a, b) {
-  if (Math.abs(a.score - b.score) > EPS) return b.score - a.score;
+  const as = a.score + a.hint;
+  const bs = b.score + b.hint;
+  if (Math.abs(as - bs) > EPS) return bs - as;
   if (a.size !== b.size) return a.size - b.size;
   if (a.priority !== b.priority) return b.priority - a.priority;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-/** Ranked [{id, score}] over entries visible to ctx.role. Exposed for tests. */
+/** Ranked [{id, score, hint}] (score excludes hint; order uses score+hint) over entries visible to ctx.role. Exposed for tests. */
 export function rank(index, text, ctx) {
   const v = index.view(ctx && ctx.role);
   const q = prepareQuery(text, v);
@@ -149,10 +153,10 @@ export function rank(index, text, ctx) {
 
 function rankPrepared(v, q) {
   return v.entries
-    .map((p) => ({ id: p.id, score: scoreEntry(p, q, v), size: p.size, priority: p.priority }))
+    .map((p) => ({ id: p.id, ...scoreEntry(p, q, v), size: p.size, priority: p.priority }))
     .filter((r) => r.score > 0)
     .sort(compare)
-    .map(({ id, score, size, priority }) => ({ id, score, size, priority }));
+    .map(({ id, score, hint, size, priority }) => ({ id, score, hint, size, priority }));
 }
 
 /** Threshold table from D.2. ranked is sorted; n is the informative token count. */

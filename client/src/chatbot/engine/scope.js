@@ -3,11 +3,12 @@
 // All patterns are linear (no nested quantifiers) and run on text already cut
 // to MAX_CHARS.
 import { MAX_CHARS } from './normalize.js';
+import { HOW_CUES } from './stopwords.js';
 
 const STAFF = new Set(['admin', 'superadmin']);
 const COMBINING = /[̀-ͯ]/g;
 const NON_ALNUM = /[^a-z0-9]+/g;
-const HOW_CUE = /\b(how|where|paano|paanu|pano|saan|nasaan)\b/;
+const HOW_CUE = new RegExp(String.raw`\b(${[...HOW_CUES].join('|')})\b`);
 
 function fold(text) {
   return String(text)
@@ -28,10 +29,11 @@ const CLASSES = [
     p(/\bignore (all |any |the )?(previous|prior|above|earlier)\b/, false),
     p(/\b(system|hidden|initial) prompt\b/, false),
     p(/\bwhat (rules|instructions) (were you|are you|did you)\b/, false),
-    p(/\b(your|the) (rules|instructions|configuration|source code)\b/, false),
+    p(/\byour (rules|instructions|configuration|source code)\b/, false),
     p(/\blist (every|all) (the |your )?(question|answer|entr|topic|faq)/, false),
     p(/\bwhat (api|model|llm|database|framework)\b.*\b(use|using|run|running|built)\b/, false),
-    p(/\b(jailbreak|developer mode|act as|pretend (to be|you are))\b/, false),
+    p(/\bact as (a|an|if)\b/),
+    p(/\b(jailbreak|developer mode|pretend (to be|you are))\b/, false),
   ]],
   // Only meaningful for non-staff; handled below.
   ['privileged', [
@@ -45,7 +47,7 @@ const CLASSES = [
   ['people', [
     p(/\bwho is\b/, false),
     p(/\b(legit|legitimate|scam|scammer|trustworthy|reputable)\b/, true),
-    p(/\b(show|list|see|view) (me )?(the )?(all )?(applicants?|candidates?|users?|jobseekers?|employees)\b/, false),
+    p(/\b(show|list|see|view) (me )?(the )?(all )?(applicants?|candidates?|users?|jobseekers?|employees)\b/),
   ]],
   ['recommendation', [
     p(/\bmatch (score|percent|percentage|rate|results?)\b/),
