@@ -164,8 +164,8 @@ export default [
     id: 'jobseeker.applications.manage', category: 'jobs-applications', roles: JS,
     q: { en: 'How do I edit or withdraw an application?', fil: 'Paano baguhin o bawiin ang aplikasyon?' },
     a: {
-      en: 'Open Your Applications. Each application has Edit and Withdraw buttons. Edit lets you change the documents you sent. Withdraw removes the application, and you can apply again while the vacancy is still open.',
-      fil: 'Buksan ang Your Applications. May Edit at Withdraw button ang bawat aplikasyon. Sa Edit, mababago mo ang mga dokumentong ipinadala mo. Inaalis ng Withdraw ang aplikasyon, at maaari kang mag-apply muli habang bukas pa ang vacancy.',
+      en: 'Open Your Applications. Most applications have Edit and Withdraw buttons; they are hidden once an application is withdrawn or you are hired. Edit lets you change the documents you sent. Withdraw removes the application, and you can apply again while the vacancy is still open.',
+      fil: 'Buksan ang Your Applications. May Edit at Withdraw button ang karamihan ng aplikasyon; nakatago ang mga ito kapag na-withdraw na ang aplikasyon o na-hire ka na. Sa Edit, mababago mo ang mga dokumentong ipinadala mo. Inaalis ng Withdraw ang aplikasyon, at maaari kang mag-apply muli habang bukas pa ang vacancy.',
     },
     keywords: {
       en: ['withdraw application', 'cancel an application', 'edit sent application', 'undo apply'],

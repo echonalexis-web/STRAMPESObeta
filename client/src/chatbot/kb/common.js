@@ -134,8 +134,8 @@ export default [
     id: 'common.messages.open', category: 'messages-notifications', kind: 'nav', roles: JS_EMP,
     q: { en: 'How do I send a message to someone?', fil: 'Paano magpadala ng mensahe sa isang tao?' },
     a: {
-      en: 'Open Messages. Type a name in the Search users box to start a conversation, or pick an existing conversation on the left and use the message box. Who can message you is set in Settings under Privacy.',
-      fil: 'Buksan ang Messages. Mag-type ng pangalan sa Search users para magsimula ng usapan, o pumili ng umiiral na usapan sa kaliwa at gamitin ang message box. Sa Settings, sa Privacy, itinatakda kung sino ang puwedeng mag-message sa iyo.',
+      en: 'Open Messages. Type a name in the Search users box to start a conversation, or pick an existing conversation on the left and use the message box.',
+      fil: 'Buksan ang Messages. Mag-type ng pangalan sa Search users para magsimula ng usapan, o pumili ng umiiral na usapan sa kaliwa at gamitin ang message box.',
     },
     keywords: {
       en: ['send message', 'open messages', 'start conversation', 'chat with someone'],

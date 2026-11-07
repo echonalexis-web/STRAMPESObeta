@@ -34,7 +34,7 @@ export function resolveLink(routeId, ctx) {
   }
 
   if (role === 'employer' && !ctx.verifiedEmployer && route.gates.includes('verifiedEmployer')) {
-    return blocked('verification', link('employer.dashboard'));
+    return blocked('verification', link('profile'));
   }
 
   if (route.roles && !route.roles.includes(role)) return { kind: 'hidden' };

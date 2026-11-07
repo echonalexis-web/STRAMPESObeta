@@ -9,7 +9,6 @@ import { useChatSession } from './useChatSession.js';
 import { isHiddenPath } from './hiddenPaths.js';
 
 const MESSENGER_OPEN_EVENT = 'floating-messenger:open';
-const OPEN_EVENT = 'chatbot:open';
 const MOBILE_QUERY = '(max-width: 767.98px)';
 
 function useIsMobile() {
@@ -41,7 +40,6 @@ function Widget() {
   }, []);
 
   const toggle = () => {
-    if (!open) window.dispatchEvent(new Event(OPEN_EVENT));
     setOpen((o) => !o);
   };
 

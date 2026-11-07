@@ -18,7 +18,11 @@ test('paragraphs: splits on blank lines', () => {
   assert.deepEqual(paragraphs(''), []);
 });
 test('isVisibleTo: wildcard and role', () => {
-  assert.equal(isVisibleTo({ roles: ['*'] }, 'public'), true);
-  assert.equal(isVisibleTo({ roles: ['employer'] }, 'jobseeker'), false);
+  assert.equal(isVisibleTo({ status: 'approved', roles: ['*'] }, 'public'), true);
+  assert.equal(isVisibleTo({ status: 'approved', roles: ['employer'] }, 'jobseeker'), false);
   assert.equal(isVisibleTo(undefined, 'public'), false);
+});
+test('isVisibleTo: draft or status-less entries never render', () => {
+  assert.equal(isVisibleTo({ status: 'draft', roles: ['*'] }, 'public'), false);
+  assert.equal(isVisibleTo({ roles: ['*'] }, 'public'), false);
 });

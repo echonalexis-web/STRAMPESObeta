@@ -17,4 +17,4 @@ export const paragraphs = (text) =>
   String(text || '').split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
 
 export const isVisibleTo = (entry, role) =>
-  Boolean(entry) && (entry.roles.includes('*') || entry.roles.includes(role));
+  Boolean(entry) && entry.status === 'approved' && (entry.roles.includes('*') || entry.roles.includes(role));

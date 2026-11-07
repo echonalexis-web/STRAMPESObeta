@@ -83,3 +83,9 @@ test('user object and extra fields never returned', () => {
   assert.ok(!JSON.stringify(c).includes('secret'));
   assert.ok(!Object.values(c).includes(user));
 });
+
+test('legacy roles employee and resident map to jobseeker', () => {
+  assert.equal(mapUserToChatContext({ role: 'employee' }, 'en').role, 'jobseeker');
+  assert.equal(mapUserToChatContext({ role: 'resident' }, 'en').role, 'jobseeker');
+  assert.equal(mapUserToChatContext({ role: 'bogus' }, 'en').role, 'public');
+});

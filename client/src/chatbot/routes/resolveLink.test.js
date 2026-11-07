@@ -48,10 +48,10 @@ test('employer mid-onboarding: only employer dashboard and post-job blocked', ()
   assert.deepEqual(resolveLink('messages', c), link('messages', '/messages'));
 });
 
-test('unverified employer + post-job -> verification, alt employer dashboard', () => {
+test('unverified employer + post-job -> verification, alt My Profile', () => {
   const c = ctx({ role: 'employer', verifiedEmployer: false });
   assert.deepEqual(resolveLink('post-job', c), {
-    kind: 'blocked', reason: 'verification', alternative: link('employer.dashboard', '/employer'),
+    kind: 'blocked', reason: 'verification', alternative: link('profile', '/profile'),
   });
   assert.deepEqual(resolveLink('employer.dashboard', c), link('employer.dashboard', '/employer'));
 });
