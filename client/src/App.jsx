@@ -12,6 +12,7 @@ import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { JobVacancyAgeGate } from "./routes/JobVacancyAgeGate";
 import AccountInactiveModal from "./components/AccountInactiveModal";
 import FloatingMessenger from "./components/FloatingMessenger";
+import ChatWidget from "./chatbot/ui/ChatWidget";
 import DashboardTopBar from "./components/DashboardTopBar";
 import { claimAccountInactiveHandling } from "./services/api";
 
@@ -168,6 +169,7 @@ function AppRoutes() {
         <ActiveStatusReporter />
         <NewsPublishedToast key={userId || "anonymous"} />
         <FloatingMessenger />
+        <ChatWidget />
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/about" element={<About />} />
