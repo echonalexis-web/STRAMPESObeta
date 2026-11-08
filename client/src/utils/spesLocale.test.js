@@ -16,7 +16,7 @@ const fil = load("fil.json");
 const flat = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" ? flat(v, `${p}${k}.`) : [`${p}${k}`]));
 const get = (o, key) => key.split(".").reduce((a, k) => (a == null ? a : a[k]), o);
 
-for (const ns of ["ageGate", "errors", "spes"]) {
+for (const ns of ["ageGate", "errors", "spes", "spesPostings"]) {
   test(`en and fil have the same keys under ${ns}`, () => {
     const a = new Set(flat(en[ns]));
     const b = new Set(flat(fil[ns]));
@@ -59,4 +59,24 @@ test("every lifecycle status, stage, outcome, slot and age tier has a label in b
     }
     for (const s of [...statuses, "default"]) assert.ok(get(locale, `spes.nextStep.${s}`), `nextStep ${s}`);
   }
+});
+
+test("posting display statuses, tabs and the new nav labels exist in both languages", () => {
+  for (const locale of [en, fil]) {
+    for (const status of ["draft", "open", "closed", "results_released", "archived"]) {
+      assert.ok(get(locale, `spesPostings.status.${status}`), `status ${status}`);
+    }
+    for (const tab of ["open", "closed", "all"]) assert.ok(get(locale, `spesPostings.tab.${tab}`), `tab ${tab}`);
+    for (const key of ["mySpesGroup", "spesGroup", "spesPostings", "mySpesApplications", "spesMonitoring"]) {
+      assert.ok(get(locale, `navbar.${key}`), `navbar ${key}`);
+    }
+    for (const reason of ["deadline", "manual", "inactive", "notYetOpen", "resultsReleased"]) {
+      assert.ok(get(locale, `spes.admin.closedReason.${reason}`), `closedReason ${reason}`);
+    }
+  }
+});
+
+test("every posting error code the server can send is translated", () => {
+  const codes = ["SPES_TITLE_REQUIRED", "SPES_DATE_INVALID", "SPES_PERIOD_INVALID", "SPES_SLOTS_INVALID", "SPES_SLOT_TYPES_INVALID", "SPES_DEADLINE_IN_PAST", "SPES_POSTING_LEGACY", "SPES_STATUS_INVALID", "SPES_HAS_APPLICATIONS", "SPES_DELETE_NOT_ALLOWED"];
+  for (const locale of [en, fil]) for (const code of codes) assert.ok(get(locale, `errors.codes.${code}`), code);
 });
