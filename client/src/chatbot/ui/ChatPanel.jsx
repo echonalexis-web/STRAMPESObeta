@@ -15,7 +15,7 @@ export default function ChatPanel({ id, ctx, session, isMobile, onClose, onNavig
   useEffect(() => {
     if (isMobile || !ref.current) return;
     const input = ref.current.querySelector('input');
-    if (input) input.focus();
+    if (input) input.focus({ preventScroll: true });
   }, [isMobile]);
 
   const onKeyDown = (e) => {
