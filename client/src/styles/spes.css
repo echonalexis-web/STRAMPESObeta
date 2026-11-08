@@ -1156,3 +1156,123 @@
   .spes-admin .spes-drawer__close,
   .spes-admin .spes-drawer__close svg { transition: none; }
 }
+
+/* ==========================================================================
+   SPES restructure: applicant tracker, document checklist, apply flow.
+   Hand-written, --ds-* tokens, mobile-first.
+   ========================================================================== */
+
+/* Lifecycle chips for the new states (old ones above still apply to legacy rows). */
+.spes-chip--documents_review { background: #fff8e1; color: #8a6d00; }
+.spes-chip--needs_resubmission { background: #fdecea; color: #b91c1c; }
+.spes-chip--qualified { background: #ede9fe; color: #6d28d9; }
+.spes-chip--result_recorded { background: #e0f2fe; color: #0369a1; }
+.spes-page .spes-chip--documents_review { background: var(--ds-warning-bg); color: var(--ds-warning); }
+.spes-page .spes-chip--needs_resubmission { background: var(--ds-danger-bg); color: var(--ds-danger); }
+.spes-page .spes-chip--qualified { background: var(--ds-info-bg); color: var(--ds-info); }
+.spes-page .spes-chip--result_recorded { background: var(--ds-info-bg); color: var(--ds-info); }
+
+.spes-btn--small {
+  min-height: var(--ds-tap, 44px);
+  padding: 0 var(--ds-space-4, 16px);
+  font-size: var(--ds-text-sm, 0.875rem);
+}
+
+/* Withdrawn / disqualified: replaces the stepper, shows the reason once. */
+.spes-terminal {
+  display: grid;
+  gap: var(--ds-space-2, 8px);
+  padding: var(--ds-space-4, 16px);
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-ink-50, #f8fafc);
+  border: 1px solid var(--ds-border, #e5e7eb);
+}
+.spes-terminal--disqualified { background: var(--ds-danger-bg, #fef2f2); border-color: var(--ds-danger, #b91c1c); }
+.spes-terminal__title { margin: 0; font-weight: 700; color: var(--ds-text, #111827); }
+.spes-terminal__reason { margin: 0; color: var(--ds-ink-700, #374151); font-size: var(--ds-text-sm, 0.875rem); }
+
+/* Required-documents checklist: one row per slot. */
+.spes-slots__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ds-space-3, 12px); }
+.spes-slot {
+  display: grid;
+  gap: var(--ds-space-3, 12px);
+  padding: var(--ds-space-3, 12px);
+  border: 1px solid var(--ds-border, #e5e7eb);
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-surface, #fff);
+}
+.spes-slot--needs_replacement { border-color: var(--ds-danger, #b91c1c); background: var(--ds-danger-bg, #fef2f2); }
+.spes-slot--verified { border-color: var(--ds-green, #0f766e); }
+.spes-slot__main { display: flex; gap: var(--ds-space-3, 12px); align-items: flex-start; min-width: 0; }
+.spes-slot__text { display: grid; gap: 2px; min-width: 0; }
+.spes-slot__name { font-weight: 600; color: var(--ds-text, #111827); font-size: var(--ds-text-sm, 0.875rem); }
+.spes-slot__state { color: var(--ds-muted, #6b7280); font-size: var(--ds-text-xs, 0.75rem); }
+.spes-slot__reason { color: var(--ds-danger, #b91c1c); font-size: var(--ds-text-xs, 0.75rem); overflow-wrap: anywhere; }
+.spes-slot__error { color: var(--ds-danger, #b91c1c); font-size: var(--ds-text-xs, 0.75rem); }
+.spes-slot__icon { flex: none; margin-top: 2px; color: var(--ds-muted, #6b7280); }
+.spes-slot__icon--ok { color: var(--ds-green, #0f766e); }
+.spes-slot__icon--warn { color: var(--ds-danger, #b91c1c); }
+.spes-slot__icon--wait { color: var(--ds-warning, #8a6d00); }
+.spes-slot__actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-3, 12px); align-items: center; }
+.spes-slot__file { display: none; }
+.spes-slots__other h4 { margin: var(--ds-space-4, 16px) 0 var(--ds-space-2, 8px); font-size: var(--ds-text-sm, 0.875rem); }
+
+@media (min-width: 640px) {
+  .spes-slot { grid-template-columns: 1fr auto; align-items: center; }
+  .spes-slot__actions { justify-content: flex-end; }
+}
+
+/* Apply flow (AppModal panel). */
+.spes-apply { max-width: 560px; }
+.spes-apply__steps {
+  list-style: none;
+  margin: 0 0 var(--ds-space-4, 16px);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2, 8px);
+  font-size: var(--ds-text-xs, 0.75rem);
+  color: var(--ds-muted, #6b7280);
+}
+.spes-apply__step { padding: 4px 10px; border-radius: 999px; background: var(--ds-ink-50, #f1f5f9); }
+.spes-apply__step.is-active { background: var(--ds-green, #0f766e); color: #fff; font-weight: 600; }
+.spes-apply__step.is-done { background: var(--ds-mint, #d1fae5); color: var(--ds-green-deep, #064e3b); }
+.spes-apply__body { display: grid; gap: var(--ds-space-3, 12px); }
+.spes-apply__body label { display: grid; gap: 6px; font-size: var(--ds-text-sm, 0.875rem); font-weight: 600; color: var(--ds-text, #111827); }
+.spes-apply__body input:not([type="file"]):not([type="checkbox"]),
+.spes-apply__body select {
+  min-height: var(--ds-tap, 44px);
+  padding: 0 var(--ds-space-3, 12px);
+  border: 1px solid var(--ds-border, #d1d5db);
+  border-radius: var(--ds-radius-md, 10px);
+  font: inherit;
+  font-weight: 400;
+  background: var(--ds-surface, #fff);
+  box-sizing: border-box;
+  width: 100%;
+}
+.spes-apply__row { display: grid; gap: var(--ds-space-3, 12px); }
+.spes-apply__file { padding: var(--ds-space-3, 12px); border: 1px dashed var(--ds-border, #d1d5db); border-radius: var(--ds-radius-md, 10px); }
+.spes-apply__review { margin: 0; display: grid; grid-template-columns: 1fr; gap: 2px var(--ds-space-4, 16px); font-size: var(--ds-text-sm, 0.875rem); }
+.spes-apply__review dt { color: var(--ds-muted, #6b7280); margin-top: var(--ds-space-2, 8px); }
+.spes-apply__review dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.spes-apply__review-doc { display: contents; }
+.spes-apply__error {
+  margin: var(--ds-space-3, 12px) 0 0;
+  padding: var(--ds-space-3, 12px);
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-danger-bg, #fef2f2);
+  color: var(--ds-danger, #b91c1c);
+  font-size: var(--ds-text-sm, 0.875rem);
+}
+.spes-apply .spes-modal__actions { margin-top: var(--ds-space-4, 16px); display: flex; justify-content: flex-end; gap: var(--ds-space-3, 12px); flex-wrap: wrap; }
+
+@media (min-width: 640px) {
+  .spes-apply__row { grid-template-columns: 1fr 1fr; }
+  .spes-apply__review { grid-template-columns: 11rem 1fr; }
+  .spes-apply__review dt { margin-top: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spes-slot, .spes-apply__step { transition: none; }
+}

@@ -1,0 +1,136 @@
+import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { CheckCircle2, Circle, AlertTriangle, Clock, Download, Upload } from "lucide-react";
+import SecureFileLink from "./SecureFileLink";
+import { checkSpesFile } from "../utils/spesSlots";
+import { translateErrorCode } from "../utils/apiErrors";
+
+// One row per required document slot: its state (missing, pending review,
+// verified, needs replacement with the staff reason) and an Upload / Replace
+// action while the application is still open for document changes.
+//
+// onUpload(slot, file) resolves to null on success or an error code string.
+export default function SpesDocChecklist({ slots, documents, canEdit, onUpload }) {
+  const { t } = useTranslation();
+  const [busySlot, setBusySlot] = useState("");
+  const [rowError, setRowError] = useState({});
+  const inputs = useRef({});
+
+  const docBySlot = new Map();
+  (documents || []).forEach((doc) => {
+    if (doc.slot) docBySlot.set(doc.slot, doc);
+  });
+  const others = (documents || []).filter((doc) => !doc.slot);
+
+  const handlePick = async (slot, file) => {
+    if (!file) return;
+    const local = checkSpesFile(file);
+    if (local) {
+      setRowError((prev) => ({ ...prev, [slot]: local }));
+      return;
+    }
+    setRowError((prev) => ({ ...prev, [slot]: "" }));
+    setBusySlot(slot);
+    try {
+      const code = await onUpload(slot, file);
+      if (code) setRowError((prev) => ({ ...prev, [slot]: code }));
+    } finally {
+      setBusySlot("");
+    }
+  };
+
+  const iconFor = (state) => {
+    if (state === "verified") return <CheckCircle2 size={16} className="spes-slot__icon spes-slot__icon--ok" aria-hidden="true" />;
+    if (state === "needs_replacement") return <AlertTriangle size={16} className="spes-slot__icon spes-slot__icon--warn" aria-hidden="true" />;
+    if (state === "pending") return <Clock size={16} className="spes-slot__icon spes-slot__icon--wait" aria-hidden="true" />;
+    return <Circle size={16} className="spes-slot__icon" aria-hidden="true" />;
+  };
+
+  return (
+    <div className="spes-slots">
+      <ul className="spes-slots__list">
+        {slots.map((slot) => {
+          const doc = docBySlot.get(slot);
+          const state = doc ? doc.verification?.state || "pending" : "missing";
+          const needsAction = state === "missing" || state === "needs_replacement";
+          const showUpload = canEdit && (needsAction || state === "pending" || state === "verified");
+          const errorCode = rowError[slot];
+          return (
+            <li key={slot} className={`spes-slot spes-slot--${state}`}>
+              <div className="spes-slot__main">
+                {iconFor(state)}
+                <div className="spes-slot__text">
+                  <span className="spes-slot__name">{t(`spes.docs.slot.${slot}`)}</span>
+                  <span className="spes-slot__state">{t(`spes.docs.state.${state}`)}</span>
+                  {state === "needs_replacement" && doc?.verification?.reason ? (
+                    <span className="spes-slot__reason">
+                      {t("spes.docs.reasonLabel")} {doc.verification.reason}
+                    </span>
+                  ) : null}
+                  {errorCode ? (
+                    <span className="spes-slot__error" role="alert">
+                      {translateErrorCode(errorCode, t("spes.docs.uploadFailed"))}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              <div className="spes-slot__actions">
+                {doc ? (
+                  <SecureFileLink className="spes-doc-list__link" value={doc.fileUrl}>
+                    <Download size={12} aria-hidden="true" /> {t("spes.docs.view")}
+                  </SecureFileLink>
+                ) : null}
+                {showUpload ? (
+                  <>
+                    <input
+                      ref={(el) => {
+                        inputs.current[slot] = el;
+                      }}
+                      type="file"
+                      className="spes-slot__file"
+                      accept=".pdf,image/jpeg,image/png"
+                      aria-label={t("spes.docs.chooseFor", { name: t(`spes.docs.slot.${slot}`) })}
+                      onChange={(e) => {
+                        handlePick(slot, e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                      tabIndex={-1}
+                    />
+                    <button
+                      type="button"
+                      className={`spes-btn spes-btn--small${needsAction ? "" : " spes-btn--ghost"}`}
+                      disabled={busySlot === slot}
+                      onClick={() => inputs.current[slot]?.click()}
+                    >
+                      <Upload size={13} aria-hidden="true" />{" "}
+                      {busySlot === slot
+                        ? t("spes.docs.uploading")
+                        : doc
+                          ? t("spes.docs.replace")
+                          : t("spes.docs.upload")}
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {others.length > 0 ? (
+        <div className="spes-slots__other">
+          <h4>{t("spes.docs.otherTitle")}</h4>
+          <ul className="spes-doc-list">
+            {others.map((doc, i) => (
+              <li key={doc._id || i}>
+                <span className="spes-doc-list__label">{doc.label || t("spes.docs.otherItem", { n: i + 1 })}</span>
+                <SecureFileLink className="spes-doc-list__link" value={doc.fileUrl}>
+                  <Download size={12} aria-hidden="true" /> {t("spes.docs.view")}
+                </SecureFileLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}

@@ -1,88 +1,44 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, Clock, FileText, Sparkles, Download } from "lucide-react";
+import { CheckCircle2, Clock, FileText, Sparkles } from "lucide-react";
 import { spesAPI } from "../services/api";
-import SecureFileLink from "../components/SecureFileLink";
 import StateBlock from "../components/StateBlock";
+import SpesDocChecklist from "../components/SpesDocChecklist";
+import { useConfirm, useToast } from "../components/feedback/context";
+import { translateErrorCode } from "../utils/apiErrors";
+import {
+  SPES_STAGE_KEYS,
+  canEditDocs,
+  canWithdrawStatus,
+  isOsyApplication,
+  normalizeSpesStatus,
+  requiredSlotsFor,
+  spesStageIndex,
+} from "../utils/spesSlots";
 import "../styles/spes.css";
 
-const STATUS_LABEL = {
-  submitted: "Submitted — awaiting review",
-  under_review: "Under review",
-  for_exam: "Scheduled for exam",
-  for_interview: "Scheduled for interview",
-  evaluated: "Evaluation complete — results pending",
-  results_released: "Results released",
-  withdrawn: "Withdrawn",
-  disqualified: "Disqualified",
-};
+const TERMINAL = ["withdrawn", "disqualified"];
 
-const OUTCOME_LABEL = {
-  accepted: "Accepted",
-  waitlisted: "Waitlisted",
-  not_accepted: "Not accepted",
-  pending: "Pending",
-};
+// A status the applicant should treat as "your move" gets the attention tone.
+const needsAttention = (status) => status === "needs_resubmission";
 
-// The 5-stage lifecycle actually tracked by the platform. for_exam and
-// for_interview collapse into one visual stage since both are the same
-// offline step from the applicant's point of view.
-const SPES_STAGES = [
-  { key: "submitted", label: "Submitted" },
-  { key: "under_review", label: "Document Review" },
-  { key: "exam_interview", label: "Exam & Interview" },
-  { key: "evaluated", label: "Evaluated" },
-  { key: "results_released", label: "Results Released" },
-];
-
-const STAGE_INDEX_BY_STATUS = {
-  submitted: 0,
-  under_review: 1,
-  for_exam: 2,
-  for_interview: 2,
-  evaluated: 3,
-  results_released: 4,
-};
-
-const NEXT_STEP_COPY = {
-  submitted: "Your application was received. The PESO office will review your documents next.",
-  under_review:
-    "Your documents are being reviewed. You'll be notified here once you're scheduled for the exam and interview.",
-  for_exam: "You're scheduled for the qualifying exam — watch this page and your notifications for the schedule.",
-  for_interview: "You're scheduled for the interview — watch this page and your notifications for the schedule.",
-  evaluated: "Your exam and interview are done. Results will be posted here once the program releases them.",
-  results_released: "Results are released — see your outcome below.",
-  withdrawn: "This application was withdrawn.",
-  disqualified: "This application was marked disqualified. Contact your PESO office for details.",
-};
-
-const formatDate = (value) => {
-  if (!value) return "";
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-};
-
-function SpesStepper({ status }) {
-  if (status === "withdrawn" || status === "disqualified") {
-    return (
-      <div className={`spes-stepper-terminal spes-stepper-terminal--${status}`}>
-        {STATUS_LABEL[status] || status}
-      </div>
-    );
-  }
-
-  const activeIndex = STAGE_INDEX_BY_STATUS[status] ?? 0;
+function SpesStepper({ status, t }) {
+  const activeIndex = spesStageIndex(status);
   return (
-    <ol className="spes-stepper">
-      {SPES_STAGES.map((stage, i) => {
+    <ol className="spes-stepper" aria-label={t("spes.tracker.label")}>
+      {SPES_STAGE_KEYS.map((key, i) => {
         const state = i < activeIndex ? "done" : i === activeIndex ? "active" : "upcoming";
         return (
-          <li key={stage.key} className={`spes-stepper__item spes-stepper__item--${state}`}>
+          <li
+            key={key}
+            className={`spes-stepper__item spes-stepper__item--${state}`}
+            aria-current={state === "active" ? "step" : undefined}
+          >
             <span className="spes-stepper__dot">
-              {state === "done" ? <CheckCircle2 size={16} /> : state === "active" ? <Clock size={16} /> : i + 1}
+              {state === "done" ? <CheckCircle2 size={16} aria-hidden="true" /> : state === "active" ? <Clock size={16} aria-hidden="true" /> : i + 1}
             </span>
-            <span className="spes-stepper__label">{stage.label}</span>
+            <span className="spes-stepper__label">{t(`spes.stage.${key}`)}</span>
           </li>
         );
       })}
@@ -91,10 +47,24 @@ function SpesStepper({ status }) {
 }
 
 export default function MySpesApplications() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const formatDate = (value) => {
+    if (!value) return "";
+    const d = new Date(value);
+    return Number.isNaN(d.getTime())
+      ? ""
+      : d.toLocaleDateString(i18n.language?.startsWith("fil") ? "fil-PH" : "en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+  };
 
   useEffect(() => {
     let active = true;
@@ -103,7 +73,7 @@ export default function MySpesApplications() {
         const { data } = await spesAPI.getMine();
         if (active) setItems(Array.isArray(data?.items) ? data.items : []);
       } catch (err) {
-        if (active) setError(err?.response?.data?.message || "Failed to load your SPES applications.");
+        if (active) setError(translateErrorCode(err?.response?.data?.code, t("applications.spesErrorBody")));
       } finally {
         if (active) setLoading(false);
       }
@@ -111,7 +81,43 @@ export default function MySpesApplications() {
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Responses for a single application do not populate the announcement, so keep ours.
+  const mergeApplication = (current, next) => ({ ...current, ...next, announcement: current.announcement });
+  const replaceItem = (id, next) =>
+    setItems((prev) => prev.map((it) => (it._id === id ? mergeApplication(it, next) : it)));
+
+  const handleUpload = (app) => async (slot, file) => {
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const { data } = await spesAPI.replaceDocument(app.announcement?._id, slot, fd);
+      replaceItem(app._id, data.application);
+      toast.success(t("spes.docs.uploaded"));
+      return null;
+    } catch (err) {
+      return err?.response?.data?.code || "SPES_UPLOAD_FAILED";
+    }
+  };
+
+  const handleWithdraw = async (app) => {
+    const ok = await confirm({
+      title: t("spes.withdraw.title"),
+      message: t("spes.withdraw.body"),
+      confirmLabel: t("spes.withdraw.confirm"),
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
+      const { data } = await spesAPI.withdraw(app.announcement?._id);
+      replaceItem(app._id, data.application);
+      toast.success(t("spes.withdraw.done"));
+    } catch (err) {
+      toast.error(translateErrorCode(err?.response?.data?.code, t("spes.withdraw.failed")));
+    }
+  };
 
   const mostRecent = items[0] || null;
 
@@ -119,20 +125,20 @@ export default function MySpesApplications() {
     <main className="spes-page">
       <div className="spes-page__banner">
         <div>
-          <h1>My SPES Applications</h1>
-          <p className="spes-note">Track the status of every SPES program you've applied to.</p>
+          <h1>{t("spes.my.title")}</h1>
+          <p className="spes-note">{t("spes.my.subtitle")}</p>
         </div>
         <div className="spes-summary-strip">
           <div className="spes-summary-stat">
             <strong>{items.length}</strong>
-            <span>Application{items.length === 1 ? "" : "s"}</span>
+            <span>{t("spes.my.count", { count: items.length })}</span>
           </div>
           {mostRecent ? (
             <div className="spes-summary-stat spes-summary-stat--program">
-              <span className="spes-summary-stat__label">Most recent</span>
-              <strong>{mostRecent.announcement?.title || "SPES program"}</strong>
-              <span className={`spes-chip spes-chip--${mostRecent.status}`}>
-                {STATUS_LABEL[mostRecent.status] || mostRecent.status}
+              <span className="spes-summary-stat__label">{t("spes.my.mostRecent")}</span>
+              <strong>{mostRecent.announcement?.title || t("spes.my.programFallback")}</strong>
+              <span className={`spes-chip spes-chip--${normalizeSpesStatus(mostRecent.status)}`}>
+                {t(`spes.status.${normalizeSpesStatus(mostRecent.status)}`)}
               </span>
             </div>
           ) : null}
@@ -157,62 +163,87 @@ export default function MySpesApplications() {
       ) : null}
 
       {items.map((app) => {
-        const released = app.status === "results_released" && app.result;
-        const title = app.announcement?.title || "SPES program";
-        const documents = Array.isArray(app.documents) ? app.documents : [];
+        const status = normalizeSpesStatus(app.status);
+        const released = status === "results_released" && app.result;
+        const title = app.announcement?.title || t("spes.my.programFallback");
+        const slots = requiredSlotsFor(app.announcement?.spes, isOsyApplication(app) ? "osy" : "student");
+        const terminal = TERMINAL.includes(status);
+        const disqualified = status === "disqualified";
+        const nextKey = needsAttention(status) ? "needs_resubmission" : status;
+
         return (
           <article key={app._id} className="spes-card">
             <div className="spes-card__head">
               <div>
                 <h2>{title}</h2>
-                <p className="spes-card__meta">Applied {formatDate(app.createdAt)}</p>
+                <p className="spes-card__meta">{t("spes.my.applied", { date: formatDate(app.createdAt) })}</p>
               </div>
-              <span className={`spes-chip spes-chip--${app.status}`}>{STATUS_LABEL[app.status] || app.status}</span>
+              <span className={`spes-chip spes-chip--${status}`}>{t(`spes.status.${status}`)}</span>
             </div>
 
-            <SpesStepper status={app.status} />
+            {terminal ? (
+              <div className={`spes-terminal spes-terminal--${status}`} role="status">
+                {disqualified ? (
+                  <>
+                    <p className="spes-terminal__title">{t("spes.disqualified.title")}</p>
+                    <p className="spes-terminal__reason">
+                      <strong>{t("spes.disqualified.reasonLabel")}</strong>{" "}
+                      {app.disqualification?.reason || t("spes.disqualified.noReason")}
+                    </p>
+                    <p className="spes-note">{t("spes.disqualified.help")}</p>
+                  </>
+                ) : (
+                  <p className="spes-terminal__title">{t("spes.withdrawn.body")}</p>
+                )}
+              </div>
+            ) : (
+              <SpesStepper status={status} t={t} />
+            )}
 
             <div className="spes-card__grid">
               <div className="spes-card__panel">
                 <h3>
-                  <FileText size={15} aria-hidden="true" /> Documents submitted
+                  <FileText size={15} aria-hidden="true" /> {t("spes.docs.title")}
                 </h3>
-                {documents.length === 0 ? (
-                  <p className="spes-note">No documents on file.</p>
-                ) : (
-                  <ul className="spes-doc-list">
-                    {documents.map((doc, i) => (
-                      <li key={i}>
-                        <CheckCircle2 size={14} className="spes-doc-list__icon" aria-hidden="true" />
-                        <span className="spes-doc-list__label">{doc.label || `Document ${i + 1}`}</span>
-                        <SecureFileLink className="spes-doc-list__link" value={doc.fileUrl}>
-                          <Download size={12} /> View
-                        </SecureFileLink>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <SpesDocChecklist
+                  slots={slots}
+                  documents={app.documents}
+                  canEdit={canEditDocs(status)}
+                  onUpload={handleUpload(app)}
+                />
               </div>
 
               <div className="spes-card__panel spes-card__panel--highlight">
                 <h3>
-                  <Sparkles size={15} aria-hidden="true" /> Next step
+                  <Sparkles size={15} aria-hidden="true" /> {t("spes.nextStep.title")}
                 </h3>
-                <p>{NEXT_STEP_COPY[app.status] || "Check back here for updates."}</p>
+                <p>{t(`spes.nextStep.${nextKey}`, { defaultValue: t("spes.nextStep.default") })}</p>
+                {needsAttention(status) && app.needsResubmission?.reason ? (
+                  <p className="spes-slot__reason">
+                    {t("spes.docs.reasonLabel")} {app.needsResubmission.reason}
+                  </p>
+                ) : null}
 
                 {released ? (
                   <div className={`spes-result spes-result--${app.result.outcome}`}>
-                    <strong>{OUTCOME_LABEL[app.result.outcome] || app.result.outcome}</strong>
+                    <strong>{t(`spes.outcome.${app.result.outcome}`)}</strong>
+                    {app.result.rank ? <p>{t("spes.outcome.rank", { rank: app.result.rank })}</p> : null}
                     {app.result.remarks ? <p>{app.result.remarks}</p> : null}
                     {app.announcement?.spes?.resultsSummary ? <p>{app.announcement.spes.resultsSummary}</p> : null}
                     {app.announcement?.spes?.resultsUrl ? (
                       <p>
                         <a href={app.announcement.spes.resultsUrl} target="_blank" rel="noreferrer">
-                          Official results (Facebook)
+                          {t("spes.outcome.officialResults")}
                         </a>
                       </p>
                     ) : null}
                   </div>
+                ) : null}
+
+                {canWithdrawStatus(status) ? (
+                  <button type="button" className="spes-btn spes-btn--ghost spes-btn--small" onClick={() => handleWithdraw(app)}>
+                    {t("spes.withdraw.button")}
+                  </button>
                 ) : null}
               </div>
             </div>
