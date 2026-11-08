@@ -1,11 +1,12 @@
 import { cloneElement, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { FaImage } from "react-icons/fa";
 import { resolveAssetUrl, spesAPI } from "../../services/api";
 import StateBlock from "../../components/StateBlock";
 import { useToast } from "../../components/feedback/context";
 import { translateErrorCode } from "../../utils/apiErrors";
+import { SPES_COVER_LIMITS, bytesToMb, uploadErrorCode } from "../../utils/spesUploadLimits";
+import FileUpload from "../../components/FileUpload";
 import AdminHeader from "./AdminHeader";
 import "../../styles/admin.css";
 import "../../styles/spes.css";
@@ -16,10 +17,6 @@ import "../../styles/spes.css";
 const FIXED_DOCS = ["form2", "proof_of_age", "proof_of_financial_status"];
 const ACADEMIC_PAIR = ["proof_of_academic_standing", "osy_certification"];
 const STANDARD = [...FIXED_DOCS, ...ACADEMIC_PAIR];
-
-// Cover image: optional, public, images only. Mirrors the server limits (3 MB).
-const COVER_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const COVER_MAX_BYTES = 3 * 1024 * 1024;
 
 const toLocalInput = (value) => {
   if (!value) return "";
@@ -164,10 +161,11 @@ export default function SpesPostingForm() {
   const [errorCode, setErrorCode] = useState("");
   const [existingCover, setExistingCover] = useState("");
   const [coverFile, setCoverFile] = useState(null);
-  const [coverPreview, setCoverPreview] = useState("");
   const [removeCover, setRemoveCover] = useState(false);
   const [coverError, setCoverError] = useState("");
-  const coverInputRef = useRef(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [coverProgress, setCoverProgress] = useState(0);
+  const coverAbortRef = useRef(null);
 
   useEffect(() => {
     if (!isEdit) return undefined;
@@ -191,27 +189,12 @@ export default function SpesPostingForm() {
     };
   }, [id, isEdit, t]);
 
-  // A local preview of the chosen file, released when it changes or the form closes.
-  useEffect(() => {
-    if (!coverFile) {
-      setCoverPreview("");
-      return undefined;
-    }
-    const url = URL.createObjectURL(coverFile);
-    setCoverPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [coverFile]);
+  // Leaving the form cancels a cover upload that is still running.
+  useEffect(() => () => coverAbortRef.current?.abort(), []);
 
+  // FileUpload has already checked type and size. Removing the cover means "no cover on
+  // save": a chosen file is dropped and a stored one is deleted when the form is saved.
   const pickCover = (file) => {
-    if (!file) return;
-    if (!COVER_TYPES.includes(file.type)) {
-      setCoverError("SPES_COVER_TYPE");
-      return;
-    }
-    if (file.size > COVER_MAX_BYTES) {
-      setCoverError("SPES_COVER_TOO_LARGE");
-      return;
-    }
     setCoverError("");
     setRemoveCover(false);
     setCoverFile(file);
@@ -220,7 +203,7 @@ export default function SpesPostingForm() {
   const clearCover = () => {
     setCoverFile(null);
     setCoverError("");
-    if (coverInputRef.current) coverInputRef.current.value = "";
+    if (existingCover) setRemoveCover(true);
   };
 
   const set = (name, value) => {
@@ -241,7 +224,9 @@ export default function SpesPostingForm() {
     }
     setSaving(intent);
     setErrorCode("");
+    setCoverError("");
     let postingId = id;
+    let stage = "";
     try {
       const payload = toPayload(form);
       const publishNow = intent === "publish";
@@ -257,7 +242,18 @@ export default function SpesPostingForm() {
       }
 
       if (coverFile) {
-        await spesAPI.adminUploadCover(postingId, coverFile);
+        stage = "cover";
+        const controller = new AbortController();
+        coverAbortRef.current = controller;
+        setCoverProgress(0);
+        setCoverUploading(true);
+        await spesAPI.adminUploadCover(postingId, coverFile, {
+          signal: controller.signal,
+          onUploadProgress: (event) => {
+            if (event.total) setCoverProgress(Math.round((event.loaded / event.total) * 100));
+          },
+        });
+        stage = "";
       } else if (isEdit && removeCover && existingCover) {
         await spesAPI.adminRemoveCover(postingId);
       }
@@ -268,12 +264,19 @@ export default function SpesPostingForm() {
       toast.success(t(publishNow ? "spesPostings.admin.published" : isEdit ? "spesPostings.form.saved" : "spesPostings.form.created"));
       navigate("/admin/spes/postings");
     } catch (err) {
-      const code = err?.response?.data?.code || "GENERIC";
-      setErrorCode(code);
+      const code = stage === "cover" ? uploadErrorCode(err) : err?.response?.data?.code || "GENERIC";
+      if (stage === "cover") {
+        // The posting is saved as a draft; only the image failed. Show it on the image.
+        setCoverError(code);
+      } else {
+        setErrorCode(code);
+      }
       toast.error(translateErrorCode(code, err?.response?.data?.message || t("spes.admin.saveFailed")));
       // The draft exists but its cover or publishing step failed: carry on editing it.
       if (!isEdit && postingId && postingId !== id) navigate(`/admin/spes/postings/${postingId}/edit`, { replace: true });
     } finally {
+      coverAbortRef.current = null;
+      setCoverUploading(false);
       setSaving("");
     }
   };
@@ -315,7 +318,7 @@ export default function SpesPostingForm() {
   const errorField = FIELD_OF_CODE[errorCode] || "";
   const fieldError = (name) => (errorField === name ? message : "");
   const barError = errorCode && !errorField ? message : "";
-  const showCover = coverPreview || (existingCover && !removeCover);
+  const storedCover = existingCover && !removeCover ? { url: resolveAssetUrl(existingCover), name: t("spesPostings.form.coverCurrent") } : null;
 
   return (
     <div className="admin-page-container spes-admin">
@@ -342,55 +345,22 @@ export default function SpesPostingForm() {
         </Section>
 
         <Section title={t("spesPostings.form.cover")}>
-          <div className="spes-upload">
-            <input
-              id="spes-cover"
-              ref={coverInputRef}
-              className="spes-upload__input"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              aria-describedby={coverError ? "spes-cover-hint spes-cover-error" : "spes-cover-hint"}
-              onChange={(e) => pickCover(e.target.files?.[0])}
-            />
-            <label htmlFor="spes-cover" className="spes-upload__zone">
-              {showCover ? (
-                <img
-                  className="spes-upload__thumb"
-                  src={coverPreview || resolveAssetUrl(existingCover)}
-                  alt={t("spesPostings.form.coverPreviewAlt")}
-                />
-              ) : (
-                <FaImage className="spes-upload__icon" aria-hidden="true" />
-              )}
-              <span className="spes-upload__copy">
-                <span className="spes-upload__btn">{t("spesPostings.form.coverChoose")}</span>
-                <span id="spes-cover-hint" className="spes-field__hint">{t("spesPostings.form.coverHint")}</span>
-              </span>
-            </label>
-            {coverError ? (
-              <p id="spes-cover-error" className="spes-field__error" role="alert">
-                {translateErrorCode(coverError, t("spes.admin.saveFailed"))}
-              </p>
-            ) : null}
-            {coverFile || (isEdit && existingCover) ? (
-              <div className="spes-upload__actions">
-                {coverFile ? (
-                  <button type="button" className="spes-btn spes-btn--small spes-btn--ghost" onClick={clearCover}>
-                    {t("spesPostings.form.coverClear")}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="spes-btn spes-btn--small spes-btn--ghost"
-                    aria-pressed={removeCover}
-                    onClick={() => setRemoveCover((v) => !v)}
-                  >
-                    {removeCover ? t("spesPostings.form.coverKeep") : t("spesPostings.form.coverRemove")}
-                  </button>
-                )}
-              </div>
-            ) : null}
-          </div>
+          <FileUpload
+            label={t("spesPostings.form.coverLabel")}
+            showBadge={false}
+            limits={SPES_COVER_LIMITS}
+            hint={t("spesPostings.form.coverHint", { coverMax: bytesToMb(SPES_COVER_LIMITS.maxBytes) })}
+            file={coverFile}
+            existing={coverFile ? null : storedCover}
+            uploading={coverUploading}
+            progress={coverProgress}
+            error={coverError}
+            disabled={Boolean(saving) && !coverUploading}
+            fileStateLabel={coverFile ? t("upload.ready") : ""}
+            onSelect={pickCover}
+            onRemove={clearCover}
+            onCancel={() => coverAbortRef.current?.abort()}
+          />
         </Section>
 
         <Section title={t("spesPostings.form.period")}>
