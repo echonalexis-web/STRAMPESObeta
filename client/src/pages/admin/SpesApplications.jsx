@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { FaTimes } from "react-icons/fa";
 import { Eye, FileText, Download, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
 import { spesAPI } from "../../services/api";
 import SecureFileLink from "../../components/SecureFileLink";
-import AppModal from "../../components/AppModal";
 import { useTranslation } from "react-i18next";
 import { useToast } from "../../components/feedback/context";
 import { useModalA11y } from "../../hooks/useModalA11y";
@@ -201,7 +201,7 @@ function SpesReviewDrawer({ app, released, onClose, onSaved }) {
             <h2>{applicantLabel(app, t).text}</h2>
             <p className="spes-drawer__subtitle">
               {app.applicantDeleted ? null : <>{app.applicant?.email || t("spes.admin.noEmail")} · </>}
-              {app.announcement?.title || t("spes.my.programFallback")}
+              {app.posting?.title || t("spes.my.programFallback")}
             </p>
           </div>
           <button type="button" className="spes-drawer__close" onClick={onClose} aria-label={t("common.close", { defaultValue: "Close" })}>
@@ -405,84 +405,18 @@ function SpesReviewDrawer({ app, released, onClose, onSaved }) {
   );
 }
 
-// Release confirmation: shows exactly what will happen before it does.
-function ReleaseDialog({ program, onClose, onReleased }) {
-  const { t } = useTranslation();
-  const toast = useToast();
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [releasing, setReleasing] = useState(false);
+const COUNT_STATUSES = ["submitted", "documents_review", "needs_resubmission", "qualified", "evaluated", "result_recorded", "results_released"];
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const { data } = await spesAPI.adminReleaseSummary(program._id);
-        if (active) setSummary(data);
-      } catch (err) {
-        toast.error(translateErrorCode(err?.response?.data?.code, t("spes.admin.saveFailed")));
-        onClose();
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [program._id]);
-
-  const release = async () => {
-    setReleasing(true);
-    try {
-      await spesAPI.adminReleaseResults(program._id);
-      toast.success(t("spes.admin.released"));
-      onReleased(program._id);
-      onClose();
-    } catch (err) {
-      toast.error(translateErrorCode(err?.response?.data?.code, err?.response?.data?.message || t("spes.admin.saveFailed")));
-    } finally {
-      setReleasing(false);
-    }
-  };
-
-  return (
-    <AppModal isOpen onClose={onClose} title={t("spes.admin.releaseTitle", { title: program.title })} closeLabel={t("common.close", { defaultValue: "Close" })}>
-      {loading || !summary ? (
-        <p className="spes-note">{t("admin.spes.loading")}</p>
-      ) : (
-        <div className="spes-release">
-          <p className="spes-note">{t("spes.admin.releaseIntro", { count: summary.toNotify })}</p>
-          <ul className="spes-release__list">
-            <li>{t("spes.outcome.accepted")}: <strong>{summary.byOutcome.accepted}</strong></li>
-            <li>{t("spes.outcome.waitlisted")}: <strong>{summary.byOutcome.waitlisted}</strong></li>
-            <li>{t("spes.outcome.not_accepted")}: <strong>{summary.byOutcome.not_accepted}</strong></li>
-            <li>{t("spes.admin.excludedCount")}: <strong>{summary.excluded}</strong></li>
-          </ul>
-          {summary.undecided > 0 ? (
-            <p className="spes-drawer__error" role="alert">{t("spes.admin.undecidedBlock", { count: summary.undecided })}</p>
-          ) : (
-            <p className="spes-drawer__warning">{t("spes.admin.releaseWarning")}</p>
-          )}
-          <div className="spes-modal__actions">
-            <button type="button" className="spes-btn spes-btn--ghost" onClick={onClose} disabled={releasing}>
-              {t("common.cancel", { defaultValue: "Cancel" })}
-            </button>
-            <button type="button" className="spes-btn" disabled={!summary.canRelease || releasing} onClick={release}>
-              {releasing ? t("spes.admin.releasing") : t("spes.admin.releaseConfirm")}
-            </button>
-          </div>
-        </div>
-      )}
-    </AppModal>
-  );
-}
-
+// SPES Monitoring: the application queue for one posting (or all), with per-status
+// counts, filters, and the review drawer. Postings themselves (create, close, release
+// results) are managed under SPES Postings.
 export default function SpesApplications() {
   const { t, i18n } = useTranslation();
   const toast = useToast();
-  const [programs, setPrograms] = useState([]);
-  const [announcementId, setAnnouncementId] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const postingId = searchParams.get("posting") || "";
+  const [postings, setPostings] = useState([]);
+  const [postingsLoaded, setPostingsLoaded] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [tierFilter, setTierFilter] = useState("");
@@ -492,7 +426,6 @@ export default function SpesApplications() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [reviewing, setReviewing] = useState(null);
-  const [releaseFor, setReleaseFor] = useState(null);
 
   const formatDate = (value) => {
     if (!value) return "—";
@@ -502,18 +435,22 @@ export default function SpesApplications() {
       : d.toLocaleDateString(i18n.language?.startsWith("fil") ? "fil-PH" : "en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
-  const loadPrograms = useCallback(async () => {
+  const setPostingId = (id) => setSearchParams(id ? { posting: id } : {}, { replace: true });
+
+  const loadPostings = useCallback(async () => {
     try {
-      const { data } = await spesAPI.adminPrograms();
-      setPrograms(Array.isArray(data?.items) ? data.items : []);
+      const { data } = await spesAPI.adminPostings();
+      setPostings(Array.isArray(data?.items) ? data.items : []);
     } catch {
-      setPrograms([]);
+      setPostings([]);
+    } finally {
+      setPostingsLoaded(true);
     }
   }, []);
 
   useEffect(() => {
-    loadPrograms();
-  }, [loadPrograms]);
+    loadPostings();
+  }, [loadPostings]);
 
   // The school filter waits for a pause in typing before querying.
   useEffect(() => {
@@ -526,7 +463,7 @@ export default function SpesApplications() {
     setLoadError(false);
     try {
       const { data } = await spesAPI.adminList({
-        announcement: announcementId || undefined,
+        posting: postingId || undefined,
         status: statusFilter || undefined,
         applicantType: typeFilter || undefined,
         ageTier: tierFilter || undefined,
@@ -542,106 +479,58 @@ export default function SpesApplications() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [announcementId, statusFilter, typeFilter, tierFilter, schoolFilter]);
+  }, [postingId, statusFilter, typeFilter, tierFilter, schoolFilter]);
 
   useEffect(() => {
     loadApplications();
   }, [loadApplications]);
 
-  const selectedProgram = useMemo(() => programs.find((p) => p._id === announcementId) || null, [programs, announcementId]);
+  const selected = useMemo(() => postings.find((p) => p._id === postingId) || null, [postings, postingId]);
+
+  // Per-status counts for the selected posting, or summed across all of them.
+  const counts = useMemo(() => {
+    const source = selected ? [selected] : postings;
+    const by = {};
+    for (const p of source) {
+      for (const [status, n] of Object.entries(p.counts?.byStatus || {})) by[status] = (by[status] || 0) + n;
+    }
+    return by;
+  }, [postings, selected]);
+
   const reviewingReleased = reviewing
-    ? Boolean(reviewing.resultReleasedAt) || normalizeSpesStatus(reviewing.status) === "results_released" ||
-      programs.find((p) => p._id === (reviewing.announcement?._id || reviewing.announcement))?.resultsStatus === "published"
+    ? Boolean(reviewing.resultReleasedAt) ||
+      normalizeSpesStatus(reviewing.status) === "results_released" ||
+      reviewing.posting?.results?.status === "released"
     : false;
 
-  const toggleClosed = async (program) => {
-    try {
-      await spesAPI.adminSetProgramClosed(program._id, program.open);
-      toast.success(t(program.open ? "spes.admin.closedToast" : "spes.admin.reopenedToast"));
-      loadPrograms();
-    } catch (err) {
-      toast.error(translateErrorCode(err?.response?.data?.code, t("spes.admin.saveFailed")));
-    }
-  };
-
-  // Every PATCH returns the populated application, so merge it over the row
-  // and the open drawer.
+  // Every PATCH returns the populated application, so merge it over the row and the
+  // open drawer.
   const patchItem = (updated) => {
     if (!updated) return;
     setItems((prev) => prev.map((a) => (a._id === updated._id ? { ...a, ...updated } : a)));
     setReviewing((prev) => (prev && prev._id === updated._id ? { ...prev, ...updated } : prev));
-    loadPrograms();
-  };
-
-  const statusCounts = (program) => {
-    const by = program.counts?.byStatus || {};
-    return ["submitted", "documents_review", "needs_resubmission", "qualified", "evaluated", "result_recorded", "results_released"]
-      .filter((s) => by[s])
-      .map((s) => ({ status: s, n: by[s] }));
+    loadPostings();
   };
 
   return (
     <div className="admin-page-container spes-admin">
-      <AdminHeader title={t("spes.admin.pageTitle")} description={t("spes.admin.pageDescription")} />
+      <AdminHeader title={t("spes.monitoring.title")} description={t("spes.monitoring.description")} />
 
-      <section className="spes-programs" aria-labelledby="spes-programs-title">
-        <h2 id="spes-programs-title" className="spes-admin__title spes-programs__title">{t("spes.admin.programsTitle")}</h2>
-        {programs.length === 0 ? (
-          <p className="spes-note spes-programs__empty">{t("spes.admin.noPrograms")}</p>
-        ) : (
-          <div className="spes-programs__grid">
-            {programs.map((program) => {
-              const released = program.resultsStatus === "published";
-              const selected = announcementId === program._id;
-              return (
-                <article key={program._id} className={`spes-program-card${selected ? " is-selected" : ""}`}>
-                  <div className="spes-program-card__head">
-                    <h3>{program.title}</h3>
-                    <span className={`spes-chip ${released ? "spes-chip--results_released" : program.open ? "" : "spes-chip--closed"}`}>
-                      {released ? t("spes.admin.resultsPublished") : program.open ? t("spes.admin.open") : t("spes.admin.closed")}
-                    </span>
-                  </div>
-                  <p className="spes-card__meta">
-                    {program.applicationDeadline ? t("spes.panel.deadline", { date: formatDate(program.applicationDeadline) }) : t("spes.admin.noDeadline")}
-                    {" · "}
-                    {t("spes.admin.applicantCount", { count: program.counts?.total || 0 })}
-                  </p>
-                  {!released && !program.open && program.closedReason ? (
-                    <p className="spes-program-card__reason">{t(`spes.admin.closedReason.${program.closedReason}`)}</p>
-                  ) : null}
-                  <div className="spes-program-card__counts">
-                    {statusCounts(program).map(({ status, n }) => (
-                      <span key={status} className={`spes-chip spes-chip--${status}`}>{t(`spes.status.${status}`)} · {n}</span>
-                    ))}
-                  </div>
-                  <div className="spes-program-card__actions">
-                    <button type="button" className="spes-btn spes-btn--small spes-btn--ghost" onClick={() => setAnnouncementId(selected ? "" : program._id)} aria-pressed={selected}>
-                      {selected ? t("spes.admin.showAll") : t("spes.admin.filterThis")}
-                    </button>
-                    {!released ? (
-                      <>
-                        <button type="button" className="spes-btn spes-btn--small spes-btn--ghost" onClick={() => toggleClosed(program)}>
-                          {program.open ? t("spes.admin.closeApplications") : t("spes.admin.reopenApplications")}
-                        </button>
-                        <button type="button" className="spes-btn spes-btn--small spes-program-card__release" onClick={() => setReleaseFor(program)} disabled={!program.counts?.total}>
-                          {t("spes.admin.release")}
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      {postingsLoaded && postings.length === 0 ? (
+        <StateBlock
+          kind="empty"
+          title={t("spes.monitoring.noPostingsTitle")}
+          description={t("spes.monitoring.noPostingsBody")}
+          action={<Link to="/admin/spes/postings/new" className="spes-btn spes-btn--small">{t("spesPostings.admin.newPosting")}</Link>}
+        />
+      ) : null}
 
       <div className="spes-admin-controls ds-toolbar">
         <label>
-          {t("spes.admin.filterProgram")}
-          <select value={announcementId} onChange={(e) => setAnnouncementId(e.target.value)}>
-            <option value="">{t("spes.admin.allPrograms")}</option>
-            {programs.map((p) => (
+          {t("spes.monitoring.filterPosting")}
+          <select value={postingId} onChange={(e) => setPostingId(e.target.value)}>
+            <option value="">{t("spes.monitoring.allPostings")}</option>
+            {postings.map((p) => (
               <option key={p._id} value={p._id}>{p.title}</option>
             ))}
           </select>
@@ -678,8 +567,29 @@ export default function SpesApplications() {
         </label>
       </div>
 
-      {selectedProgram && selectedProgram.resultsStatus !== "published" ? (
-        <p className="spes-release-bar">{t("spes.admin.releaseBar")}</p>
+      {Object.keys(counts).length > 0 ? (
+        <div className="spes-monitor-counts" role="group" aria-label={t("spes.monitoring.countsLabel")}>
+          {COUNT_STATUSES.filter((s) => counts[s]).map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={`spes-chip spes-chip--${s} spes-monitor-counts__chip${statusFilter === s ? " is-active" : ""}`}
+              aria-pressed={statusFilter === s}
+              onClick={() => setStatusFilter(statusFilter === s ? "" : s)}
+            >
+              {t(`spes.status.${s}`)} · {counts[s]}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {selected ? (
+        <p className="spes-note spes-monitor-note">
+          {selected.displayStatus === "results_released"
+            ? t("spes.monitoring.releasedNote")
+            : t("spes.monitoring.releaseNote")}{" "}
+          <Link to="/admin/spes/postings">{t("navbar.spesPostings")}</Link>
+        </p>
       ) : null}
 
       <div className="admin-panel-card">
@@ -718,7 +628,7 @@ export default function SpesApplications() {
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="spes-admin__state-cell">
-                    <StateBlock kind="empty" title={t("admin.spes.emptyTitle")} description={t("admin.spes.emptyDescription")} />
+                    <StateBlock kind="empty" title={t("spes.monitoring.emptyTitle")} description={t("spes.monitoring.emptyBody")} />
                   </td>
                 </tr>
               ) : (
@@ -761,16 +671,6 @@ export default function SpesApplications() {
 
       {reviewing ? (
         <SpesReviewDrawer app={reviewing} released={reviewingReleased} onClose={() => setReviewing(null)} onSaved={patchItem} />
-      ) : null}
-      {releaseFor ? (
-        <ReleaseDialog
-          program={releaseFor}
-          onClose={() => setReleaseFor(null)}
-          onReleased={() => {
-            loadPrograms();
-            loadApplications();
-          }}
-        />
       ) : null}
     </div>
   );
