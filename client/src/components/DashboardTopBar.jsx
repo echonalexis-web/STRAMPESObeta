@@ -29,6 +29,9 @@ const normalizeRole = (role) => (role === "employee" || role === "resident" ? "j
 // renders no chrome (Navbar.jsx's own BARE_ROUTES/SETUP_PATHS) since those
 // pages build their own full-screen layout with nothing to sit a persistent
 // header above.
+// Exceptions to the prefixes below: pages under a hidden prefix that keep the bar.
+const SHOWN_PATHS = ["/settings/peso-help"];
+
 const HIDDEN_PATH_PREFIXES = [
   "/profile",
   "/settings",
@@ -188,7 +191,10 @@ export default function DashboardTopBar() {
   const location = useLocation();
 
   const currentUserId = getEntityId(user?._id || user?.id || user);
-  const hidden = !user || HIDDEN_PATH_PREFIXES.some((prefix) => location.pathname.startsWith(prefix));
+  const hidden =
+    !user ||
+    (!SHOWN_PATHS.includes(location.pathname) &&
+      HIDDEN_PATH_PREFIXES.some((prefix) => location.pathname.startsWith(prefix)));
 
   const {
     notifications,

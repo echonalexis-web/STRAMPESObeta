@@ -45,6 +45,7 @@ import ProfilePage from "./pages/ProfilePage";
 import EditProfile from "./pages/EditProfile";
 import ResumeStudio from "./pages/ResumeStudio";
 import Settings from "./pages/Settings";
+import PesoHelpPage from "./pages/PesoHelpPage";
 import Onboarding from "./pages/Onboarding";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Reports from "./pages/admin/Reports";
@@ -212,6 +213,7 @@ function AppRoutes() {
           <Route path="/profile/edit" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
           <Route path="/profile/resume" element={<ProtectedRoute requiredRole="jobseeker"><ResumeStudio /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/settings/peso-help" element={<ProtectedRoute requiredRole={["jobseeker", "employer"]}><PesoHelpPage /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute requiredRole="jobseeker"><Dashboard /></ProtectedRoute>} />
           <Route path="/applications" element={<ProtectedRoute requiredRole="jobseeker"><JobVacancyAgeGate><YourApplications /></JobVacancyAgeGate></ProtectedRoute>} />
           <Route path="/spes/applications" element={<ProtectedRoute><MySpesApplications /></ProtectedRoute>} />

@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useModalA11y } from '../../hooks/useModalA11y.js';
-import MessageList from './MessageList.jsx';
-import Composer from './Composer.jsx';
+import ChatView from './ChatView.jsx';
 
 // Desktop: non-modal popover (no trap, Esc closes). Mobile: full-screen modal
 // sheet whose trap, scroll lock, Esc and focus restore come from useModalA11y.
@@ -46,13 +45,7 @@ export default function ChatPanel({ id, ctx, session, isMobile, onClose, onNavig
           </svg>
         </button>
       </header>
-      <MessageList
-        messages={session.messages}
-        ctx={ctx}
-        onPick={session.pickChip}
-        onNavigate={onNavigate}
-      />
-      <Composer onSend={session.send} />
+      <ChatView ctx={ctx} session={session} onNavigate={onNavigate} />
     </div>
   );
 }

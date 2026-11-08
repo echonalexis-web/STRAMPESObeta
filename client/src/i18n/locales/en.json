@@ -61,7 +61,17 @@
       "profileFollowers": "Followers",
       "profileDocuments": "My documents",
       "profileEdit": "Edit profile",
-      "profileResume": "Resume Studio"
+      "profileResume": "Resume Studio",
+      "pesoHelp": "PESO Help page"
+    },
+    "pref": {
+      "heading": "PESO Help button",
+      "label": "Show PESO Help floating button",
+      "hint": "Shows the round PESO Help button in the corner of the page. You can still open PESO Help from Settings when it is hidden."
+    },
+    "page": {
+      "back": "Back to Settings",
+      "prefLabel": "PESO Help button setting"
     }
   },
   "common": {
@@ -210,7 +220,8 @@
       "system": "System Preferences",
       "adminTools": "Admin Tools",
       "about": "About STRAM PESO",
-      "danger": "Account Deactivation"
+      "danger": "Account Deactivation",
+      "pesoHelp": "PESO Help"
     },
     "roles": {
       "jobseeker": "Job Seeker",
@@ -479,7 +490,10 @@
       "deactivateError": "Couldn't deactivate your account. Please try again."
     },
     "saveError": "Couldn't save your changes. Please try again.",
-    "subnavTitle": "All settings"
+    "subnavTitle": "All settings",
+    "pesoHelp": {
+      "subtitle": "Ask the automated PESO Help on a full page."
+    }
   },
   "jobEditing": {
     "title": "Edit Job Posting",

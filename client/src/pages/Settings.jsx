@@ -17,6 +17,7 @@ import {
   FaTrashAlt,
   FaRegClock,
   FaDownload,
+  FaQuestionCircle,
 } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { employerAPI, authAPI, superadminAPI } from "../services/api";
@@ -24,6 +25,7 @@ import { useNavbarStylePreference } from "../hooks/useNavbarStylePreference";
 import { useToast, useConfirm } from "../components/feedback/context";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 import IdOcrReview from "../components/IdOcrReview";
+import PesoHelpFloatingToggle from "../chatbot/ui/PesoHelpFloatingToggle";
 import { backupCodesFilename, buildBackupCodesText, downloadTextFile, localDateStamp } from "../utils/backupCodesFile";
 // GoogleSignInButton's own base layout rules (.google-signin / __divider /
 // __btn) live here rather than in settings.css. Importing it explicitly
@@ -73,8 +75,8 @@ const SYSTEM_DEFAULTS = {
 };
 
 const SECTIONS_BY_ROLE = {
-  jobseeker: ["account", "language", "notifications", "privacy", "system", "about", "danger"],
-  employer: ["account", "language", "templates", "notifications", "privacy", "system", "about", "danger"],
+  jobseeker: ["account", "language", "notifications", "privacy", "system", "peso-help", "about", "danger"],
+  employer: ["account", "language", "templates", "notifications", "privacy", "system", "peso-help", "about", "danger"],
   admin: ["account", "notifications", "privacy", "access", "system", "about"],
   superadmin: ["account", "privacy", "system", "admin-tools", "about"],
 };
@@ -87,6 +89,7 @@ const SECTION_ICON = {
   privacy: <FaUserShield />,
   access: <FaClipboardList />,
   system: <FaSlidersH />,
+  "peso-help": <FaQuestionCircle />,
   "admin-tools": <FaClipboardList />,
   about: <FaInfoCircle />,
   danger: <FaExclamationTriangle />,
@@ -100,6 +103,7 @@ const SECTION_LABEL_KEY = {
   privacy: "privacy",
   access: "access",
   system: "system",
+  "peso-help": "pesoHelp",
   "admin-tools": "adminTools",
   about: "about",
   danger: "danger",
@@ -376,7 +380,17 @@ export default function Settings() {
         {isWide || !current ? (
           <nav className="set__list" aria-label={t("settings.railLabel")}>
             {isWide ? <h2 className="set__subnav-title">{t("settings.subnavTitle")}</h2> : null}
-            {sections.map((key) => (
+            {sections.map((key) => key === "peso-help" ? (
+              // Not an in-page section: PESO Help is its own page (/settings/peso-help).
+              <Link key={key} to="/settings/peso-help" className="set__list-item">
+                <span className="set__list-icon">{SECTION_ICON[key]}</span>
+                <span className="set__list-text">
+                  <span className="set__list-title">{t(`settings.sections.${SECTION_LABEL_KEY[key]}`)}</span>
+                  <span className="set__list-desc">{sectionSubtitle(key)}</span>
+                </span>
+                <FaChevronRight className="set__list-chevron" aria-hidden="true" />
+              </Link>
+            ) : (
               <button
                 key={key}
                 type="button"
@@ -1433,6 +1447,14 @@ function SystemSection({ role, navbarStyle, onNavbarStyleChange, system, loading
           </span>
         </button>
       </div>
+
+      {(role === "jobseeker" || role === "employer") && (
+        <>
+          <hr className="set-divider" />
+          <SectionHead title={t("chatbot.pref.heading")} />
+          <PesoHelpFloatingToggle />
+        </>
+      )}
 
       {role === "superadmin" && (
         <>

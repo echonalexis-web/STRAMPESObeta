@@ -9,6 +9,12 @@ test('hiddenPaths: hides required pages, tolerates case and trailing slash', () 
   }
 });
 
+test('hiddenPaths: hides the full-page PESO Help so there is only one chat', () => {
+  assert.equal(isHiddenPath('/settings/peso-help'), true);
+  assert.equal(isHiddenPath('/settings/peso-help/'), true);
+  assert.equal(isHiddenPath('/settings'), false);
+});
+
 test('hiddenPaths: shows normal pages', () => {
   for (const p of ['/', '/dashboard', '/jobs', '/profile', '/news/12', '/about', '/employer']) {
     assert.equal(isHiddenPath(p), false, p);

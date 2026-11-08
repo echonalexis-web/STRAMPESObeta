@@ -7,6 +7,7 @@ import ChatPanel from './ChatPanel.jsx';
 import { useChatContext } from './useChatContext.js';
 import { useChatSession } from './useChatSession.js';
 import { isHiddenPath } from './hiddenPaths.js';
+import { useFloatingHelpPref } from '../../hooks/useFloatingHelpPref.js';
 
 const MESSENGER_OPEN_EVENT = 'floating-messenger:open';
 const MOBILE_QUERY = '(max-width: 767.98px)';
@@ -30,6 +31,17 @@ function Widget() {
   const session = useChatSession(ctx);
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  // User preference "Show PESO Help floating button" (Settings). When off,
+  // neither the launcher nor the panel renders, and an open panel closes.
+  const [floatingOn] = useFloatingHelpPref();
+  const [wasOn, setWasOn] = useState(floatingOn);
+  if (floatingOn !== wasOn) {
+    // Adjusting state while rendering (React's documented pattern): turning
+    // the preference off closes an open panel; turning it on shows the
+    // launcher only, never a re-opened panel.
+    setWasOn(floatingOn);
+    if (!floatingOn) setOpen(false);
+  }
   const launcherRef = useRef(null);
   const panelId = useId();
 
@@ -51,7 +63,7 @@ function Widget() {
   }, []);
 
   const staff = ctx.role === 'admin' || ctx.role === 'superadmin';
-  if (!ctx.ready || staff || isHiddenPath(pathname)) return null;
+  if (!floatingOn || !ctx.ready || staff || isHiddenPath(pathname)) return null;
 
   const sheet = open && isMobile;
   return (

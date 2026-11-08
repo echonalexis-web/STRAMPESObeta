@@ -4,6 +4,8 @@
 // phones. Auth screens stay hidden until verified in a real browser at 320px.
 export const HIDDEN_PATHS = Object.freeze([
   '/messages',
+  // The full-page PESO Help (Settings): never two chats at once.
+  '/settings/peso-help',
   '/profile/edit',
   '/onboarding',
   '/change-password',

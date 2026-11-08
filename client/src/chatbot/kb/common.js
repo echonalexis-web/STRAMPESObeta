@@ -190,6 +190,36 @@ export default [
   }),
 
   // ---- Policy topics: written, held as drafts until PESO answers. Never matched. ----
+  // pages/PesoHelpPage.jsx (route /settings/peso-help, Settings > PESO Help) and
+  // chatbot/ui/PesoHelpFloatingToggle.jsx (Settings > System Preferences and that page).
+  entry({
+    id: 'common.pesohelp.page', category: 'getting-started', kind: 'nav', roles: JS_EMP,
+    q: { en: 'Where is the PESO Help page?', fil: 'Nasaan ang PESO Help page?' },
+    a: {
+      en: 'PESO Help also has its own full page, not only the round button in the corner. Open Settings and choose PESO Help, or use the link below.',
+      fil: 'May sarili ring buong pahina ang PESO Help, hindi lang ang bilog na button sa sulok. Buksan ang Settings at piliin ang PESO Help, o gamitin ang link sa ibaba.',
+    },
+    keywords: {
+      en: ['peso help page', 'full page help', 'open peso help in settings', 'help page not floating'],
+      fil: ['pahina ng peso help', 'buong pahina ng tulong', 'buksan ang peso help sa settings'],
+    },
+    target: 'settings.peso-help', targets: ['settings'],
+  }),
+
+  entry({
+    id: 'common.pesohelp.hide', category: 'settings-privacy', kind: 'nav', roles: JS_EMP,
+    q: { en: 'How do I hide or show the floating PESO Help button?', fil: 'Paano itago o ipakita ang floating na PESO Help button?' },
+    a: {
+      en: 'Open Settings, then System Preferences, and switch Show PESO Help floating button on or off. The same switch is on the PESO Help page. When it is off you can still open PESO Help from Settings.',
+      fil: 'Buksan ang Settings, pagkatapos ang System Preferences, at i-on o i-off ang Show PESO Help floating button. Nasa PESO Help page rin ang parehong switch. Kapag naka-off, mabubuksan mo pa rin ang PESO Help mula sa Settings.',
+    },
+    keywords: {
+      en: ['hide peso help button', 'hide floating button', 'show floating help button', 'turn off help bubble', 'remove chat bubble'],
+      fil: ['itago ang peso help button', 'itago ang floating button', 'ipakita ang floating button', 'patayin ang help bubble'],
+    },
+    target: 'settings.peso-help', targets: ['settings'],
+  }),
+
   draft('POL-03', {
     id: 'common.fees.free', category: 'getting-started', roles: ['*'],
     q: { en: 'Is the portal free to use?', fil: 'Libre ba gamitin ang portal?' },

@@ -1,70 +1,64 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import BotMessage, { Chips } from './BotMessage.jsx';
 import { startersFor } from './starters.js';
 
-// Policy: every time the panel opens, the log starts at the top, even when a
+// Policy: every time the chat opens, the log starts at the top, even when a
 // conversation already exists. Change this one value to change the rule.
 export const OPEN_SCROLL_TOP = 0;
 
-// Within this many px of the bottom counts as "following the chat".
-const NEAR_BOTTOM_PX = 80;
+// Breathing room above the message a scroll aligns to.
+const ALIGN_GAP_PX = 8;
 
 // Instant on purpose (no smooth scroll), so reduced-motion is honored too.
 function setScrollTop(el, value) {
   el.scrollTop = value;
 }
 
+// Shared by the floating panel and the PESO Help page (via ChatView).
 export default function MessageList({ messages, ctx, onPick, onNavigate }) {
   const { t } = useTranslation();
   const logRef = useRef(null);
-  const lastMsgRef = useRef(null);
-  const followRef = useRef(true);
-  const prevCount = useRef(null);
+  const lastIdRef = useRef(null); // id of the newest message already handled
 
-  // Open: pin to the top before paint, then once more after first paint in
-  // case chips/fonts changed the height.
+  const lastId = messages.length ? messages[messages.length - 1].id : 0;
+
+  // Open: pin to the top before paint, then once more after the first paint in
+  // case chips or fonts changed the height.
   useLayoutEffect(() => {
     const el = logRef.current;
     if (!el) return undefined;
     setScrollTop(el, OPEN_SCROLL_TOP);
-    followRef.current = false;
+    const idAtOpen = lastId;
     const raf = requestAnimationFrame(() => {
-      if (prevCount.current === messages.length) setScrollTop(el, OPEN_SCROLL_TOP);
+      if (lastIdRef.current === idAtOpen) setScrollTop(el, OPEN_SCROLL_TOP);
     });
     return () => cancelAnimationFrame(raf);
     // Mount only: this is the "opened" moment.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // New content during a chat.
+  // New content while chatting. Every append here comes from the user's own
+  // action (sending a question or tapping a chip) and the reply is added in the
+  // same step, so the log always follows. It aligns the START of the new
+  // content (the user's message, then the reply right under it) to the top of
+  // the log: short exchanges end up fully in view, and a long reply is read
+  // from its first line, not its end.
   useLayoutEffect(() => {
     const el = logRef.current;
-    const first = prevCount.current === null;
-    const previous = prevCount.current;
-    prevCount.current = messages.length;
-    if (!el || first || messages.length === previous) return;
-    const last = messages[messages.length - 1];
-    if (last.from === 'user') {
-      // The user's own send always comes into view.
-      setScrollTop(el, el.scrollHeight);
-      followRef.current = true;
-    } else if (followRef.current && lastMsgRef.current) {
-      // Show the START of the reply, not its end.
-      const top = lastMsgRef.current.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
-      setScrollTop(el, Math.max(0, top - 8));
+    const previous = lastIdRef.current;
+    lastIdRef.current = lastId;
+    if (!el || previous === null || lastId === previous) return;
+    if (lastId < previous) {
+      setScrollTop(el, OPEN_SCROLL_TOP); // conversation was reset
+      return;
     }
-  }, [messages]);
-
-  useEffect(() => {
-    const el = logRef.current;
-    if (!el) return undefined;
-    const onScroll = () => {
-      followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_PX;
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-  }, []);
+    const firstNew = messages.find((m) => m.id > previous);
+    const node = firstNew ? el.querySelector(`[data-mid="${firstNew.id}"]`) : null;
+    if (!node) return;
+    const offset = node.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+    setScrollTop(el, Math.max(0, offset - ALIGN_GAP_PX));
+  }, [lastId, messages]);
 
   return (
     <div
@@ -85,14 +79,14 @@ export default function MessageList({ messages, ctx, onPick, onNavigate }) {
           <Chips ids={startersFor(ctx.role)} ctx={ctx} onPick={onPick} />
         </div>
       ) : null}
-      {messages.map((m, i) =>
+      {messages.map((m) =>
         m.from === 'user' ? (
-          <div key={m.id} ref={i === messages.length - 1 ? lastMsgRef : null} className="cb-msg cb-msg--user">
+          <div key={m.id} data-mid={m.id} className="cb-msg cb-msg--user">
             <span className="cb-sr">{t('chatbot.you')}: </span>
             <p className="cb-p">{m.text}</p>
           </div>
         ) : (
-          <div key={m.id} ref={i === messages.length - 1 ? lastMsgRef : null} className="cb-msg cb-msg--bot">
+          <div key={m.id} data-mid={m.id} className="cb-msg cb-msg--bot">
             <span className="cb-sr">{t('chatbot.bot')}: </span>
             <BotMessage result={m.result} ctx={ctx} onPick={onPick} onNavigate={onNavigate} />
           </div>

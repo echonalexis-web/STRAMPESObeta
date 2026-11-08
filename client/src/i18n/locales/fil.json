@@ -61,7 +61,17 @@
       "profileFollowers": "Mga follower",
       "profileDocuments": "Aking mga dokumento",
       "profileEdit": "I-edit ang profile",
-      "profileResume": "Resume Studio"
+      "profileResume": "Resume Studio",
+      "pesoHelp": "PESO Help page"
+    },
+    "pref": {
+      "heading": "PESO Help button",
+      "label": "Ipakita ang floating na PESO Help button",
+      "hint": "Ipinapakita ang bilog na PESO Help button sa sulok ng pahina. Mabubuksan mo pa rin ang PESO Help mula sa Settings kapag nakatago ito."
+    },
+    "page": {
+      "back": "Bumalik sa Settings",
+      "prefLabel": "Setting ng PESO Help button"
     }
   },
   "common": {
@@ -210,7 +220,8 @@
       "system": "Mga Kagustuhan sa Sistema",
       "adminTools": "Mga Admin Tool",
       "about": "Tungkol sa STRAM PESO",
-      "danger": "Pag-deactivate ng Account"
+      "danger": "Pag-deactivate ng Account",
+      "pesoHelp": "PESO Help"
     },
     "roles": {
       "jobseeker": "Naghahanap ng Trabaho",
@@ -479,7 +490,10 @@
       "deactivateError": "Hindi ma-deactivate ang iyong account. Pakisubukang muli."
     },
     "saveError": "Hindi ma-save ang iyong mga pagbabago. Pakisubukang muli.",
-    "subnavTitle": "Lahat ng settings"
+    "subnavTitle": "Lahat ng settings",
+    "pesoHelp": {
+      "subtitle": "Magtanong sa awtomatikong PESO Help sa buong pahina."
+    }
   },
   "jobEditing": {
     "title": "I-edit ang Post ng Trabaho",

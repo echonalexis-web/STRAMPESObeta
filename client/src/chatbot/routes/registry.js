@@ -52,6 +52,9 @@ export const ROUTES = [
   auth('jobs', '/jobs', 'navbar.browseJobs', ['jobseeker'], ['jobAge']),
   auth('applications', '/applications', 'navbar.yourApplications', ['jobseeker'], ['jobAge']),
 
+  // Jobseeker and employer: the full-page PESO Help (the widget is hidden for staff).
+  auth('settings.peso-help', '/settings/peso-help', 'chatbot.routes.pesoHelp', ['jobseeker', 'employer']),
+
   // Employer only.
   auth('employer.dashboard', '/employer', 'navbar.employerDashboard', ['employer'], ['onboarding']),
   auth('post-job', '/post-job', 'navbar.postVacancy', ['employer'], ['onboarding', 'verifiedEmployer']),

@@ -34,6 +34,7 @@ const PENDING_CHATBOT_LABEL_KEYS = [
   'chatbot.routes.profileFavorites', 'chatbot.routes.profileLikes',
   'chatbot.routes.profileFollowers', 'chatbot.routes.profileDocuments',
   'chatbot.routes.profileEdit', 'chatbot.routes.profileResume',
+  'chatbot.routes.pesoHelp',
 ];
 
 test('app parser finds routes', () => {

@@ -1,0 +1,98 @@
+/* PESO Help full page (Settings > PESO Help). `.cbp*` only. The chat itself
+   (.cb-log, .cb-msg, .cb-chip, .cb-composer, ...) is styled by chatbot.css and
+   shared with the floating widget; this file only lays it out as a page and
+   defines the --cb-* tokens that chatbot.css scopes to .cb-root. The page root
+   also carries `.set` so the Settings toggle styles and tokens apply. */
+
+.cbp {
+  --cb-green: var(--ds-green, #07553a);
+  --cb-green-deep: var(--ds-green-deep, #043c2a);
+  --cb-gold: var(--ds-gold, #e6b91e);
+  --cb-cream: var(--ds-bg, #f5f7f3);
+  --cb-ink: var(--ds-text, #10271f);
+  --cb-muted: var(--ds-muted, #5a6c65);
+  --cb-border: var(--ds-border, #dfe8e3);
+  --cb-surface: var(--ds-surface, #ffffff);
+  --cb-focus: var(--ds-focus, #0b704b);
+}
+
+.cbp__col {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0.7rem 1rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.cbp .set__pagehead h1 {
+  font-family: var(--ds-font-display, 'Manrope', system-ui, sans-serif);
+}
+
+.cbp__headtext {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cbp__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: none;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--cb-border);
+  border-radius: var(--ds-radius-pill, 999px);
+  background: var(--cb-surface);
+  color: var(--cb-green);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.cbp__back:hover { background: var(--cb-cream); border-color: var(--cb-green-deep); }
+.cbp__back:focus-visible { outline: 3px solid var(--cb-focus); outline-offset: 2px; }
+
+.cbp__pref {
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--cb-border);
+  border-radius: 14px;
+  background: var(--cb-surface);
+}
+
+/* The chat card: bounded height so .cb-log scrolls inside it and the input
+   row stays at the bottom of the column. */
+.cbp__chat {
+  display: flex;
+  flex-direction: column;
+  height: clamp(420px, calc(100vh - 300px), 760px);
+  height: clamp(420px, calc(100dvh - 300px), 760px);
+  overflow: hidden;
+  border: 1px solid var(--cb-border);
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--cb-surface);
+  box-shadow: var(--ds-shadow-1, 0 1px 3px rgba(16, 39, 31, 0.08));
+  font-family: var(--ds-font-body, 'DM Sans', system-ui, sans-serif);
+  color: var(--cb-ink);
+}
+
+.cbp__chat .cb-log { padding: 16px; }
+.cbp__chat .cb-msg { max-width: 88%; }
+.cbp__chat .cb-composer { padding: 10px 12px; }
+
+.cbp__chat .cb-launcher:focus-visible { outline-color: var(--cb-gold); }
+
+/* Phones: full-width column; leave room below the card for the messenger
+   bubble (fixed bottom-right, 48px + 12px) so it never covers the send button. */
+@media (max-width: 767.98px) {
+  .cbp__col { padding-bottom: 5.5rem; }
+  .cbp__chat {
+    height: clamp(380px, calc(100vh - 330px), 640px);
+    height: clamp(380px, calc(100dvh - 330px), 640px);
+  }
+  .cbp .set__pagehead { flex-wrap: wrap; }
+  .cbp__back { margin-left: auto; }
+}
+
+@media (max-width: 400px) {
+  .cbp__back { width: 100%; justify-content: center; }
+}
