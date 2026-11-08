@@ -45,6 +45,16 @@ export default function DobGate() {
     } catch (err) {
       const code = err?.response?.data?.code;
       if (code === "AGE_UNDER_MINIMUM") setUser({ ...user, ageReviewRequired: true });
+      if (code === "DOB_LOCKED") {
+        // A date was set elsewhere (e.g. by staff) since this page loaded: refresh from the server.
+        try {
+          const { data } = await authAPI.getProfile();
+          if (data?.user) setUser({ ...user, ...data.user });
+          return null;
+        } catch {
+          return code;
+        }
+      }
       return code || "GENERIC";
     }
   };

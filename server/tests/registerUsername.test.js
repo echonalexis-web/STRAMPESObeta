@@ -97,6 +97,8 @@ describe("POST /register — username choice", () => {
     surname: "Dela Cruz",
     email: "juan@example.com",
     password: "Sup3rSecret!",
+    // Registration now requires a date of birth (15 or older).
+    dateOfBirth: "2000-01-01",
   };
 
   test("no username provided: account is created without one, and auto-suggestion is attempted afterward", async () => {
@@ -184,6 +186,8 @@ describe("POST /register/employer — username choice", () => {
     name: "Acme Corp",
     email: "acme@example.com",
     password: "Sup3rSecret!",
+    // Employers attest they are 18+ (no date of birth is collected).
+    confirmAdult: true,
   };
 
   test("a valid, available username is set directly on the created employer account", async () => {

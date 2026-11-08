@@ -47,7 +47,12 @@ export const AuthProvider = ({ children }) => {
   const persistUser = (nextUser) => {
     const normalizedUser = normalizeUser(nextUser);
     if (normalizedUser) {
-      localStorage.setItem("user", JSON.stringify(normalizedUser));
+      // The age tier is computed by the server per request. It lives in memory
+      // only: never written to localStorage, so a stored tier can't go stale
+      // (e.g. a 17-year-old who just turned 18).
+      // eslint-disable-next-line no-unused-vars
+      const { ageTier, ...persistable } = normalizedUser;
+      localStorage.setItem("user", JSON.stringify(persistable));
     } else {
       localStorage.removeItem("user");
     }

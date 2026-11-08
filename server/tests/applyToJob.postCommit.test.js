@@ -38,7 +38,7 @@ const buildApp = () => {
   app.post(
     "/jobs/:id/apply",
     (req, _res, next) => {
-      req.user = { id: SEEKER, role: "jobseeker" };
+      req.user = { id: SEEKER, role: "jobseeker", dateOfBirth: new Date("2000-01-01") };
       req.files = {
         resume: [{ storedValue: UPLOADS[0] }],
         coverLetterFile: [{ storedValue: UPLOADS[1] }],

@@ -236,8 +236,14 @@ describe("SPES apply: notifications fail after the application is saved", () => 
     const res = await call(spes.applyToSpes, {
       user: { id: TARGET_ID, role: "jobseeker" },
       params: { announcementId: JOB_ID },
-      body: { school: "MNHS", isOutOfSchoolYouth: "false" },
-      files: [{ storedValue: UPLOADS[0], originalname: "grades.pdf" }],
+      body: { applicantType: "student", school: "MNHS", gradeLevel: "Grade 12", gwa: "88", gwaScale: "percent", guardianName: "Maria", guardianContact: "09171234567" },
+      // One typed file per required slot (a student needs these four).
+      files: {
+        form2: [{ storedValue: UPLOADS[0], originalname: "form2.pdf", mimetype: "application/pdf", size: 10 }],
+        proof_of_age: [{ storedValue: UPLOADS[1], originalname: "age.pdf", mimetype: "application/pdf", size: 10 }],
+        proof_of_financial_status: [{ storedValue: UPLOADS[1], originalname: "itr.pdf", mimetype: "application/pdf", size: 10 }],
+        proof_of_academic_standing: [{ storedValue: UPLOADS[0], originalname: "grades.pdf", mimetype: "application/pdf", size: 10 }],
+      },
     });
 
     expect(res.status).toBe(201);

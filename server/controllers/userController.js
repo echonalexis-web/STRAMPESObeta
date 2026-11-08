@@ -72,7 +72,7 @@ exports.completeOnboarding = async (req, res) => {
       phone: req.body.phone,
       about: req.body.about,
       address: req.body.address,
-      dateOfBirth: req.body.dateOfBirth || null,
+      ...(dobUpdate || {}),
       gender: req.body.gender || null,
       hasCompletedOnboarding: true,
       onboardingComplete: true,
