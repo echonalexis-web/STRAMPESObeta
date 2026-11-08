@@ -291,7 +291,16 @@
         "copyAll": "Kopyahin lahat",
         "copied": "Nakopya ang mga code sa clipboard.",
         "copyError": "Hindi na-kopya nang awtomatiko — pakisave nang manual.",
-        "done": "Tapos, na-save ko na ito"
+        "done": "Tapos, na-save ko na ito",
+        "download": "I-download ang .txt",
+        "downloaded": "Na-save ang mga backup code bilang .txt file.",
+        "downloadError": "Hindi ma-download ang file — kopyahin na lang ang mga code.",
+        "file": {
+          "title": "STRAM PESO - Mga backup code",
+          "generated": "Ginawa noong: {{date}}",
+          "note1": "Isang beses lang magagamit ang bawat code para mabawi ang iyong account. Titigil sa paggana ang mga ito kapag gumawa ka ng bago.",
+          "note2": "Panatilihing pribado ang file na ito. Sinumang may hawak nito ay maaaring gumamit ng mga code para i-reset ang password ng iyong account."
+        }
       },
       "idOcr": {
         "title": "Mga detalyeng nabasa mula sa iyong ID",

@@ -16,6 +16,7 @@ import {
   FaArrowLeft,
   FaTrashAlt,
   FaRegClock,
+  FaDownload,
 } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { employerAPI, authAPI, superadminAPI } from "../services/api";
@@ -23,6 +24,7 @@ import { useNavbarStylePreference } from "../hooks/useNavbarStylePreference";
 import { useToast, useConfirm } from "../components/feedback/context";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 import IdOcrReview from "../components/IdOcrReview";
+import { backupCodesFilename, buildBackupCodesText, downloadTextFile, localDateStamp } from "../utils/backupCodesFile";
 // GoogleSignInButton's own base layout rules (.google-signin / __divider /
 // __btn) live here rather than in settings.css. Importing it explicitly
 // (instead of relying on it happening to already be loaded by some other
@@ -886,6 +888,25 @@ function AccountBackupCodes({ user, toast, confirm }) {
     }
   };
 
+  // Offline copy of the codes already on screen. No server call: generating
+  // again would invalidate these and count against the hourly limit.
+  const handleDownload = () => {
+    try {
+      const text = buildBackupCodesText(codes, {
+        title: t("settings.account.backupCodes.file.title"),
+        generatedLabel: t("settings.account.backupCodes.file.generated", { date: localDateStamp() }),
+        notes: [
+          t("settings.account.backupCodes.file.note1"),
+          t("settings.account.backupCodes.file.note2"),
+        ],
+      });
+      downloadTextFile(backupCodesFilename(), text);
+      toast.success(t("settings.account.backupCodes.downloaded"));
+    } catch {
+      toast.error(t("settings.account.backupCodes.downloadError"));
+    }
+  };
+
   if (codes) {
     return (
       <div className="set-subrow set-subrow--column">
@@ -903,6 +924,9 @@ function AccountBackupCodes({ user, toast, confirm }) {
         <div className="set-actions">
           <button type="button" className="set-btn set-btn--ghost" onClick={handleCopyAll}>
             {t("settings.account.backupCodes.copyAll")}
+          </button>
+          <button type="button" className="set-btn set-btn--ghost" onClick={handleDownload}>
+            <FaDownload aria-hidden="true" /> {t("settings.account.backupCodes.download")}
           </button>
           <button type="button" className="set-btn set-btn--primary" onClick={() => setCodes(null)}>
             {t("settings.account.backupCodes.done")}

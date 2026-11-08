@@ -291,7 +291,16 @@
         "copyAll": "Copy all",
         "copied": "Codes copied to clipboard.",
         "copyError": "Could not copy automatically — please save them manually.",
-        "done": "Done, I saved these"
+        "done": "Done, I saved these",
+        "download": "Download .txt",
+        "downloaded": "Backup codes saved as a .txt file.",
+        "downloadError": "Could not download the file — please copy the codes instead.",
+        "file": {
+          "title": "STRAM PESO - Backup codes",
+          "generated": "Generated: {{date}}",
+          "note1": "Each code works only once to recover your account. Generating new codes makes these stop working.",
+          "note2": "Keep this file private. Anyone who has it can use these codes to reset your account's password."
+        }
       },
       "idOcr": {
         "title": "Read details from your ID",
