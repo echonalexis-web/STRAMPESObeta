@@ -5,6 +5,7 @@ import "../styles/jobboard.css";
 import VacancyCard from "../components/VacancyCard";
 import JobSearchFilters from "../components/JobSearchFilters";
 import ApplyModal from "../components/ApplyModal";
+import { isJobVacancyEligibleAge } from "../utils/age";
 import PageHero from "../components/PageHero";
 import StateBlock from "../components/StateBlock";
 import { AuthContext } from "../context/AuthContext";
@@ -17,6 +18,8 @@ export default function JobBoard() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, login } = useContext(AuthContext);
+  // 15-17 accounts browse jobs read-only; applying is for 18+ (server-enforced).
+  const canApplyJobs = isJobVacancyEligibleAge(user?.dateOfBirth);
   const preferredIndustries = user?.preferredIndustries || [];
 
   const [jobs, setJobs] = useState([]);
@@ -252,6 +255,7 @@ export default function JobBoard() {
                       matchAvailable={hasSkills}
                       onOpen={() => navigate(`/jobs/${job._id}`)}
                       onApply={() => setApplyModalJobId(job._id)}
+                      canApply={canApplyJobs}
                     />
                   ))}
                 </div>
@@ -269,6 +273,7 @@ export default function JobBoard() {
                   matchAvailable={hasSkills}
                   onOpen={() => navigate(`/jobs/${job._id}`)}
                   onApply={() => setApplyModalJobId(job._id)}
+                  canApply={canApplyJobs}
                 />
               ))}
             </div>

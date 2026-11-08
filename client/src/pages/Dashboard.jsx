@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { jobAPI, newsAPI, resolveAssetUrl } from "../services/api";
 import VacancyCard from "../components/VacancyCard";
+import { isJobVacancyEligibleAge } from "../utils/age";
 import ApplyModal from "../components/ApplyModal";
 import PageHero from "../components/PageHero";
 import MetricCard from "../components/MetricCard";
@@ -154,6 +155,7 @@ export default function Dashboard() {
     matchAvailable: hasSkills,
     onOpen: () => navigate(`/jobs/${job._id}`),
     onApply: () => setApplyModalJobId(job._id),
+    canApply: isJobVacancyEligibleAge(user?.dateOfBirth),
   });
 
   // Jobs from a followed employer are fast-tracked into recommendations

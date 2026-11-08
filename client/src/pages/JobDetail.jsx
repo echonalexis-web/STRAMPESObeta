@@ -12,6 +12,8 @@ import JobFavoriteButton from "../components/JobFavoriteButton";
 import QualificationsDisplay from "../components/QualificationsDisplay";
 import SecureFileLink from "../components/SecureFileLink";
 import ApplyModal from "../components/ApplyModal";
+import AgeApplyNotice from "../components/AgeApplyNotice";
+import { isJobVacancyEligibleAge } from "../utils/age";
 import VacancyCard from "../components/VacancyCard";
 import MatchBreakdownPanel from "../components/MatchBreakdownPanel";
 import { useFollow } from "../hooks/useFollow";
@@ -347,6 +349,7 @@ export default function JobDetail() {
                     matchAvailable={recHasSkills}
                     onOpen={() => navigate(`/jobs/${recJob._id}`)}
                     onApply={() => setRecApplyJobId(recJob._id)}
+                    canApply={isJobVacancyEligibleAge(user?.dateOfBirth)}
                   />
                 ))}
               </div>
@@ -377,7 +380,10 @@ export default function JobDetail() {
   // (withdrawn) row server-side instead of creating a duplicate.
   const hasApplied = Boolean(myApplication) && myApplication.status !== "withdrawn";
   const showEditForm = isJobseeker && editMode && hasApplied;
-  const showApplyForm = isJobseeker && !hasApplied && !editMode;
+  // 15-17 may view jobs but not apply: the Apply controls are replaced by a
+  // notice that links to SPES. The server blocks the apply call regardless.
+  const ageBlocked = isJobseeker && !hasApplied && !isJobVacancyEligibleAge(user?.dateOfBirth);
+  const showApplyForm = isJobseeker && !ageBlocked && !hasApplied && !editMode;
   const showStatusCard = isJobseeker && hasApplied && !editMode;
   const status = hasApplied ? statusMeta(myApplication.status) : null;
 
@@ -601,6 +607,10 @@ export default function JobDetail() {
                   Withdraw
                 </button>
               </div>
+            </div>
+          ) : ageBlocked ? (
+            <div className="apply-card">
+              <AgeApplyNotice />
             </div>
           ) : (showApplyForm || showEditForm) ? (
             <div className="apply-card">

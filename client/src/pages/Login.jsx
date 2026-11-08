@@ -3,6 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
 import GoogleSignInButton from "../components/GoogleSignInButton";
+import DobPrompt from "../components/DobPrompt";
+import { useTranslation } from "react-i18next";
 import AccountInactiveModal from "../components/AccountInactiveModal";
 import { useToast } from "../components/feedback/context";
 import "../styles/auth.css";
@@ -46,6 +48,9 @@ const formatApiError = (err, fallback = "Login failed") => {
 };
 
 export default function Login() {
+  const { t } = useTranslation();
+  // First-time Google jobseeker: nothing is created until a date of birth passes the age check.
+  const [pendingGoogleToken, setPendingGoogleToken] = useState("");
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [keepSignedIn, setKeepSignedIn] = useState(false);
@@ -250,35 +255,59 @@ export default function Login() {
     }
   };
 
+  const finishGoogleSignIn = async (data) => {
+    const token = data.token;
+    const userData = data.user || {};
+    if (!token) throw new Error("No token received from server");
+
+    const normalizedUser = { ...userData, role: normalizeRole(userData.role) };
+    await login(token, normalizedUser);
+
+    if (data.reactivated) {
+      toast.success("Welcome back — your account has been reactivated.");
+    }
+
+    const role = normalizeRole(normalizedUser.role);
+    const onboardingDone =
+      typeof normalizedUser.hasCompletedOnboarding === "boolean"
+        ? normalizedUser.hasCompletedOnboarding
+        : normalizedUser.onboardingComplete;
+
+    setIsRedirecting(true);
+    if (["jobseeker", "employer"].includes(role) && onboardingDone === false) {
+      navigate("/onboarding");
+      return;
+    }
+    navigate(getDefaultRouteByRole(role));
+  };
+
+  // Step 2 for a first-time Google jobseeker. Resolves to null on success or an
+  // error code for the prompt to show; an under-15 date creates nothing.
+  const handleGoogleDob = async (dateOfBirth) => {
+    try {
+      const { data } = await authAPI.googleComplete(pendingGoogleToken, dateOfBirth);
+      setPendingGoogleToken("");
+      await finishGoogleSignIn(data);
+      return null;
+    } catch (err) {
+      const code = err?.response?.data?.code;
+      if (code === "GOOGLE_PENDING_EXPIRED") setPendingGoogleToken("");
+      return code || "GENERIC";
+    }
+  };
+
   const handleGoogleCredential = async (credential) => {
     showError("");
     setLoading(true);
     setIsRedirecting(false);
     try {
       const { data } = await authAPI.google(credential);
-      const token = data.token;
-      const userData = data.user || {};
-      if (!token) throw new Error("No token received from server");
-
-      const normalizedUser = { ...userData, role: normalizeRole(userData.role) };
-      await login(token, normalizedUser);
-
-      if (data.reactivated) {
-        toast.success("Welcome back — your account has been reactivated.");
-      }
-
-      const role = normalizeRole(normalizedUser.role);
-      const onboardingDone =
-        typeof normalizedUser.hasCompletedOnboarding === "boolean"
-          ? normalizedUser.hasCompletedOnboarding
-          : normalizedUser.onboardingComplete;
-
-      setIsRedirecting(true);
-      if (["jobseeker", "employer"].includes(role) && onboardingDone === false) {
-        navigate("/onboarding");
+      if (data?.code === "DOB_REQUIRED" && data.pendingToken) {
+        setPendingGoogleToken(data.pendingToken);
+        setLoading(false);
         return;
       }
-      navigate(getDefaultRouteByRole(role));
+      await finishGoogleSignIn(data);
     } catch (err) {
       console.error("❌ Google sign-in error:", err);
       const data = err?.response?.data;
@@ -433,6 +462,13 @@ export default function Login() {
             </form>
 
             <GoogleSignInButton onCredential={handleGoogleCredential} text="signin_with" fullWidth />
+            <DobPrompt
+              isOpen={Boolean(pendingGoogleToken)}
+              onSubmit={handleGoogleDob}
+              onCancel={() => setPendingGoogleToken("")}
+              title={t("ageGate.googleTitle")}
+              description={t("ageGate.googleBody")}
+            />
 
             <div className="login-register">
               <p className="login-register-label">NEW TO PESO MARINDUQUE?</p>

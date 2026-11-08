@@ -42,6 +42,7 @@ const matchKey = (type, value) => `${String(type || "skill").toLowerCase()}::${S
  *   preview        employer draft preview: no favourite, no navigation, no apply
  *   onOpen         open the job detail page
  *   onApply        go to the apply screen
+ *   canApply       false hides Apply (15-17 accounts: regular jobs are view-only)
  */
 export default function VacancyCard({
   job,
@@ -52,6 +53,7 @@ export default function VacancyCard({
   preview = false,
   onOpen,
   onApply,
+  canApply = true,
 }) {
   const checklist = job?.checklistMatch || null;
   const hasChecklist = matchAvailable && Boolean(checklist);
@@ -184,11 +186,11 @@ export default function VacancyCard({
               <button className="ds-btn ds-btn--primary btn-vac btn-vac--primary" disabled title="You have already applied to this job">
                 Applied
               </button>
-            ) : (
+            ) : canApply ? (
               <button className="ds-btn ds-btn--primary btn-vac btn-vac--primary" onClick={onApply}>
                 Apply now
               </button>
-            )}
+            ) : null}
           </div>
         )}
       </div>

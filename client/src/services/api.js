@@ -263,7 +263,13 @@ export const authAPI = {
   resetPassword: (payload) => api.post('/auth/reset-password', payload),
   // `intent` ("employer" | "jobseeker") is only honoured when the Google account
   // is brand new — it decides which role/profile the account is created with.
-  google: (credential, intent) => api.post('/auth/google', { credential, intent }),
+  // `confirmAdult` is the employer 18+ attestation (ignored for jobseekers).
+  google: (credential, intent, confirmAdult) =>
+    api.post('/auth/google', { credential, intent, ...(confirmAdult ? { confirmAdult: true } : {}) }),
+  // Step 2 for a first-time jobseeker: the pendingToken from google() plus a date of birth.
+  googleComplete: (pendingToken, dateOfBirth) => api.post('/auth/google/complete', { pendingToken, dateOfBirth }),
+  // Legacy accounts with no date of birth: set once, then locked.
+  setMyDateOfBirth: (dateOfBirth) => api.post('/users/me/dob', { dateOfBirth }, getAuthHeader()),
   requestEmailChange: (payload) => api.post('/auth/email-change/request', payload, getAuthHeader()),
   confirmEmailChange: (payload) => api.post('/auth/email-change/confirm', payload),
   resendEmailVerification: (email) => api.post('/auth/verify-email/resend', { email }),
@@ -607,6 +613,17 @@ export const spesAPI = {
   adminAmendResult: (id, payload) => api.patch(`/spes/admin/${id}/result`, payload, getAuthHeader()),
   adminReleaseResults: (announcementId, payload = {}) =>
     api.post(`/spes/admin/announcements/${announcementId}/release-results`, payload, getAuthHeader()),
+  adminVerifyDocument: (id, docId, payload) =>
+    api.patch(`/spes/admin/${id}/documents/${docId}`, payload, getAuthHeader()),
+  adminPrograms: () => api.get('/spes/admin/programs', getAuthHeader()),
+  adminReleaseSummary: (announcementId) =>
+    api.get(`/spes/admin/announcements/${announcementId}/release-summary`, getAuthHeader()),
+  adminSetProgramClosed: (announcementId, closed) =>
+    api.patch(`/spes/admin/announcements/${announcementId}/closed`, { closed }, getAuthHeader()),
+  getEligibility: (announcementId) => api.get(`/spes/${announcementId}/eligibility`, getAuthHeader()),
+  replaceDocument: (announcementId, slot, formData) =>
+    api.post(`/spes/${announcementId}/documents/${slot}`, formData, getAuthFormHeader()),
+  withdraw: (announcementId) => api.post(`/spes/${announcementId}/withdraw`, {}, getAuthHeader()),
 };
 
 export const notificationAPI = {

@@ -1,0 +1,134 @@
+/* Date-of-birth prompt (Google first sign-in step, legacy accounts) and the
+   15-17 notices. Uses the shared --ds-* tokens; hand-written, no framework. */
+
+.dob-prompt__form {
+  display: grid;
+  gap: var(--ds-space-3, 12px);
+}
+
+.dob-prompt__text {
+  margin: 0;
+  color: var(--ds-ink-700, #374151);
+  font-size: var(--ds-text-sm, 0.875rem);
+  line-height: 1.5;
+}
+
+.dob-prompt__label {
+  font-weight: 600;
+  font-size: var(--ds-text-sm, 0.875rem);
+  color: var(--ds-text, #111827);
+}
+
+.dob-prompt__input {
+  width: 100%;
+  min-height: var(--ds-tap, 44px);
+  padding: 0 var(--ds-space-3, 12px);
+  border: 1px solid var(--ds-border, #d1d5db);
+  border-radius: var(--ds-radius-md, 10px);
+  font: inherit;
+  color: var(--ds-text, #111827);
+  background: var(--ds-surface, #fff);
+  box-sizing: border-box;
+}
+
+.dob-prompt__input:focus-visible {
+  outline: 2px solid var(--ds-green, #0f766e);
+  outline-offset: 2px;
+}
+
+.dob-prompt__input[aria-invalid="true"] {
+  border-color: var(--ds-danger, #b91c1c);
+}
+
+.dob-prompt__hint {
+  margin: 0;
+  color: var(--ds-muted, #6b7280);
+  font-size: var(--ds-text-xs, 0.75rem);
+}
+
+.dob-prompt__error {
+  margin: 0;
+  padding: var(--ds-space-3, 12px);
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-danger-bg, #fef2f2);
+  color: var(--ds-danger, #b91c1c);
+  font-size: var(--ds-text-sm, 0.875rem);
+}
+
+.dob-prompt__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--ds-space-3, 12px);
+}
+
+.dob-prompt__btn {
+  min-height: var(--ds-tap, 44px);
+  padding: 0 var(--ds-space-5, 20px);
+  border: 0;
+  border-radius: var(--ds-radius-btn, 10px);
+  background: var(--ds-green, #0f766e);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dob-prompt__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dob-prompt__btn--ghost {
+  background: transparent;
+  color: var(--ds-ink-700, #374151);
+  border: 1px solid var(--ds-border, #d1d5db);
+}
+
+/* 15-17 notice shown in place of a regular-job Apply button. */
+.age-notice {
+  display: grid;
+  gap: var(--ds-space-3, 12px);
+  padding: var(--ds-space-4, 16px);
+  border: 1px solid var(--ds-info, #1d4ed8);
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-info-bg, #eff6ff);
+  color: var(--ds-ink-700, #374151);
+  font-size: var(--ds-text-sm, 0.875rem);
+  line-height: 1.5;
+}
+
+.age-notice__title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ds-text, #111827);
+}
+
+.age-notice__text {
+  margin: 0;
+}
+
+.age-notice__link {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-tap, 44px);
+  padding: 0 var(--ds-space-5, 20px);
+  border-radius: var(--ds-radius-btn, 10px);
+  background: var(--ds-green, #0f766e);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.age-notice__link:focus-visible {
+  outline: 2px solid var(--ds-green, #0f766e);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dob-prompt__btn,
+  .age-notice__link {
+    transition: none;
+  }
+}

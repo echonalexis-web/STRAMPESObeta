@@ -7,6 +7,30 @@ import { useToast } from "../components/feedback/context";
 import RegistrationLayout from "../components/RegistrationLayout";
 import { useUsernameAvailability } from "../hooks/useUsernameAvailability";
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaAt, FaUserPlus } from "react-icons/fa";
+import { useTranslation } from "react-i18next";
+import DobPrompt from "../components/DobPrompt";
+import { checkDobInput, getManilaTodayISO } from "../utils/age";
+import { translateErrorCode } from "../utils/apiErrors";
+
+// Honest limit: this only remembers an under-15 attempt for this browser
+// session so the form is not offered again straight away. A determined child can
+// clear it; the real controls are server-side and proof of age at SPES intake.
+// Nothing about the attempt (not even the date) is stored.
+const AGE_BLOCK_KEY = "ageBlockedSession";
+const readAgeBlocked = () => {
+  try {
+    return sessionStorage.getItem(AGE_BLOCK_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const writeAgeBlocked = () => {
+  try {
+    sessionStorage.setItem(AGE_BLOCK_KEY, "1");
+  } catch {
+    /* storage unavailable: the block simply is not remembered */
+  }
+};
 
 const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
@@ -75,12 +99,17 @@ const validatePassword = (password) => {
 };
 
 export default function Register() {
+  const { t } = useTranslation();
+  const [ageBlocked, setAgeBlocked] = useState(readAgeBlocked);
+  // Set when a first-time Google sign-in needs a date of birth before the account exists.
+  const [pendingGoogleToken, setPendingGoogleToken] = useState("");
   const [formData, setFormData] = useState({
     surname: "",
     firstName: "",
     middleName: "",
     suffix: "",
     email: "",
+    dateOfBirth: "",
     password: "",
     username: "",
   });
@@ -171,6 +200,19 @@ export default function Register() {
       showError("Please enter your email address.");
       return;
     }
+    {
+      const dobCode = checkDobInput(formData.dateOfBirth);
+      if (dobCode === "AGE_UNDER_MINIMUM") {
+        // Not sent anywhere: the date of an under-15 attempt is never stored.
+        writeAgeBlocked();
+        setAgeBlocked(true);
+        return;
+      }
+      if (dobCode) {
+        showError(t(`errors.codes.${dobCode}`));
+        return;
+      }
+    }
     if (!formData.password) {
       showError("Please enter a password.");
       return;
@@ -226,6 +268,7 @@ export default function Register() {
         middleName,
         suffix,
         email: normalizedEmail,
+        dateOfBirth: formData.dateOfBirth,
         password: formData.password,
         role: "employee",
         username: formData.username.trim(),
@@ -240,14 +283,62 @@ export default function Register() {
           "Account created! We've sent a verification link to your email — verify it, then log in."
       );
       setDevVerifyUrl(registerResponse.devVerifyUrl || "");
-      setFormData({ surname: "", firstName: "", middleName: "", suffix: "", email: "", password: "", username: "" });
+      setFormData({ surname: "", firstName: "", middleName: "", suffix: "", email: "", dateOfBirth: "", password: "", username: "" });
       setTouched({});
       setTimeout(() => navigate("/login"), 4000);
     } catch (err) {
       console.error("Registration error:", err);
-      showError(formatApiError(err, "Registration failed"));
+      if (err?.response?.data?.code === "AGE_UNDER_MINIMUM") {
+        writeAgeBlocked();
+        setAgeBlocked(true);
+        return;
+      }
+      showError(translateErrorCode(err?.response?.data?.code) || formatApiError(err, "Registration failed"));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const finishGoogleSignIn = (data) => {
+    const token = data.token;
+    const userData = data.user || {};
+    if (!token) throw new Error("Invalid response from server");
+
+    const mergedUser = { ...userData, role: normalizeRole(userData.role) };
+    login(token, mergedUser);
+
+    const onboardingDone =
+      typeof mergedUser.hasCompletedOnboarding === "boolean"
+        ? mergedUser.hasCompletedOnboarding
+        : mergedUser.onboardingComplete;
+
+    // New Google users land here with no completed onboarding → pick a role.
+    if (data.isNewUser || onboardingDone === false) {
+      navigate("/onboarding");
+    } else {
+      navigate(getDefaultRouteByRole(mergedUser.role));
+    }
+  };
+
+  // Step 2 for a first-time Google jobseeker: nothing exists yet, so the date
+  // of birth goes up with the short-lived pending token. Resolves to null on
+  // success or an error code for the prompt to show.
+  const handleGoogleDob = async (dateOfBirth) => {
+    try {
+      const { data } = await authAPI.googleComplete(pendingGoogleToken, dateOfBirth);
+      setPendingGoogleToken("");
+      finishGoogleSignIn(data);
+      return null;
+    } catch (err) {
+      const code = err?.response?.data?.code;
+      if (code === "AGE_UNDER_MINIMUM") {
+        writeAgeBlocked();
+        setPendingGoogleToken("");
+        setAgeBlocked(true);
+        return null;
+      }
+      if (code === "GOOGLE_PENDING_EXPIRED") setPendingGoogleToken("");
+      return code || "GENERIC";
     }
   };
 
@@ -256,24 +347,11 @@ export default function Register() {
     setLoading(true);
     try {
       const { data } = await authAPI.google(credential, "jobseeker");
-      const token = data.token;
-      const userData = data.user || {};
-      if (!token) throw new Error("Invalid response from server");
-
-      const mergedUser = { ...userData, role: normalizeRole(userData.role) };
-      login(token, mergedUser);
-
-      const onboardingDone =
-        typeof mergedUser.hasCompletedOnboarding === "boolean"
-          ? mergedUser.hasCompletedOnboarding
-          : mergedUser.onboardingComplete;
-
-      // New Google users land here with no completed onboarding → pick a role.
-      if (data.isNewUser || onboardingDone === false) {
-        navigate("/onboarding");
-      } else {
-        navigate(getDefaultRouteByRole(mergedUser.role));
+      if (data?.code === "DOB_REQUIRED" && data.pendingToken) {
+        setPendingGoogleToken(data.pendingToken);
+        return;
       }
+      finishGoogleSignIn(data);
     } catch (err) {
       console.error("Google sign-in error:", err);
       const d = err?.response?.data;
@@ -318,6 +396,11 @@ export default function Register() {
               <a href={devVerifyUrl}>open the verification link</a>.
             </p>
           )}
+        </div>
+      ) : ageBlocked ? (
+        <div className="auth-notice" role="alert">
+          <p><strong>{t("ageGate.underMinimumTitle")}</strong></p>
+          <p>{t("ageGate.underMinimumBody")}</p>
         </div>
       ) : (
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
@@ -406,6 +489,24 @@ export default function Register() {
               className={touched.email && !formData.email.trim() ? "is-error" : ""}
             />
           </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="dateOfBirth">{t("ageGate.dobLabel")}</label>
+          <input
+            id="dateOfBirth"
+            type="date"
+            name="dateOfBirth"
+            value={formData.dateOfBirth}
+            onChange={handleChange}
+            max={getManilaTodayISO()}
+            min="1900-01-01"
+            required
+            disabled={loading}
+            autoComplete="bday"
+            aria-describedby="dateOfBirth-hint"
+          />
+          <span id="dateOfBirth-hint" className="optional-label">{t("ageGate.registerHint")}</span>
         </div>
 
         <div className="form-group">
@@ -501,7 +602,14 @@ export default function Register() {
       </form>
       )}
 
-      {!success && <GoogleSignInButton onCredential={handleGoogleCredential} text="signup_with" fullWidth />}
+      {!success && !ageBlocked && <GoogleSignInButton onCredential={handleGoogleCredential} text="signup_with" fullWidth />}
+      <DobPrompt
+        isOpen={Boolean(pendingGoogleToken)}
+        onSubmit={handleGoogleDob}
+        onCancel={() => setPendingGoogleToken("")}
+        title={t("ageGate.googleTitle")}
+        description={t("ageGate.googleBody")}
+      />
 
       {!success && (
         <p className="auth-terms-footer">

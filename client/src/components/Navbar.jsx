@@ -28,7 +28,7 @@ import { AuthContext } from "../context/AuthContext";
 import { messageAPI, notificationAPI, resolveAssetUrl } from "../services/api";
 import { useSocket } from "../context/SocketContext";
 import { useNavbarStylePreference } from "../hooks/useNavbarStylePreference";
-import { isJobVacancyEligibleAge, isSpesEligibleAge } from "../utils/age";
+import { canViewJobs as canViewJobsAge, isJobVacancyEligibleAge, isSpesEligibleAge } from "../utils/age";
 import "../styles/navbar.css";
 import pesoLogo from "../assets/images/peso-logo.png";
 import PublicNavbar from "./PublicNavbar";
@@ -146,22 +146,23 @@ const getDefaultRouteByRole = (role) => {
   return "/dashboard";
 };
 
-// 15-17 account holders can't browse/apply to jobs (only SPES + News); 31+
-// account holders can't submit new SPES applications (only jobs + News).
-// An unknown dateOfBirth fails closed on both, leaving just Dashboard + News.
+// 15-17 account holders can browse jobs but not apply to them (they apply to
+// SPES instead); 31+ account holders can't submit new SPES applications.
+// An unknown dateOfBirth fails closed, leaving just Dashboard + News.
 // See server/utils/age.js / client/src/utils/age.js for the matching
 // backend-enforced bands.
 const getJobseekerMenuGroups = (t, user) => {
-  const canViewJobs = isJobVacancyEligibleAge(user?.dateOfBirth);
+  const canViewJobs = canViewJobsAge(user?.dateOfBirth);
+  const canApplyJobs = isJobVacancyEligibleAge(user?.dateOfBirth);
   const canApplySpes = isSpesEligibleAge(user?.dateOfBirth);
 
   const careerItems = [];
-  if (canViewJobs) {
+  if (canApplyJobs) {
     careerItems.push({ label: t("navbar.yourApplications"), to: "/applications", icon: <FaFileAlt aria-hidden="true" /> });
   }
   if (canApplySpes) {
     careerItems.push({
-      label: canViewJobs ? t("navbar.mySpes") : t("navbar.trackSpesApplications"),
+      label: canApplyJobs ? t("navbar.mySpes") : t("navbar.trackSpesApplications"),
       to: "/spes/applications",
       icon: <FaGraduationCap aria-hidden="true" />,
     });

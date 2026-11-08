@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
 import GoogleSignInButton from "../components/GoogleSignInButton";
+import { useTranslation } from "react-i18next";
 import { useToast } from "../components/feedback/context";
 import RegistrationLayout from "../components/RegistrationLayout";
 import { useUsernameAvailability } from "../hooks/useUsernameAvailability";
@@ -75,7 +76,10 @@ const formatApiError = (err, fallback = "Registration failed") => {
 };
 
 export default function EmployerRegister() {
+  const { t } = useTranslation();
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  // Employers attest they are 18 or older. No date of birth is collected or stored for employers.
+  const [confirmedAdult, setConfirmedAdult] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -182,6 +186,11 @@ export default function EmployerRegister() {
       return;
     }
 
+    if (!confirmedAdult) {
+      showError(t("errors.codes.EMPLOYER_ADULT_ATTESTATION_REQUIRED"));
+      return;
+    }
+
     if (!agreedToTerms) {
       showError("Please agree to the Terms of Service and Privacy Policy to continue.");
       return;
@@ -191,6 +200,7 @@ export default function EmployerRegister() {
 
     try {
       const trimmedData = {
+        confirmAdult: true,
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
@@ -224,9 +234,13 @@ export default function EmployerRegister() {
   const handleGoogleCredential = async (credential) => {
     showError("");
     setSuccess("");
+    if (!confirmedAdult) {
+      showError(t("errors.codes.EMPLOYER_ADULT_ATTESTATION_REQUIRED"));
+      return;
+    }
     setLoading(true);
     try {
-      const { data } = await authAPI.google(credential, "employer");
+      const { data } = await authAPI.google(credential, "employer", true);
       const token = data.token;
       const userData = data.user || {};
       if (!token) throw new Error("Invalid response from server");
@@ -411,6 +425,16 @@ export default function EmployerRegister() {
         <label className="auth-checkbox-row">
           <input
             type="checkbox"
+            checked={confirmedAdult}
+            onChange={(e) => setConfirmedAdult(e.target.checked)}
+            disabled={loading}
+          />
+          <span>{t("ageGate.employerAttest")}</span>
+        </label>
+
+        <label className="auth-checkbox-row">
+          <input
+            type="checkbox"
             checked={agreedToTerms}
             onChange={(e) => setAgreedToTerms(e.target.checked)}
             disabled={loading}
@@ -423,7 +447,7 @@ export default function EmployerRegister() {
           </span>
         </label>
 
-        <button type="submit" className="auth-button" disabled={loading || !agreedToTerms}>
+        <button type="submit" className="auth-button" disabled={loading || !agreedToTerms || !confirmedAdult}>
           <FaUserPlus aria-hidden="true" />
           {loading ? "Creating Account..." : "Create Employer Account"}
         </button>

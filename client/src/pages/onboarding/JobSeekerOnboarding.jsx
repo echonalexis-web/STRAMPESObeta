@@ -25,19 +25,14 @@ import { useUsernameAvailability } from "../../hooks/useUsernameAvailability";
 import { VALID_INDUSTRIES as INDUSTRY_OPTIONS_FALLBACK } from "../../constants/industries";
 import { GENDER_OPTIONS } from "../../constants/gender";
 import { CIVIL_STATUS_OPTIONS, CIVIL_STATUS_OTHER } from "../../constants/civilStatus";
+import { meetsMinimumAccountAge } from "../../utils/age";
 import { UNEMPLOYMENT_REASON_OPTIONS } from "../../constants/unemploymentReasons";
 import { WORK_HISTORY_STATUS_OPTIONS } from "../../constants/workHistoryStatus";
 
 // STRAM PESO accounts are for ages 15 and up (SPES applicants may be 15–30).
 const MIN_AGE = 15;
-const isOldEnough = (dateOfBirth) => {
-  if (!dateOfBirth) return false;
-  const dob = new Date(dateOfBirth);
-  if (Number.isNaN(dob.getTime())) return false;
-  const cutoff = new Date();
-  cutoff.setFullYear(cutoff.getFullYear() - MIN_AGE);
-  return dob <= cutoff;
-};
+// Same Asia/Manila date-only rule as the server (utils/age.js). Display only.
+const isOldEnough = meetsMinimumAccountAge;
 
 const RELIGIONS = [
   "Roman Catholic", "Islam", "Iglesia ni Cristo", "Evangelical", "Aglipayan (Philippine Independent Church)",
@@ -805,7 +800,7 @@ export default function JobSeekerOnboarding() {
               <label>Middle Name <span className="onboarding-optional">(optional)</span><input type="text" value={form.middleName || ""} onChange={e => updateField("middleName", e.target.value)} disabled={saving} /></label>
               <label>Suffix <span className="onboarding-optional">(optional)</span><input type="text" placeholder="Jr., III, etc." value={form.suffix || ""} onChange={e => updateField("suffix", e.target.value)} disabled={saving} /></label>
               <label>Phone Number <input type="tel" value={form.phone || ""} onChange={e => updateField("phone", e.target.value)} disabled={saving} /></label>
-              <label>Date of Birth <input type="date" value={form.dateOfBirth || ""} onChange={e => updateField("dateOfBirth", e.target.value)} disabled={saving} /></label>
+              <label>Date of Birth <input type="date" value={form.dateOfBirth || ""} onChange={e => updateField("dateOfBirth", e.target.value)} disabled={saving} readOnly={Boolean(user?.dateOfBirth)} aria-readonly={Boolean(user?.dateOfBirth)} />{user?.dateOfBirth ? <small className="onboarding-optional">{t("ageGate.dobLockedProfile")}</small> : null}</label>
             </div>
             <div>
               <span className="onboarding-label">Gender</span>

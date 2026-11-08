@@ -365,6 +365,7 @@ export default function EditProfile() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isEmployer = user?.role === "employer";
+  const dobLocked = Boolean(user?.dateOfBirth);
   const isSuperadmin = user?.role === "superadmin";
   // The superadmin shares the admin's minimal edit form (name, phone, password) —
   // no NSRP / career / documents tabs.
@@ -1210,7 +1211,20 @@ export default function EditProfile() {
                   <div className="profile-field-grid">
                     <div className="profile-field">
                       <label htmlFor="dateOfBirth"><FaCalendarAlt /> Date of Birth</label>
-                      <input id="dateOfBirth" type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} />
+                      {/* Locked once set: only PESO staff can change it, with proof of age. */}
+                      <input
+                        id="dateOfBirth"
+                        type="date"
+                        name="dateOfBirth"
+                        value={formData.dateOfBirth}
+                        onChange={handleChange}
+                        readOnly={dobLocked}
+                        aria-readonly={dobLocked}
+                        aria-describedby={dobLocked ? "dateOfBirth-locked" : undefined}
+                      />
+                      {dobLocked && (
+                        <small id="dateOfBirth-locked" className="profile-field-hint">{t("ageGate.dobLockedProfile")}</small>
+                      )}
                     </div>
                     <div className="profile-field">
                       <label htmlFor="gender">Gender</label>
