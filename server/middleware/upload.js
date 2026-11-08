@@ -224,6 +224,7 @@ module.exports = {
   avatarUpload,
   singleFileUpload,
   validateFile,
+  matchesDeclaredType,
   persistUploads,
   persistFields,
   cleanupUploadedFiles,

@@ -134,6 +134,28 @@ const validateDobInput = (value, now = new Date()) => {
   return { ok: true, date, tier: getAgeTier(date, now) };
 };
 
+// Date range (UTC midnight, inclusive/exclusive bounds as Mongo operators) of
+// dates of birth that fall in a tier today. Lets list queries filter by age
+// tier in the database without ever returning a date of birth. Returns null for
+// tiers with no usable range (unknown).
+const dobRangeForTier = (tier, now = new Date()) => {
+  const t = getManilaToday(now);
+  // The date of birth a person turning `years` today would have.
+  const birthdayMinus = (years) => new Date(Date.UTC(t.year - years, t.month - 1, t.day));
+  switch (tier) {
+    case TIERS.UNDER_15:
+      return { $gt: birthdayMinus(MIN_ACCOUNT_AGE) };
+    case TIERS.MINOR:
+      return { $gt: birthdayMinus(JOB_VACANCY_MIN_AGE), $lte: birthdayMinus(MIN_ACCOUNT_AGE) };
+    case TIERS.ADULT:
+      return { $gt: birthdayMinus(SPES_MAX_AGE + 1), $lte: birthdayMinus(JOB_VACANCY_MIN_AGE) };
+    case TIERS.SENIOR:
+      return { $lte: birthdayMinus(SPES_MAX_AGE + 1) };
+    default:
+      return null;
+  }
+};
+
 module.exports = {
   MANILA_TZ,
   MIN_ACCOUNT_AGE,
@@ -149,4 +171,5 @@ module.exports = {
   isJobVacancyEligibleAge,
   parseDateOnly,
   validateDobInput,
+  dobRangeForTier,
 };

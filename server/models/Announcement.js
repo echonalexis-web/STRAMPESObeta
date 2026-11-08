@@ -33,6 +33,12 @@ const announcementSchema = new mongoose.Schema(
       publishAcceptedList: { type: Boolean, default: false },
       exposeScores: { type: Boolean, default: false },
       resultsAnnouncementId: { type: mongoose.Schema.Types.ObjectId, ref: "Announcement", default: null },
+      // Typed document slots an applicant must supply (utils/spesDocuments.js).
+      // Empty = use the defaults. requirements[] stays as free display text.
+      requiredSlots: { type: [String], default: [] },
+      opensAt: { type: Date, default: null },
+      // Manual close by PESO staff, independent of the deadline.
+      closedAt: { type: Date, default: null },
     },
     imageUrl: {
       type: String,

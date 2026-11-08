@@ -6,6 +6,7 @@ const JobseekerProfile = require("../models/JobseekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
 const JobVacancy = require("../models/JobVacancy");
 const JobseekerDocument = require("../models/JobseekerDocument");
+const SpesApplication = require("../models/SpesApplication");
 const { sendError } = require("../utils/sendError");
 const { logAuditEvent } = require("../services/auditService");
 
@@ -44,6 +45,10 @@ const canAccessRef = async (ref, user) => {
     // slots above — a document that only lives there was previously
     // unopenable by its own owner because nothing here checked it.
     JobseekerDocument.exists({ owner: userId, storedValue: ref }),
+    // SPES application documents: only the applicant who owns that application
+    // (staff are already allowed above). Ownership is part of the query, so a
+    // ref belonging to someone else's application never matches.
+    SpesApplication.exists({ applicant: userId, "documents.fileUrl": ref }),
   ];
 
   // An employer may open an applicant's résumé/cover letter only once that

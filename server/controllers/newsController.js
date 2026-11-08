@@ -26,9 +26,13 @@ const parseJSONSafe = (value, fallback) => {
 // string field `spesConfig` so it survives multipart submissions).
 const normalizeSpesConfig = (raw) => {
   const cfg = parseJSONSafe(raw, {}) || {};
+  // An unparseable deadline or a non-whole-number slot count becomes "not set"
+  // instead of storing an Invalid Date / NaN.
+  const deadline = cfg.applicationDeadline ? new Date(cfg.applicationDeadline) : null;
+  const slotsNumber = cfg.slots !== undefined && cfg.slots !== null && cfg.slots !== "" ? Number(cfg.slots) : null;
   return {
-    applicationDeadline: cfg.applicationDeadline ? new Date(cfg.applicationDeadline) : null,
-    slots: cfg.slots !== undefined && cfg.slots !== null && cfg.slots !== "" ? Number(cfg.slots) : null,
+    applicationDeadline: deadline && !Number.isNaN(deadline.getTime()) ? deadline : null,
+    slots: Number.isInteger(slotsNumber) && slotsNumber >= 0 ? slotsNumber : null,
     requirements: Array.isArray(cfg.requirements)
       ? cfg.requirements.map((r) => String(r).trim()).filter(Boolean).slice(0, 30)
       : [],
