@@ -2,10 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const load = (lang) =>
-  JSON.parse(
-    fs.readFileSync(new URL(`../i18n/locales/${lang}.json`, import.meta.url), "utf8").replace(/^﻿/, "")
-  );
+const load = (lang) => {
+  const text = fs.readFileSync(new URL(`../i18n/locales/${lang}.json`, import.meta.url), "utf8");
+  return JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
+};
 
 function flatten(node, prefix = "") {
   return Object.entries(node).flatMap(([key, value]) =>
@@ -38,7 +38,7 @@ test("every kind has the same set of keys", () => {
   const kinds = ["recoveryEmail", "emailChange", "emailVerification"];
   const sets = kinds.map((kind) =>
     Object.keys(en)
-      .filter((key) => key.startsWith(`resultModal.${kind}.`))
+      .filter((key) => key.startsWith(`${kind}.`))
       .map((key) => key.split(".").pop())
       .sort()
       .join(",")
