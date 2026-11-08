@@ -36,6 +36,7 @@ import StaffAccountRecovery from "./pages/StaffAccountRecovery";
 import AccountRecoveryQueue from "./pages/admin/AccountRecoveryQueue";
 import AccountSuspended from "./pages/AccountSuspended";
 import TermsGate from "./components/TermsGate";
+import ResultModalHost from "./components/ResultModalHost";
 import CookieConsentBanner from "./components/CookieConsentBanner";
 import Dashboard from "./pages/Dashboard";
 import JobBoard from "./pages/JobBoard";
@@ -164,6 +165,7 @@ function AppRoutes() {
         <SiteChrome />
         <DashboardTopBar />
         <TermsGate />
+        <ResultModalHost />
         <CookieConsentBanner />
         <ForcedLogoutListener />
         <ActiveStatusReporter />
