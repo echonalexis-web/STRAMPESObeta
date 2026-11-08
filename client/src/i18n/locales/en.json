@@ -1120,5 +1120,41 @@
     },
     "copyright": "© {{year}} STRAM PESO. All rights reserved.",
     "secureServices": "Secure account services"
+  },
+  "resultModal": {
+    "close": "Close",
+    "tryAgain": "Try again",
+    "backToSettings": "Back to Settings",
+    "backToEditProfile": "Back to Edit Profile",
+    "backToLogin": "Back to login",
+    "goToLogin": "Go to login",
+    "invalidTitle": "Link incomplete",
+    "tokenTitle": "This link can't be used",
+    "networkTitle": "Couldn't confirm",
+    "networkMessage": "We couldn't reach the server. Check your connection and try again.",
+    "recoveryEmail": {
+      "loadingTitle": "Confirming recovery email",
+      "loadingMessage": "Confirming {{email}}…",
+      "successTitle": "Recovery email confirmed",
+      "successMessage": "Your recovery email has been confirmed. You can now sign in with {{email}} as a recovery address, or use it to receive a password reset link if you ever lose access to your regular sign-in email.",
+      "invalidMessage": "This confirmation link is incomplete or malformed. Start again from Settings.",
+      "tokenMessage": "This confirmation link is invalid, has expired, or was already used. Start again from Settings."
+    },
+    "emailChange": {
+      "loadingTitle": "Confirming email change",
+      "loadingMessage": "Confirming {{email}}…",
+      "successTitle": "Email address updated",
+      "successMessage": "Your email address has been updated. You can now sign in with {{email}}.",
+      "invalidMessage": "This confirmation link is incomplete or malformed. Start the change again from Edit Profile.",
+      "tokenMessage": "This confirmation link is invalid, has expired, or was already used. Start the change again from Edit Profile."
+    },
+    "emailVerification": {
+      "loadingTitle": "Verifying your email",
+      "loadingMessage": "Verifying {{email}}…",
+      "successTitle": "Email verified",
+      "successMessage": "Your email has been verified.",
+      "invalidMessage": "This verification link is incomplete or malformed. Request a new one from the login page.",
+      "tokenMessage": "This verification link is invalid, has expired, or was already used. Request a new one from the login page."
+    }
   }
 }

@@ -1,0 +1,117 @@
+/* Result modal (confirmation / notice after an emailed link). Built on the
+   AppModal shell (app-modal.css): bottom sheet below 768px, centered dialog
+   from 768px. Only existing --ds-* tokens are used. The double-class
+   selectors out-rank the AppModal rules regardless of import order. */
+
+.app-modal-card.am-card.rm-card {
+  align-items: stretch;
+  border-top: 4px solid var(--ds-gold);
+  text-align: center;
+}
+
+.app-modal-card.am-card.rm-card:focus {
+  outline: none;
+}
+
+/* AppModal renders the title before its children; the icon sits above it. */
+.app-modal-card.am-card.rm-card .app-modal-title {
+  padding: 8px 0 12px;
+  text-align: center;
+}
+
+.rm-body {
+  display: contents;
+}
+
+.rm-icon {
+  order: -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 24px auto 4px;
+  border-radius: 50%;
+}
+
+.rm-icon--success {
+  background: var(--ds-mint);
+  color: var(--ds-green);
+}
+
+.rm-icon--failure {
+  background: var(--ds-danger-bg);
+  color: var(--ds-danger);
+}
+
+.rm-icon--loading {
+  background: var(--ds-mint);
+  color: var(--ds-green);
+}
+
+.rm-spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rm-spinner {
+    animation: rm-spin 0.9s linear infinite;
+  }
+}
+
+@keyframes rm-spin {
+  to { transform: rotate(360deg); }
+}
+
+.rm-message {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-md);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.rm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Primary on top on phones; secondary-then-primary in a row on wide screens. */
+.rm-actions .ds-btn {
+  width: 100%;
+  min-height: var(--ds-tap);
+}
+
+.rm-actions .ds-btn--primary {
+  order: -1;
+}
+
+@media (min-width: 768px) {
+  .app-modal-card.am-card.rm-card .app-modal-title {
+    padding-top: 10px;
+  }
+
+  .rm-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .rm-actions .ds-btn {
+    width: auto;
+    min-width: 140px;
+  }
+
+  .rm-actions .ds-btn--primary {
+    order: 0;
+  }
+}

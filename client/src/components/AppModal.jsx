@@ -7,7 +7,24 @@ import "../styles/app-modal.css";
 // `panelClassName` to the dialog card so a caller can opt into a variant
 // (e.g. `am--full` for a full-height sheet) or scope its own content CSS
 // without :has() hooks. Both are optional; omitting them changes nothing.
-export default function AppModal({ isOpen, onClose, title, children, className = "", panelClassName = "" }) {
+//
+// Optional accessibility props (all additive; defaults keep existing callers
+// behaving the same): `titleId` labels the dialog by the visible title
+// instead of an aria-label, `describedBy` points aria-describedby at a
+// message element, `closeLabel` localizes the close button, and `hideClose`
+// removes the close button for a state that must not be dismissed.
+export default function AppModal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  className = "",
+  panelClassName = "",
+  titleId,
+  describedBy,
+  closeLabel = "Close modal",
+  hideClose = false,
+}) {
   const dialogRef = useRef(null);
   useModalA11y(isOpen, onClose, dialogRef);
 
@@ -29,18 +46,23 @@ export default function AppModal({ isOpen, onClose, title, children, className =
         className={["app-modal-card", "am-card", panelClassName].filter(Boolean).join(" ")}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={titleId ? undefined : title}
+        aria-labelledby={titleId}
+        aria-describedby={describedBy}
+        tabIndex={-1}
         ref={dialogRef}
       >
-        <button
-          className="app-modal-close"
-          onClick={onClose}
-          aria-label="Close modal"
-          type="button"
-        >
-          x
-        </button>
-        <h3 className="app-modal-title">{title}</h3>
+        {hideClose ? null : (
+          <button
+            className="app-modal-close"
+            onClick={onClose}
+            aria-label={closeLabel}
+            type="button"
+          >
+            x
+          </button>
+        )}
+        <h3 className="app-modal-title" id={titleId}>{title}</h3>
         {children}
       </div>
     </div>

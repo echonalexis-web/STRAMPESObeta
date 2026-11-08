@@ -1120,5 +1120,41 @@
     },
     "copyright": "© {{year}} STRAM PESO. Lahat ng karapatan ay nakalaan.",
     "secureServices": "Ligtas na serbisyo ng account"
+  },
+  "resultModal": {
+    "close": "Isara",
+    "tryAgain": "Subukan muli",
+    "backToSettings": "Bumalik sa Settings",
+    "backToEditProfile": "Bumalik sa Edit Profile",
+    "backToLogin": "Bumalik sa login",
+    "goToLogin": "Pumunta sa login",
+    "invalidTitle": "Hindi kumpleto ang link",
+    "tokenTitle": "Hindi magagamit ang link na ito",
+    "networkTitle": "Hindi makumpirma",
+    "networkMessage": "Hindi namin maabot ang server. Suriin ang koneksyon at subukan muli.",
+    "recoveryEmail": {
+      "loadingTitle": "Kinukumpirma ang recovery email",
+      "loadingMessage": "Kinukumpirma ang {{email}}…",
+      "successTitle": "Nakumpirma na ang recovery email",
+      "successMessage": "Nakumpirma na ang iyong recovery email. Maaari ka nang mag-sign in gamit ang {{email}} bilang recovery address, o gamitin ito para makatanggap ng password reset link kung mawalan ka ng access sa iyong karaniwang sign-in email.",
+      "invalidMessage": "Hindi kumpleto o sira ang confirmation link na ito. Magsimula muli sa Settings.",
+      "tokenMessage": "Hindi wasto, nag-expire na, o nagamit na ang confirmation link na ito. Magsimula muli sa Settings."
+    },
+    "emailChange": {
+      "loadingTitle": "Kinukumpirma ang pagpapalit ng email",
+      "loadingMessage": "Kinukumpirma ang {{email}}…",
+      "successTitle": "Napalitan na ang email address",
+      "successMessage": "Napalitan na ang iyong email address. Maaari ka nang mag-sign in gamit ang {{email}}.",
+      "invalidMessage": "Hindi kumpleto o sira ang confirmation link na ito. Simulan muli ang pagpapalit sa Edit Profile.",
+      "tokenMessage": "Hindi wasto, nag-expire na, o nagamit na ang confirmation link na ito. Simulan muli ang pagpapalit sa Edit Profile."
+    },
+    "emailVerification": {
+      "loadingTitle": "Bine-verify ang iyong email",
+      "loadingMessage": "Bine-verify ang {{email}}…",
+      "successTitle": "Na-verify na ang email",
+      "successMessage": "Na-verify na ang iyong email.",
+      "invalidMessage": "Hindi kumpleto o sira ang verification link na ito. Humiling ng bago sa login page.",
+      "tokenMessage": "Hindi wasto, nag-expire na, o nagamit na ang verification link na ito. Humiling ng bago sa login page."
+    }
   }
 }
