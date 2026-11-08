@@ -17,7 +17,7 @@ import {
 import { SPES_ALLOWED_MIME, SPES_MAX_FILE_SIZE, checkSpesFile } from "./spesSlots.js";
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../i18n/locales");
-const load = (name) => JSON.parse(readFileSync(path.join(dir, name), "utf8").replace(/^﻿/, ""));
+const load = (name) => JSON.parse(readFileSync(path.join(dir, name), "utf8"));
 const locales = { en: load("en.json"), fil: load("fil.json") };
 
 const file = (type, size) => ({ type, size, name: "x" });

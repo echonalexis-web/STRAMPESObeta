@@ -1254,7 +1254,7 @@
 .spes-apply__step.is-active { background: var(--ds-green, #0f766e); color: #fff; font-weight: 600; }
 .spes-apply__step.is-done { background: var(--ds-mint, #d1fae5); color: var(--ds-green-deep, #064e3b); }
 .spes-apply__body { display: grid; gap: var(--ds-space-3, 12px); }
-.spes-apply__body label { display: grid; gap: 6px; font-size: var(--ds-text-sm, 0.875rem); font-weight: 600; color: var(--ds-text, #111827); }
+.spes-apply__body label:not(.fu__drop) { display: grid; gap: 6px; font-size: var(--ds-text-sm, 0.875rem); font-weight: 600; color: var(--ds-text, #111827); }
 .spes-apply__body input:not([type="file"]):not([type="checkbox"]),
 .spes-apply__body select {
   min-height: var(--ds-tap, 44px);
@@ -1721,3 +1721,6 @@ body:has(.spes-drawer-overlay) .fm-root {
   border-radius: var(--ds-radius-md, 10px);
   background: var(--ds-ink-100, #e5e7eb);
 }
+.spes-apply__summary { margin: 0; font-size: var(--ds-text-sm, 0.875rem); font-weight: 600; color: var(--ds-green, #07553a); }
+.spes-apply__progress { margin-top: var(--ds-space-3, 12px); display: grid; gap: 6px; }
+.spes-apply__progress-label { margin: 0; font-size: var(--ds-text-sm, 0.875rem); color: var(--ds-muted, #4b5563); }

@@ -1,12 +1,14 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AuthContext } from "../context/AuthContext";
 import { spesAPI } from "../services/api";
 import { translateErrorCode } from "../utils/apiErrors";
-import { checkSpesFile, requiredSlotsFor } from "../utils/spesSlots";
-import { useToast } from "./feedback/context";
+import { requiredSlotsFor } from "../utils/spesSlots";
+import { SPES_DOC_LIMITS, bytesToMb, formatFileSize, uploadErrorCode } from "../utils/spesUploadLimits";
+import { useConfirm, useToast } from "./feedback/context";
 import AppModal from "./AppModal";
 import Autosuggest from "./Autosuggest";
+import FileUpload from "./FileUpload";
 import marinduqueSchoolsData from "../data/marinduque_schools.json";
 
 // Secondary schools map to the high school grade options; higher-ed and
@@ -54,15 +56,27 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
   const { t } = useTranslation();
   const { user } = useContext(AuthContext);
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [step, setStep] = useState("info");
   const [submitting, setSubmitting] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [form, setForm] = useState(() => ({ ...EMPTY_FORM, contactNumber: user?.phone || "" }));
   const [files, setFiles] = useState({});
+  const [slotErrors, setSlotErrors] = useState({});
   const [fieldError, setFieldError] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const abortRef = useRef(null);
+  const submittingRef = useRef(false);
+  const confirmingRef = useRef(false);
+
+  // A request still in flight when the dialog unmounts is cancelled, not left running.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const isOsy = form.applicantType === "osy";
   const slots = requiredSlotsFor(posting, form.applicantType);
+  const addedCount = slots.filter((slot) => files[slot]).length;
+  const docsComplete = addedCount === slots.length;
   const schoolLevel = SCHOOL_LEVEL_BY_NAME.get(form.school.trim());
 
   const updateField = (name, value) => {
@@ -98,20 +112,55 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
     });
   };
 
-  const handleFilePick = (slot, file) => {
-    if (!file) return;
-    const code = checkSpesFile(file);
-    if (code) {
-      toast.error(translateErrorCode(code, t("spes.docs.uploadFailed")));
-      return;
-    }
+  // FileUpload has already checked type and size; a bad file never reaches here, and the
+  // other slots keep their files either way.
+  const clearSlotError = (slot) =>
+    setSlotErrors((prev) => {
+      if (!prev[slot]) return prev;
+      const next = { ...prev };
+      delete next[slot];
+      return next;
+    });
+
+  const handleFileSelect = (slot, file) => {
     setFieldError("");
+    setSubmitError("");
+    clearSlotError(slot);
     setFiles((prev) => ({ ...prev, [slot]: file }));
   };
 
-  const closeModal = () => {
-    if (!submitting) onClose();
+  const handleFileRemove = (slot) => {
+    clearSlotError(slot);
+    setFiles((prev) => {
+      const next = { ...prev };
+      delete next[slot];
+      return next;
+    });
   };
+
+  // Closing (X, Esc, backdrop, Cancel) asks first when it would throw away chosen files or
+  // an upload in progress.
+  const closeModal = async () => {
+    if (confirmingRef.current) return;
+    if (!submittingRef.current && Object.keys(files).length === 0) {
+      onClose();
+      return;
+    }
+    confirmingRef.current = true;
+    const discard = await confirm({
+      title: t("spes.apply.closeConfirmTitle"),
+      message: t("spes.apply.closeConfirmBody"),
+      confirmLabel: t("spes.apply.discard"),
+      cancelLabel: t("spes.apply.keepEditing"),
+      tone: "danger",
+    });
+    confirmingRef.current = false;
+    if (!discard) return;
+    abortRef.current?.abort();
+    onClose();
+  };
+
+  const cancelSubmit = () => abortRef.current?.abort();
 
   const validateInfo = () => {
     if (!form.contactNumber.trim()) return "SPES_CONTACT_INVALID";
@@ -134,7 +183,7 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
       }
       setStep("docs");
     } else if (step === "docs") {
-      if (slots.some((slot) => !files[slot])) {
+      if (!docsComplete) {
         setFieldError("SPES_DOCS_MISSING");
         return;
       }
@@ -143,9 +192,17 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
     setFieldError("");
   };
 
+  // The API only takes documents together with the application (there is no pre-submit
+  // upload endpoint), so files stay in the browser until now and go up in one request,
+  // with one combined progress value.
   const handleSubmit = async () => {
-    if (submitting) return;
+    if (submittingRef.current) return; // a second click while a request is running
+    submittingRef.current = true;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setSubmitting(true);
+    setSubmitError("");
+    setProgress(0);
     try {
       const fd = new FormData();
       fd.append("applicantType", form.applicantType);
@@ -161,19 +218,39 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
       slots.forEach((slot) => {
         if (files[slot]) fd.append(slot, files[slot]);
       });
-      const { data } = await spesAPI.apply(posting._id, fd);
+      const { data } = await spesAPI.apply(posting._id, fd, {
+        signal: controller.signal,
+        onUploadProgress: (event) => {
+          if (event.total) setProgress(Math.round((event.loaded / event.total) * 100));
+        },
+      });
       toast.success(t("spes.apply.submitted"));
       onApplied(data?.application || null);
     } catch (err) {
-      const data = err?.response?.data;
-      toast.error(translateErrorCode(data?.code, data?.message || t("spes.apply.failed")));
-      if (data?.code === "SPES_DOCS_MISSING") setStep("docs");
+      const code = uploadErrorCode(err);
+      if (code === "UPLOAD_CANCELED") {
+        toast.info(t("spes.apply.submitCanceled"));
+      } else {
+        const data = err?.response?.data;
+        const missing = Array.isArray(data?.missingSlots) ? data.missingSlots : [];
+        if (missing.length > 0) {
+          setSlotErrors(Object.fromEntries(missing.map((slot) => [slot, "SPES_DOCS_MISSING"])));
+        }
+        setSubmitError(translateErrorCode(code, data?.message || t("spes.apply.failed")));
+        // A rejected document is fixed on the documents step; connection problems can be retried here.
+        if (missing.length > 0 || ["SPES_FILE_TYPE", "SPES_FILE_TOO_LARGE", "SPES_FILE_UNEXPECTED", "SPES_TOO_MANY_FILES"].includes(code)) {
+          setStep("docs");
+        }
+      }
     } finally {
+      submittingRef.current = false;
+      abortRef.current = null;
       setSubmitting(false);
     }
   };
 
-  const fileSummary = (slot) => files[slot]?.name || t("spes.apply.noFile");
+  const fileSummary = (slot) =>
+    files[slot] ? `${files[slot].name} (${formatFileSize(files[slot].size)})` : t("spes.apply.noFile");
 
   return (
     <AppModal
@@ -282,18 +359,31 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
 
       {step === "docs" ? (
         <div className="spes-apply__body">
-          <p className="spes-note">{t("spes.apply.docsHint")}</p>
+          <p className="spes-note">
+            {t("spes.apply.docsHint")} {t("spes.apply.docsDeferred")}
+          </p>
+          <p className="spes-apply__summary" role="status">
+            {t("spes.apply.docsSummary", { done: addedCount, total: slots.length })}
+          </p>
           {slots.map((slot) => (
-            <label key={slot} className="spes-apply__file">
-              <span>{t(`spes.docs.slot.${slot}`)}</span>
-              <input
-                type="file"
-                accept=".pdf,image/jpeg,image/png"
-                onChange={(e) => handleFilePick(slot, e.target.files?.[0])}
-              />
-              <span className="spes-file-summary">{fileSummary(slot)}</span>
-            </label>
+            <FileUpload
+              key={slot}
+              label={t(`spes.docs.slot.${slot}`)}
+              required
+              hint={t("upload.hint.documents", { max: bytesToMb(SPES_DOC_LIMITS.maxBytes) })}
+              file={files[slot] || null}
+              error={slotErrors[slot] || ""}
+              fileStateLabel={t("upload.ready")}
+              disabled={submitting}
+              onSelect={(file) => handleFileSelect(slot, file)}
+              onRemove={() => handleFileRemove(slot)}
+            />
           ))}
+          {!docsComplete ? (
+            <p id="spes-docs-needed" className="spes-note">
+              {t("spes.apply.docsNeeded")}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -335,36 +425,62 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
         </div>
       ) : null}
 
-      {fieldError ? (
+      {fieldError || submitError ? (
         <p className="spes-apply__error" role="alert">
-          {translateErrorCode(fieldError, t("spes.apply.failed"))}
+          {submitError || translateErrorCode(fieldError, t("spes.apply.failed"))}
         </p>
       ) : null}
 
+      {submitting ? (
+        <div className="spes-apply__progress">
+          <p className="spes-apply__progress-label">{t("spes.apply.submittingProgress", { percent: progress })}</p>
+          <div
+            className="fu__progress"
+            role="progressbar"
+            aria-label={t("spes.apply.submitting")}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+          >
+            <span className="fu__progress-bar" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      ) : null}
+
       <div className="spes-modal__actions">
-        {step !== "info" ? (
+        {submitting ? (
+          <button type="button" className="spes-btn spes-btn--ghost" onClick={cancelSubmit}>
+            {t("spes.apply.cancelSubmit")}
+          </button>
+        ) : step !== "info" ? (
           <button
             type="button"
             className="spes-btn spes-btn--ghost"
             onClick={() => {
               setFieldError("");
+              setSubmitError("");
               setStep(step === "review" ? "docs" : "info");
             }}
-            disabled={submitting}
           >
             {t("spes.apply.back")}
           </button>
         ) : (
-          <button type="button" className="spes-btn spes-btn--ghost" onClick={closeModal} disabled={submitting}>
+          <button type="button" className="spes-btn spes-btn--ghost" onClick={closeModal}>
             {t("common.cancel", { defaultValue: "Cancel" })}
           </button>
         )}
         {step === "review" ? (
           <button type="button" className="spes-btn" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? t("spes.apply.submitting") : t("spes.apply.submit")}
+            {submitting ? t("spes.apply.submitting") : submitError ? t("upload.retry") : t("spes.apply.submit")}
           </button>
         ) : (
-          <button type="button" className="spes-btn" onClick={goNext}>
+          <button
+            type="button"
+            className="spes-btn"
+            onClick={goNext}
+            disabled={step === "docs" && !docsComplete}
+            aria-describedby={step === "docs" && !docsComplete ? "spes-docs-needed" : undefined}
+          >
             {t("spes.apply.next")}
           </button>
         )}

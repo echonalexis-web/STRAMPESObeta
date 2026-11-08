@@ -8,6 +8,7 @@ import StateBlock from "../components/StateBlock";
 import SpesDocChecklist from "../components/SpesDocChecklist";
 import { useConfirm, useToast } from "../components/feedback/context";
 import { translateErrorCode } from "../utils/apiErrors";
+import { uploadErrorCode } from "../utils/spesUploadLimits";
 import {
   SPES_STAGE_KEYS,
   canEditDocs,
@@ -120,7 +121,7 @@ export default function MySpesApplications() {
       toast.success(t("spes.docs.uploaded"));
       return null;
     } catch (err) {
-      return err?.response?.data?.code || "SPES_UPLOAD_FAILED";
+      return uploadErrorCode(err);
     }
   };
 

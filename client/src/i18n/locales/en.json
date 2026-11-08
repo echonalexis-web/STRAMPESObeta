@@ -1682,11 +1682,13 @@
       "saveChanges": "Save changes",
       "cover": "Cover image (optional)",
       "coverChoose": "Choose an image",
-      "coverHint": "JPG, PNG or WEBP, up to 3 MB. It is shown on the posting card and the posting page.",
+      "coverHint": "JPG, PNG or WEBP, up to {{coverMax}} MB. It is shown on the posting card and the posting page.",
       "coverClear": "Clear my choice",
       "coverRemove": "Remove the current image",
       "coverKeep": "Keep the current image",
-      "coverPreviewAlt": "Preview of the cover image"
+      "coverPreviewAlt": "Preview of the cover image",
+      "coverLabel": "Image file",
+      "coverCurrent": "Current cover image"
     },
     "searchLabel": "Search SPES postings",
     "searchPlaceholder": "Search postings...",

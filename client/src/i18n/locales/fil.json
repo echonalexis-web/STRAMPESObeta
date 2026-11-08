@@ -1682,11 +1682,13 @@
       "saveChanges": "I-save ang mga pagbabago",
       "cover": "Cover image (opsyonal)",
       "coverChoose": "Pumili ng larawan",
-      "coverHint": "JPG, PNG o WEBP, hanggang 3 MB. Ipapakita ito sa card ng posting at sa pahina ng posting.",
+      "coverHint": "JPG, PNG o WEBP, hanggang {{coverMax}} MB. Ipapakita ito sa card ng posting at sa pahina ng posting.",
       "coverClear": "Alisin ang aking napili",
       "coverRemove": "Alisin ang kasalukuyang larawan",
       "coverKeep": "Panatilihin ang kasalukuyang larawan",
-      "coverPreviewAlt": "Preview ng cover image"
+      "coverPreviewAlt": "Preview ng cover image",
+      "coverLabel": "File ng larawan",
+      "coverCurrent": "Kasalukuyang cover image"
     },
     "searchLabel": "Maghanap ng mga SPES posting",
     "searchPlaceholder": "Maghanap ng posting...",
