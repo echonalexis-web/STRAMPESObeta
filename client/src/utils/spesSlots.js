@@ -70,3 +70,38 @@ export const checkSpesFile = (file) => {
   if (file.size > SPES_MAX_FILE_SIZE) return "SPES_FILE_TOO_LARGE";
   return null;
 };
+
+// Admin-triggered status changes (mirrors server/utils/spesLifecycle.js).
+export const ADMIN_TRANSITIONS = {
+  submitted: ["documents_review", "disqualified"],
+  documents_review: ["needs_resubmission", "qualified", "disqualified"],
+  needs_resubmission: ["documents_review", "disqualified"],
+  // Qualified -> evaluated -> result recorded happen automatically when scores
+  // and a result are saved; staff only choose to disqualify from these states.
+  qualified: ["disqualified"],
+  evaluated: ["disqualified"],
+  result_recorded: ["disqualified"],
+  results_released: [],
+  withdrawn: [],
+  disqualified: [],
+};
+
+export const adminTargets = (status) => ADMIN_TRANSITIONS[normalizeSpesStatus(status)] || [];
+
+// Scores and a result can be recorded once the applicant is qualified.
+export const EVALUATION_STATUSES = ["qualified", "evaluated", "result_recorded"];
+export const canEvaluate = (status) => EVALUATION_STATUSES.includes(normalizeSpesStatus(status));
+
+export const SCORE_MIN = 0;
+export const SCORE_MAX = 100;
+export const scoreError = (value) => {
+  if (value === "" || value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= SCORE_MIN && n <= SCORE_MAX ? null : "SPES_SCORE_INVALID";
+};
+
+export const RESULT_OUTCOMES = ["pending", "accepted", "waitlisted", "not_accepted"];
+export const AMEND_OUTCOMES = ["accepted", "waitlisted", "not_accepted"];
+
+// Statuses that still need staff action (used for the "waiting" badge).
+export const UNRESOLVED_STATUSES = ["submitted", "documents_review", "needs_resubmission", "qualified"];

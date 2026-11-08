@@ -46,6 +46,7 @@ body:has(.jd-apply-bar, .pj-sticky-actions) .cb-root {
 /* Never stack on the cookie notice, an open drawer, any modal, or the messenger panel. */
 body:has(.cookie-banner) .cb-root,
 body:has(.drawer-overlay) .cb-root,
+body:has(.spes-drawer-overlay) .cb-root,
 body:has(.fm-panel) .cb-root,
 body.has-modal-open .cb-root:not(.cb-root--sheet) {
   display: none;

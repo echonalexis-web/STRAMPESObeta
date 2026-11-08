@@ -1276,3 +1276,116 @@
 @media (prefers-reduced-motion: reduce) {
   .spes-slot, .spes-apply__step { transition: none; }
 }
+
+/* ==========================================================================
+   SPES restructure: admin programs view, queue, review drawer, release dialog.
+   ========================================================================== */
+
+/* The review drawer is right-aligned over the page, so the floating chatbot and
+   messenger bubbles (bottom-right) would sit on its footer actions. */
+body:has(.spes-drawer-overlay) .cb-root,
+body:has(.spes-drawer-overlay) .fm-root {
+  display: none;
+}
+
+/* Never a bare placeholder name: missing profile data is flagged. */
+.spes-missing { color: var(--ds-warning, #8a6d00); font-style: italic; }
+
+.spes-tier {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: var(--ds-text-xs, 0.75rem);
+  font-weight: 600;
+  background: var(--ds-ink-50, #f1f5f9);
+  color: var(--ds-ink-700, #374151);
+  white-space: nowrap;
+}
+.spes-tier--minor15to17 { background: var(--ds-warning-bg, #fff8e1); color: var(--ds-warning, #8a6d00); }
+.spes-tier--unknown { background: var(--ds-danger-bg, #fef2f2); color: var(--ds-danger, #b91c1c); }
+
+/* Programs view */
+.spes-programs { margin-bottom: var(--ds-space-5, 20px); }
+.spes-programs__empty { padding: var(--ds-space-4, 16px); }
+.spes-programs__grid {
+  display: grid;
+  gap: var(--ds-space-4, 16px);
+  padding: var(--ds-space-4, 16px);
+  grid-template-columns: 1fr;
+}
+.spes-program-card {
+  display: grid;
+  gap: var(--ds-space-3, 12px);
+  padding: var(--ds-space-4, 16px);
+  border: 1px solid var(--ds-border, #e5e7eb);
+  border-radius: var(--ds-radius-card, 14px);
+  background: var(--ds-surface, #fff);
+}
+.spes-program-card.is-selected { border-color: var(--ds-green, #0f766e); box-shadow: 0 0 0 1px var(--ds-green, #0f766e); }
+.spes-program-card__head { display: flex; justify-content: space-between; gap: var(--ds-space-3, 12px); align-items: flex-start; }
+.spes-program-card__head h3 { margin: 0; font-size: var(--ds-text-md, 1rem); overflow-wrap: anywhere; }
+.spes-program-card__counts { display: flex; flex-wrap: wrap; gap: var(--ds-space-2, 8px); }
+.spes-program-card__actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-2, 8px); }
+
+@media (min-width: 720px) {
+  .spes-programs__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1100px) {
+  .spes-programs__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* Filters: wrap on small screens. */
+.spes-admin-controls { flex-wrap: wrap; }
+.spes-admin-controls label { min-width: 9rem; }
+
+/* Review drawer additions */
+.spes-drawer__facts { display: flex; flex-wrap: wrap; gap: var(--ds-space-2, 8px); margin-bottom: var(--ds-space-3, 12px); }
+.spes-drawer__dl { margin: 0; display: grid; grid-template-columns: 1fr; gap: 2px var(--ds-space-4, 16px); font-size: var(--ds-text-sm, 0.875rem); }
+.spes-drawer__dl dt { color: var(--ds-muted, #6b7280); margin-top: var(--ds-space-2, 8px); }
+.spes-drawer__dl dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.spes-drawer__field { display: grid; gap: 6px; margin-top: var(--ds-space-3, 12px); font-size: var(--ds-text-sm, 0.875rem); font-weight: 600; }
+.spes-drawer__field select,
+.spes-drawer__field textarea { font: inherit; font-weight: 400; }
+.spes-drawer__error {
+  margin: var(--ds-space-3, 12px) 0 0;
+  padding: var(--ds-space-3, 12px);
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-danger-bg, #fef2f2);
+  color: var(--ds-danger, #b91c1c);
+  font-size: var(--ds-text-sm, 0.875rem);
+}
+.spes-drawer input[aria-invalid="true"] { border-color: var(--ds-danger, #b91c1c); }
+.spes-drawer input:disabled,
+.spes-drawer select:disabled,
+.spes-drawer textarea:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.spes-doc-review { display: grid; gap: var(--ds-space-3, 12px); }
+.spes-doc-review__item {
+  display: grid;
+  gap: var(--ds-space-2, 8px);
+  padding: var(--ds-space-3, 12px);
+  border: 1px solid var(--ds-border, #e5e7eb);
+  border-radius: var(--ds-radius-md, 10px);
+}
+.spes-doc-review__item--verified { border-color: var(--ds-green, #0f766e); }
+.spes-doc-review__item--needs_replacement { border-color: var(--ds-danger, #b91c1c); background: var(--ds-danger-bg, #fef2f2); }
+.spes-doc-review__head { display: flex; gap: var(--ds-space-3, 12px); align-items: center; flex-wrap: wrap; }
+.spes-doc-review__name { display: grid; flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
+.spes-doc-review__state { margin: 0; font-size: var(--ds-text-xs, 0.75rem); color: var(--ds-ink-700, #374151); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.spes-doc-review__actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-2, 8px); align-items: center; }
+.spes-doc-review__reason { flex: 1 1 12rem; min-height: var(--ds-tap, 44px); padding: 0 var(--ds-space-3, 12px); border: 1px solid var(--ds-border, #d1d5db); border-radius: var(--ds-radius-md, 10px); font: inherit; box-sizing: border-box; }
+
+@media (min-width: 640px) {
+  .spes-drawer__dl { grid-template-columns: 9rem 1fr; }
+  .spes-drawer__dl dt { margin-top: 0; }
+}
+
+/* Release dialog */
+.spes-release { display: grid; gap: var(--ds-space-3, 12px); }
+.spes-release__list { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; font-size: var(--ds-text-sm, 0.875rem); }
+.spes-release .spes-modal__actions { display: flex; justify-content: flex-end; gap: var(--ds-space-3, 12px); flex-wrap: wrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .spes-program-card { transition: none; }
+}
