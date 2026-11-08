@@ -7,10 +7,18 @@ const toBool = (value, fallback) => {
   return !["false", "0", "no", "off"].includes(String(value).toLowerCase());
 };
 
+// Whether a 15-17 applicant must give a guardian for this posting: the posting's own
+// override when set, otherwise the global flag.
+const isGuardianRequired = (posting) =>
+  typeof posting?.guardianRequired === "boolean" ? posting.guardianRequired : guardianRequiredForMinors;
+
+const guardianRequiredForMinors = toBool(process.env.SPES_GUARDIAN_REQUIRED, true);
+
 module.exports = {
+  isGuardianRequired,
   // 15-17 applicants must give a guardian name and contact number. Pending
   // confirmation of PESO's consent rule; set SPES_GUARDIAN_REQUIRED=false to relax.
-  guardianRequiredForMinors: toBool(process.env.SPES_GUARDIAN_REQUIRED, true),
+  guardianRequiredForMinors,
 
   // How long SPES applications and their documents are kept. Placeholder of 5
   // years, to be confirmed by PESO. Nothing is deleted automatically yet; this

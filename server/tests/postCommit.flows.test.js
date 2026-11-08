@@ -16,6 +16,14 @@ jest.mock("../models/SystemSettings", () => ({}));
 jest.mock("../models/Announcement", () => ({ create: jest.fn(), findById: jest.fn(), findOne: jest.fn() }));
 jest.mock("../models/NewsLike", () => ({}));
 jest.mock("../models/SpesApplication", () => ({ create: jest.fn(), findOne: jest.fn() }));
+jest.mock("../services/spesPostingService", () => ({
+  resolvePosting: jest.fn(),
+  applicationFilterFor: (p) => ({ posting: p._id }),
+  applicationRefsFor: (p) => ({ posting: p._id }),
+  listPublishedPostings: jest.fn(),
+  listAllPostings: jest.fn(),
+  announcePosting: jest.fn(),
+}));
 jest.mock("../utils/jobDisplay", () => ({}));
 jest.mock("../utils/sanitize", () => ({ sanitizeText: (v) => v, escapeRegex: (v) => v }));
 jest.mock("../services/sessionService", () => ({ forceLogout: jest.fn() }));
@@ -40,6 +48,7 @@ const JobVacancy = require("../models/JobVacancy");
 const JobApplication = require("../models/JobApplication");
 const Announcement = require("../models/Announcement");
 const SpesApplication = require("../models/SpesApplication");
+const { resolvePosting } = require("../services/spesPostingService");
 const notifications = require("../services/notificationService");
 const { logAuditEvent } = require("../services/auditService");
 const storageService = require("../services/storageService");
@@ -223,7 +232,7 @@ describe("news create: fan-out notification fails after the save", () => {
 
 describe("SPES apply: notifications fail after the application is saved", () => {
   test("201, application kept, documents NOT removed", async () => {
-    Announcement.findOne.mockResolvedValue({ _id: JOB_ID, category: "spes", title: "SPES 2026", spes: {} });
+    resolvePosting.mockResolvedValue({ _id: JOB_ID, title: "SPES 2026", status: "published", results: { status: "pending" }, requiredSlots: [] });
     User.findById.mockReturnValue({
       select: jest.fn().mockResolvedValue({ _id: TARGET_ID, role: "jobseeker", name: "Juan", hasCompletedOnboarding: true, dateOfBirth: new Date("2008-01-01") }),
     });
@@ -235,7 +244,7 @@ describe("SPES apply: notifications fail after the application is saved", () => 
 
     const res = await call(spes.applyToSpes, {
       user: { id: TARGET_ID, role: "jobseeker" },
-      params: { announcementId: JOB_ID },
+      params: { postingId: JOB_ID },
       body: { applicantType: "student", school: "MNHS", gradeLevel: "Grade 12", gwa: "88", gwaScale: "percent", guardianName: "Maria", guardianContact: "09171234567" },
       // One typed file per required slot (a student needs these four).
       files: {

@@ -300,11 +300,13 @@ exports.authorizeRoles = (...roles) => {
 // nothing is read from the token. Applies to jobseeker-type roles only.
 //   requireJobViewAge  - browse jobs (15+; unknown DOB -> DOB_REQUIRED)
 //   requireJobApplyAge - apply to regular jobs (18+)
+//   requireSpesViewAge - browse SPES postings (15+; read-only for 31+)
 //   requireSpesAge     - apply to SPES (15-30)
 // ============================================
 exports.requireJobViewAge = requireAge("jobView");
 exports.requireJobApplyAge = requireAge("jobApply");
 exports.requireSpesAge = requireAge("spesApply");
+exports.requireSpesViewAge = requireAge("spesView");
 
 // ============================================
 // OPTIONAL AUTH (does not reject on missing token)

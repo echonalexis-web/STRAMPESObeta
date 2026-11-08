@@ -15,7 +15,10 @@ const { Schema } = mongoose;
 const spesApplicationSchema = new Schema(
   {
     applicant: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    announcement: { type: Schema.Types.ObjectId, ref: "Announcement", required: true, index: true },
+    // The posting this application belongs to. Rows made before postings existed have
+    // only `announcement` (legacy); the migration fills `posting` in.
+    posting: { type: Schema.Types.ObjectId, ref: "SpesPosting", index: true },
+    announcement: { type: Schema.Types.ObjectId, ref: "Announcement", index: true },
 
     status: {
       type: String,
@@ -96,7 +99,19 @@ const spesApplicationSchema = new Schema(
   { timestamps: true }
 );
 
-spesApplicationSchema.index({ applicant: 1, announcement: 1 }, { unique: true });
+// One application per applicant per posting. Both indexes are partial so an application
+// that has only one of the two references does not collide on null. The old plain unique
+// index {applicant, announcement} must be dropped for a second native posting to work:
+// see scripts/migrateSpesPostings.js (written, not run).
+spesApplicationSchema.index(
+  { applicant: 1, announcement: 1 },
+  { unique: true, partialFilterExpression: { announcement: { $type: "objectId" } } }
+);
+spesApplicationSchema.index(
+  { applicant: 1, posting: 1 },
+  { unique: true, partialFilterExpression: { posting: { $type: "objectId" } } }
+);
+spesApplicationSchema.index({ posting: 1, status: 1 });
 spesApplicationSchema.index({ announcement: 1, status: 1 });
 spesApplicationSchema.index({ announcement: 1, applicantType: 1, status: 1 });
 

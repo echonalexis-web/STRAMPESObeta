@@ -157,3 +157,27 @@ describe("15-17 accounts cannot start conversations", () => {
     expect(res.body.code).toBe("DOB_REQUIRED");
   });
 });
+
+describe("viewing SPES postings (spesView): 15 and older, 31+ read-only", () => {
+  test.each([
+    ["under15", "AGE_UNDER_MINIMUM"],
+    ["minor15", null],
+    ["minor17", null],
+    ["adult18", null],
+    ["adult30", null],
+    ["senior31", null], // may view; apply is denied separately (SPES_AGE_ABOVE_MAX)
+  ])("%s", (who, view) => {
+    expect(getAgeDenial(user(TIERS_BY_DOB[who]), "spesView", NOW)).toBe(view);
+  });
+
+  test("no date of birth -> DOB_REQUIRED; an age-review account is blocked", () => {
+    expect(getAgeDenial(user(null), "spesView", NOW)).toBe("DOB_REQUIRED");
+    expect(getAgeDenial(user(TIERS_BY_DOB.adult30, { ageReviewRequired: true }), "spesView", NOW)).toBe("AGE_UNDER_MINIMUM");
+  });
+
+  test("a 31-year-old may view postings but not apply", () => {
+    const u = user(TIERS_BY_DOB.senior31);
+    expect(getAgeDenial(u, "spesView", NOW)).toBeNull();
+    expect(getAgeDenial(u, "spesApply", NOW)).toBe("SPES_AGE_ABOVE_MAX");
+  });
+});

@@ -24,10 +24,10 @@ const defaultRequiredSlots = (applicantType) => [
 // Slots required for this applicant on this program. A program may narrow or
 // reorder the list through spes.requiredSlots; unknown values are ignored and a
 // slot that does not fit the applicant type is dropped.
-const requiredSlotsFor = (announcement, applicantType) => {
-  const configured = Array.isArray(announcement?.spes?.requiredSlots)
-    ? announcement.spes.requiredSlots.filter((s) => ALL_SLOTS.includes(s))
-    : [];
+// `program` is a posting (or a legacy announcement-shaped object with a `spes` subdocument).
+const requiredSlotsFor = (program, applicantType) => {
+  const raw = program?.requiredSlots ?? program?.spes?.requiredSlots;
+  const configured = Array.isArray(raw) ? raw.filter((s) => ALL_SLOTS.includes(s)) : [];
   const base = configured.length > 0 ? configured : defaultRequiredSlots(applicantType);
   return base.filter((slot) => {
     if (slot === SPES_SLOTS.PROOF_OF_ACADEMIC) return applicantType !== APPLICANT_TYPES.OSY;

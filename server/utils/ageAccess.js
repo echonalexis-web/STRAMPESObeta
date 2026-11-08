@@ -33,6 +33,7 @@ const AGE_DENIALS = {
 
 // Returns null when the action is allowed, otherwise the denial code.
 //   jobView   - browse the job board / job details (15+)
+//   spesView  - browse SPES postings (15+; 31 and older see them read-only)
 //   jobApply  - apply to regular job vacancies (18+)
 //   spesApply - apply to SPES (15-30)
 // A missing date of birth fails closed (DOB_REQUIRED). An account flagged

@@ -4,7 +4,16 @@
 // writes. Models and services are mocked (no database, no email).
 
 jest.mock("../models/User", () => ({ findById: jest.fn(), find: jest.fn() }));
-jest.mock("../models/Announcement", () => ({ findOne: jest.fn(), findById: jest.fn(), find: jest.fn() }));
+// The controllers find a posting through the posting service; its own behavior is
+// covered in spesPostings.test.js.
+jest.mock("../services/spesPostingService", () => ({
+  resolvePosting: jest.fn(),
+  applicationFilterFor: (p) => ({ posting: p._id }),
+  applicationRefsFor: (p) => ({ posting: p._id }),
+  listPublishedPostings: jest.fn(),
+  listAllPostings: jest.fn(),
+  announcePosting: jest.fn(),
+}));
 jest.mock("../models/SpesApplication", () => ({
   create: jest.fn(),
   findOne: jest.fn(),
@@ -26,7 +35,8 @@ const express = require("express");
 const request = require("supertest");
 
 const User = require("../models/User");
-const Announcement = require("../models/Announcement");
+const { resolvePosting, listAllPostings } = require("../services/spesPostingService");
+const postings = require("../controllers/spesPostingController");
 const SpesApplication = require("../models/SpesApplication");
 const notifications = require("../services/notificationService");
 const { logAuditEvent } = require("../services/auditService");
@@ -41,6 +51,16 @@ const APP_ID = "dddddddddddddddddddddddd";
 const DOC_ID = "eeeeeeeeeeeeeeeeeeeeeeee";
 
 // ---------------------------------------------------------------- helpers
+// A published posting as the service returns it.
+const makePosting = (overrides = {}) => ({
+  _id: PROGRAM,
+  title: "SPES 2026",
+  status: "published",
+  requiredSlots: [],
+  results: { status: "pending" },
+  ...overrides,
+});
+
 // A thenable query chain: .populate/.sort/... return itself, awaiting yields value.
 const q = (value) => {
   const o = {
@@ -80,7 +100,7 @@ const makeApp = (overrides = {}) => {
   const base = {
     _id: APP_ID,
     applicant: { _id: APPLICANT, name: "Juan Dela Cruz", email: "juan@example.com", dateOfBirth: dobYearsAgo(20) },
-    announcement: { _id: PROGRAM, title: "SPES 2026", spes: {} },
+    posting: { _id: PROGRAM, title: "SPES 2026", status: "published", requiredSlots: [], results: { status: "pending" } },
     status: "documents_review",
     applicantType: "student",
     isOutOfSchoolYouth: false,
@@ -182,7 +202,7 @@ describe("applyToSpes: eligibility and validation", () => {
   };
 
   const arrange = ({ dob = dobYearsAgo(20), spesCfg = {}, nsrp = true, existing = null } = {}) => {
-    Announcement.findOne.mockResolvedValue({ _id: PROGRAM, category: "spes", title: "SPES 2026", spes: spesCfg });
+    resolvePosting.mockResolvedValue(makePosting(spesCfg));
     User.findById.mockReturnValue({
       select: jest.fn().mockResolvedValue({
         _id: APPLICANT,
@@ -194,12 +214,12 @@ describe("applyToSpes: eligibility and validation", () => {
     });
     User.find.mockReturnValue({ select: jest.fn().mockResolvedValue([{ _id: ADMIN }]) });
     SpesApplication.findOne.mockResolvedValue(existing);
-    SpesApplication.create.mockImplementation(async (data) => makeApp({ ...data, announcement: PROGRAM, applicant: APPLICANT }));
+    SpesApplication.create.mockImplementation(async (data) => makeApp({ ...data, posting: PROGRAM, applicant: APPLICANT }));
   };
   const apply = (extra = {}) =>
     run(spes.applyToSpes, {
       user: { id: APPLICANT, role: "jobseeker" },
-      params: { announcementId: PROGRAM },
+      params: { postingId: PROGRAM },
       body: studentBody,
       files: filesFor(STUDENT_SLOTS),
       ...extra,
@@ -298,7 +318,9 @@ describe("applyToSpes: eligibility and validation", () => {
   });
 
   test("a program's requiredSlots narrows what is required", () => {
-    expect(requiredSlotsFor({ spes: { requiredSlots: ["form2", "proof_of_age"] } }, "student")).toEqual(["form2", "proof_of_age"]);
+    expect(requiredSlotsFor({ requiredSlots: ["form2", "proof_of_age"] }, "student")).toEqual(["form2", "proof_of_age"]);
+    // a legacy announcement-shaped object still works
+    expect(requiredSlotsFor({ spes: { requiredSlots: ["form2"] } }, "student")).toEqual(["form2"]);
     expect(requiredSlotsFor({ spes: {} }, "osy")).toContain("osy_certification");
     expect(requiredSlotsFor({ spes: {} }, "osy")).not.toContain("proof_of_academic_standing");
   });
@@ -310,7 +332,7 @@ describe("what an applicant can see", () => {
     SpesApplication.findOne.mockReturnValue(q(appDoc));
     return run(spes.getMySpesApplication, {
       user: { id: APPLICANT, role: "jobseeker" },
-      params: { announcementId: PROGRAM },
+      params: { postingId: PROGRAM },
     });
   };
 
@@ -356,11 +378,11 @@ describe("what an applicant can see", () => {
       evaluation: { examScore: 90, interviewScore: 80 },
       result: { outcome: "waitlisted", rank: 3, remarks: "Next batch" },
     };
-    const hidden = (await mine(makeApp({ ...base, announcement: { _id: PROGRAM, spes: { exposeScores: false } } }))).body.application;
+    const hidden = (await mine(makeApp({ ...base, posting: { _id: PROGRAM, title: "SPES 2026", results: { status: "pending", exposeScores: false } } }))).body.application;
     expect(hidden.result.outcome).toBe("waitlisted");
     expect(hidden.evaluation.examScore).toBeUndefined();
 
-    const shown = (await mine(makeApp({ ...base, announcement: { _id: PROGRAM, spes: { exposeScores: true } } }))).body.application;
+    const shown = (await mine(makeApp({ ...base, posting: { _id: PROGRAM, title: "SPES 2026", results: { status: "pending", exposeScores: true } } }))).body.application;
     expect(shown.evaluation.examScore).toBe(90);
   });
 });
@@ -528,7 +550,7 @@ describe("replaceMyDocument and withdraw", () => {
     User.find.mockReturnValue({ select: jest.fn().mockResolvedValue([{ _id: ADMIN }]) });
     const res = await run(spes.replaceMyDocument, {
       user: { id: APPLICANT, role: "jobseeker" },
-      params: { announcementId: PROGRAM, slot: "form2" },
+      params: { postingId: PROGRAM, slot: "form2" },
       file: { storedValue: "cloudinary:new", originalname: "new.pdf", mimetype: "application/pdf", size: 5 },
     });
     expect(res.status).toBe(200);
@@ -542,7 +564,7 @@ describe("replaceMyDocument and withdraw", () => {
     SpesApplication.findOne.mockResolvedValue(makeApp({ status: "qualified" }));
     const res = await run(spes.replaceMyDocument, {
       user: { id: APPLICANT, role: "jobseeker" },
-      params: { announcementId: PROGRAM, slot: "form2" },
+      params: { postingId: PROGRAM, slot: "form2" },
       file: { storedValue: "cloudinary:new", originalname: "new.pdf", mimetype: "application/pdf", size: 5 },
     });
     expect(res.status).toBe(409);
@@ -553,30 +575,27 @@ describe("replaceMyDocument and withdraw", () => {
     const early = makeApp({ status: "documents_review" });
     SpesApplication.findOne.mockReturnValue(q(early));
     User.find.mockReturnValue({ select: jest.fn().mockResolvedValue([{ _id: ADMIN }]) });
-    const ok = await run(spes.withdrawMyApplication, { user: { id: APPLICANT, role: "jobseeker" }, params: { announcementId: PROGRAM } });
+    const ok = await run(spes.withdrawMyApplication, { user: { id: APPLICANT, role: "jobseeker" }, params: { postingId: PROGRAM } });
     expect(ok.status).toBe(200);
     expect(early.status).toBe("withdrawn");
     expect(auditActions()).toContain("spes.application.withdrawn");
 
     SpesApplication.findOne.mockReturnValue(q(makeApp({ status: "result_recorded" })));
-    const refused = await run(spes.withdrawMyApplication, { user: { id: APPLICANT, role: "jobseeker" }, params: { announcementId: PROGRAM } });
+    const refused = await run(spes.withdrawMyApplication, { user: { id: APPLICANT, role: "jobseeker" }, params: { postingId: PROGRAM } });
     expect(refused.status).toBe(409);
     expect(refused.body.code).toBe("SPES_WITHDRAW_NOT_ALLOWED");
   });
 });
 
 // -------------------------------------------------------- release + amend
-describe("results release and amendment", () => {
+describe("results release and amendment (per posting)", () => {
   const program = (overrides = {}) => {
     const p = {
-      _id: PROGRAM,
-      category: "spes",
-      title: "SPES 2026",
-      spes: { resultsStatus: "pending" },
+      ...makePosting(),
       save: jest.fn().mockResolvedValue(undefined),
       ...overrides,
     };
-    Announcement.findById.mockResolvedValue(p);
+    resolvePosting.mockResolvedValue(p);
     return p;
   };
   const decided = (status, outcome) => ({ applicant: APPLICANT, status, result: { outcome } });
@@ -584,7 +603,7 @@ describe("results release and amendment", () => {
   test("release is blocked while any non-excluded application is undecided", async () => {
     program();
     SpesApplication.find.mockResolvedValue([decided("result_recorded", "accepted"), decided("evaluated", "pending")]);
-    const res = await run(spes.adminReleaseResults, { params: { announcementId: PROGRAM } });
+    const res = await run(postings.releaseResults, { params: { postingId: PROGRAM } });
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("SPES_UNDECIDED_REMAIN");
     expect(res.body.undecided).toBe(1);
@@ -599,29 +618,36 @@ describe("results release and amendment", () => {
       decided("withdrawn", "pending"),
     ]);
     SpesApplication.updateMany.mockResolvedValue({});
-    const res = await run(spes.adminReleaseResults, { params: { announcementId: PROGRAM } });
+    const res = await run(postings.releaseResults, { params: { postingId: PROGRAM } });
     expect(res.status).toBe(200);
-    expect(p.spes.resultsStatus).toBe("published");
+    expect(p.results.status).toBe("released");
     expect(SpesApplication.updateMany.mock.calls[0][0].status.$nin).toEqual(["withdrawn", "disqualified"]);
     expect(SpesApplication.updateMany.mock.calls[0][1].$set.status).toBe("results_released");
     expect(notifications.notifyManyUsers.mock.calls[0][0].recipientIds).toHaveLength(1);
+    expect(notifications.notifyManyUsers.mock.calls[0][0].actionUrl).toBe("/spes/applications");
     const event = logAuditEvent.mock.calls.map(([e]) => e).find((e) => e.action === "spes.results.released");
     expect(event.severity).toBe("warning");
     expect(event.metadata.releasedCount).toBe(1);
   });
 
-  test("a program cannot be released twice", async () => {
-    program({ spes: { resultsStatus: "published" } });
-    const res = await run(spes.adminReleaseResults, { params: { announcementId: PROGRAM } });
+  test("a posting cannot be released twice", async () => {
+    program({ results: { status: "released" } });
+    const res = await run(postings.releaseResults, { params: { postingId: PROGRAM } });
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("SPES_ALREADY_RELEASED");
   });
 
+  test("release for one posting does not touch another posting's applications", async () => {
+    program();
+    SpesApplication.find.mockResolvedValue([decided("result_recorded", "accepted")]);
+    SpesApplication.updateMany.mockResolvedValue({});
+    await run(postings.releaseResults, { params: { postingId: PROGRAM } });
+    expect(SpesApplication.find.mock.calls[0][0]).toEqual({ posting: PROGRAM });
+    expect(SpesApplication.updateMany.mock.calls[0][0]).toMatchObject({ posting: PROGRAM });
+  });
+
   test("the release summary reports what a release would do and writes nothing", async () => {
-    // This endpoint reads the program with .select(), unlike the release itself.
-    Announcement.findById.mockReturnValue({
-      select: jest.fn().mockResolvedValue({ _id: PROGRAM, category: "spes", title: "SPES 2026", spes: { resultsStatus: "pending" } }),
-    });
+    program();
     SpesApplication.find.mockReturnValue(
       q([
         { status: "result_recorded", result: { outcome: "accepted" } },
@@ -630,7 +656,7 @@ describe("results release and amendment", () => {
         { status: "withdrawn", result: { outcome: "pending" } },
       ])
     );
-    const res = await run(spes.adminReleaseSummary, { params: { announcementId: PROGRAM } });
+    const res = await run(postings.releaseSummary, { params: { postingId: PROGRAM } });
     expect(res.body).toMatchObject({ toNotify: 3, excluded: 1, undecided: 1, canRelease: false });
     expect(res.body.byOutcome.accepted).toBe(1);
     expect(SpesApplication.updateMany).not.toHaveBeenCalled();
@@ -663,38 +689,67 @@ describe("results release and amendment", () => {
   });
 });
 
-describe("adminListPrograms says why a program is closed", () => {
+describe("adminListPostings: derived status and why a posting is closed", () => {
+  const day = 86400000;
   test.each([
-    ["deadline passed", { spes: { applicationDeadline: new Date(Date.now() - 86400000) } }, false, "deadline"],
-    ["closed by staff", { spes: { closedAt: new Date(Date.now() - 1000) } }, false, "manual"],
-    ["unpublished", { isActive: false, spes: {} }, false, "inactive"],
-    ["not open yet", { spes: { opensAt: new Date(Date.now() + 86400000) } }, false, "notYetOpen"],
-    ["open", { spes: { applicationDeadline: new Date(Date.now() + 86400000) } }, true, null],
-  ])("%s", async (_label, program, open, reason) => {
-    Announcement.find.mockReturnValue(q([{ _id: PROGRAM, title: "SPES", isActive: true, ...program }]));
+    ["deadline passed", { applicationDeadline: new Date(Date.now() - day) }, "closed", "deadline"],
+    ["closed by staff", { closedAt: new Date(Date.now() - 1000) }, "closed", "manual"],
+    ["draft", { status: "draft" }, "draft", null],
+    ["not open yet", { opensAt: new Date(Date.now() + day) }, "closed", "notYetOpen"],
+    ["open", { applicationDeadline: new Date(Date.now() + day) }, "open", null],
+    ["results released", { results: { status: "released" } }, "results_released", "resultsReleased"],
+  ])("%s", async (_label, overrides, display, reason) => {
+    listAllPostings.mockResolvedValue([makePosting(overrides)]);
     SpesApplication.aggregate.mockResolvedValue([]);
-    const res = await run(spes.adminListPrograms);
+    const res = await run(postings.adminListPostings);
     expect(res.status).toBe(200);
-    expect(res.body.items[0].open).toBe(open);
+    expect(res.body.items[0].displayStatus).toBe(display);
     expect(res.body.items[0].closedReason).toBe(reason);
+  });
+
+  test("counts include applications that still carry only the old announcement reference", async () => {
+    const legacyId = "ffffffffffffffffffffffff";
+    listAllPostings.mockResolvedValue([makePosting({ legacyAnnouncementId: legacyId })]);
+    SpesApplication.aggregate.mockResolvedValue([
+      { _id: { posting: PROGRAM, status: "submitted", outcome: "pending" }, n: 2 },
+      { _id: { announcement: legacyId, status: "under_review", outcome: "pending" }, n: 1 },
+    ]);
+    const res = await run(postings.adminListPostings);
+    expect(res.body.items[0].counts.total).toBe(3);
+    expect(res.body.items[0].counts.byStatus.documents_review).toBe(1);
   });
 });
 
 // ---------------------------------------------------------------- admin list
 describe("adminListSpesApplications", () => {
   test("filters by status alias, applicant type and age tier, and never returns a date of birth", async () => {
+    resolvePosting.mockResolvedValue(null);
     User.find.mockReturnValue({ distinct: jest.fn().mockResolvedValue(["u1", "u2"]) });
     SpesApplication.countDocuments.mockResolvedValue(1);
     SpesApplication.find.mockReturnValue(q([makeApp()]));
     const res = await run(spes.adminListSpesApplications, { query: { status: "qualified", applicantType: "osy", ageTier: "minor15to17" } });
     expect(res.status).toBe(200);
-    const filter = SpesApplication.find.mock.calls[0][0];
-    expect(filter.status).toEqual({ $in: ["qualified", "for_exam", "for_interview"] });
-    expect(filter.$or).toEqual([{ applicantType: "osy" }, { isOutOfSchoolYouth: true }]);
-    expect(filter.applicant).toEqual({ $in: ["u1", "u2"] });
+    const and = SpesApplication.find.mock.calls[0][0].$and;
+    expect(and).toEqual(
+      expect.arrayContaining([
+        { status: { $in: ["qualified", "for_exam", "for_interview"] } },
+        { $or: [{ applicantType: "osy" }, { isOutOfSchoolYouth: true }] },
+        { applicant: { $in: ["u1", "u2"] } },
+      ])
+    );
     const range = User.find.mock.calls[0][0].dateOfBirth;
     expect(range.$gt).toBeInstanceOf(Date);
     expect(res.body.items[0].applicant.dateOfBirth).toBeUndefined();
     expect(res.body.items[0].applicantAgeTier).toBe("adult18to30");
+  });
+
+  test("the posting filter narrows to one posting and the old announcement param still works", async () => {
+    resolvePosting.mockResolvedValue(makePosting());
+    SpesApplication.countDocuments.mockResolvedValue(0);
+    SpesApplication.find.mockReturnValue(q([]));
+    await run(spes.adminListSpesApplications, { query: { posting: PROGRAM } });
+    expect(SpesApplication.find.mock.calls[0][0].$and).toEqual([{ posting: PROGRAM }]);
+    await run(spes.adminListSpesApplications, { query: { announcement: PROGRAM } });
+    expect(SpesApplication.find.mock.calls[1][0].$and).toEqual([{ posting: PROGRAM }]);
   });
 });

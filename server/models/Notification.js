@@ -46,7 +46,7 @@ const notificationSchema = new Schema(
     },
     relatedEntityType: {
       type: String,
-      enum: ["job", "application", "conversation", "message", "user", "system", "announcement", "spes_application"],
+      enum: ["job", "application", "conversation", "message", "user", "system", "announcement", "spes_application", "spes_posting"],
       default: "system",
     },
     relatedEntityId: {

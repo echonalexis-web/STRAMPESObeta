@@ -1,5 +1,4 @@
 const SpesApplication = require("../models/SpesApplication");
-const Announcement = require("../models/Announcement");
 const User = require("../models/User");
 const { createNotificationForUser, notifyManyUsers } = require("../services/notificationService");
 const { logAuditEvent } = require("../services/auditService");
@@ -17,7 +16,14 @@ const {
   canAdminTransition,
   canWithdraw,
 } = require("../utils/spesLifecycle");
-const spesConfig = require("../config/spes");
+const { presentPosting, fromAnnouncement, applyBlockerCode, getApplyState, APPLY_STATE } = require("../utils/spesPosting");
+const {
+  resolvePosting,
+  applicationFilterFor,
+  applicationRefsFor,
+  listPublishedPostings,
+} = require("../services/spesPostingService");
+const { isGuardianRequired } = require("../config/spes");
 
 const getUserId = (req) => req.user.id || req.user._id;
 
@@ -32,24 +38,6 @@ const SCORE_MAX = 100;
 // Stable error body. The client translates `code`; `message` is an English fallback.
 const fail = (res, status, code, message, extra = {}) => res.status(status).json({ code, message, ...extra });
 
-const isProgramOpen = (announcement, now = new Date()) => {
-  const spes = announcement.spes || {};
-  if (spes.closedAt && new Date(spes.closedAt) <= now) return "SPES_NOT_OPEN";
-  if (spes.opensAt && new Date(spes.opensAt) > now) return "SPES_NOT_OPEN";
-  if (spes.applicationDeadline && new Date(spes.applicationDeadline) < now) return "SPES_DEADLINE_PASSED";
-  return null;
-};
-
-// Why a program is not taking applications, for staff. Null when it is open.
-const closedReasonOf = (announcement, now = new Date()) => {
-  if (announcement.isActive === false) return "inactive";
-  const spes = announcement.spes || {};
-  if (spes.closedAt && new Date(spes.closedAt) <= now) return "manual";
-  if (spes.opensAt && new Date(spes.opensAt) > now) return "notYetOpen";
-  if (spes.applicationDeadline && new Date(spes.applicationDeadline) < now) return "deadline";
-  return null;
-};
-
 const parseScore = (value) => {
   if (value === undefined || value === null || value === "") return { skip: true };
   const n = Number(value);
@@ -57,13 +45,29 @@ const parseScore = (value) => {
   return { value: n };
 };
 
+// The posting an application belongs to, as the client sees it. A native posting is
+// populated on `posting`; an application from before postings existed has only a
+// populated `announcement`, which is wrapped so it looks the same.
+const programOf = (obj) => {
+  if (obj.posting && typeof obj.posting === "object" && obj.posting.title !== undefined) {
+    return presentPosting(obj.posting);
+  }
+  if (obj.announcement && typeof obj.announcement === "object" && obj.announcement.title !== undefined) {
+    return presentPosting(fromAnnouncement(obj.announcement));
+  }
+  return null;
+};
+
 // What an applicant may see of their own application. Admin-only working data
 // (scores, result, internal note) is stripped until results are released.
 // Disqualification and resubmission reasons are visible straight away.
 const gateResult = (appDoc) => {
   const obj = appDoc.toObject ? appDoc.toObject() : { ...appDoc };
-  const spes = obj.announcement && typeof obj.announcement === "object" ? obj.announcement.spes : null;
-  const published = obj.resultReleasedAt || spes?.resultsStatus === "published";
+  const program = programOf(obj);
+  delete obj.announcement;
+  if (program) obj.posting = program;
+  else delete obj.posting;
+  const published = Boolean(obj.resultReleasedAt) || program?.results?.status === "released";
 
   delete obj.adminNote;
   obj.status = normalizeStatus(obj.status);
@@ -86,7 +90,7 @@ const gateResult = (appDoc) => {
     if (obj.status === STATUS.RESULT_RECORDED) obj.status = STATUS.EVALUATED;
     return obj;
   }
-  if (spes && spes.exposeScores === false && obj.evaluation) {
+  if (program && program.results.exposeScores === false && obj.evaluation) {
     delete obj.evaluation.examScore;
     delete obj.evaluation.interviewScore;
   }
@@ -98,6 +102,10 @@ const gateResult = (appDoc) => {
 const adminView = (appDoc) => {
   const obj = appDoc.toObject ? appDoc.toObject() : { ...appDoc };
   obj.status = normalizeStatus(obj.status);
+  const program = programOf(obj);
+  delete obj.announcement;
+  if (program) obj.posting = program;
+  else delete obj.posting;
   const applicant = obj.applicant && typeof obj.applicant === "object" ? obj.applicant : null;
   if (applicant) {
     obj.applicantAgeTier = getAgeTier(applicant.dateOfBirth);
@@ -109,10 +117,10 @@ const adminView = (appDoc) => {
   return obj;
 };
 
+const populateProgram = (query) => query.populate("posting").populate("announcement", "title content imageUrl isActive publishedAt spes");
+
 const populateAdmin = (query) =>
-  query
-    .populate("applicant", "name email phone dateOfBirth")
-    .populate("announcement", "title spes");
+  populateProgram(query.populate("applicant", "name email phone dateOfBirth"));
 
 const loadAdminApplication = async (id) => {
   const app = await populateAdmin(SpesApplication.findById(id));
@@ -134,24 +142,51 @@ const audit = (req, action, app, severity, metadata) =>
 // ---------------------------------------------------------------------------
 // Applicant endpoints
 // ---------------------------------------------------------------------------
+
+// What stops this user from applying to this posting. Used by the postings list,
+// the posting detail and the eligibility endpoint so they always agree. Codes are
+// translated on the client. `ageDenial` is null for ages 15-30.
+const eligibilityFor = async (posting, userDoc, existing) => {
+  const blockers = [];
+  const applyCode = applyBlockerCode(posting);
+  if (applyCode) blockers.push(applyCode);
+  const ageDenial = userDoc ? getAgeDenial(userDoc, "spesApply") : "DOB_REQUIRED";
+  if (ageDenial) blockers.push(ageDenial);
+  const nsrpComplete = userDoc?.hasCompletedOnboarding === true || userDoc?.onboardingComplete === true;
+  if (!nsrpComplete) blockers.push("NSRP_INCOMPLETE");
+  if (existing) blockers.push("SPES_ALREADY_APPLIED");
+  const tier = userDoc ? getAgeTier(userDoc.dateOfBirth) : TIERS.UNKNOWN;
+  return {
+    canApply: blockers.length === 0,
+    blockers,
+    ageTier: tier,
+    // 31 and older may read postings but never apply; the UI shows a notice instead of Apply.
+    readOnly: ageDenial === "SPES_AGE_ABOVE_MAX",
+    ageRange: { min: SPES_MIN_AGE, max: SPES_MAX_AGE },
+    guardianRequired: isGuardianRequired(posting) && tier === TIERS.MINOR,
+    applyState: getApplyState(posting),
+  };
+};
+
+const USER_ELIGIBILITY_FIELDS = "role dateOfBirth ageReviewRequired hasCompletedOnboarding onboardingComplete";
+
 exports.applyToSpes = async (req, res) => {
   try {
     const userId = getUserId(req);
-    const { announcementId } = req.params;
 
-    const announcement = await Announcement.findOne({ _id: announcementId, isActive: true });
-    if (!announcement || announcement.category !== "spes") {
-      return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES program not found");
-    }
-    const closed = isProgramOpen(announcement);
+    const posting = await resolvePosting(req.params.postingId);
+    if (!posting) return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES posting not found");
+    const closed = applyBlockerCode(posting);
     if (closed) {
       return fail(
         res,
-        400,
+        closed === "SPES_PROGRAM_NOT_FOUND" ? 404 : 400,
         closed,
         closed === "SPES_DEADLINE_PASSED"
-          ? "The application deadline for this SPES program has passed."
-          : "This SPES program is not open for applications."
+          ? "The application deadline for this SPES posting has passed."
+          : closed === "SPES_PROGRAM_NOT_FOUND"
+            ? "SPES posting not found"
+            : "This SPES posting is not open for applications."
       );
     }
 
@@ -172,9 +207,9 @@ exports.applyToSpes = async (req, res) => {
       return fail(res, 400, "NSRP_INCOMPLETE", "Complete your NSRP profile before applying for SPES.");
     }
 
-    const existing = await SpesApplication.findOne({ applicant: userId, announcement: announcementId });
+    const existing = await SpesApplication.findOne({ applicant: userId, ...applicationFilterFor(posting) });
     if (existing) {
-      return fail(res, 409, "SPES_ALREADY_APPLIED", "You have already applied to this SPES program.", {
+      return fail(res, 409, "SPES_ALREADY_APPLIED", "You have already applied to this SPES posting.", {
         application: gateResult(existing),
       });
     }
@@ -216,7 +251,8 @@ exports.applyToSpes = async (req, res) => {
     const ageTier = getAgeTier(user.dateOfBirth);
     const guardianName = String(body.guardianName || "").trim().slice(0, 120);
     const guardianContact = String(body.guardianContact || "").trim().slice(0, 40);
-    if (ageTier === TIERS.MINOR && spesConfig.guardianRequiredForMinors) {
+    // The posting's own override wins; otherwise the global config flag.
+    if (ageTier === TIERS.MINOR && isGuardianRequired(posting)) {
       if (!guardianName || !guardianContact) {
         return fail(res, 400, "SPES_GUARDIAN_REQUIRED", "A guardian name and contact number are required for applicants under 18.");
       }
@@ -226,14 +262,14 @@ exports.applyToSpes = async (req, res) => {
     }
 
     // ---- documents: one typed file per required slot ----
-    const required = requiredSlotsFor(announcement, applicantType);
+    const required = requiredSlotsFor(posting, applicantType);
     const files = req.files && !Array.isArray(req.files) ? req.files : {};
     const documents = [];
     const missingSlots = [];
     for (const slot of ALL_SLOTS) {
       const file = Array.isArray(files[slot]) ? files[slot][0] : null;
       if (file && file.storedValue) {
-        if (!required.includes(slot)) continue; // not part of this program/applicant type
+        if (!required.includes(slot)) continue; // not part of this posting/applicant type
         documents.push({
           slot,
           label: file.originalname || slot,
@@ -254,7 +290,7 @@ exports.applyToSpes = async (req, res) => {
 
     const application = await SpesApplication.create({
       applicant: userId,
-      announcement: announcementId,
+      ...applicationRefsFor(posting),
       nsrpComplete: true,
       contactNumber,
       isOutOfSchoolYouth: isOsy,
@@ -286,10 +322,10 @@ exports.applyToSpes = async (req, res) => {
           actorId: userId,
           type: "spes",
           title: "New SPES application",
-          message: `${user.name || "An applicant"} applied to "${announcement.title}".`,
+          message: `${user.name || "An applicant"} applied to "${posting.title}".`,
           relatedEntityType: "spes_application",
           relatedEntityId: application._id,
-          actionUrl: "/admin/spes",
+          actionUrl: "/admin/spes/monitoring",
           io,
           preferenceKey: "notifySpesSubmission",
         });
@@ -301,7 +337,7 @@ exports.applyToSpes = async (req, res) => {
       type: "spes",
       title: "SPES application received",
       message:
-        "Your SPES application was received. PESO staff will check your documents; you can follow each step under My SPES.",
+        "Your SPES application was received. PESO staff will check your documents; you can follow each step under My Applications.",
       relatedEntityType: "spes_application",
       relatedEntityId: application._id,
       actionUrl: "/spes/applications",
@@ -317,13 +353,13 @@ exports.applyToSpes = async (req, res) => {
       targetType: "spes_application",
       targetId: String(application._id),
       severity: "info",
-      metadata: { announcementId, ageTier },
+      metadata: { postingId: String(posting._id), ageTier },
     }));
 
     return res.status(201).json({ message: "Application submitted", application: gateResult(application) });
   } catch (error) {
     if (error.code === 11000) {
-      return fail(res, 409, "SPES_ALREADY_APPLIED", "You have already applied to this SPES program.");
+      return fail(res, 409, "SPES_ALREADY_APPLIED", "You have already applied to this SPES posting.");
     }
     return sendError(res, error, "Failed to submit SPES application");
   }
@@ -333,12 +369,14 @@ exports.applyToSpes = async (req, res) => {
 exports.replaceMyDocument = async (req, res) => {
   try {
     const userId = getUserId(req);
-    const { announcementId, slot } = req.params;
+    const { slot } = req.params;
     if (!ALL_SLOTS.includes(slot)) return fail(res, 400, "SPES_SLOT_INVALID", "Unknown document type.");
     const file = req.file;
     if (!file || !file.storedValue) return fail(res, 400, "SPES_DOCS_MISSING", "Choose a file to upload.");
 
-    const app = await SpesApplication.findOne({ applicant: userId, announcement: announcementId });
+    const posting = await resolvePosting(req.params.postingId);
+    if (!posting) return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES posting not found");
+    const app = await SpesApplication.findOne({ applicant: userId, ...applicationFilterFor(posting) });
     if (!app) return fail(res, 404, "SPES_APPLICATION_NOT_FOUND", "Application not found");
 
     const status = normalizeStatus(app.status);
@@ -381,7 +419,7 @@ exports.replaceMyDocument = async (req, res) => {
             message: "An applicant replaced the documents you asked for.",
             relatedEntityType: "spes_application",
             relatedEntityId: app._id,
-            actionUrl: "/admin/spes",
+            actionUrl: "/admin/spes/monitoring",
             io: req.app.get("io"),
             preferenceKey: "notifySpesSubmission",
           });
@@ -408,10 +446,9 @@ exports.replaceMyDocument = async (req, res) => {
 exports.withdrawMyApplication = async (req, res) => {
   try {
     const userId = getUserId(req);
-    const app = await SpesApplication.findOne({
-      applicant: userId,
-      announcement: req.params.announcementId,
-    }).populate("announcement", "title spes");
+    const posting = await resolvePosting(req.params.postingId);
+    if (!posting) return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES posting not found");
+    const app = await populateProgram(SpesApplication.findOne({ applicant: userId, ...applicationFilterFor(posting) }));
     if (!app) return fail(res, 404, "SPES_APPLICATION_NOT_FOUND", "Application not found");
     if (!canWithdraw(app.status) || app.resultReleasedAt) {
       return fail(res, 409, "SPES_WITHDRAW_NOT_ALLOWED", "This application can no longer be withdrawn.");
@@ -430,10 +467,10 @@ exports.withdrawMyApplication = async (req, res) => {
           actorId: userId,
           type: "spes",
           title: "SPES application withdrawn",
-          message: `An applicant withdrew from "${app.announcement?.title || "a SPES program"}".`,
+          message: `An applicant withdrew from "${posting.title || "a SPES posting"}".`,
           relatedEntityType: "spes_application",
           relatedEntityId: app._id,
-          actionUrl: "/admin/spes",
+          actionUrl: "/admin/spes/monitoring",
           io: req.app.get("io"),
           preferenceKey: "notifySpesSubmission",
         });
@@ -458,10 +495,9 @@ exports.withdrawMyApplication = async (req, res) => {
 exports.getMySpesApplication = async (req, res) => {
   try {
     const userId = getUserId(req);
-    const app = await SpesApplication.findOne({
-      applicant: userId,
-      announcement: req.params.announcementId,
-    }).populate("announcement", "title spes category");
+    const posting = await resolvePosting(req.params.postingId);
+    if (!posting) return res.json({ application: null });
+    const app = await populateProgram(SpesApplication.findOne({ applicant: userId, ...applicationFilterFor(posting) }));
 
     if (!app) return res.json({ application: null });
     return res.json({ application: gateResult(app) });
@@ -473,27 +509,86 @@ exports.getMySpesApplication = async (req, res) => {
 exports.listMySpesApplications = async (req, res) => {
   try {
     const userId = getUserId(req);
-    const apps = await SpesApplication.find({ applicant: userId })
-      .populate("announcement", "title spes category")
-      .sort({ createdAt: -1 });
+    const apps = await populateProgram(SpesApplication.find({ applicant: userId })).sort({ createdAt: -1 });
     return res.json({ items: apps.map(gateResult) });
   } catch (error) {
     return sendError(res, error, "Failed to load applications");
   }
 };
 
+// All postings a jobseeker can see (15 and older; users 31+ see them read-only),
+// each with the caller's own application and whether they can apply right now.
+exports.listPostings = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const [postings, userDoc, mine] = await Promise.all([
+      listPublishedPostings(),
+      User.findById(userId).select(USER_ELIGIBILITY_FIELDS),
+      SpesApplication.find({ applicant: userId }).select("posting announcement status"),
+    ]);
+
+    const appFor = (posting) =>
+      mine.find((a) => {
+        const byPosting = a.posting && String(a.posting) === String(posting._id);
+        const byAnnouncement =
+          a.announcement && [posting._id, posting.legacyAnnouncementId].filter(Boolean).some((id) => String(id) === String(a.announcement));
+        return byPosting || byAnnouncement;
+      });
+
+    const items = [];
+    for (const posting of postings) {
+      const application = appFor(posting);
+      const eligibility = await eligibilityFor(posting, userDoc, application);
+      items.push({
+        posting: presentPosting(posting),
+        myApplication: application ? { _id: application._id, status: normalizeStatus(application.status) } : null,
+        canApply: eligibility.canApply,
+        readOnly: eligibility.readOnly,
+        blockers: eligibility.blockers,
+      });
+    }
+    return res.json({ items, ageTier: userDoc ? getAgeTier(userDoc.dateOfBirth) : TIERS.UNKNOWN });
+  } catch (error) {
+    return sendError(res, error, "Failed to load SPES postings");
+  }
+};
+
+// One posting with the caller's eligibility. A draft or archived posting is only
+// visible to someone who already applied to it.
+exports.getPostingDetail = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const posting = await resolvePosting(req.params.postingId);
+    if (!posting) return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES posting not found");
+
+    const [userDoc, application] = await Promise.all([
+      User.findById(userId).select(USER_ELIGIBILITY_FIELDS),
+      populateProgram(SpesApplication.findOne({ applicant: userId, ...applicationFilterFor(posting) })),
+    ]);
+    if (posting.status !== "published" && !application) {
+      return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES posting not found");
+    }
+    const eligibility = await eligibilityFor(posting, userDoc, application);
+    return res.json({
+      posting: presentPosting(posting),
+      eligibility,
+      application: application ? gateResult(application) : null,
+    });
+  } catch (error) {
+    return sendError(res, error, "Failed to load SPES posting");
+  }
+};
+
 exports.getSpesResultsRoster = async (req, res) => {
   try {
-    const announcement = await Announcement.findById(req.params.announcementId).select("title spes category");
-    if (!announcement || announcement.category !== "spes") {
-      return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES program not found");
-    }
-    if (announcement.spes?.resultsStatus !== "published" || !announcement.spes?.publishAcceptedList) {
+    const posting = await resolvePosting(req.params.postingId);
+    if (!posting) return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES posting not found");
+    if (posting.results?.status !== "released" || !posting.results?.publishAcceptedList) {
       return res.json({ published: false, roster: [] });
     }
 
     const apps = await SpesApplication.find({
-      announcement: announcement._id,
+      ...applicationFilterFor(posting),
       "result.outcome": { $in: ["accepted", "waitlisted"] },
     })
       .populate("applicant", "name")
@@ -501,8 +596,8 @@ exports.getSpesResultsRoster = async (req, res) => {
 
     return res.json({
       published: true,
-      summary: announcement.spes.resultsSummary || "",
-      resultsUrl: announcement.spes.resultsUrl || "",
+      summary: posting.results.summary || "",
+      resultsUrl: posting.results.url || "",
       roster: apps.map((a) => ({
         name: a.applicant?.name || "Applicant",
         outcome: a.result.outcome,
@@ -514,39 +609,26 @@ exports.getSpesResultsRoster = async (req, res) => {
   }
 };
 
-// Eligibility summary for the apply flow: what the program requires and
-// whether the signed-in user can apply, without creating anything.
+// Eligibility summary for the apply flow: what the posting requires and whether the
+// signed-in user can apply, without creating anything.
 exports.getSpesEligibility = async (req, res) => {
   try {
-    const announcement = await Announcement.findOne({ _id: req.params.announcementId, isActive: true }).select(
-      "title category spes"
-    );
-    if (!announcement || announcement.category !== "spes") {
-      return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES program not found");
+    const posting = await resolvePosting(req.params.postingId);
+    if (!posting || posting.status !== "published") {
+      return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES posting not found");
     }
-    const user = await User.findById(getUserId(req)).select(
-      "role dateOfBirth ageReviewRequired hasCompletedOnboarding onboardingComplete"
-    );
-    const programClosed = isProgramOpen(announcement);
-    const ageDenial = user ? getAgeDenial(user, "spesApply") : "DOB_REQUIRED";
-    const nsrpComplete = user?.hasCompletedOnboarding === true || user?.onboardingComplete === true;
-    const existing = await SpesApplication.exists({ applicant: getUserId(req), announcement: announcement._id });
-    const blockers = [];
-    if (programClosed) blockers.push(programClosed);
-    if (ageDenial) blockers.push(ageDenial);
-    if (!nsrpComplete) blockers.push("NSRP_INCOMPLETE");
-    if (existing) blockers.push("SPES_ALREADY_APPLIED");
-
+    const userId = getUserId(req);
+    const [user, existing] = await Promise.all([
+      User.findById(userId).select(USER_ELIGIBILITY_FIELDS),
+      SpesApplication.exists({ applicant: userId, ...applicationFilterFor(posting) }),
+    ]);
+    const eligibility = await eligibilityFor(posting, user, existing);
     return res.json({
-      canApply: blockers.length === 0,
-      blockers,
-      ageTier: user ? getAgeTier(user.dateOfBirth) : TIERS.UNKNOWN,
-      ageRange: { min: SPES_MIN_AGE, max: SPES_MAX_AGE },
-      guardianRequired: spesConfig.guardianRequiredForMinors && getAgeTier(user?.dateOfBirth) === TIERS.MINOR,
-      applicationDeadline: announcement.spes?.applicationDeadline || null,
+      ...eligibility,
+      applicationDeadline: posting.applicationDeadline || null,
       requiredSlots: {
-        student: requiredSlotsFor(announcement, APPLICANT_TYPES.STUDENT),
-        osy: requiredSlotsFor(announcement, APPLICANT_TYPES.OSY),
+        student: requiredSlotsFor(posting, APPLICANT_TYPES.STUDENT),
+        osy: requiredSlotsFor(posting, APPLICANT_TYPES.OSY),
       },
     });
   } catch (error) {
@@ -555,15 +637,20 @@ exports.getSpesEligibility = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------------
-// Admin endpoints
+// Admin endpoints (monitoring: the application queue, review, evaluation)
 // ---------------------------------------------------------------------------
 exports.adminListSpesApplications = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
-    const filter = {};
-    if (req.query.announcement && /^[a-fA-F0-9]{24}$/.test(req.query.announcement)) {
-      filter.announcement = req.query.announcement;
+    const and = [];
+
+    // `posting` is the filter; `announcement` stays accepted as an alias for old callers.
+    // An id may be a native posting or a legacy announcement, so both fields are checked.
+    const postingId = req.query.posting || req.query.announcement;
+    if (postingId && /^[a-fA-F0-9]{24}$/.test(postingId)) {
+      const posting = await resolvePosting(postingId);
+      and.push(posting ? applicationFilterFor(posting) : { $or: [{ posting: postingId }, { announcement: postingId }] });
     }
     if (req.query.status) {
       const wanted = String(req.query.status);
@@ -572,25 +659,25 @@ exports.adminListSpesApplications = async (req, res) => {
         documents_review: ["documents_review", "under_review"],
         qualified: ["qualified", "for_exam", "for_interview"],
       };
-      filter.status = legacyAliases[wanted] ? { $in: legacyAliases[wanted] } : wanted;
+      and.push({ status: legacyAliases[wanted] ? { $in: legacyAliases[wanted] } : wanted });
     }
     // Rows from before applicantType existed are told apart by isOutOfSchoolYouth.
     if (req.query.applicantType === "osy") {
-      filter.$or = [{ applicantType: "osy" }, { isOutOfSchoolYouth: true }];
+      and.push({ $or: [{ applicantType: "osy" }, { isOutOfSchoolYouth: true }] });
     } else if (req.query.applicantType === "student") {
-      filter.applicantType = { $ne: "osy" };
-      filter.isOutOfSchoolYouth = { $ne: true };
+      and.push({ applicantType: { $ne: "osy" }, isOutOfSchoolYouth: { $ne: true } });
     }
     if (req.query.school) {
-      filter.school = { $regex: escapeRegex(String(req.query.school).trim().slice(0, 80)), $options: "i" };
+      and.push({ school: { $regex: escapeRegex(String(req.query.school).trim().slice(0, 80)), $options: "i" } });
     }
     if (req.query.ageTier && Object.values(TIERS).includes(req.query.ageTier)) {
       const range = dobRangeForTier(req.query.ageTier);
       if (range) {
         const ids = await User.find({ dateOfBirth: range }).distinct("_id");
-        filter.applicant = { $in: ids };
+        and.push({ applicant: { $in: ids } });
       }
     }
+    const filter = and.length > 0 ? { $and: and } : {};
 
     const [total, items] = await Promise.all([
       SpesApplication.countDocuments(filter),
@@ -665,7 +752,7 @@ const applyTransition = (app, target, { reason, adminId }) => {
 const STATUS_NOTIFICATIONS = {
   disqualified: (app) => ({
     title: "SPES application update",
-    message: `Your SPES application was not qualified. Reason: ${app.disqualification?.reason || "see My SPES"}.`,
+    message: `Your SPES application was not qualified. Reason: ${app.disqualification?.reason || "see My Applications"}.`,
   }),
   qualified: () => ({
     title: "SPES: you are qualified",
@@ -766,7 +853,7 @@ exports.adminRecordEvaluation = async (req, res) => {
       notify = t.notify;
     }
 
-    // 2. Scores and result need an applicant who is in the evaluation stages.
+    // 2. Scores and results need an applicant who is in the evaluation stages.
     const wantsEvaluation = !exam.skip || !interview.skip || (outcome !== undefined && outcome !== "pending");
     const current = normalizeStatus(app.status);
     if (wantsEvaluation) {
@@ -841,178 +928,6 @@ exports.adminRecordEvaluation = async (req, res) => {
   }
 };
 
-// Staff-only list of SPES programs with per-status counts.
-exports.adminListPrograms = async (req, res) => {
-  try {
-    const programs = await Announcement.find({ category: "spes" })
-      .select("title isActive spes publishedAt createdAt")
-      .sort({ createdAt: -1 })
-      .limit(100);
-    const ids = programs.map((p) => p._id);
-    const counts = await SpesApplication.aggregate([
-      { $match: { announcement: { $in: ids } } },
-      { $group: { _id: { announcement: "$announcement", status: "$status", outcome: "$result.outcome" }, n: { $sum: 1 } } },
-    ]);
-    const byProgram = new Map();
-    for (const row of counts) {
-      const key = String(row._id.announcement);
-      const entry = byProgram.get(key) || { byStatus: {}, byOutcome: {}, total: 0 };
-      const status = normalizeStatus(row._id.status);
-      entry.byStatus[status] = (entry.byStatus[status] || 0) + row.n;
-      if (row._id.outcome) entry.byOutcome[row._id.outcome] = (entry.byOutcome[row._id.outcome] || 0) + row.n;
-      entry.total += row.n;
-      byProgram.set(key, entry);
-    }
-    const now = new Date();
-    return res.json({
-      items: programs.map((p) => {
-        const entry = byProgram.get(String(p._id)) || { byStatus: {}, byOutcome: {}, total: 0 };
-        return {
-          _id: p._id,
-          title: p.title,
-          isActive: p.isActive,
-          applicationDeadline: p.spes?.applicationDeadline || null,
-          slots: p.spes?.slots ?? null,
-          closedAt: p.spes?.closedAt || null,
-          resultsStatus: p.spes?.resultsStatus || "pending",
-          open: !closedReasonOf(p, now),
-          closedReason: closedReasonOf(p, now),
-          counts: entry,
-        };
-      }),
-    });
-  } catch (error) {
-    return sendError(res, error, "Failed to load programs");
-  }
-};
-
-// Open or close a program's applications manually.
-exports.adminSetProgramClosed = async (req, res) => {
-  try {
-    const announcement = await Announcement.findById(req.params.announcementId);
-    if (!announcement || announcement.category !== "spes") {
-      return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES program not found");
-    }
-    const closed = req.body?.closed === true || req.body?.closed === "true";
-    announcement.spes.closedAt = closed ? new Date() : null;
-    await announcement.save();
-    await logAuditEvent({
-      req,
-      actorId: getUserId(req),
-      actorRole: "admin",
-      action: closed ? "spes.program.closed" : "spes.program.reopened",
-      targetType: "announcement",
-      targetId: String(announcement._id),
-      severity: "info",
-    });
-    return res.json({ message: closed ? "Program closed" : "Program reopened", closedAt: announcement.spes.closedAt });
-  } catch (error) {
-    return sendError(res, error, "Failed to update program");
-  }
-};
-
-// What a release would do, for the confirmation dialog. Writes nothing.
-exports.adminReleaseSummary = async (req, res) => {
-  try {
-    const announcement = await Announcement.findById(req.params.announcementId).select("title category spes");
-    if (!announcement || announcement.category !== "spes") {
-      return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES program not found");
-    }
-    const apps = await SpesApplication.find({ announcement: announcement._id }).select("status result.outcome");
-    const excluded = apps.filter((a) => EXCLUDED_STATUSES.includes(normalizeStatus(a.status)));
-    const decidable = apps.filter((a) => !EXCLUDED_STATUSES.includes(normalizeStatus(a.status)));
-    const byOutcome = { accepted: 0, waitlisted: 0, not_accepted: 0, pending: 0 };
-    decidable.forEach((a) => {
-      byOutcome[a.result?.outcome || "pending"] += 1;
-    });
-    return res.json({
-      alreadyReleased: announcement.spes?.resultsStatus === "published",
-      total: apps.length,
-      toNotify: decidable.length,
-      excluded: excluded.length,
-      byOutcome,
-      undecided: byOutcome.pending,
-      canRelease: decidable.length > 0 && byOutcome.pending === 0 && announcement.spes?.resultsStatus !== "published",
-    });
-  } catch (error) {
-    return sendError(res, error, "Failed to load release summary");
-  }
-};
-
-exports.adminReleaseResults = async (req, res) => {
-  try {
-    const { announcementId } = req.params;
-    const announcement = await Announcement.findById(announcementId);
-    if (!announcement || announcement.category !== "spes") {
-      return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES program not found");
-    }
-    if (announcement.spes?.resultsStatus === "published") {
-      return fail(res, 400, "SPES_ALREADY_RELEASED", "Results for this program have already been released.");
-    }
-
-    const apps = await SpesApplication.find({ announcement: announcementId });
-    const decidable = apps.filter((a) => !EXCLUDED_STATUSES.includes(normalizeStatus(a.status)));
-    if (decidable.length === 0) {
-      return fail(res, 400, "SPES_NO_APPLICATIONS", "There are no applications to release results for.");
-    }
-    const undecided = decidable.filter((a) => a.result.outcome === "pending");
-    if (undecided.length > 0) {
-      return fail(
-        res,
-        400,
-        "SPES_UNDECIDED_REMAIN",
-        `${undecided.length} of ${decidable.length} applications still have no decided outcome.`,
-        { undecided: undecided.length, total: decidable.length }
-      );
-    }
-
-    const now = new Date();
-    const userId = getUserId(req);
-
-    announcement.spes.resultsStatus = "published";
-    announcement.spes.resultsPublishedAt = now;
-    announcement.spes.resultsPublishedBy = userId;
-    await announcement.save();
-
-    await SpesApplication.updateMany(
-      { announcement: announcementId, status: { $nin: EXCLUDED_STATUSES } },
-      { $set: { status: STATUS.RESULTS_RELEASED, resultReleasedAt: now } }
-    );
-
-    const io = req.app.get("io");
-    await notifyManyUsers({
-      recipientIds: decidable.map((a) => a.applicant),
-      actorId: userId,
-      type: "spes",
-      title: "SPES results available",
-      message: `Results for "${announcement.title}" have been released. View your outcome now.`,
-      relatedEntityType: "announcement",
-      relatedEntityId: announcement._id,
-      actionUrl: "/spes/applications",
-      io,
-      preferenceKey: "notifyApplicationUpdate",
-    });
-
-    await logAuditEvent({
-      req,
-      actorId: userId,
-      actorRole: "admin",
-      action: "spes.results.released",
-      targetType: "announcement",
-      targetId: String(announcement._id),
-      severity: "warning",
-      metadata: { releasedCount: decidable.length },
-    });
-
-    return res.json({
-      message: `Results released to ${decidable.length} applicant${decidable.length === 1 ? "" : "s"}.`,
-      announcement,
-    });
-  } catch (error) {
-    return sendError(res, error, "Failed to release results");
-  }
-};
-
 exports.adminAmendResult = async (req, res) => {
   try {
     const { outcome, remarks, rank } = req.body || {};
@@ -1023,7 +938,8 @@ exports.adminAmendResult = async (req, res) => {
     const app = await populateAdmin(SpesApplication.findById(req.params.id));
     if (!app) return fail(res, 404, "SPES_APPLICATION_NOT_FOUND", "Application not found");
 
-    const alreadyReleased = Boolean(app.resultReleasedAt) || app.announcement?.spes?.resultsStatus === "published";
+    const program = programOf(app.toObject ? app.toObject() : app);
+    const alreadyReleased = Boolean(app.resultReleasedAt) || program?.results?.status === "released";
     if (!alreadyReleased) {
       return fail(res, 409, "SPES_NOT_RELEASED", "Results are not released yet. Record the result in the evaluation instead.");
     }
@@ -1049,7 +965,7 @@ exports.adminAmendResult = async (req, res) => {
       actorId: getUserId(req),
       type: "spes",
       title: "SPES result updated",
-      message: `Your result for "${app.announcement?.title || "a SPES program"}" was updated.`,
+      message: `Your result for "${program?.title || "a SPES posting"}" was updated.`,
       relatedEntityType: "spes_application",
       relatedEntityId: app._id,
       actionUrl: "/spes/applications",
@@ -1065,5 +981,5 @@ exports.adminAmendResult = async (req, res) => {
   }
 };
 
-// Kept for tests and callers that want the tier/age helpers next to SPES logic.
-exports._internals = { gateResult, adminView, applyTransition, isProgramOpen, getAgeFromDate };
+// Kept for tests and callers that want the shaping helpers next to SPES logic.
+exports._internals = { gateResult, adminView, applyTransition, programOf, getAgeFromDate, APPLY_STATE };

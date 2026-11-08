@@ -40,6 +40,9 @@ const announcementSchema = new mongoose.Schema(
       // Manual close by PESO staff, independent of the deadline.
       closedAt: { type: Date, default: null },
     },
+    // Set on the news-feed card that links to a SpesPosting (models/SpesPosting.js).
+    // Cards with this set are not legacy SPES announcements.
+    spesPostingId: { type: mongoose.Schema.Types.ObjectId, ref: "SpesPosting", default: null },
     imageUrl: {
       type: String,
       default: "",
