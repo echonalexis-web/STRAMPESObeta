@@ -1250,7 +1250,7 @@
       "SPES_GUARDIAN_REQUIRED": "Kailangan ng pangalan at contact number ng magulang o guardian para sa mga aplikanteng wala pang 18.",
       "SPES_DOCS_MISSING": "I-upload ang lahat ng kinakailangang dokumento.",
       "SPES_FILE_TYPE": "PDF, JPG, o PNG lang ang tinatanggap.",
-      "SPES_FILE_TOO_LARGE": "Dapat 5 MB o mas maliit ang bawat file.",
+      "SPES_FILE_TOO_LARGE": "Ang bawat file ay dapat {{max}} MB o mas maliit.",
       "SPES_FILE_UNEXPECTED": "May na-upload na hindi inaasahang file.",
       "SPES_UPLOAD_FAILED": "Hindi naproseso ang upload. Pakisubukang muli.",
       "SPES_SLOT_INVALID": "Hindi kilalang uri ng dokumento.",
@@ -1284,8 +1284,13 @@
       "SPES_HAS_APPLICATIONS": "May aplikasyon ang posting na ito, kaya hindi ito maibabalik sa draft o mabubura. I-archive na lang.",
       "SPES_DELETE_NOT_ALLOWED": "Mga draft na posting lang ang mabubura. I-archive na lang ito.",
       "SPES_COVER_TYPE": "JPG, PNG, o WEBP na larawan lang ang tinatanggap.",
-      "SPES_COVER_TOO_LARGE": "Dapat 3 MB o mas maliit ang larawan.",
-      "SPES_COVER_MISSING": "Pumili ng larawang ia-upload."
+      "SPES_COVER_TOO_LARGE": "Ang larawan ay dapat {{coverMax}} MB o mas maliit.",
+      "SPES_COVER_MISSING": "Pumili ng larawang ia-upload.",
+      "SPES_TOO_MANY_FILES": "Hanggang {{count}} file lang ang maaaring i-upload.",
+      "UPLOAD_ONE_FILE": "Magdagdag ng isang file lang sa bawat pagkakataon.",
+      "UPLOAD_NETWORK": "Walang koneksyon. Tingnan ang iyong internet at subukan muli.",
+      "UPLOAD_TIMEOUT": "Natagalan ang pag-upload. Subukan muli.",
+      "UPLOAD_CANCELED": "Nakansela ang pag-upload."
     }
   },
   "spes": {
@@ -1442,7 +1447,17 @@
       "submit": "Isumite ang aplikasyon",
       "submitting": "Isinusumite...",
       "submitted": "Naisumite ang aplikasyon sa SPES.",
-      "failed": "Hindi namin naisumite ang iyong aplikasyon."
+      "failed": "Hindi namin naisumite ang iyong aplikasyon.",
+      "docsSummary": "{{done}} sa {{total}} dokumento ang naidagdag",
+      "docsNeeded": "Idagdag ang lahat ng kailangang dokumento para magpatuloy.",
+      "docsDeferred": "Ipapadala ang iyong mga file kapag isinumite mo ang aplikasyon.",
+      "closeConfirmTitle": "Itatapon ang iyong aplikasyon?",
+      "closeConfirmBody": "Hindi pa naisusumite ang mga dokumentong pinili mo at mawawala ang mga ito kapag isinara mo ang window na ito.",
+      "keepEditing": "Ituloy ang pag-edit",
+      "discard": "Itapon at isara",
+      "submittingProgress": "Isinusumite ang iyong aplikasyon… {{percent}}%",
+      "cancelSubmit": "Kanselahin ang pagsusumite",
+      "submitCanceled": "Nakansela ang pagsusumite. Nandito pa rin ang iyong mga file."
     },
     "admin": {
       "pageTitle": "Mga Aplikasyon sa SPES",
@@ -1676,5 +1691,29 @@
     "searchLabel": "Maghanap ng mga SPES posting",
     "searchPlaceholder": "Maghanap ng posting...",
     "morePostings": "Iba pang SPES posting"
+  },
+  "upload": {
+    "required": "Kailangan",
+    "optional": "Opsyonal",
+    "choose": "Pumili ng file",
+    "orDrag": "o i-drag at i-drop dito",
+    "view": "Tingnan",
+    "replace": "Palitan",
+    "remove": "Alisin",
+    "retry": "Subukan muli",
+    "cancel": "Kanselahin",
+    "uploading": "Ina-upload… {{percent}}%",
+    "progressLabel": "Ina-upload ang {{name}}",
+    "live": {
+      "added": "Naidagdag ang {{name}}",
+      "removed": "Inalis ang {{name}}",
+      "canceled": "Kinansela ang pag-upload ng {{name}}"
+    },
+    "hint": {
+      "documents": "PDF, JPG, o PNG, hanggang {{max}} MB.",
+      "cover": "JPG, PNG, o WEBP, hanggang {{coverMax}} MB."
+    },
+    "ready": "Handa nang isumite",
+    "uploaded": "Na-upload na"
   }
 }

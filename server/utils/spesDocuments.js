@@ -36,14 +36,30 @@ const requiredSlotsFor = (program, applicantType) => {
   });
 };
 
-// SPES uploads: PDF and photos only, 5 MB each (the global cap in upload.js).
+// Upload limits: the single source of truth on the server. The client mirrors these in
+// client/src/utils/spesUploadLimits.js; change both together.
+// Documents: PDF and photos only, 5 MB each, one file per slot.
 const SPES_ALLOWED_MIME = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+const SPES_DOC_MAX_BYTES = 5 * 1024 * 1024;
+// Posting cover image: images only, smaller than a document.
+const SPES_COVER_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const SPES_COVER_MAX_BYTES = 3 * 1024 * 1024;
+// Most files one application can carry: the larger of the two applicant types' slot lists
+// (the academic and OSY slots swap, so a single applicant never fills all five).
+const SPES_MAX_FILES_PER_APPLICATION = Math.max(
+  defaultRequiredSlots(APPLICANT_TYPES.STUDENT).length,
+  defaultRequiredSlots(APPLICANT_TYPES.OSY).length
+);
 
 module.exports = {
   SPES_SLOTS,
   ALL_SLOTS,
   APPLICANT_TYPES,
   SPES_ALLOWED_MIME,
+  SPES_DOC_MAX_BYTES,
+  SPES_COVER_MIME,
+  SPES_COVER_MAX_BYTES,
+  SPES_MAX_FILES_PER_APPLICATION,
   defaultRequiredSlots,
   requiredSlotsFor,
 };

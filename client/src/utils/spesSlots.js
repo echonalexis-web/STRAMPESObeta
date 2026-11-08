@@ -2,6 +2,8 @@
 // screens. Mirrors server/utils/spesDocuments.js and spesLifecycle.js; the server
 // is the authority and re-validates everything.
 
+import { SPES_DOC_LIMITS, validateUploadFile } from "./spesUploadLimits.js";
+
 export const SPES_SLOTS = Object.freeze({
   FORM2: "form2",
   PROOF_OF_AGE: "proof_of_age",
@@ -61,15 +63,10 @@ export const WITHDRAWABLE = ["submitted", "documents_review", "needs_resubmissio
 export const canWithdrawStatus = (status) => WITHDRAWABLE.includes(normalizeSpesStatus(status));
 
 // Mirrors the server's extension/size rule for SPES uploads.
-export const SPES_ALLOWED_MIME = ["application/pdf", "image/jpeg", "image/png"];
-export const SPES_MAX_FILE_SIZE = 5 * 1024 * 1024;
+export const SPES_ALLOWED_MIME = SPES_DOC_LIMITS.mimes;
+export const SPES_MAX_FILE_SIZE = SPES_DOC_LIMITS.maxBytes;
 
-export const checkSpesFile = (file) => {
-  if (!file) return "SPES_DOCS_MISSING";
-  if (!SPES_ALLOWED_MIME.includes(file.type)) return "SPES_FILE_TYPE";
-  if (file.size > SPES_MAX_FILE_SIZE) return "SPES_FILE_TOO_LARGE";
-  return null;
-};
+export const checkSpesFile = (file) => validateUploadFile(file, SPES_DOC_LIMITS);
 
 // Admin-triggered status changes (mirrors server/utils/spesLifecycle.js).
 export const ADMIN_TRANSITIONS = {

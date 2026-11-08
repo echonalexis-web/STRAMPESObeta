@@ -1,4 +1,5 @@
 import i18n from "../i18n";
+import { uploadMessageParams } from "./spesUploadLimits.js";
 
 // Translates a server error by its stable `code` (errors.codes.<CODE> in the
 // locale files). Falls back to the server's English message, then to the
@@ -6,7 +7,7 @@ import i18n from "../i18n";
 export const translateErrorCode = (code, fallback = "") => {
   if (code) {
     const key = `errors.codes.${code}`;
-    if (i18n.exists(key)) return i18n.t(key);
+    if (i18n.exists(key)) return i18n.t(key, uploadMessageParams());
   }
   return fallback;
 };

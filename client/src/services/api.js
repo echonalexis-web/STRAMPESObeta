@@ -608,10 +608,11 @@ export const spesAPI = {
   getForPosting: (postingId) => api.get(`/spes/postings/${postingId}/me`, getAuthHeader()),
   getResults: (postingId) => api.get(`/spes/postings/${postingId}/results`, getAuthHeader()),
   getEligibility: (postingId) => api.get(`/spes/postings/${postingId}/eligibility`, getAuthHeader()),
-  apply: (postingId, formData) =>
-    api.post(`/spes/postings/${postingId}/apply`, formData, getAuthFormHeader()),
-  replaceDocument: (postingId, slot, formData) =>
-    api.post(`/spes/postings/${postingId}/documents/${slot}`, formData, getAuthFormHeader()),
+  // `config` may carry { onUploadProgress, signal } for progress and cancel.
+  apply: (postingId, formData, config = {}) =>
+    api.post(`/spes/postings/${postingId}/apply`, formData, { ...getAuthFormHeader(), ...config }),
+  replaceDocument: (postingId, slot, formData, config = {}) =>
+    api.post(`/spes/postings/${postingId}/documents/${slot}`, formData, { ...getAuthFormHeader(), ...config }),
   withdraw: (postingId) => api.post(`/spes/postings/${postingId}/withdraw`, {}, getAuthHeader()),
 
   // Admin: postings.
@@ -622,10 +623,10 @@ export const spesAPI = {
   adminSetPostingStatus: (postingId, status, alsoPostToNews) =>
     api.patch(`/spes/admin/postings/${postingId}/status`, { status, alsoPostToNews }, getAuthHeader()),
   adminDeletePosting: (postingId) => api.delete(`/spes/admin/postings/${postingId}`, getAuthHeader()),
-  adminUploadCover: (postingId, file) => {
+  adminUploadCover: (postingId, file, config = {}) => {
     const fd = new FormData();
     fd.append('cover', file);
-    return api.post(`/spes/admin/postings/${postingId}/cover`, fd, getAuthFormHeader());
+    return api.post(`/spes/admin/postings/${postingId}/cover`, fd, { ...getAuthFormHeader(), ...config });
   },
   adminRemoveCover: (postingId) => api.delete(`/spes/admin/postings/${postingId}/cover`, getAuthHeader()),
   adminSetPostingClosed: (postingId, closed) =>

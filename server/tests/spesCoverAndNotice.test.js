@@ -78,14 +78,14 @@ describe("cover upload: type, size and content checks", () => {
     ["a script renamed to .png", Buffer.from("<script>alert(1)</script>"), "x.png", "image/png"],
   ])("%s is refused with SPES_COVER_TYPE", async (_l, buf, filename, contentType) => {
     const res = await request(app()).post("/cover").attach("cover", buf, { filename, contentType });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(415);
     expect(res.body.code).toBe("SPES_COVER_TYPE");
   });
 
   test("an image over 3 MB is refused with SPES_COVER_TOO_LARGE", async () => {
     const big = Buffer.concat([PNG, Buffer.alloc(3 * 1024 * 1024)]);
     const res = await request(app()).post("/cover").attach("cover", big, { filename: "big.png", contentType: "image/png" });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(413);
     expect(res.body.code).toBe("SPES_COVER_TOO_LARGE");
   });
 

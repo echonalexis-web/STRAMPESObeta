@@ -1250,7 +1250,7 @@
       "SPES_GUARDIAN_REQUIRED": "A guardian name and contact number are required for applicants under 18.",
       "SPES_DOCS_MISSING": "Upload every required document.",
       "SPES_FILE_TYPE": "Only PDF, JPG, or PNG files are accepted.",
-      "SPES_FILE_TOO_LARGE": "Each file must be 5 MB or smaller.",
+      "SPES_FILE_TOO_LARGE": "Each file must be {{max}} MB or smaller.",
       "SPES_FILE_UNEXPECTED": "An unexpected file was uploaded.",
       "SPES_UPLOAD_FAILED": "The upload could not be processed. Please try again.",
       "SPES_SLOT_INVALID": "Unknown document type.",
@@ -1284,8 +1284,13 @@
       "SPES_HAS_APPLICATIONS": "This posting has applications, so it cannot go back to draft or be deleted. Archive it instead.",
       "SPES_DELETE_NOT_ALLOWED": "Only draft postings can be deleted. Archive this one instead.",
       "SPES_COVER_TYPE": "Only JPG, PNG, or WEBP images are accepted.",
-      "SPES_COVER_TOO_LARGE": "The image must be 3 MB or smaller.",
-      "SPES_COVER_MISSING": "Choose an image to upload."
+      "SPES_COVER_TOO_LARGE": "The image must be {{coverMax}} MB or smaller.",
+      "SPES_COVER_MISSING": "Choose an image to upload.",
+      "SPES_TOO_MANY_FILES": "You can upload at most {{count}} files.",
+      "UPLOAD_ONE_FILE": "Add one file at a time.",
+      "UPLOAD_NETWORK": "No connection. Check your internet and try again.",
+      "UPLOAD_TIMEOUT": "The upload took too long. Please try again.",
+      "UPLOAD_CANCELED": "The upload was canceled."
     }
   },
   "spes": {
@@ -1442,7 +1447,17 @@
       "submit": "Submit application",
       "submitting": "Submitting...",
       "submitted": "SPES application submitted.",
-      "failed": "We could not submit your application."
+      "failed": "We could not submit your application.",
+      "docsSummary": "{{done}} of {{total}} documents added",
+      "docsNeeded": "Add every required document to continue.",
+      "docsDeferred": "Your files are sent when you submit your application.",
+      "closeConfirmTitle": "Discard your application?",
+      "closeConfirmBody": "The documents you chose have not been submitted and will be lost if you close this window.",
+      "keepEditing": "Keep editing",
+      "discard": "Discard and close",
+      "submittingProgress": "Submitting your application… {{percent}}%",
+      "cancelSubmit": "Cancel submission",
+      "submitCanceled": "Submission canceled. Your files are still here."
     },
     "admin": {
       "pageTitle": "SPES Applications",
@@ -1676,5 +1691,29 @@
     "searchLabel": "Search SPES postings",
     "searchPlaceholder": "Search postings...",
     "morePostings": "More SPES postings"
+  },
+  "upload": {
+    "required": "Required",
+    "optional": "Optional",
+    "choose": "Choose a file",
+    "orDrag": "or drag and drop it here",
+    "view": "View",
+    "replace": "Replace",
+    "remove": "Remove",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "uploading": "Uploading… {{percent}}%",
+    "progressLabel": "Uploading {{name}}",
+    "live": {
+      "added": "{{name}} added",
+      "removed": "{{name}} removed",
+      "canceled": "Upload of {{name}} canceled"
+    },
+    "hint": {
+      "documents": "PDF, JPG or PNG, up to {{max}} MB.",
+      "cover": "JPG, PNG or WEBP, up to {{coverMax}} MB."
+    },
+    "ready": "Ready to submit",
+    "uploaded": "Uploaded"
   }
 }

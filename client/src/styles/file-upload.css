@@ -1,0 +1,146 @@
+/* ============================================================
+   FileUpload: one file slot (components/FileUpload.jsx).
+   Hand-written CSS on the --ds-* tokens. Tap targets are at least 44px.
+   ============================================================ */
+
+.fu {
+  display: grid;
+  gap: var(--ds-space-2, 8px);
+  padding: var(--ds-space-3, 12px);
+  border: 1px solid var(--ds-border, #d1d5db);
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-surface, #fff);
+  min-width: 0;
+}
+.fu--error,
+.fu--error-empty { border-color: var(--ds-danger, #b42318); }
+.fu.is-disabled { opacity: 0.7; }
+
+.fu__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2, 8px);
+  flex-wrap: wrap;
+}
+.fu__title { font-weight: 600; font-size: var(--ds-text-sm, 0.875rem); color: var(--ds-text, #111827); overflow-wrap: anywhere; }
+
+.fu__badge {
+  flex: none;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--ds-ink-100, #e5e7eb);
+  color: var(--ds-muted, #4b5563);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.fu__badge--required { background: var(--ds-danger-bg, #fdecea); color: var(--ds-danger, #b42318); }
+
+/* The real input stays focusable (and keyboard operable); the label below is what is seen. */
+.fu__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.fu__drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-3, 12px);
+  min-height: 96px;
+  padding: var(--ds-space-4, 16px);
+  border: 2px dashed var(--ds-border, #d1d5db);
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-ink-50, #f8fafc);
+  color: var(--ds-text, #111827);
+  font-size: var(--ds-text-sm, 0.875rem);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--ds-motion-fast, 120ms) ease-out, background-color var(--ds-motion-fast, 120ms) ease-out;
+}
+.fu__drop:hover,
+.fu.is-drag .fu__drop { border-color: var(--ds-green, #07553a); background: var(--ds-mint, #e6f4ee); }
+.fu__input:focus-visible + .fu__drop,
+.fu__input:focus-visible ~ .fu__file { outline: 3px solid var(--ds-focus, #0b704b); outline-offset: 2px; }
+.fu.is-disabled .fu__drop { cursor: not-allowed; }
+.fu__drop-icon { flex: none; font-size: 1.75rem; color: var(--ds-green, #07553a); }
+.fu__drop-text strong { color: var(--ds-green, #07553a); }
+
+.fu__file {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3, 12px);
+  flex-wrap: wrap;
+  padding: var(--ds-space-3, 12px);
+  border: 1px solid var(--ds-border, #d1d5db);
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-ink-50, #f8fafc);
+}
+.fu.is-drag .fu__file { border-color: var(--ds-green, #07553a); }
+.fu__type,
+.fu__thumb {
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--ds-radius-sm, 8px);
+  background: var(--ds-ink-100, #e5e7eb);
+}
+.fu__type { display: grid; place-items: center; font-size: 1.5rem; color: var(--ds-green, #07553a); }
+.fu__thumb { object-fit: cover; }
+.fu__meta { display: grid; gap: 2px; flex: 1 1 10rem; min-width: 0; }
+.fu__name { font-weight: 600; font-size: var(--ds-text-sm, 0.875rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fu__sub { font-size: 0.8125rem; color: var(--ds-muted, #4b5563); }
+
+.fu__progress { height: 8px; margin-top: 4px; border-radius: 999px; background: var(--ds-ink-100, #e5e7eb); overflow: hidden; }
+.fu__progress-bar { display: block; height: 100%; background: var(--ds-green, #07553a); transition: width var(--ds-motion-fast, 120ms) linear; }
+
+.fu__actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-2, 8px); }
+.fu__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--ds-space-3, 12px);
+  border: 1px solid var(--ds-border, #d1d5db);
+  border-radius: var(--ds-radius-btn, 10px);
+  background: var(--ds-surface, #fff);
+  color: var(--ds-green, #07553a);
+  font: inherit;
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 600;
+  cursor: pointer;
+}
+.fu__btn:hover:not(:disabled) { background: var(--ds-mint, #e6f4ee); }
+.fu__btn:focus-visible { outline: 3px solid var(--ds-focus, #0b704b); outline-offset: 2px; }
+.fu__btn:disabled { cursor: not-allowed; opacity: 0.6; }
+.fu__btn--danger { color: var(--ds-danger, #b42318); }
+.fu__btn--danger:hover:not(:disabled) { background: var(--ds-danger-bg, #fdecea); }
+
+.fu__hint { margin: 0; font-size: 0.8125rem; color: var(--ds-muted, #4b5563); }
+.fu__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2, 8px);
+  flex-wrap: wrap;
+  font-size: var(--ds-text-sm, 0.875rem);
+  color: var(--ds-danger, #b42318);
+}
+
+@media (max-width: 480px) {
+  .fu__actions { width: 100%; }
+  .fu__actions .fu__btn { flex: 1 1 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fu__drop,
+  .fu__progress-bar { transition: none; }
+}
