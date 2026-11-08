@@ -409,7 +409,7 @@
 .fm-panel:focus { outline: none; }
 
 /* Sit above sticky bottom bars (job apply bar, post-job actions) */
-body:has(.jd-apply-bar, .pj-sticky-actions) .fm-root:not(:has(.fm-panel)) {
+body:has(.jd-apply-bar, .pj-sticky-actions, .spes-form__bar) .fm-root:not(:has(.fm-panel)) {
   bottom: calc(76px + env(safe-area-inset-bottom));
 }
 

@@ -39,7 +39,7 @@ body:has(.fm-root) .cb-root {
   --cb-stack-offset: 60px;
 }
 
-body:has(.jd-apply-bar, .pj-sticky-actions) .cb-root {
+body:has(.jd-apply-bar, .pj-sticky-actions, .spes-form__bar) .cb-root {
   --cb-base: calc(76px + env(safe-area-inset-bottom));
 }
 
@@ -301,7 +301,7 @@ body.has-modal-open .cb-root:not(.cb-root--sheet) {
   }
   /* messenger button is 58px on desktop: 58 + 12 gap */
   body:has(.fm-root) .cb-root { --cb-stack-offset: 70px; }
-  body:has(.jd-apply-bar, .pj-sticky-actions) .cb-root {
+  body:has(.jd-apply-bar, .pj-sticky-actions, .spes-form__bar) .cb-root {
     --cb-base: calc(76px + env(safe-area-inset-bottom));
   }
   .cb-root--sheet { z-index: 3490; }

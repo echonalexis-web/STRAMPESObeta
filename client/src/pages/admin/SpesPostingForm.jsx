@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { cloneElement, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { FaImage } from "react-icons/fa";
 import { resolveAssetUrl, spesAPI } from "../../services/api";
 import StateBlock from "../../components/StateBlock";
 import { useToast } from "../../components/feedback/context";
@@ -90,6 +91,58 @@ const toPayload = (f) => {
     },
     guardianRequired: f.guardianRequired === "yes" ? true : f.guardianRequired === "no" ? false : null,
   };
+};
+
+// Layout pieces only; they add no behavior. A section is a fieldset with a legend (so
+// screen readers announce the group), a field stacks label, control, hint and error, and
+// a check row makes the whole row clickable.
+function Section({ title, hint, children }) {
+  return (
+    <fieldset className="spes-form__card">
+      <legend>{title}</legend>
+      {hint ? <p className="spes-form__card-hint">{hint}</p> : null}
+      <div className="spes-form__body">{children}</div>
+    </fieldset>
+  );
+}
+
+function Field({ id, label, required, hint, error, children }) {
+  const hintId = hint ? `${id}-hint` : undefined;
+  const errId = error ? `${id}-error` : undefined;
+  const describedBy = [hintId, errId].filter(Boolean).join(" ") || undefined;
+  return (
+    <div className="spes-field">
+      <label className="spes-field__label" htmlFor={id}>
+        {label}
+        {required ? <span className="spes-field__req" aria-hidden="true">*</span> : null}
+      </label>
+      {cloneElement(children, { id, "aria-describedby": describedBy, "aria-invalid": error ? true : undefined })}
+      {hint ? <p id={hintId} className="spes-field__hint">{hint}</p> : null}
+      {error ? <p id={errId} className="spes-field__error" role="alert">{error}</p> : null}
+    </div>
+  );
+}
+
+function CheckRow({ id, checked, onChange, label, hint }) {
+  const hintId = hint ? `${id}-hint` : undefined;
+  return (
+    <label className="spes-check" htmlFor={id}>
+      <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} aria-describedby={hintId} />
+      <span className="spes-check__text">
+        <span className="spes-check__label">{label}</span>
+        {hint ? <span id={hintId} className="spes-check__hint">{hint}</span> : null}
+      </span>
+    </label>
+  );
+}
+
+// Server codes that belong to one field are shown under it; the rest go in the action bar.
+const FIELD_OF_CODE = {
+  SPES_TITLE_REQUIRED: "title",
+  SPES_DATE_INVALID: "deadline",
+  SPES_PERIOD_INVALID: "deadline",
+  SPES_DEADLINE_IN_PAST: "deadline",
+  SPES_SLOTS_INVALID: "slots",
 };
 
 // Create or edit one SPES posting. A new posting can be saved as a draft or published
@@ -258,7 +311,11 @@ export default function SpesPostingForm() {
   }
 
   const published = status === "published";
-  const err = errorCode ? translateErrorCode(errorCode, t("spes.admin.saveFailed")) : "";
+  const message = errorCode ? translateErrorCode(errorCode, t("spes.admin.saveFailed")) : "";
+  const errorField = FIELD_OF_CODE[errorCode] || "";
+  const fieldError = (name) => (errorField === name ? message : "");
+  const barError = errorCode && !errorField ? message : "";
+  const showCover = coverPreview || (existingCover && !removeCover);
 
   return (
     <div className="admin-page-container spes-admin">
@@ -275,154 +332,154 @@ export default function SpesPostingForm() {
         }}
         noValidate
       >
-        <fieldset className="spes-form__section">
-          <legend>{t("spesPostings.form.basics")}</legend>
-          <label>
-            {t("spesPostings.form.title")} <span aria-hidden="true">*</span>
-            <input type="text" value={form.title} maxLength={180} required aria-invalid={errorCode === "SPES_TITLE_REQUIRED"} onChange={(e) => set("title", e.target.value)} />
-          </label>
-          <label>
-            {t("spesPostings.form.description")}
+        <Section title={t("spesPostings.form.basics")}>
+          <Field id="spes-title" label={t("spesPostings.form.title")} required error={fieldError("title")}>
+            <input type="text" value={form.title} maxLength={180} required onChange={(e) => set("title", e.target.value)} />
+          </Field>
+          <Field id="spes-description" label={t("spesPostings.form.description")}>
             <textarea rows={5} maxLength={8000} value={form.description} onChange={(e) => set("description", e.target.value)} />
-          </label>
-        </fieldset>
+          </Field>
+        </Section>
 
-        <fieldset className="spes-form__section">
-          <legend>{t("spesPostings.form.cover")}</legend>
-          {coverPreview || (existingCover && !removeCover) ? (
-            <img
-              className="spes-form__cover"
-              src={coverPreview || resolveAssetUrl(existingCover)}
-              alt={t("spesPostings.form.coverPreviewAlt")}
-            />
-          ) : null}
-          <label>
-            {t("spesPostings.form.coverChoose")}
+        <Section title={t("spesPostings.form.cover")}>
+          <div className="spes-upload">
             <input
+              id="spes-cover"
               ref={coverInputRef}
+              className="spes-upload__input"
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              aria-describedby="spes-cover-hint"
+              aria-describedby={coverError ? "spes-cover-hint spes-cover-error" : "spes-cover-hint"}
               onChange={(e) => pickCover(e.target.files?.[0])}
             />
-          </label>
-          <p id="spes-cover-hint" className="spes-note">{t("spesPostings.form.coverHint")}</p>
-          {coverError ? <p className="spes-apply__error" role="alert">{translateErrorCode(coverError, t("spes.admin.saveFailed"))}</p> : null}
-          <div className="spes-form__cover-actions">
-            {coverFile ? (
-              <button type="button" className="spes-btn spes-btn--small spes-btn--ghost" onClick={clearCover}>
-                {t("spesPostings.form.coverClear")}
-              </button>
+            <label htmlFor="spes-cover" className="spes-upload__zone">
+              {showCover ? (
+                <img
+                  className="spes-upload__thumb"
+                  src={coverPreview || resolveAssetUrl(existingCover)}
+                  alt={t("spesPostings.form.coverPreviewAlt")}
+                />
+              ) : (
+                <FaImage className="spes-upload__icon" aria-hidden="true" />
+              )}
+              <span className="spes-upload__copy">
+                <span className="spes-upload__btn">{t("spesPostings.form.coverChoose")}</span>
+                <span id="spes-cover-hint" className="spes-field__hint">{t("spesPostings.form.coverHint")}</span>
+              </span>
+            </label>
+            {coverError ? (
+              <p id="spes-cover-error" className="spes-field__error" role="alert">
+                {translateErrorCode(coverError, t("spes.admin.saveFailed"))}
+              </p>
             ) : null}
-            {isEdit && existingCover && !coverFile ? (
-              <button type="button" className="spes-btn spes-btn--small spes-btn--ghost" aria-pressed={removeCover} onClick={() => setRemoveCover((v) => !v)}>
-                {removeCover ? t("spesPostings.form.coverKeep") : t("spesPostings.form.coverRemove")}
-              </button>
+            {coverFile || (isEdit && existingCover) ? (
+              <div className="spes-upload__actions">
+                {coverFile ? (
+                  <button type="button" className="spes-btn spes-btn--small spes-btn--ghost" onClick={clearCover}>
+                    {t("spesPostings.form.coverClear")}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="spes-btn spes-btn--small spes-btn--ghost"
+                    aria-pressed={removeCover}
+                    onClick={() => setRemoveCover((v) => !v)}
+                  >
+                    {removeCover ? t("spesPostings.form.coverKeep") : t("spesPostings.form.coverRemove")}
+                  </button>
+                )}
+              </div>
             ) : null}
           </div>
-        </fieldset>
+        </Section>
 
-        <fieldset className="spes-form__section">
-          <legend>{t("spesPostings.form.period")}</legend>
-          <div className="spes-form__row">
-            <label>
-              {t("spesPostings.form.opensAt")}
+        <Section title={t("spesPostings.form.period")}>
+          <div className="spes-form__grid">
+            <Field id="spes-opens" label={t("spesPostings.form.opensAt")}>
               <input type="datetime-local" value={form.opensAt} onChange={(e) => set("opensAt", e.target.value)} />
-            </label>
-            <label>
-              {t("spesPostings.form.deadline")}
+            </Field>
+            <Field id="spes-deadline" label={t("spesPostings.form.deadline")} error={fieldError("deadline")}>
               <input type="datetime-local" value={form.applicationDeadline} onChange={(e) => set("applicationDeadline", e.target.value)} />
-            </label>
-            <label>
-              {t("spesPostings.form.slots")}
+            </Field>
+            <Field id="spes-slots" label={t("spesPostings.form.slots")} error={fieldError("slots")}>
               <input type="number" min="0" step="1" inputMode="numeric" value={form.slots} onChange={(e) => set("slots", e.target.value)} />
-            </label>
+            </Field>
           </div>
-          <p className="spes-note">{t("spesPostings.form.periodHint")}</p>
-        </fieldset>
+          <p className="spes-field__hint">{t("spesPostings.form.periodHint")}</p>
+        </Section>
 
-        <fieldset className="spes-form__section">
-          <legend>{t("spesPostings.form.documents")}</legend>
-          {FIXED_DOCS.map((slot) => (
-            <label key={slot} className="spes-form__check">
-              <input type="checkbox" checked={form.docs[slot]} onChange={(e) => setDoc(slot, e.target.checked)} />
-              <span>{t(`spes.docs.slot.${slot}`)}</span>
-            </label>
-          ))}
-          <label className="spes-form__check">
-            <input type="checkbox" checked={form.docs.academic} onChange={(e) => setDoc("academic", e.target.checked)} />
-            <span>{t("spesPostings.form.academicOrOsy")}</span>
-          </label>
-          <label>
-            {t("spesPostings.form.requirements")}
+        <Section title={t("spesPostings.form.documents")}>
+          <div className="spes-check-list">
+            {FIXED_DOCS.map((slot) => (
+              <CheckRow key={slot} id={`spes-doc-${slot}`} checked={form.docs[slot]} onChange={(v) => setDoc(slot, v)} label={t(`spes.docs.slot.${slot}`)} />
+            ))}
+            <CheckRow id="spes-doc-academic" checked={form.docs.academic} onChange={(v) => setDoc("academic", v)} label={t("spesPostings.form.academicOrOsy")} />
+          </div>
+          <Field id="spes-requirements" label={t("spesPostings.form.requirements")}>
             <textarea rows={3} value={form.requirements} onChange={(e) => set("requirements", e.target.value)} placeholder={t("spesPostings.form.requirementsHint")} />
-          </label>
-        </fieldset>
+          </Field>
+        </Section>
 
-        <fieldset className="spes-form__section">
-          <legend>{t("spesPostings.form.guardian")}</legend>
-          <label>
-            {t("spesPostings.form.guardianLabel")}
+        <Section title={t("spesPostings.form.guardian")}>
+          <Field id="spes-guardian" label={t("spesPostings.form.guardianLabel")} hint={t("spesPostings.form.guardianHint")}>
             <select value={form.guardianRequired} onChange={(e) => set("guardianRequired", e.target.value)}>
               <option value="inherit">{t("spesPostings.form.guardianInherit")}</option>
               <option value="yes">{t("spesPostings.form.guardianYes")}</option>
               <option value="no">{t("spesPostings.form.guardianNo")}</option>
             </select>
-          </label>
-          <p className="spes-note">{t("spesPostings.form.guardianHint")}</p>
-        </fieldset>
+          </Field>
+        </Section>
 
-        <fieldset className="spes-form__section">
-          <legend>{t("spesPostings.form.results")}</legend>
-          <label>
-            {t("spesPostings.form.resultsSummary")}
+        <Section title={t("spesPostings.form.results")}>
+          <Field id="spes-results-summary" label={t("spesPostings.form.resultsSummary")}>
             <textarea rows={3} value={form.resultsSummary} onChange={(e) => set("resultsSummary", e.target.value)} />
-          </label>
-          <label>
-            {t("spesPostings.form.resultsUrl")}
+          </Field>
+          <Field id="spes-results-url" label={t("spesPostings.form.resultsUrl")}>
             <input type="url" value={form.resultsUrl} onChange={(e) => set("resultsUrl", e.target.value)} />
-          </label>
-          <label className="spes-form__check">
-            <input type="checkbox" checked={form.publishAcceptedList} onChange={(e) => set("publishAcceptedList", e.target.checked)} />
-            <span>{t("spesPostings.form.publishList")}</span>
-          </label>
-          <label className="spes-form__check">
-            <input type="checkbox" checked={form.exposeScores} onChange={(e) => set("exposeScores", e.target.checked)} />
-            <span>{t("spesPostings.form.exposeScores")}</span>
-          </label>
-        </fieldset>
+          </Field>
+          <div className="spes-check-list">
+            <CheckRow id="spes-publish-list" checked={form.publishAcceptedList} onChange={(v) => set("publishAcceptedList", v)} label={t("spesPostings.form.publishList")} />
+            <CheckRow id="spes-expose-scores" checked={form.exposeScores} onChange={(v) => set("exposeScores", v)} label={t("spesPostings.form.exposeScores")} />
+          </div>
+        </Section>
 
         {!published ? (
-          <fieldset className="spes-form__section">
-            <legend>{t("spesPostings.form.visibility")}</legend>
-            <label className="spes-form__check">
-              <input type="checkbox" checked={form.alsoPostToNews} onChange={(e) => set("alsoPostToNews", e.target.checked)} />
-              <span>{t("spesPostings.form.alsoNews")}</span>
-            </label>
-            <p className="spes-note">{t("spesPostings.form.alsoNewsHint")}</p>
-          </fieldset>
+          <Section title={t("spesPostings.form.visibility")}>
+            <div className="spes-check-list">
+              <CheckRow
+                id="spes-also-news"
+                checked={form.alsoPostToNews}
+                onChange={(v) => set("alsoPostToNews", v)}
+                label={t("spesPostings.form.alsoNews")}
+                hint={t("spesPostings.form.alsoNewsHint")}
+              />
+            </div>
+          </Section>
         ) : null}
 
-        {err ? <p className="spes-drawer__error" role="alert">{err}</p> : null}
-
-        <div className="spes-form__actions">
-          <Link to="/admin/spes/postings" className="spes-btn spes-btn--ghost">
-            {t("common.cancel", { defaultValue: "Cancel" })}
-          </Link>
-          {published || isEdit ? (
-            <button type="submit" className="spes-btn" disabled={Boolean(saving)}>
-              {saving === "save" ? t("spes.admin.saving") : t("spesPostings.form.saveChanges")}
-            </button>
-          ) : (
-            <button type="submit" className="spes-btn spes-btn--ghost" disabled={Boolean(saving)}>
-              {saving === "draft" ? t("spes.admin.saving") : t("spesPostings.form.saveDraft")}
-            </button>
-          )}
-          {!published ? (
-            <button type="button" className="spes-btn" disabled={Boolean(saving)} onClick={() => save("publish")}>
-              {saving === "publish" ? t("spes.admin.saving") : t("spesPostings.admin.publish")}
-            </button>
-          ) : null}
+        <div className="spes-form__bar">
+          <div className="spes-form__bar-msg">
+            {barError ? <p className="spes-field__error" role="alert">{barError}</p> : null}
+          </div>
+          <div className="spes-form__bar-actions">
+            <Link to="/admin/spes/postings" className="spes-btn spes-btn--ghost">
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </Link>
+            {published || isEdit ? (
+              <button type="submit" className="spes-btn" disabled={Boolean(saving)}>
+                {saving === "save" ? t("spes.admin.saving") : t("spesPostings.form.saveChanges")}
+              </button>
+            ) : (
+              <button type="submit" className="spes-btn spes-btn--ghost" disabled={Boolean(saving)}>
+                {saving === "draft" ? t("spes.admin.saving") : t("spesPostings.form.saveDraft")}
+              </button>
+            )}
+            {!published ? (
+              <button type="button" className="spes-btn" disabled={Boolean(saving)} onClick={() => save("publish")}>
+                {saving === "publish" ? t("spes.admin.saving") : t("spesPostings.admin.publish")}
+              </button>
+            ) : null}
+          </div>
         </div>
       </form>
     </div>

@@ -1496,31 +1496,201 @@ body:has(.spes-drawer-overlay) .fm-root {
 .spes-admin-bar__filter { display: flex; flex-direction: column; gap: var(--ds-space-1, 4px); font-size: var(--ds-text-sm, 0.875rem); font-weight: 600; min-width: 11rem; }
 .spes-admin-bar__filter select { min-height: var(--ds-tap, 44px); padding: 0 var(--ds-space-3, 12px); border: 1px solid var(--ds-border, #d1d5db); border-radius: var(--ds-radius-md, 10px); font: inherit; font-weight: 400; background: var(--ds-surface, #fff); }
 
-.spes-form { display: grid; gap: var(--ds-space-5, 20px); max-width: 52rem; }
-.spes-form__section { margin: 0; padding: 0 0 var(--ds-space-5, 20px); border: 0; border-bottom: 1px solid var(--ds-border, #e5e7eb); display: grid; gap: var(--ds-space-3, 12px); min-width: 0; }
-.spes-form__section legend { padding: 0; margin-bottom: var(--ds-space-2, 8px); font-weight: 700; font-size: var(--ds-text-md, 1rem); color: var(--ds-text, #111827); }
-.spes-form label { display: grid; gap: 6px; font-size: var(--ds-text-sm, 0.875rem); font-weight: 600; color: var(--ds-text, #111827); }
-.spes-form input:not([type="checkbox"]),
-.spes-form select,
-.spes-form textarea {
+/* ---- Admin: SPES posting form ----
+   Cause of the old look: styles/style.css gives EVERY input, select and textarea
+   "width: 100%; max-width: 600px; margin: 0 auto; display: block", which centered the
+   controls in a 600px column and floated each checkbox to its own position. The reset
+   below is scoped to the SPES admin pages and does not touch the rest of the app. */
+.spes-admin :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+  max-width: none;
+  margin: 0;
+}
+
+.spes-form {
+  display: grid;
+  gap: var(--ds-space-5, 20px);
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding-bottom: var(--ds-space-6, 28px);
+}
+
+/* Each section is a white card: title, optional helper, then its fields. */
+.spes-form__card {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  padding: var(--ds-space-5, 20px) var(--ds-space-6, 28px);
+  border: 1px solid var(--ds-border, #e5e7eb);
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--ds-surface, #fff);
+}
+/* A floated legend sidesteps the browser's special legend box, so the card lays out as one block. */
+.spes-form__card > legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 var(--ds-space-4, 16px);
+  padding: 0;
+  font-family: var(--ds-font-display, inherit);
+  font-size: var(--ds-text-md, 1rem);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ds-text, #111827);
+}
+.spes-form__card > legend + * { clear: both; }
+.spes-form__card-hint {
+  margin: calc(var(--ds-space-2, 8px) * -1) 0 var(--ds-space-4, 16px);
+  font-size: var(--ds-text-sm, 0.875rem);
+  color: var(--ds-muted, #6b7280);
+  line-height: 1.5;
+}
+.spes-form__body { display: grid; gap: var(--ds-space-4, 16px); }
+
+/* Application period: three fields in a row when there is room. */
+.spes-form__grid { display: grid; gap: var(--ds-space-4, 16px); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 720px) {
+  .spes-form__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 8rem); }
+}
+
+/* A field: label above, then the control, then helper or error. */
+.spes-field { display: grid; gap: 6px; min-width: 0; align-content: start; }
+.spes-field__label { font-size: var(--ds-text-sm, 0.875rem); font-weight: 600; line-height: 1.4; color: var(--ds-text, #111827); }
+.spes-field__req { margin-left: 3px; color: var(--ds-danger, #b91c1c); }
+.spes-field__hint { margin: 0; font-size: var(--ds-text-sm, 0.875rem); line-height: 1.5; color: var(--ds-muted, #6b7280); }
+.spes-field__error { margin: 0; font-size: var(--ds-text-sm, 0.875rem); line-height: 1.4; color: var(--ds-danger, #b91c1c); }
+
+/* Text, date, number, select and textarea share one height, radius, border and focus ring. */
+.spes-form :is(input, select, textarea):not([type="checkbox"]):not([type="file"]) {
+  display: block;
+  width: 100%;
   min-height: var(--ds-tap, 44px);
   padding: 0 var(--ds-space-3, 12px);
   border: 1px solid var(--ds-border, #d1d5db);
   border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-surface, #fff);
+  color: var(--ds-text, #111827);
   font: inherit;
   font-weight: 400;
-  background: var(--ds-surface, #fff);
   box-sizing: border-box;
-  width: 100%;
 }
-.spes-form textarea { padding: var(--ds-space-3, 12px); line-height: 1.5; min-height: 0; }
-.spes-form input[aria-invalid="true"] { border-color: var(--ds-danger, #b91c1c); }
-.spes-form__row { display: grid; gap: var(--ds-space-3, 12px); grid-template-columns: 1fr; }
-.spes-form__check { display: flex !important; align-items: flex-start; gap: var(--ds-space-3, 12px); font-weight: 400 !important; }
-.spes-form__check input { margin-top: 3px; width: 18px; height: 18px; min-height: 0; flex: none; }
-.spes-form__actions { display: flex; gap: var(--ds-space-3, 12px); flex-wrap: wrap; justify-content: flex-end; }
-@media (min-width: 720px) {
-  .spes-form__row { grid-template-columns: 1fr 1fr 8rem; }
+.spes-form textarea { padding: var(--ds-space-3, 12px); min-height: 7.5rem; line-height: 1.5; resize: vertical; }
+.spes-form :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--ds-green, #0f766e);
+  outline-offset: 1px;
+  border-color: var(--ds-green, #0f766e);
+}
+.spes-form :is(input, select, textarea)[aria-invalid="true"] { border-color: var(--ds-danger, #b91c1c); }
+.spes-form ::placeholder { color: var(--ds-muted, #6b7280); opacity: 1; }
+
+/* Check rows: checkbox on the left, label right next to it, the whole row clickable. */
+.spes-check-list { display: grid; gap: var(--ds-space-2, 8px); }
+.spes-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-3, 12px);
+  min-height: var(--ds-tap, 44px);
+  padding: 10px var(--ds-space-3, 12px);
+  border: 1px solid var(--ds-border, #e5e7eb);
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-surface, #fff);
+  cursor: pointer;
+  transition: background-color var(--ds-motion-fast, 120ms) var(--ds-motion-ease-out, ease-out), border-color var(--ds-motion-fast, 120ms) var(--ds-motion-ease-out, ease-out);
+}
+.spes-check:hover { background: var(--ds-ink-50, #f8fafc); }
+.spes-check:has(input:checked) { border-color: var(--ds-green, #0f766e); background: color-mix(in srgb, var(--ds-mint, #d1fae5) 30%, var(--ds-surface, #fff)); }
+.spes-check:has(input:focus-visible) { outline: 2px solid var(--ds-green, #0f766e); outline-offset: 2px; }
+.spes-check input[type="checkbox"] {
+  flex: none;
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  max-width: none;
+  margin: 2px 0 0;
+  accent-color: var(--ds-green, #0f766e);
+  cursor: pointer;
+}
+.spes-check__text { display: grid; gap: 2px; min-width: 0; text-align: left; }
+.spes-check__label { font-size: var(--ds-text-sm, 0.875rem); font-weight: 500; line-height: 1.4; color: var(--ds-text, #111827); overflow-wrap: anywhere; }
+.spes-check__hint { font-size: var(--ds-text-sm, 0.875rem); line-height: 1.5; color: var(--ds-muted, #6b7280); }
+
+/* Cover image: a styled drop area around the real file input (kept for keyboard and
+   screen readers, visually hidden), with a thumbnail and a remove button. */
+.spes-upload { position: relative; display: grid; gap: var(--ds-space-3, 12px); }
+.spes-upload__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.spes-upload__zone {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-4, 16px);
+  min-height: var(--ds-tap, 44px);
+  padding: var(--ds-space-4, 16px);
+  border: 2px dashed var(--ds-border, #d1d5db);
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-ink-50, #f8fafc);
+  cursor: pointer;
+  transition: border-color var(--ds-motion-fast, 120ms) var(--ds-motion-ease-out, ease-out);
+}
+.spes-upload__zone:hover { border-color: var(--ds-green, #0f766e); }
+.spes-upload__input:focus-visible + .spes-upload__zone { outline: 2px solid var(--ds-green, #0f766e); outline-offset: 2px; }
+.spes-upload__icon { flex: none; font-size: 2rem; color: var(--ds-muted, #6b7280); }
+.spes-upload__thumb { flex: none; width: 7.5rem; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--ds-radius-sm, 8px); background: var(--ds-ink-100, #e5e7eb); }
+.spes-upload__copy { display: grid; gap: 6px; min-width: 0; }
+.spes-upload__btn {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-tap, 44px);
+  padding: 0 var(--ds-space-4, 16px);
+  border-radius: var(--ds-radius-btn, 10px);
+  background: var(--ds-green, #0f766e);
+  color: #fff;
+  font-weight: 600;
+  font-size: var(--ds-text-sm, 0.875rem);
+}
+.spes-upload__actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-2, 8px); }
+@media (max-width: 480px) {
+  .spes-upload__zone { flex-direction: column; align-items: flex-start; }
+  .spes-upload__thumb { width: 100%; }
+}
+
+/* Actions: a sticky bar so Save and Publish are always in reach. The chatbot and the
+   messenger lift above it (see the :has rule in chatbot.css / floating-messenger.css). */
+.spes-form__bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 45;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3, 12px);
+  padding: var(--ds-space-3, 12px) var(--ds-space-5, 20px);
+  padding-bottom: max(var(--ds-space-3, 12px), env(safe-area-inset-bottom));
+  border: 1px solid var(--ds-border, #e5e7eb);
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--ds-surface, #fff);
+  box-shadow: 0 -4px 16px rgba(4, 60, 42, 0.08);
+}
+.spes-form__bar-msg { flex: 1 1 12rem; min-width: 0; }
+.spes-form__bar-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ds-space-3, 12px); }
+.spes-form__bar .spes-btn { display: inline-flex; align-items: center; justify-content: center; min-height: var(--ds-tap, 44px); text-align: center; }
+@media (max-width: 480px) {
+  .spes-form__bar-actions { width: 100%; }
+  .spes-form__bar-actions .spes-btn { flex: 1 1 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spes-check, .spes-upload__zone { transition: none; }
 }
 
 /* ---- Admin: monitoring counts ---- */
@@ -1552,13 +1722,3 @@ body:has(.spes-drawer-overlay) .fm-root {
   border-radius: var(--ds-radius-md, 10px);
   background: var(--ds-ink-100, #e5e7eb);
 }
-.spes-form__cover {
-  display: block;
-  width: 100%;
-  max-width: 24rem;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: var(--ds-radius-md, 10px);
-  background: var(--ds-ink-100, #e5e7eb);
-}
-.spes-form__cover-actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-2, 8px); }
