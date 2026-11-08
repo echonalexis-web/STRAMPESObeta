@@ -601,29 +601,40 @@ export const employerAccountAPI = {
 
 // SPES (Special Program for Employment of Students) applications.
 export const spesAPI = {
+  // Applicant: own applications, and the postings they can see (15 and older).
   getMine: () => api.get('/spes/applications', getAuthHeader()),
-  getForAnnouncement: (announcementId) => api.get(`/spes/${announcementId}/me`, getAuthHeader()),
-  getResults: (announcementId) => api.get(`/spes/${announcementId}/results`, getAuthHeader()),
-  apply: (announcementId, formData) =>
-    api.post(`/spes/${announcementId}/apply`, formData, getAuthFormHeader()),
+  listPostings: () => api.get('/spes/postings', getAuthHeader()),
+  getPosting: (postingId) => api.get(`/spes/postings/${postingId}`, getAuthHeader()),
+  getForPosting: (postingId) => api.get(`/spes/postings/${postingId}/me`, getAuthHeader()),
+  getResults: (postingId) => api.get(`/spes/postings/${postingId}/results`, getAuthHeader()),
+  getEligibility: (postingId) => api.get(`/spes/postings/${postingId}/eligibility`, getAuthHeader()),
+  apply: (postingId, formData) =>
+    api.post(`/spes/postings/${postingId}/apply`, formData, getAuthFormHeader()),
+  replaceDocument: (postingId, slot, formData) =>
+    api.post(`/spes/postings/${postingId}/documents/${slot}`, formData, getAuthFormHeader()),
+  withdraw: (postingId) => api.post(`/spes/postings/${postingId}/withdraw`, {}, getAuthHeader()),
+
+  // Admin: postings.
+  adminPostings: (params = {}) => api.get('/spes/admin/postings', { ...getAuthHeader(), params }),
+  adminGetPosting: (postingId) => api.get(`/spes/admin/postings/${postingId}`, getAuthHeader()),
+  adminCreatePosting: (payload) => api.post('/spes/admin/postings', payload, getAuthHeader()),
+  adminUpdatePosting: (postingId, payload) => api.put(`/spes/admin/postings/${postingId}`, payload, getAuthHeader()),
+  adminSetPostingStatus: (postingId, status, alsoPostToNews) =>
+    api.patch(`/spes/admin/postings/${postingId}/status`, { status, alsoPostToNews }, getAuthHeader()),
+  adminDeletePosting: (postingId) => api.delete(`/spes/admin/postings/${postingId}`, getAuthHeader()),
+  adminSetPostingClosed: (postingId, closed) =>
+    api.patch(`/spes/admin/postings/${postingId}/closed`, { closed }, getAuthHeader()),
+  adminReleaseSummary: (postingId) => api.get(`/spes/admin/postings/${postingId}/release-summary`, getAuthHeader()),
+  adminReleaseResults: (postingId) => api.post(`/spes/admin/postings/${postingId}/release-results`, {}, getAuthHeader()),
+
+  // Admin: monitoring (the application queue, review and evaluation).
   adminList: (params = {}) => api.get('/spes/admin/list', { ...getAuthHeader(), params }),
   adminGet: (id) => api.get(`/spes/admin/${id}`, getAuthHeader()),
   adminRecordEvaluation: (id, payload) =>
     api.patch(`/spes/admin/${id}/evaluation`, payload, getAuthHeader()),
   adminAmendResult: (id, payload) => api.patch(`/spes/admin/${id}/result`, payload, getAuthHeader()),
-  adminReleaseResults: (announcementId, payload = {}) =>
-    api.post(`/spes/admin/announcements/${announcementId}/release-results`, payload, getAuthHeader()),
   adminVerifyDocument: (id, docId, payload) =>
     api.patch(`/spes/admin/${id}/documents/${docId}`, payload, getAuthHeader()),
-  adminPrograms: () => api.get('/spes/admin/programs', getAuthHeader()),
-  adminReleaseSummary: (announcementId) =>
-    api.get(`/spes/admin/announcements/${announcementId}/release-summary`, getAuthHeader()),
-  adminSetProgramClosed: (announcementId, closed) =>
-    api.patch(`/spes/admin/announcements/${announcementId}/closed`, { closed }, getAuthHeader()),
-  getEligibility: (announcementId) => api.get(`/spes/${announcementId}/eligibility`, getAuthHeader()),
-  replaceDocument: (announcementId, slot, formData) =>
-    api.post(`/spes/${announcementId}/documents/${slot}`, formData, getAuthFormHeader()),
-  withdraw: (announcementId) => api.post(`/spes/${announcementId}/withdraw`, {}, getAuthHeader()),
 };
 
 export const notificationAPI = {

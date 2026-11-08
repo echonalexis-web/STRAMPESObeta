@@ -1220,7 +1220,7 @@
     "dobLockedProfile": "Your date of birth is locked. Contact PESO staff with proof of age to change it.",
     "applyNoticeTitle": "Job applications open at age 18",
     "applyNoticeBody": "You can browse job vacancies, but you cannot apply to them yet. You can apply to SPES, the Special Program for Employment of Students, which is open to ages 15 to 30.",
-    "applyNoticeCta": "Go to my SPES applications"
+    "applyNoticeCta": "See SPES Postings"
   },
   "errors": {
     "codes": {
@@ -1272,7 +1272,17 @@
       "SPES_SCORES_REQUIRED": "Record an exam or interview score before the result.",
       "SPES_RANK_INVALID": "Rank must be a whole number of 1 or more.",
       "SPES_NO_APPLICATIONS": "There are no applications to release results for.",
-      "SPES_UNDECIDED_REMAIN": "Some applications still have no decided result."
+      "SPES_UNDECIDED_REMAIN": "Some applications still have no decided result.",
+      "SPES_TITLE_REQUIRED": "Enter a title.",
+      "SPES_DATE_INVALID": "Enter a valid date.",
+      "SPES_PERIOD_INVALID": "The application period must end after it opens.",
+      "SPES_SLOTS_INVALID": "Slots must be a whole number of 0 or more.",
+      "SPES_SLOT_TYPES_INVALID": "Unknown document type.",
+      "SPES_DEADLINE_IN_PAST": "The deadline cannot be in the past when publishing. Pick a later date.",
+      "SPES_POSTING_LEGACY": "This posting was created as a news announcement. Manage it there until it is migrated.",
+      "SPES_STATUS_INVALID": "Choose draft, published or archived.",
+      "SPES_HAS_APPLICATIONS": "This posting has applications, so it cannot go back to draft or be deleted. Archive it instead.",
+      "SPES_DELETE_NOT_ALLOWED": "Only draft postings can be deleted. Archive this one instead."
     }
   },
   "spes": {
@@ -1532,9 +1542,23 @@
         "deadline": "Deadline has passed",
         "manual": "Closed by PESO staff",
         "inactive": "Program is unpublished",
-        "notYetOpen": "Not open yet"
+        "notYetOpen": "Not open yet",
+        "resultsReleased": "Results have been released"
       },
       "excludedNote": "This application is {{status}}. There is nothing left to score or decide."
+    },
+    "monitoring": {
+      "title": "SPES Monitoring",
+      "description": "Check documents, record exam and interview results, and review applications, posting by posting.",
+      "filterPosting": "Posting",
+      "allPostings": "All postings",
+      "countsLabel": "Applications by status",
+      "noPostingsTitle": "No SPES postings yet",
+      "noPostingsBody": "Create a posting first. Its applications will show up here.",
+      "releaseNote": "Release results for a posting from SPES Postings.",
+      "releasedNote": "Results for this posting are released. You can still amend a result in the review.",
+      "emptyTitle": "No applications",
+      "emptyBody": "Nothing matches these filters yet."
     }
   },
   "spesPostings": {
@@ -1545,6 +1569,99 @@
     "adminDescription": "Create and manage SPES postings: the application period, required documents, closing and results.",
     "adminEmptyTitle": "No postings yet",
     "adminEmptyBody": "Create a posting to start taking SPES applications.",
-    "formTitle": "SPES Posting"
+    "formTitle": "SPES Posting",
+    "subtitle": "Browse SPES postings and apply to the ones you are eligible for.",
+    "loading": "Loading SPES postings...",
+    "loadFailed": "We could not load the SPES postings. Please try again.",
+    "errorTitle": "Could not load SPES postings",
+    "emptyTabTitle": "Nothing in this tab",
+    "emptyTabBody": "Try another tab to see more postings.",
+    "tabsLabel": "Filter postings",
+    "tab": {
+      "open": "Open",
+      "closed": "Closed",
+      "all": "All"
+    },
+    "status": {
+      "draft": "Draft",
+      "open": "Open",
+      "closed": "Closed",
+      "results_released": "Results released",
+      "archived": "Archived"
+    },
+    "noticeMinor": "You are under 18. You can apply to SPES postings here. Applications to regular job vacancies open at 18.",
+    "noticeSenior": "SPES is for ages 15 to 30. You can read the postings, but you cannot apply.",
+    "readOnlyShort": "SPES is for ages 15 to 30, so you cannot apply.",
+    "readOnlyNotice": "SPES is for ages {{min}} to {{max}}, so you cannot apply to this posting. You can still read the details.",
+    "yourApplication": "Your application:",
+    "viewApplication": "View application",
+    "viewAndApply": "View and apply",
+    "viewPosting": "View posting",
+    "notFoundTitle": "This posting is not available",
+    "notFoundBody": "It may have been unpublished or removed.",
+    "backToList": "Back to SPES Postings",
+    "resultsTitle": "Results",
+    "newsCardBody": "This announcement is a SPES posting. Open it to see who can apply, the documents you need, and how to apply.",
+    "newsCardCta": "View SPES posting",
+    "admin": {
+      "newPosting": "New posting",
+      "filterAll": "All (except archived)",
+      "loadFailed": "We could not load the postings.",
+      "legacyNote": "This posting was created as a news announcement. Edit it from News Management until it is migrated.",
+      "edit": "Edit",
+      "monitor": "Monitor applications",
+      "publish": "Publish",
+      "archive": "Archive",
+      "delete": "Delete",
+      "closeTitle": "Close applications?",
+      "closeBody": "Applicants will no longer be able to apply. You can reopen it later.",
+      "reopenTitle": "Reopen applications?",
+      "reopenBody": "Applicants will be able to apply again until the deadline.",
+      "publishTitle": "Publish this posting?",
+      "publishBody": "It becomes visible to applicants and they are notified.",
+      "published": "Posting published.",
+      "archiveTitle": "Archive this posting?",
+      "archiveBody": "It disappears from applicant lists. Existing applications are kept.",
+      "archived": "Posting archived.",
+      "deleteTitle": "Delete this draft?",
+      "deleteBody": "A draft with no applications is removed for good.",
+      "deleted": "Draft deleted."
+    },
+    "form": {
+      "newTitle": "New SPES posting",
+      "editTitle": "Edit SPES posting",
+      "back": "Back to postings",
+      "legacyTitle": "Edit this posting in News Management",
+      "saved": "Changes saved.",
+      "created": "Draft saved.",
+      "basics": "Basics",
+      "title": "Title",
+      "description": "Description",
+      "period": "Application period",
+      "opensAt": "Opens (optional)",
+      "deadline": "Deadline",
+      "slots": "Slots",
+      "periodHint": "Leave Opens empty to open as soon as the posting is published.",
+      "documents": "Required documents",
+      "academicOrOsy": "Proof of academic standing (students) or out-of-school youth certification",
+      "requirements": "Other requirements (one per line, shown to applicants)",
+      "requirementsHint": "For example: Bring the original copies on your interview day",
+      "guardian": "Parent or guardian",
+      "guardianLabel": "Guardian details for applicants under 18",
+      "guardianInherit": "Use the default",
+      "guardianYes": "Required for this posting",
+      "guardianNo": "Not required for this posting",
+      "guardianHint": "The default is set once for the whole system and can be changed for a single posting here.",
+      "results": "Results options",
+      "resultsSummary": "Summary shown with the results",
+      "resultsUrl": "Official results link",
+      "publishList": "Publish the list of accepted and waitlisted applicants",
+      "exposeScores": "Show exam and interview scores to applicants",
+      "visibility": "Visibility",
+      "alsoNews": "Also post to News Feed",
+      "alsoNewsHint": "Adds a news card that links to this posting when it is published.",
+      "saveDraft": "Save draft",
+      "saveChanges": "Save changes"
+    }
   }
 }

@@ -68,6 +68,8 @@ export const EXCLUDED = [
   '/',
   // Alias of /employer.
   '/employer-dashboard',
+  // Redirects to /spes/postings (kept so old links work).
+  '/spes',
   // Reached only by an emailed link or a system flow.
   '/account-suspended',
   '/confirm-email',

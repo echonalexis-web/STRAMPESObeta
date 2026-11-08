@@ -106,8 +106,8 @@ export default function MySpesApplications() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Responses for a single application do not populate the announcement, so keep ours.
-  const mergeApplication = (current, next) => ({ ...current, ...next, announcement: current.announcement });
+  // Responses for a single application do not populate the posting, so keep ours.
+  const mergeApplication = (current, next) => ({ ...current, ...next, posting: current.posting });
   const replaceItem = (id, next) =>
     setItems((prev) => prev.map((it) => (it._id === id ? mergeApplication(it, next) : it)));
 
@@ -115,7 +115,7 @@ export default function MySpesApplications() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const { data } = await spesAPI.replaceDocument(app.announcement?._id, slot, fd);
+      const { data } = await spesAPI.replaceDocument(app.posting?._id, slot, fd);
       replaceItem(app._id, data.application);
       toast.success(t("spes.docs.uploaded"));
       return null;
@@ -133,7 +133,7 @@ export default function MySpesApplications() {
     });
     if (!ok) return;
     try {
-      const { data } = await spesAPI.withdraw(app.announcement?._id);
+      const { data } = await spesAPI.withdraw(app.posting?._id);
       replaceItem(app._id, data.application);
       toast.success(t("spes.withdraw.done"));
     } catch (err) {
@@ -158,7 +158,7 @@ export default function MySpesApplications() {
           {mostRecent ? (
             <div className="spes-summary-stat spes-summary-stat--program">
               <span className="spes-summary-stat__label">{t("spes.my.mostRecent")}</span>
-              <strong>{mostRecent.announcement?.title || t("spes.my.programFallback")}</strong>
+              <strong>{mostRecent.posting?.title || t("spes.my.programFallback")}</strong>
               <span className={`spes-chip spes-chip--${normalizeSpesStatus(mostRecent.status)}`}>
                 {t(`spes.status.${normalizeSpesStatus(mostRecent.status)}`)}
               </span>
@@ -187,8 +187,8 @@ export default function MySpesApplications() {
       {items.map((app) => {
         const status = normalizeSpesStatus(app.status);
         const released = status === "results_released" && app.result;
-        const title = app.announcement?.title || t("spes.my.programFallback");
-        const slots = requiredSlotsFor(app.announcement?.spes, isOsyApplication(app) ? "osy" : "student");
+        const title = app.posting?.title || t("spes.my.programFallback");
+        const slots = requiredSlotsFor(app.posting, isOsyApplication(app) ? "osy" : "student");
         const terminal = TERMINAL.includes(status);
         const disqualified = status === "disqualified";
         const nextKey = needsAttention(status) ? "needs_resubmission" : status;
@@ -265,10 +265,10 @@ export default function MySpesApplications() {
                     <strong>{t(`spes.outcome.${app.result.outcome}`)}</strong>
                     {app.result.rank ? <p>{t("spes.outcome.rank", { rank: app.result.rank })}</p> : null}
                     {app.result.remarks ? <p>{app.result.remarks}</p> : null}
-                    {app.announcement?.spes?.resultsSummary ? <p>{app.announcement.spes.resultsSummary}</p> : null}
-                    {app.announcement?.spes?.resultsUrl ? (
+                    {app.posting?.results?.summary ? <p>{app.posting.results.summary}</p> : null}
+                    {app.posting?.results?.url ? (
                       <p>
-                        <a href={app.announcement.spes.resultsUrl} target="_blank" rel="noreferrer">
+                        <a href={app.posting.results.url} target="_blank" rel="noreferrer">
                           {t("spes.outcome.officialResults")}
                         </a>
                       </p>

@@ -1220,7 +1220,7 @@
     "dobLockedProfile": "Naka-lock ang iyong petsa ng kapanganakan. Makipag-ugnayan sa PESO staff dala ang patunay ng edad para baguhin ito.",
     "applyNoticeTitle": "Bukas ang pag-apply sa trabaho sa edad na 18",
     "applyNoticeBody": "Maaari kang tumingin ng mga bakanteng trabaho, pero hindi ka pa maaaring mag-apply. Maaari kang mag-apply sa SPES, ang Special Program for Employment of Students, na bukas sa edad 15 hanggang 30.",
-    "applyNoticeCta": "Pumunta sa aking mga aplikasyon sa SPES"
+    "applyNoticeCta": "Tingnan ang mga SPES Posting"
   },
   "errors": {
     "codes": {
@@ -1272,7 +1272,17 @@
       "SPES_SCORES_REQUIRED": "Magtala muna ng score sa exam o interview bago ang resulta.",
       "SPES_RANK_INVALID": "Dapat buong numero na 1 pataas ang rank.",
       "SPES_NO_APPLICATIONS": "Walang aplikasyong mai-release ang resulta.",
-      "SPES_UNDECIDED_REMAIN": "May mga aplikasyong wala pang napagpasyahang resulta."
+      "SPES_UNDECIDED_REMAIN": "May mga aplikasyong wala pang napagpasyahang resulta.",
+      "SPES_TITLE_REQUIRED": "Maglagay ng pamagat.",
+      "SPES_DATE_INVALID": "Maglagay ng wastong petsa.",
+      "SPES_PERIOD_INVALID": "Dapat magtapos ang panahon ng aplikasyon pagkatapos nitong magbukas.",
+      "SPES_SLOTS_INVALID": "Dapat buong numero na 0 pataas ang mga slot.",
+      "SPES_SLOT_TYPES_INVALID": "Hindi kilalang uri ng dokumento.",
+      "SPES_DEADLINE_IN_PAST": "Hindi maaaring nakaraan ang deadline kapag magpa-publish. Pumili ng mas huling petsa.",
+      "SPES_POSTING_LEGACY": "Ang posting na ito ay ginawa bilang news announcement. Pamahalaan ito roon hanggang sa ma-migrate.",
+      "SPES_STATUS_INVALID": "Piliin ang draft, published o archived.",
+      "SPES_HAS_APPLICATIONS": "May aplikasyon ang posting na ito, kaya hindi ito maibabalik sa draft o mabubura. I-archive na lang.",
+      "SPES_DELETE_NOT_ALLOWED": "Mga draft na posting lang ang mabubura. I-archive na lang ito."
     }
   },
   "spes": {
@@ -1532,9 +1542,23 @@
         "deadline": "Lampas na ang deadline",
         "manual": "Isinara ng PESO staff",
         "inactive": "Hindi naka-publish ang program",
-        "notYetOpen": "Hindi pa bukas"
+        "notYetOpen": "Hindi pa bukas",
+        "resultsReleased": "Na-release na ang mga resulta"
       },
       "excludedNote": "{{status}} ang aplikasyong ito. Wala nang kailangang i-score o pagpasyahan."
+    },
+    "monitoring": {
+      "title": "Pagsubaybay sa SPES",
+      "description": "Suriin ang mga dokumento, itala ang resulta ng exam at interview, at repasuhin ang mga aplikasyon, bawat posting.",
+      "filterPosting": "Posting",
+      "allPostings": "Lahat ng posting",
+      "countsLabel": "Mga aplikasyon ayon sa status",
+      "noPostingsTitle": "Wala pang SPES posting",
+      "noPostingsBody": "Gumawa muna ng posting. Dito lalabas ang mga aplikasyon nito.",
+      "releaseNote": "I-release ang mga resulta ng posting mula sa SPES Postings.",
+      "releasedNote": "Na-release na ang mga resulta ng posting na ito. Maaari mo pa ring baguhin ang resulta sa review.",
+      "emptyTitle": "Walang aplikasyon",
+      "emptyBody": "Wala pang tugma sa mga filter na ito."
     }
   },
   "spesPostings": {
@@ -1545,6 +1569,99 @@
     "adminDescription": "Gumawa at mamahala ng mga SPES posting: ang panahon ng aplikasyon, mga kinakailangang dokumento, pagsasara at mga resulta.",
     "adminEmptyTitle": "Wala pang posting",
     "adminEmptyBody": "Gumawa ng posting para magsimulang tumanggap ng mga aplikasyon sa SPES.",
-    "formTitle": "SPES Posting"
+    "formTitle": "SPES Posting",
+    "subtitle": "Tingnan ang mga SPES posting at mag-apply sa mga akma sa iyo.",
+    "loading": "Nilo-load ang mga SPES posting...",
+    "loadFailed": "Hindi namin na-load ang mga SPES posting. Pakisubukang muli.",
+    "errorTitle": "Hindi ma-load ang mga SPES posting",
+    "emptyTabTitle": "Walang laman ang tab na ito",
+    "emptyTabBody": "Subukan ang ibang tab para makakita ng iba pang posting.",
+    "tabsLabel": "I-filter ang mga posting",
+    "tab": {
+      "open": "Bukas",
+      "closed": "Sarado",
+      "all": "Lahat"
+    },
+    "status": {
+      "draft": "Draft",
+      "open": "Bukas",
+      "closed": "Sarado",
+      "results_released": "Na-release na ang mga resulta",
+      "archived": "Naka-archive"
+    },
+    "noticeMinor": "Wala ka pang 18. Maaari kang mag-apply sa mga SPES posting dito. Bukas ang pag-apply sa mga regular na trabaho sa edad na 18.",
+    "noticeSenior": "Ang SPES ay para sa edad 15 hanggang 30. Maaari mong basahin ang mga posting pero hindi ka makakapag-apply.",
+    "readOnlyShort": "Ang SPES ay para sa edad 15 hanggang 30, kaya hindi ka makakapag-apply.",
+    "readOnlyNotice": "Ang SPES ay para sa edad {{min}} hanggang {{max}}, kaya hindi ka makakapag-apply sa posting na ito. Maaari mo pa ring basahin ang mga detalye.",
+    "yourApplication": "Iyong aplikasyon:",
+    "viewApplication": "Tingnan ang aplikasyon",
+    "viewAndApply": "Tingnan at mag-apply",
+    "viewPosting": "Tingnan ang posting",
+    "notFoundTitle": "Hindi available ang posting na ito",
+    "notFoundBody": "Maaaring na-unpublish o inalis na ito.",
+    "backToList": "Bumalik sa mga SPES Posting",
+    "resultsTitle": "Mga resulta",
+    "newsCardBody": "Ang anunsyong ito ay isang SPES posting. Buksan ito para makita kung sino ang maaaring mag-apply, ang mga kailangang dokumento, at kung paano mag-apply.",
+    "newsCardCta": "Tingnan ang SPES posting",
+    "admin": {
+      "newPosting": "Bagong posting",
+      "filterAll": "Lahat (maliban sa naka-archive)",
+      "loadFailed": "Hindi namin na-load ang mga posting.",
+      "legacyNote": "Ang posting na ito ay ginawa bilang news announcement. I-edit ito sa News Management hanggang sa ma-migrate.",
+      "edit": "I-edit",
+      "monitor": "Subaybayan ang mga aplikasyon",
+      "publish": "I-publish",
+      "archive": "I-archive",
+      "delete": "Burahin",
+      "closeTitle": "Isara ang mga aplikasyon?",
+      "closeBody": "Hindi na makakapag-apply ang mga aplikante. Maaari mo itong buksan muli mamaya.",
+      "reopenTitle": "Buksan muli ang mga aplikasyon?",
+      "reopenBody": "Makakapag-apply muli ang mga aplikante hanggang sa deadline.",
+      "publishTitle": "I-publish ang posting na ito?",
+      "publishBody": "Makikita ito ng mga aplikante at aabisuhan sila.",
+      "published": "Na-publish ang posting.",
+      "archiveTitle": "I-archive ang posting na ito?",
+      "archiveBody": "Mawawala ito sa listahan ng mga aplikante. Mananatili ang mga kasalukuyang aplikasyon.",
+      "archived": "Na-archive ang posting.",
+      "deleteTitle": "Burahin ang draft na ito?",
+      "deleteBody": "Permanenteng aalisin ang draft na walang aplikasyon.",
+      "deleted": "Nabura ang draft."
+    },
+    "form": {
+      "newTitle": "Bagong SPES posting",
+      "editTitle": "I-edit ang SPES posting",
+      "back": "Bumalik sa mga posting",
+      "legacyTitle": "I-edit ang posting na ito sa News Management",
+      "saved": "Na-save ang mga pagbabago.",
+      "created": "Na-save ang draft.",
+      "basics": "Mga pangunahing detalye",
+      "title": "Pamagat",
+      "description": "Paglalarawan",
+      "period": "Panahon ng aplikasyon",
+      "opensAt": "Magbubukas (opsyonal)",
+      "deadline": "Deadline",
+      "slots": "Mga slot",
+      "periodHint": "Iwanang walang laman ang Magbubukas para bumukas agad kapag na-publish ang posting.",
+      "documents": "Mga kinakailangang dokumento",
+      "academicOrOsy": "Patunay ng academic standing (estudyante) o sertipikasyon ng out-of-school youth",
+      "requirements": "Iba pang kinakailangan (isa bawat linya, ipapakita sa mga aplikante)",
+      "requirementsHint": "Halimbawa: Dalhin ang orihinal na kopya sa araw ng interview",
+      "guardian": "Magulang o guardian",
+      "guardianLabel": "Detalye ng guardian para sa mga aplikanteng wala pang 18",
+      "guardianInherit": "Gamitin ang default",
+      "guardianYes": "Kailangan sa posting na ito",
+      "guardianNo": "Hindi kailangan sa posting na ito",
+      "guardianHint": "Isang beses itinatakda ang default para sa buong sistema at maaaring baguhin dito para sa isang posting.",
+      "results": "Mga opsyon sa resulta",
+      "resultsSummary": "Buod na ipapakita kasama ng mga resulta",
+      "resultsUrl": "Link ng opisyal na resulta",
+      "publishList": "I-publish ang listahan ng mga tinanggap at nasa waitlist",
+      "exposeScores": "Ipakita sa mga aplikante ang score sa exam at interview",
+      "visibility": "Visibility",
+      "alsoNews": "Mag-post din sa News Feed",
+      "alsoNewsHint": "Magdadagdag ng news card na may link sa posting na ito kapag na-publish.",
+      "saveDraft": "I-save ang draft",
+      "saveChanges": "I-save ang mga pagbabago"
+    }
   }
 }

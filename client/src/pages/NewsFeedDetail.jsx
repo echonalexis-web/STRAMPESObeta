@@ -5,7 +5,7 @@ import { AuthContext } from "../context/AuthContext";
 import { newsAPI, newsLikeAPI, newsCommentAPI, resolveAssetUrl } from "../services/api";
 import { useToast, useConfirm } from "../components/feedback/context";
 import ReportButton from "../components/ReportButton";
-import SpesPanel from "../components/SpesPanel";
+import SpesPostingLinkCard from "../components/SpesPostingLinkCard";
 import "../styles/news-feed.css";
 import "../styles/spes.css";
 
@@ -251,7 +251,7 @@ export default function NewsFeedDetail() {
 
             <aside className="news-article-aside">
             {item.category === "spes" ? (
-              <SpesPanel announcement={item} />
+              <SpesPostingLinkCard announcement={item} />
             ) : null}
             <div className="news-engagement-bar">
               <button

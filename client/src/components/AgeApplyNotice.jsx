@@ -11,7 +11,7 @@ export default function AgeApplyNotice() {
     <div className="age-notice" role="note">
       <p className="age-notice__title">{t("ageGate.applyNoticeTitle")}</p>
       <p className="age-notice__text">{t("ageGate.applyNoticeBody")}</p>
-      <Link className="age-notice__link" to="/spes/applications">
+      <Link className="age-notice__link" to="/spes/postings">
         {t("ageGate.applyNoticeCta")}
       </Link>
     </div>

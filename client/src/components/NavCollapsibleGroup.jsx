@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { Link } from "react-router-dom";
 import { FaChevronDown } from "react-icons/fa";
 
@@ -39,11 +39,14 @@ export default function NavCollapsibleGroup({ id, label, icon, items, isActiveLi
   const panelId = useId();
   const childActive = items.some((item) => isActiveLink(item.to));
   const [open, setOpen] = useState(() => childActive || readStored(id) === true);
+  const [wasChildActive, setWasChildActive] = useState(childActive);
 
-  // Navigating into the group (a link, a redirect, the back button) opens it.
-  useEffect(() => {
+  // Navigating into the group (a link, a redirect, the back button) opens it. Adjusted
+  // during render, not in an effect, so there is no extra paint with the group closed.
+  if (childActive !== wasChildActive) {
+    setWasChildActive(childActive);
     if (childActive) setOpen(true);
-  }, [childActive]);
+  }
 
   const toggle = () => {
     setOpen((prev) => {
