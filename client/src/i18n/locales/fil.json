@@ -1156,5 +1156,12 @@
       "invalidMessage": "Hindi kumpleto o sira ang verification link na ito. Humiling ng bago sa login page.",
       "tokenMessage": "Hindi wasto, nag-expire na, o nagamit na ang verification link na ito. Humiling ng bago sa login page."
     }
+  },
+  "accountInactive": {
+    "sessionExpired": {
+      "title": "Nag-expire na ang session",
+      "body": "Nag-expire na ang iyong session. Mag-sign in muli para magpatuloy.",
+      "ok": "OK"
+    }
   }
 }

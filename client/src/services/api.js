@@ -153,6 +153,9 @@ api.interceptors.response.use(
       if (window.location.pathname !== "/login" && claimAccountInactiveHandling()) {
         const code = error.response.data.code;
         localStorage.setItem("authNotice", error.response.data.message || NO_APPEAL_CODES[code]);
+        // Lets the login screen word the notice accurately (an expired session
+        // is not a suspension or deactivation).
+        localStorage.setItem("authNoticeCode", code);
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         window.location.href = "/login";

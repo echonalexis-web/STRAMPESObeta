@@ -77,9 +77,12 @@ export default function Login() {
   useEffect(() => {
     const notice = localStorage.getItem("authNotice");
     if (notice) {
-      setInactiveNotice(true);
+      setInactiveNotice(
+        localStorage.getItem("authNoticeCode") === "SESSION_EXPIRED" ? "session-expired" : true
+      );
       localStorage.removeItem("authNotice");
     }
+    localStorage.removeItem("authNoticeCode");
   }, []);
 
   useEffect(() => {
@@ -302,7 +305,12 @@ export default function Login() {
 
   return (
     <main className="login-page">
-      {inactiveNotice && <AccountInactiveModal onDismiss={() => setInactiveNotice(false)} />}
+      {inactiveNotice && (
+        <AccountInactiveModal
+          reason={inactiveNotice === "session-expired" ? "session-expired" : undefined}
+          onDismiss={() => setInactiveNotice(false)}
+        />
+      )}
       <div className="login-layout">
         {/* ─── Branding Side ─── */}
         <section className="login-branding" aria-labelledby="login-brand-title">

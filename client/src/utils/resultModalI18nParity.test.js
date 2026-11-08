@@ -46,3 +46,11 @@ test("every kind has the same set of keys", () => {
   assert.equal(new Set(sets).size, 1);
   assert.ok(sets[0].length > 0);
 });
+
+test("accountInactive.* (session-expired wording) matches between en.json and fil.json", () => {
+  const a = Object.fromEntries(flatten(load("en").accountInactive ?? {}));
+  const b = Object.fromEntries(flatten(load("fil").accountInactive ?? {}));
+  assert.ok(Object.keys(a).length > 0);
+  assert.deepEqual(Object.keys(b).sort(), Object.keys(a).sort());
+  for (const key of Object.keys(a)) assert.ok(String(b[key]).trim(), `fil ${key} is empty`);
+});

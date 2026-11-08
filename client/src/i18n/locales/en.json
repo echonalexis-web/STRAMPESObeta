@@ -1156,5 +1156,12 @@
       "invalidMessage": "This verification link is incomplete or malformed. Request a new one from the login page.",
       "tokenMessage": "This verification link is invalid, has expired, or was already used. Request a new one from the login page."
     }
+  },
+  "accountInactive": {
+    "sessionExpired": {
+      "title": "Session expired",
+      "body": "Your session has expired. Please sign in again to continue.",
+      "ok": "OK"
+    }
   }
 }

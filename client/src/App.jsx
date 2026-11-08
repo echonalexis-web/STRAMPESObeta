@@ -130,13 +130,20 @@ function ForcedLogoutListener() {
         "authNotice",
         notice.message || "Your account is no longer active. Please sign in again."
       );
+      if (notice.code) localStorage.setItem("authNoticeCode", notice.code);
+      else localStorage.removeItem("authNoticeCode");
     }
     logout();
     setNotice(null);
     navigate(isSuspended ? "/account-suspended" : "/login", { replace: true });
   };
 
-  return <AccountInactiveModal onDismiss={handleDismiss} />;
+  return (
+    <AccountInactiveModal
+      reason={notice.code === "SESSION_EXPIRED" ? "session-expired" : undefined}
+      onDismiss={handleDismiss}
+    />
+  );
 }
 
 function HomeRoute() {
