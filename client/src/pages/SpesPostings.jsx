@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { spesAPI } from "../services/api";
+import { resolveAssetUrl, spesAPI } from "../services/api";
 import StateBlock from "../components/StateBlock";
 import { translateErrorCode } from "../utils/apiErrors";
 import { POSTING_TABS, formatSpesDate, matchesTab } from "../utils/spesPostings";
@@ -100,6 +100,9 @@ export default function SpesPostings() {
             const status = posting.displayStatus;
             return (
               <li key={posting._id} className="spes-posting-card">
+                {posting.coverImage ? (
+                  <img className="spes-posting-card__cover" src={resolveAssetUrl(posting.coverImage)} alt="" loading="lazy" />
+                ) : null}
                 <div className="spes-posting-card__head">
                   <h2>
                     <Link to={`/spes/postings/${posting._id}`}>{posting.title}</Link>

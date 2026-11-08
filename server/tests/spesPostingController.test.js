@@ -35,6 +35,7 @@ const SpesApplication = require("../models/SpesApplication");
 const User = require("../models/User");
 const service = require("../services/spesPostingService");
 const { logAuditEvent } = require("../services/auditService");
+const { getManilaToday } = require("../utils/age");
 const postings = require("../controllers/spesPostingController");
 const spes = require("../controllers/spesController");
 
@@ -57,8 +58,8 @@ const run = (handler, { user = ADMIN, params = {}, body = {}, query = {}, files 
 };
 
 const dobYearsAgo = (years, offsetDays = 0) => {
-  const n = new Date();
-  return new Date(Date.UTC(n.getUTCFullYear() - years, n.getUTCMonth(), n.getUTCDate() + offsetDays));
+  const t = getManilaToday();
+  return new Date(Date.UTC(t.year - years, t.month - 1, t.day + offsetDays));
 };
 
 const nativePosting = (extra = {}) => {

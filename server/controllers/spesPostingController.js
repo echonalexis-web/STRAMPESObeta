@@ -1,6 +1,8 @@
 // Staff-side management of SPES postings: create, edit, publish, close and reopen,
 // archive, delete (drafts only), and release results (per posting).
 const SpesPosting = require("../models/SpesPosting");
+const Announcement = require("../models/Announcement");
+const storageService = require("../services/storageService");
 const SpesApplication = require("../models/SpesApplication");
 const { notifyManyUsers } = require("../services/notificationService");
 const { logAuditEvent } = require("../services/auditService");
@@ -319,6 +321,62 @@ exports.deletePosting = async (req, res) => {
     return res.json({ message: "Posting deleted" });
   } catch (error) {
     return sendError(res, error, "Failed to delete posting");
+  }
+};
+
+// Keeps the optional news-feed card in step with the posting's cover image.
+const syncNewsCardImage = async (posting) => {
+  if (!posting.newsAnnouncementId) return;
+  await Announcement.updateOne({ _id: posting.newsAnnouncementId }, { $set: { imageUrl: posting.coverImage || "" } });
+};
+
+// Replace the posting's cover image. The file is already stored (persistUploads); the
+// previous one is removed best-effort, never before the new one is saved.
+exports.uploadCover = async (req, res) => {
+  try {
+    const posting = await resolvePosting(req.params.postingId);
+    if (!posting) return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES posting not found");
+    if (posting.legacy) {
+      return fail(res, 409, "SPES_POSTING_LEGACY", "This posting was created as an announcement. Manage it there until it is migrated.");
+    }
+    if (!req.file || !req.file.storedValue) return fail(res, 400, "SPES_COVER_MISSING", "Choose an image to upload.");
+
+    const previous = posting.coverImage;
+    posting.coverImage = req.file.storedValue;
+    await posting.save();
+    req.uploadsCommitted = true;
+
+    const ctx = { req, resourceType: "spes_posting", resourceId: posting._id };
+    if (previous && previous !== posting.coverImage) {
+      await runPostCommit("spes_cover.remove_previous", ctx, () => storageService.remove(previous));
+    }
+    await runPostCommit("spes_cover.sync_news_card", ctx, () => syncNewsCardImage(posting));
+    await audit(req, "spes.posting.cover_updated", posting);
+    return res.json({ message: "Cover image saved", posting: presentPosting(posting) });
+  } catch (error) {
+    return sendError(res, error, "Failed to save the cover image");
+  }
+};
+
+exports.removeCover = async (req, res) => {
+  try {
+    const posting = await resolvePosting(req.params.postingId);
+    if (!posting) return fail(res, 404, "SPES_PROGRAM_NOT_FOUND", "SPES posting not found");
+    if (posting.legacy) {
+      return fail(res, 409, "SPES_POSTING_LEGACY", "This posting was created as an announcement. Manage it there until it is migrated.");
+    }
+    const previous = posting.coverImage;
+    if (!previous) return res.json({ message: "No cover image", posting: presentPosting(posting) });
+
+    posting.coverImage = "";
+    await posting.save();
+    const ctx = { req, resourceType: "spes_posting", resourceId: posting._id };
+    await runPostCommit("spes_cover.remove_previous", ctx, () => storageService.remove(previous));
+    await runPostCommit("spes_cover.sync_news_card", ctx, () => syncNewsCardImage(posting));
+    await audit(req, "spes.posting.cover_removed", posting);
+    return res.json({ message: "Cover image removed", posting: presentPosting(posting) });
+  } catch (error) {
+    return sendError(res, error, "Failed to remove the cover image");
   }
 };
 

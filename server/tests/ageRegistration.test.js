@@ -47,6 +47,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const ReservedUsername = require("../models/ReservedUsername");
 const { logAuditEvent } = require("../services/auditService");
+const { getManilaToday } = require("../utils/age");
 const authController = require("../controllers/authController");
 const userController = require("../controllers/userController");
 const adminController = require("../controllers/adminController");
@@ -60,8 +61,8 @@ const chain = (value) => ({ collation: jest.fn().mockReturnValue({ select: jest.
 // Real calendar-relative dates so the real clock is fine: a person who turned
 // `years` years old `daysAgo` days ago.
 const born = (years, daysAgo = 0) => {
-  const now = new Date();
-  const d = new Date(Date.UTC(now.getUTCFullYear() - years, now.getUTCMonth(), now.getUTCDate() - daysAgo));
+  const t = getManilaToday();
+  const d = new Date(Date.UTC(t.year - years, t.month - 1, t.day - daysAgo));
   return d.toISOString().slice(0, 10);
 };
 

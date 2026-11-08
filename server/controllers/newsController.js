@@ -12,37 +12,6 @@ const logger = require("../utils/logger");
 
 const NEWS_CATEGORIES = ["general", "hiring", "training", "event", "advisory", "spes"];
 
-const parseJSONSafe = (value, fallback) => {
-  if (value === undefined || value === null || value === "") return fallback;
-  if (typeof value === "object") return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
-};
-
-// Normalise the SPES config coming from the create/edit form (sent as a JSON
-// string field `spesConfig` so it survives multipart submissions).
-const normalizeSpesConfig = (raw) => {
-  const cfg = parseJSONSafe(raw, {}) || {};
-  // An unparseable deadline or a non-whole-number slot count becomes "not set"
-  // instead of storing an Invalid Date / NaN.
-  const deadline = cfg.applicationDeadline ? new Date(cfg.applicationDeadline) : null;
-  const slotsNumber = cfg.slots !== undefined && cfg.slots !== null && cfg.slots !== "" ? Number(cfg.slots) : null;
-  return {
-    applicationDeadline: deadline && !Number.isNaN(deadline.getTime()) ? deadline : null,
-    slots: Number.isInteger(slotsNumber) && slotsNumber >= 0 ? slotsNumber : null,
-    requirements: Array.isArray(cfg.requirements)
-      ? cfg.requirements.map((r) => String(r).trim()).filter(Boolean).slice(0, 30)
-      : [],
-    resultsUrl: typeof cfg.resultsUrl === "string" ? cfg.resultsUrl.trim().slice(0, 500) : "",
-    resultsSummary: typeof cfg.resultsSummary === "string" ? cfg.resultsSummary.trim().slice(0, 4000) : "",
-    publishAcceptedList: Boolean(cfg.publishAcceptedList),
-    exposeScores: Boolean(cfg.exposeScores),
-  };
-};
-
 const notifyNewsPublished = async ({ announcement, authorId, io }) => {
   const roleFilter = JOBSEEKER_ONLY_CATEGORIES.includes(announcement.category)
     ? { role: "jobseeker" }
@@ -179,7 +148,7 @@ exports.getNewsById = async (req, res) => {
 
 exports.createNews = async (req, res) => {
   try {
-    const { title, content, category, imageUrl, publishedAt, isActive, spesConfig } = req.body;
+    const { title, content, category, imageUrl, publishedAt, isActive } = req.body;
     const resolvedImageUrl = req.file ? newsImageValue(req.file) : (imageUrl || "");
     const doc = {
       title,
@@ -190,9 +159,9 @@ exports.createNews = async (req, res) => {
       isActive: toBoolean(isActive, true),
       author: req.user.id,
     };
-    if (category === "spes") {
-      doc.spes = normalizeSpesConfig(spesConfig);
-    }
+    // The "SPES Program" category is a plain announcement: no SPES settings are kept
+    // on it. Real SPES postings are created under SPES Postings.
+    if (category === "spes") doc.spesNotice = true;
     const created = await Announcement.create(doc);
     // The announcement references the uploaded image; a later failure must
     // not let the upload cleanup delete it.
@@ -258,18 +227,9 @@ exports.updateNews = async (req, res) => {
       payload.publishedAt = new Date(req.body.publishedAt);
     }
 
-    // SPES config: update the editable fields only, never the results-release
-    // state (resultsStatus / resultsPublishedAt / resultsAnnouncementId).
-    if (req.body.spesConfig !== undefined) {
-      const cfg = normalizeSpesConfig(req.body.spesConfig);
-      payload["spes.applicationDeadline"] = cfg.applicationDeadline;
-      payload["spes.slots"] = cfg.slots;
-      payload["spes.requirements"] = cfg.requirements;
-      payload["spes.resultsUrl"] = cfg.resultsUrl;
-      payload["spes.resultsSummary"] = cfg.resultsSummary;
-      payload["spes.publishAcceptedList"] = cfg.publishAcceptedList;
-      payload["spes.exposeScores"] = cfg.exposeScores;
-    }
+    // Moving an announcement into the "SPES Program" category makes it a plain SPES
+    // notice; an announcement that already held SPES settings keeps them untouched.
+    if (req.body.category === "spes" && existing.category !== "spes") payload.spesNotice = true;
 
     const cleaned = Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined));
 

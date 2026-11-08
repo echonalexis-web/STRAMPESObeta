@@ -1533,3 +1533,32 @@ body:has(.spes-drawer-overlay) .fm-root {
 @media (prefers-reduced-motion: reduce) {
   .spes-tab, .spes-posting-card { transition: none; }
 }
+
+/* ---- Posting cover image: fixed ratios so cards and pages do not shift while images load ---- */
+.spes-posting-card__cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-ink-100, #e5e7eb);
+}
+.spes-detail__cover {
+  display: block;
+  width: 100%;
+  max-height: 22rem;
+  aspect-ratio: 16 / 7;
+  object-fit: cover;
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-ink-100, #e5e7eb);
+}
+.spes-form__cover {
+  display: block;
+  width: 100%;
+  max-width: 24rem;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-ink-100, #e5e7eb);
+}
+.spes-form__cover-actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-2, 8px); }

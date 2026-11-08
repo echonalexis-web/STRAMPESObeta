@@ -1282,7 +1282,10 @@
       "SPES_POSTING_LEGACY": "Ang posting na ito ay ginawa bilang news announcement. Pamahalaan ito roon hanggang sa ma-migrate.",
       "SPES_STATUS_INVALID": "Piliin ang draft, published o archived.",
       "SPES_HAS_APPLICATIONS": "May aplikasyon ang posting na ito, kaya hindi ito maibabalik sa draft o mabubura. I-archive na lang.",
-      "SPES_DELETE_NOT_ALLOWED": "Mga draft na posting lang ang mabubura. I-archive na lang ito."
+      "SPES_DELETE_NOT_ALLOWED": "Mga draft na posting lang ang mabubura. I-archive na lang ito.",
+      "SPES_COVER_TYPE": "JPG, PNG, o WEBP na larawan lang ang tinatanggap.",
+      "SPES_COVER_TOO_LARGE": "Dapat 3 MB o mas maliit ang larawan.",
+      "SPES_COVER_MISSING": "Pumili ng larawang ia-upload."
     }
   },
   "spes": {
@@ -1661,7 +1664,14 @@
       "alsoNews": "Mag-post din sa News Feed",
       "alsoNewsHint": "Magdadagdag ng news card na may link sa posting na ito kapag na-publish.",
       "saveDraft": "I-save ang draft",
-      "saveChanges": "I-save ang mga pagbabago"
+      "saveChanges": "I-save ang mga pagbabago",
+      "cover": "Cover image (opsyonal)",
+      "coverChoose": "Pumili ng larawan",
+      "coverHint": "JPG, PNG o WEBP, hanggang 3 MB. Ipapakita ito sa card ng posting at sa pahina ng posting.",
+      "coverClear": "Alisin ang aking napili",
+      "coverRemove": "Alisin ang kasalukuyang larawan",
+      "coverKeep": "Panatilihin ang kasalukuyang larawan",
+      "coverPreviewAlt": "Preview ng cover image"
     }
   }
 }

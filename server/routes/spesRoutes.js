@@ -7,7 +7,13 @@ const {
   requireSpesViewAge,
 } = require("../middleware/auth");
 const { persistUploads, cleanupUploadedFiles } = require("../middleware/upload");
-const { spesSlotsUpload, spesSingleUpload, validateSpesFiles } = require("../middleware/spesUpload");
+const {
+  spesSlotsUpload,
+  spesSingleUpload,
+  validateSpesFiles,
+  spesCoverUpload,
+  validateSpesCover,
+} = require("../middleware/spesUpload");
 const {
   sanitizeRequestBody,
   sanitizeQueryParams,
@@ -31,6 +37,17 @@ router.post("/admin/postings", isAdmin, sanitizeRequestBody, postings.createPost
 router.get("/admin/postings/:postingId", isAdmin, validateMongoId("postingId"), postings.adminGetPosting);
 router.put("/admin/postings/:postingId", isAdmin, validateMongoId("postingId"), sanitizeRequestBody, postings.updatePosting);
 router.delete("/admin/postings/:postingId", isAdmin, validateMongoId("postingId"), postings.deletePosting);
+router.post(
+  "/admin/postings/:postingId/cover",
+  isAdmin,
+  validateMongoId("postingId"),
+  spesCoverUpload,
+  validateSpesCover,
+  cleanupUploadedFiles,
+  persistUploads("news"),
+  postings.uploadCover
+);
+router.delete("/admin/postings/:postingId/cover", isAdmin, validateMongoId("postingId"), postings.removeCover);
 router.patch("/admin/postings/:postingId/status", isAdmin, validateMongoId("postingId"), sanitizeRequestBody, postings.setPostingStatus);
 router.patch("/admin/postings/:postingId/closed", isAdmin, validateMongoId("postingId"), sanitizeRequestBody, postings.setPostingClosed);
 router.get("/admin/postings/:postingId/release-summary", isAdmin, validateMongoId("postingId"), postings.releaseSummary);

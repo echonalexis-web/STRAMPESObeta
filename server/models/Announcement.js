@@ -40,6 +40,11 @@ const announcementSchema = new mongoose.Schema(
       // Manual close by PESO staff, independent of the deadline.
       closedAt: { type: Date, default: null },
     },
+    // True for an announcement posted in the "SPES Program" news category from the news
+    // form: it is a plain announcement with no SPES settings of its own, so it is never
+    // treated as a legacy SPES posting. Older announcements (before this field existed)
+    // carry their settings in `spes` and still read as legacy postings until migrated.
+    spesNotice: { type: Boolean, default: false },
     // Set on the news-feed card that links to a SpesPosting (models/SpesPosting.js).
     // Cards with this set are not legacy SPES announcements.
     spesPostingId: { type: mongoose.Schema.Types.ObjectId, ref: "SpesPosting", default: null },

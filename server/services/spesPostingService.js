@@ -23,7 +23,7 @@ const resolvePosting = async (id) => {
   const migrated = await SpesPosting.findOne({ legacyAnnouncementId: id });
   if (migrated) return migrated;
 
-  const legacy = await Announcement.findOne({ _id: id, category: "spes", spesPostingId: null });
+  const legacy = await Announcement.findOne({ _id: id, category: "spes", spesPostingId: null, spesNotice: { $ne: true } });
   return legacy ? fromAnnouncement(legacy) : null;
 };
 
@@ -50,6 +50,7 @@ const listPublishedPostings = async () => {
     category: "spes",
     isActive: true,
     spesPostingId: null,
+    spesNotice: { $ne: true },
     ...(migratedIds.length ? { _id: { $nin: migratedIds } } : {}),
   }).sort({ publishedAt: -1, createdAt: -1 });
   return [...native, ...legacyAnnouncements.map(fromAnnouncement)];
@@ -62,6 +63,7 @@ const listAllPostings = async () => {
   const legacyAnnouncements = await Announcement.find({
     category: "spes",
     spesPostingId: null,
+    spesNotice: { $ne: true },
     ...(migratedIds.length ? { _id: { $nin: migratedIds } } : {}),
   }).sort({ createdAt: -1 });
   return [...native, ...legacyAnnouncements.map(fromAnnouncement)];

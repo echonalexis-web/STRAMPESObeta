@@ -1282,7 +1282,10 @@
       "SPES_POSTING_LEGACY": "This posting was created as a news announcement. Manage it there until it is migrated.",
       "SPES_STATUS_INVALID": "Choose draft, published or archived.",
       "SPES_HAS_APPLICATIONS": "This posting has applications, so it cannot go back to draft or be deleted. Archive it instead.",
-      "SPES_DELETE_NOT_ALLOWED": "Only draft postings can be deleted. Archive this one instead."
+      "SPES_DELETE_NOT_ALLOWED": "Only draft postings can be deleted. Archive this one instead.",
+      "SPES_COVER_TYPE": "Only JPG, PNG, or WEBP images are accepted.",
+      "SPES_COVER_TOO_LARGE": "The image must be 3 MB or smaller.",
+      "SPES_COVER_MISSING": "Choose an image to upload."
     }
   },
   "spes": {
@@ -1661,7 +1664,14 @@
       "alsoNews": "Also post to News Feed",
       "alsoNewsHint": "Adds a news card that links to this posting when it is published.",
       "saveDraft": "Save draft",
-      "saveChanges": "Save changes"
+      "saveChanges": "Save changes",
+      "cover": "Cover image (optional)",
+      "coverChoose": "Choose an image",
+      "coverHint": "JPG, PNG or WEBP, up to 3 MB. It is shown on the posting card and the posting page.",
+      "coverClear": "Clear my choice",
+      "coverRemove": "Remove the current image",
+      "coverKeep": "Keep the current image",
+      "coverPreviewAlt": "Preview of the cover image"
     }
   }
 }

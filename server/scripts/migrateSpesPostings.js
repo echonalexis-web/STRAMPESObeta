@@ -45,7 +45,7 @@ async function run() {
   await mongoose.connect(mongoURI);
   console.log(`Connected. Mode: ${apply ? "APPLY" : "DRY RUN"}`);
 
-  const announcements = await Announcement.find({ category: "spes", spesPostingId: null }).lean();
+  const announcements = await Announcement.find({ category: "spes", spesPostingId: null, spesNotice: { $ne: true } }).lean();
   const existing = await SpesPosting.find({ legacyAnnouncementId: { $ne: null } }).select("legacyAnnouncementId").lean();
   const plan = planMigration(announcements, new Set(existing.map((p) => String(p.legacyAnnouncementId))));
 

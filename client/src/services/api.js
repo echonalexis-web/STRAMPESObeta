@@ -622,6 +622,12 @@ export const spesAPI = {
   adminSetPostingStatus: (postingId, status, alsoPostToNews) =>
     api.patch(`/spes/admin/postings/${postingId}/status`, { status, alsoPostToNews }, getAuthHeader()),
   adminDeletePosting: (postingId) => api.delete(`/spes/admin/postings/${postingId}`, getAuthHeader()),
+  adminUploadCover: (postingId, file) => {
+    const fd = new FormData();
+    fd.append('cover', file);
+    return api.post(`/spes/admin/postings/${postingId}/cover`, fd, getAuthFormHeader());
+  },
+  adminRemoveCover: (postingId) => api.delete(`/spes/admin/postings/${postingId}/cover`, getAuthHeader()),
   adminSetPostingClosed: (postingId, closed) =>
     api.patch(`/spes/admin/postings/${postingId}/closed`, { closed }, getAuthHeader()),
   adminReleaseSummary: (postingId) => api.get(`/spes/admin/postings/${postingId}/release-summary`, getAuthHeader()),

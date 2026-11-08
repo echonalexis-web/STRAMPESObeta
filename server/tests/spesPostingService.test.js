@@ -47,8 +47,8 @@ describe("resolvePosting", () => {
     Announcement.findOne.mockResolvedValue({ _id: ID, title: "Old", content: "c", isActive: true, spes: { slots: 5 } });
     const p = await service.resolvePosting(ID);
     expect(p).toMatchObject({ _id: ID, legacy: true, title: "Old", slots: 5 });
-    // a news card that points at a posting is not a legacy posting
-    expect(Announcement.findOne).toHaveBeenCalledWith({ _id: ID, category: "spes", spesPostingId: null });
+    // a news card that points at a posting, and a plain SPES-category notice, are not legacy postings
+    expect(Announcement.findOne).toHaveBeenCalledWith({ _id: ID, category: "spes", spesPostingId: null, spesNotice: { $ne: true } });
   });
 
   test("nothing matches -> null", async () => {
@@ -79,7 +79,7 @@ describe("lists", () => {
     expect(list.map((p) => String(p._id))).toEqual(["p1", "a2"]);
     expect(list[1].legacy).toBe(true);
     const query = Announcement.find.mock.calls[0][0];
-    expect(query).toMatchObject({ category: "spes", isActive: true, spesPostingId: null, _id: { $nin: ["a1"] } });
+    expect(query).toMatchObject({ category: "spes", isActive: true, spesPostingId: null, spesNotice: { $ne: true }, _id: { $nin: ["a1"] } });
   });
 });
 

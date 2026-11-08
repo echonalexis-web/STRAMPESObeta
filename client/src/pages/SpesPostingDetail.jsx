@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FaCalendarAlt, FaUsers, FaClipboardCheck, FaExternalLinkAlt } from "react-icons/fa";
-import { spesAPI } from "../services/api";
+import { resolveAssetUrl, spesAPI } from "../services/api";
 import StateBlock from "../components/StateBlock";
 import SpesApplyFlow from "../components/SpesApplyFlow";
 import { translateErrorCode } from "../utils/apiErrors";
@@ -130,6 +130,9 @@ export default function SpesPostingDetail() {
       </Link>
 
       <article className="spes-card">
+        {posting.coverImage ? (
+          <img className="spes-detail__cover" src={resolveAssetUrl(posting.coverImage)} alt="" />
+        ) : null}
         <div className="spes-card__head">
           <div>
             <h1 className="spes-detail__title">{posting.title}</h1>

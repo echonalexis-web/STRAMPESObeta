@@ -56,4 +56,46 @@ const validateSpesFiles = (req, res, next) => {
   return next();
 };
 
-module.exports = { spesSlotsUpload, spesSingleUpload, validateSpesFiles };
+// Cover image for a posting: shown on cards and the detail page, so it is public and
+// images only (JPG, PNG, WEBP), smaller than a document.
+const COVER_MAX_BYTES = 3 * 1024 * 1024;
+const COVER_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+const coverBase = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: COVER_MAX_BYTES, files: 1 },
+  fileFilter: (req, file, cb) => {
+    if (!COVER_MIME.includes(file.mimetype)) {
+      return cb(Object.assign(new Error("bad type"), { code: "SPES_COVER_TYPE" }));
+    }
+    file.originalname = path.basename(file.originalname).replace(/[^a-zA-Z0-9.-]/g, "");
+    return cb(null, true);
+  },
+});
+
+const spesCoverUpload = (req, res, next) =>
+  coverBase.single("cover")(req, res, (err) => {
+    if (!err) {
+      if (!req.file) {
+        return res.status(400).json({ code: "SPES_COVER_MISSING", message: "Choose an image to upload." });
+      }
+      return next();
+    }
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ code: "SPES_COVER_TOO_LARGE", message: "The image must be 3 MB or smaller." });
+    }
+    if (err.code === "SPES_COVER_TYPE" || err.code === "LIMIT_UNEXPECTED_FILE") {
+      return res.status(400).json({ code: "SPES_COVER_TYPE", message: "Only JPG, PNG, or WEBP images are accepted." });
+    }
+    return res.status(400).json({ code: "SPES_UPLOAD_FAILED", message: "The upload could not be processed." });
+  });
+
+// The declared mimetype is only a client header; check the real leading bytes.
+const validateSpesCover = (req, res, next) => {
+  if (!req.file || !matchesDeclaredType(req.file.buffer, req.file.mimetype)) {
+    return res.status(400).json({ code: "SPES_COVER_TYPE", message: "Only JPG, PNG, or WEBP images are accepted." });
+  }
+  return next();
+};
+
+module.exports = { spesSlotsUpload, spesSingleUpload, validateSpesFiles, spesCoverUpload, validateSpesCover, COVER_MAX_BYTES };

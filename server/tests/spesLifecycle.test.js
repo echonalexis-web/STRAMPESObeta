@@ -42,6 +42,7 @@ const notifications = require("../services/notificationService");
 const { logAuditEvent } = require("../services/auditService");
 const spes = require("../controllers/spesController");
 const lifecycle = require("../utils/spesLifecycle");
+const { getManilaToday } = require("../utils/age");
 const { requiredSlotsFor } = require("../utils/spesDocuments");
 
 const ADMIN = "aaaaaaaaaaaaaaaaaaaaaaaa";
@@ -75,8 +76,8 @@ const q = (value) => {
 };
 
 const dobYearsAgo = (years, dayOffset = 0) => {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear() - years, now.getUTCMonth(), now.getUTCDate() + dayOffset));
+  const t = getManilaToday();
+  return new Date(Date.UTC(t.year - years, t.month - 1, t.day + dayOffset));
 };
 
 const doc = (overrides = {}) => ({

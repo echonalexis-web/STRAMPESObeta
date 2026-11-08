@@ -250,7 +250,7 @@ export default function NewsFeedDetail() {
             </div>
 
             <aside className="news-article-aside">
-            {item.category === "spes" ? (
+            {item.category === "spes" && (item.spesPostingId || !item.spesNotice) ? (
               <SpesPostingLinkCard announcement={item} />
             ) : null}
             <div className="news-engagement-bar">

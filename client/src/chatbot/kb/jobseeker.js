@@ -189,36 +189,53 @@ export default [
     target: 'profile.favorites',
   }),
 
-  // components/SpesPanel.jsx is rendered on a news announcement with category "spes" (pages/NewsFeedDetail.jsx);
-  // NewsFeed has an "SPES" category chip. Button text "Apply for SPES"; sends to onboarding if unfinished.
+  // pages/SpesPostings.jsx (/spes/postings) lists the published SPES postings; pages/SpesPostingDetail.jsx shows
+  // one posting and its "Apply for SPES" button, which opens the 3-step apply dialog (components/SpesApplyFlow.jsx).
+  // Sidebar: "My SPES" group with "SPES Postings" and "My Applications". Sends to onboarding if the NSRP profile is unfinished.
   // POLICY/VERIFY: who may apply and when applications open is POL-02, deliberately not stated.
   entry({
     id: 'jobseeker.spes.apply', category: 'spes', kind: 'nav+faq', roles: JS, contact: true,
     q: { en: 'Where do I apply for SPES?', fil: 'Saan ako mag-a-apply sa SPES?' },
     a: {
-      en: 'SPES applications are posted as announcements. Open the News Feed, choose the SPES filter, open the SPES announcement and click Apply for SPES. If you do not see one, none may be open now. For eligibility and dates, please ask PESO.',
-      fil: 'Inilalathala bilang anunsyo ang SPES applications. Buksan ang News Feed, piliin ang SPES filter, buksan ang SPES announcement at i-click ang Apply for SPES. Kung wala kang makita, maaaring walang bukas ngayon. Para sa eligibility at petsa, magtanong sa PESO.',
+      en: 'Open SPES Postings under My SPES in the menu, open a posting and click Apply for SPES. You fill in your details, upload the required documents, then review and submit. Afterwards, follow your application under My Applications. If no posting is open, none may be taking applications now. For eligibility and dates, please ask PESO.',
+      fil: 'Buksan ang SPES Postings sa ilalim ng My SPES sa menu, buksan ang isang posting at i-click ang Apply for SPES. Ilalagay mo ang iyong detalye, mag-a-upload ng mga kinakailangang dokumento, saka susuriin at isusumite. Pagkatapos, subaybayan ang iyong aplikasyon sa My Applications. Kung walang bukas na posting, maaaring walang tumatanggap ng aplikasyon ngayon. Para sa eligibility at petsa, magtanong sa PESO.',
     },
     keywords: {
-      en: ['apply for spes', 'spes application form', 'spes category filter', 'join spes'],
-      fil: ['mag apply sa spes', 'aplikasyon sa spes', 'saan mag apply sa spes'],
+      en: ['apply for spes', 'spes application form', 'join spes', 'spes posting'],
+      fil: ['mag apply sa spes', 'aplikasyon sa spes', 'saan mag apply sa spes', 'spes posting'],
     },
-    target: 'news', followUps: ['jobseeker.spes.track'],
+    target: 'spes.postings', followUps: ['jobseeker.spes.track', 'jobseeker.spes.age'],
   }),
 
-  // pages/MySpesApplications.jsx; nav label "My SPES" (or "Track your SPES Applications" for under-18).
+  // pages/MySpesApplications.jsx; nav label "My Applications" inside the "My SPES" group.
   entry({
     id: 'jobseeker.spes.track', category: 'spes', roles: JS,
     q: { en: 'Where is the page for my SPES submissions?', fil: 'Nasaan ang pahina ng mga naipasa kong SPES?' },
     a: {
-      en: 'Open My SPES under My Dashboard. It lists the SPES applications you submitted. If you have none yet, it points you to the News Feed.',
-      fil: 'Buksan ang My SPES sa ilalim ng My Dashboard. Nakalista rito ang mga SPES application na naipasa mo. Kung wala pa, ituturo ka nito sa News Feed.',
+      en: 'Open My Applications under My SPES in the menu. It lists the SPES applications you submitted, with a progress tracker, your documents and the next step. If you have none yet, start from SPES Postings.',
+      fil: 'Buksan ang My Applications sa ilalim ng My SPES sa menu. Nakalista rito ang mga SPES application na naipasa mo, kasama ang progress tracker, ang iyong mga dokumento at ang susunod na hakbang. Kung wala pa, magsimula sa SPES Postings.',
     },
     keywords: {
-      en: ['spes page', 'spes submissions', 'track spes', 'submitted spes'],
+      en: ['spes page', 'spes submissions', 'track spes', 'submitted spes', 'spes progress'],
       fil: ['pahina ng spes ko', 'listahan ng spes submission', 'subaybayan ang spes'],
     },
     target: 'spes.mine',
+  }),
+
+  // Server rules: 15-17 may apply to SPES but not to regular job vacancies; 31 and older may read SPES postings but not apply.
+  // The age range itself (15-30) is enforced by the system; PESO's own eligibility policy stays POL-02 (not stated here).
+  entry({
+    id: 'jobseeker.spes.age', category: 'spes', roles: JS,
+    q: { en: 'What is the age limit for SPES?', fil: 'Ano ang limitasyon sa edad ng SPES?' },
+    a: {
+      en: 'If you are 15 to 17, you can apply to SPES postings, but not to regular job vacancies, which open at 18. If you are 31 or older, you can read SPES postings but cannot apply. For the full eligibility rules, please ask PESO.',
+      fil: 'Kung 15 hanggang 17 ka, maaari kang mag-apply sa mga SPES posting, pero hindi sa mga regular na bakanteng trabaho na bukas sa edad na 18. Kung 31 pataas ka, maaari mong basahin ang mga SPES posting pero hindi ka makakapag-apply. Para sa kumpletong patakaran sa eligibility, magtanong sa PESO.',
+    },
+    keywords: {
+      en: ['spes age limit', 'spes under 18', 'spes over 30', 'age requirement spes'],
+      fil: ['edad sa spes', 'spes wala pang 18', 'spes lampas 30'],
+    },
+    target: 'spes.postings', contact: true,
   }),
 
   // pages/Settings.jsx PrivacySection (jobseeker): Profile visibility, Who can message me, Show my active status.

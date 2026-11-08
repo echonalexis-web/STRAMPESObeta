@@ -10,23 +10,12 @@ import "../../styles/admin.css";
 import "../../styles/newsAdmin.css";
 import AdminHeader from "./AdminHeader";
 
-const emptySpes = {
-  applicationDeadline: "",
-  slots: "",
-  requirements: "",
-  resultsUrl: "",
-  resultsSummary: "",
-  publishAcceptedList: false,
-  exposeScores: false,
-};
-
 const emptyForm = {
   title: "",
   content: "",
   category: "general",
   imageUrl: "",
   commentsEnabled: true,
-  spes: { ...emptySpes },
 };
 
 const CATEGORY_OPTIONS = [
@@ -37,21 +26,6 @@ const CATEGORY_OPTIONS = [
   { value: "advisory", label: "Advisory" },
   { value: "spes", label: "SPES Program" },
 ];
-
-// Build the `spesConfig` JSON string sent to the API from the form's SPES fields.
-const buildSpesConfig = (spes) =>
-  JSON.stringify({
-    applicationDeadline: spes.applicationDeadline || null,
-    slots: spes.slots === "" ? null : Number(spes.slots),
-    requirements: String(spes.requirements || "")
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean),
-    resultsUrl: spes.resultsUrl || "",
-    resultsSummary: spes.resultsSummary || "",
-    publishAcceptedList: Boolean(spes.publishAcceptedList),
-    exposeScores: Boolean(spes.exposeScores),
-  });
 
 const TITLE_MAX = 180;
 const CONTENT_MAX = 4000;
@@ -82,24 +56,12 @@ export default function CreateAnnouncement() {
         setLoading(true);
         const { data } = await newsAPI.getById(id);
         if (!active || !data) return;
-        const spesData = data.spes || {};
         setForm({
           title: data.title || "",
           content: data.content || "",
           category: data.category || "general",
           imageUrl: data.imageUrl || "",
           commentsEnabled: data.commentsEnabled !== false,
-          spes: {
-            applicationDeadline: spesData.applicationDeadline
-              ? String(spesData.applicationDeadline).slice(0, 10)
-              : "",
-            slots: spesData.slots ?? "",
-            requirements: Array.isArray(spesData.requirements) ? spesData.requirements.join("\n") : "",
-            resultsUrl: spesData.resultsUrl || "",
-            resultsSummary: spesData.resultsSummary || "",
-            publishAcceptedList: Boolean(spesData.publishAcceptedList),
-            exposeScores: Boolean(spesData.exposeScores),
-          },
         });
       } catch (err) {
         if (active) setError(err.response?.data?.message || "Failed to load announcement");
@@ -127,10 +89,6 @@ export default function CreateAnnouncement() {
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSpesChange = (field, value) => {
-    setForm((prev) => ({ ...prev, spes: { ...prev.spes, [field]: value } }));
   };
 
   const openEditor = (file) => {
@@ -210,8 +168,6 @@ export default function CreateAnnouncement() {
     try {
       setSubmitting(true);
 
-      const spesConfig = form.category === "spes" ? buildSpesConfig(form.spes) : null;
-
       let payload;
       if (imageFile) {
         payload = new FormData();
@@ -220,7 +176,6 @@ export default function CreateAnnouncement() {
         payload.append("category", form.category);
         payload.append("commentsEnabled", String(form.commentsEnabled));
         payload.append("image", imageFile);
-        if (spesConfig) payload.append("spesConfig", spesConfig);
       } else {
         payload = {
           title: trimmedTitle,
@@ -229,7 +184,6 @@ export default function CreateAnnouncement() {
           imageUrl: form.imageUrl.trim(),
           commentsEnabled: form.commentsEnabled,
           ...(isEditing ? {} : { isActive: true }),
-          ...(spesConfig ? { spesConfig } : {}),
         };
       }
 
@@ -300,73 +254,6 @@ export default function CreateAnnouncement() {
                 ))}
               </select>
             </div>
-
-            {form.category === "spes" && (
-              <div className="na-field na-field--full na-spes-config">
-                <span className="na-field__label">SPES program details</span>
-                <div className="na-spes-grid">
-                  <label>
-                    Application deadline
-                    <input
-                      type="date"
-                      value={form.spes.applicationDeadline}
-                      onChange={(e) => handleSpesChange("applicationDeadline", e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Slots <span className="na-field__hint">optional</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={form.spes.slots}
-                      onChange={(e) => handleSpesChange("slots", e.target.value)}
-                    />
-                  </label>
-                </div>
-                <label>
-                  Document requirements <span className="na-field__hint">one per line</span>
-                  <textarea
-                    rows={4}
-                    value={form.spes.requirements}
-                    onChange={(e) => handleSpesChange("requirements", e.target.value)}
-                    placeholder={"Barangay clearance\nCertificate of indigency\nSchool ID / enrolment proof"}
-                  />
-                </label>
-                <label>
-                  Results summary <span className="na-field__hint">shown to applicants once results are released</span>
-                  <textarea
-                    rows={3}
-                    value={form.spes.resultsSummary}
-                    onChange={(e) => handleSpesChange("resultsSummary", e.target.value)}
-                  />
-                </label>
-                <label>
-                  External results link (Facebook) <span className="na-field__hint">optional mirror</span>
-                  <input
-                    type="url"
-                    value={form.spes.resultsUrl}
-                    onChange={(e) => handleSpesChange("resultsUrl", e.target.value)}
-                    placeholder="https://facebook.com/LMDPESOMarinduqueOfficial/…"
-                  />
-                </label>
-                <label className="na-checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={form.spes.publishAcceptedList}
-                    onChange={(e) => handleSpesChange("publishAcceptedList", e.target.checked)}
-                  />
-                  Publish an accepted-applicants list when results are released
-                </label>
-                <label className="na-checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={form.spes.exposeScores}
-                    onChange={(e) => handleSpesChange("exposeScores", e.target.checked)}
-                  />
-                  Let applicants see their own exam / interview scores
-                </label>
-              </div>
-            )}
 
             <div className="na-field na-field--full">
               <span className="na-field__label">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { spesAPI } from "../../services/api";
+import { resolveAssetUrl, spesAPI } from "../../services/api";
 import StateBlock from "../../components/StateBlock";
 import SpesReleaseDialog from "../../components/SpesReleaseDialog";
 import { useConfirm, useToast } from "../../components/feedback/context";
@@ -128,6 +128,7 @@ export default function SpesPostingsAdmin() {
             const canEdit = !p.legacy && status !== "archived";
             return (
               <article key={p._id} className="spes-program-card">
+                {p.coverImage ? <img className="spes-posting-card__cover" src={resolveAssetUrl(p.coverImage)} alt="" loading="lazy" /> : null}
                 <div className="spes-program-card__head">
                   <h2>{p.title}</h2>
                   <span className={`spes-chip spes-chip--posting-${status}`}>{t(`spesPostings.status.${status}`)}</span>
