@@ -1509,9 +1509,8 @@ body:has(.spes-drawer-overlay) .fm-root {
 .spes-form {
   display: grid;
   gap: var(--ds-space-5, 20px);
+  /* Same width as the hero above it: fills the page container. */
   width: 100%;
-  max-width: 880px;
-  margin: 0 auto;
   padding-bottom: var(--ds-space-6, 28px);
 }
 
