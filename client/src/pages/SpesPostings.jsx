@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { resolveAssetUrl, spesAPI } from "../services/api";
-import StateBlock from "../components/StateBlock";
+import { FaSearch } from "react-icons/fa";
+import { spesAPI } from "../services/api";
+import SpesPostingCard from "../components/SpesPostingCard";
 import { translateErrorCode } from "../utils/apiErrors";
-import { POSTING_TABS, formatSpesDate, matchesTab } from "../utils/spesPostings";
-import { normalizeSpesStatus } from "../utils/spesSlots";
+import { POSTING_TABS, matchesTab } from "../utils/spesPostings";
+import "../styles/news-feed.css";
 import "../styles/spes.css";
 
-// Applicant list of SPES postings. 15-17 users apply from here; users aged 31 and
-// older can read the postings but not apply (the server enforces both).
+// The SPES feed: the same page layout as the news feed (green header, filter chips and
+// search, a featured posting, then a grid of cards). 15-17 users apply from here; users
+// aged 31 and older can read the postings but not apply (the server enforces both).
 export default function SpesPostings() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [ageTier, setAgeTier] = useState("unknown");
   const [tab, setTab] = useState("open");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -36,115 +40,134 @@ export default function SpesPostings() {
     load();
   }, [load]);
 
-  const visible = useMemo(() => items.filter((item) => matchesTab(tab, item.posting)), [items, tab]);
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return items.filter(
+      (item) =>
+        matchesTab(tab, item.posting) &&
+        (!q || `${item.posting.title} ${item.posting.description}`.toLowerCase().includes(q))
+    );
+  }, [items, tab, search]);
+
+  const openPosting = (id) => navigate(`/spes/postings/${id}`);
+  const featured = !loading && !error ? visible[0] : null;
+  const rest = featured ? visible.slice(1) : [];
 
   return (
-    <main className="spes-page">
-      <div className="spes-page__banner">
-        <div>
+    <main className="news-feed-page" aria-label={t("spesPostings.title")}>
+      <section className="news-feed-header-wrap">
+        <span className="news-feed-ring news-feed-ring--a" aria-hidden="true" />
+        <span className="news-feed-ring news-feed-ring--b" aria-hidden="true" />
+        <div className="news-feed-header">
           <h1>{t("spesPostings.title")}</h1>
-          <p className="spes-note">{t("spesPostings.subtitle")}</p>
+          <p>{t("spesPostings.subtitle")}</p>
+          <Link to="/spes/applications" className="ds-btn ds-btn--gold">
+            {t("navbar.mySpesApplications")}
+          </Link>
         </div>
-        <Link to="/spes/applications" className="spes-btn spes-btn--ghost">
-          {t("navbar.mySpesApplications")}
-        </Link>
-      </div>
+      </section>
 
-      {ageTier === "minor15to17" ? (
-        <p className="spes-notice spes-notice--info" role="note">{t("spesPostings.noticeMinor")}</p>
-      ) : null}
-      {ageTier === "adult31plus" ? (
-        <p className="spes-notice spes-notice--info" role="note">{t("spesPostings.noticeSenior")}</p>
-      ) : null}
+      <section className="news-feed-controls-wrap">
+        <div className="news-feed-toolbar">
+          <div className="news-filter-chips" role="tablist" aria-label={t("spesPostings.tabsLabel")}>
+            {POSTING_TABS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                className={`news-chip${tab === key ? " is-active" : ""}`}
+                onClick={() => setTab(key)}
+              >
+                {t(`spesPostings.tab.${key}`)}
+              </button>
+            ))}
+          </div>
 
-      <div className="spes-tabs" role="tablist" aria-label={t("spesPostings.tabsLabel")}>
-        {POSTING_TABS.map((key) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
-            className={`spes-tab${tab === key ? " is-active" : ""}`}
-            onClick={() => setTab(key)}
-          >
-            {t(`spesPostings.tab.${key}`)}
-          </button>
-        ))}
-      </div>
+          <div className="news-filter-select-wrap">
+            <select
+              className="news-filter-select"
+              value={tab}
+              onChange={(event) => setTab(event.target.value)}
+              aria-label={t("spesPostings.tabsLabel")}
+            >
+              {POSTING_TABS.map((key) => (
+                <option key={key} value={key}>
+                  {t(`spesPostings.tab.${key}`)}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      {loading ? <StateBlock kind="loading" title={t("spesPostings.loading")} /> : null}
-      {!loading && error ? (
-        <StateBlock
-          kind="error"
-          title={t("spesPostings.errorTitle")}
-          description={error}
-          action={
-            <button type="button" className="spes-btn spes-btn--small" onClick={load}>
+          <div className="news-search">
+            <FaSearch aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value.trimStart())}
+              placeholder={t("spesPostings.searchPlaceholder")}
+              aria-label={t("spesPostings.searchLabel")}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="news-feed-list-wrap">
+        {ageTier === "minor15to17" ? (
+          <p className="spes-notice spes-notice--info" role="note">{t("spesPostings.noticeMinor")}</p>
+        ) : null}
+        {ageTier === "adult31plus" ? (
+          <p className="spes-notice spes-notice--info" role="note">{t("spesPostings.noticeSenior")}</p>
+        ) : null}
+
+        {loading ? (
+          <div className="news-skeleton" role="status" aria-live="polite">
+            <span className="ds-sr-only">{t("spesPostings.loading")}</span>
+            <div className="news-grid" aria-hidden="true">
+              {[0, 1, 2].map((n) => (
+                <div key={n} className={`news-card news-card--skeleton${n === 1 ? " news-card--text" : ""}`}>
+                  {n === 1 ? <span className="ds-skeleton news-sk-band" /> : <span className="ds-skeleton news-sk-media" />}
+                  <div className="news-card__body">
+                    <span className="ds-skeleton news-sk-line news-sk-line--badge" />
+                    <span className="ds-skeleton news-sk-line news-sk-line--title" />
+                    <span className="ds-skeleton news-sk-line" />
+                    <span className="ds-skeleton news-sk-line news-sk-line--short" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {!loading && error ? (
+          <div className="ds-empty news-empty news-state-error" role="alert">
+            <h3 className="ds-empty__title">{t("spesPostings.errorTitle")}</h3>
+            <p>{error}</p>
+            <button type="button" className="ds-btn ds-btn--primary" onClick={load}>
               {t("spes.admin.retry")}
             </button>
-          }
-        />
-      ) : null}
-      {!loading && !error && visible.length === 0 ? (
-        <StateBlock
-          kind="empty"
-          title={items.length === 0 ? t("spesPostings.emptyTitle") : t("spesPostings.emptyTabTitle")}
-          description={items.length === 0 ? t("spesPostings.emptyBody") : t("spesPostings.emptyTabBody")}
-        />
-      ) : null}
+          </div>
+        ) : null}
 
-      {!loading && !error && visible.length > 0 ? (
-        <ul className="spes-postings">
-          {visible.map((item) => {
-            const { posting, myApplication, canApply, readOnly } = item;
-            const status = posting.displayStatus;
-            return (
-              <li key={posting._id} className="spes-posting-card">
-                {posting.coverImage ? (
-                  <img className="spes-posting-card__cover" src={resolveAssetUrl(posting.coverImage)} alt="" loading="lazy" />
-                ) : null}
-                <div className="spes-posting-card__head">
-                  <h2>
-                    <Link to={`/spes/postings/${posting._id}`}>{posting.title}</Link>
-                  </h2>
-                  <span className={`spes-chip spes-chip--posting-${status}`}>{t(`spesPostings.status.${status}`)}</span>
-                </div>
-                <p className="spes-card__meta">
-                  {posting.applicationDeadline
-                    ? t("spes.panel.deadline", { date: formatSpesDate(posting.applicationDeadline, i18n.language) })
-                    : t("spes.admin.noDeadline")}
-                  {posting.slots ? ` · ${t("spes.panel.slots", { count: Number(posting.slots) })}` : ""}
-                </p>
-                {posting.description ? <p className="spes-posting-card__text">{posting.description}</p> : null}
-                {myApplication ? (
-                  <p className="spes-posting-card__mine">
-                    {t("spesPostings.yourApplication")}{" "}
-                    <span className={`spes-chip spes-chip--${normalizeSpesStatus(myApplication.status)}`}>
-                      {t(`spes.status.${normalizeSpesStatus(myApplication.status)}`)}
-                    </span>
-                  </p>
-                ) : readOnly ? (
-                  <p className="spes-note">{t("spesPostings.readOnlyShort")}</p>
-                ) : null}
-                <div className="spes-posting-card__actions">
-                  {myApplication ? (
-                    <Link to="/spes/applications" className="spes-btn spes-btn--small">
-                      {t("spesPostings.viewApplication")}
-                    </Link>
-                  ) : (
-                    <Link
-                      to={`/spes/postings/${posting._id}`}
-                      className={`spes-btn spes-btn--small${canApply ? "" : " spes-btn--ghost"}`}
-                    >
-                      {canApply ? t("spesPostings.viewAndApply") : t("spesPostings.viewPosting")}
-                    </Link>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
+        {!loading && !error && visible.length === 0 ? (
+          <div className="ds-empty news-empty">
+            <h3 className="ds-empty__title">
+              {items.length === 0 ? t("spesPostings.emptyTitle") : t("spesPostings.emptyTabTitle")}
+            </h3>
+            <p>{items.length === 0 ? t("spesPostings.emptyBody") : t("spesPostings.emptyTabBody")}</p>
+          </div>
+        ) : null}
+
+        {featured ? <SpesPostingCard item={featured} variant="featured" onOpen={openPosting} /> : null}
+
+        {rest.length > 0 ? <h2 className="news-section-title">{t("spesPostings.morePostings")}</h2> : null}
+
+        <div className="news-grid">
+          {rest.map((item) => (
+            <SpesPostingCard key={String(item.posting._id)} item={item} onOpen={openPosting} />
+          ))}
+        </div>
+      </section>
     </main>
   );
 }

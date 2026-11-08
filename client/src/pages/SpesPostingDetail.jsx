@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { FaCalendarAlt, FaUsers, FaClipboardCheck, FaExternalLinkAlt } from "react-icons/fa";
+import { FaArrowLeft, FaCalendarAlt, FaUsers, FaClipboardCheck, FaExternalLinkAlt } from "react-icons/fa";
 import { resolveAssetUrl, spesAPI } from "../services/api";
-import StateBlock from "../components/StateBlock";
 import SpesApplyFlow from "../components/SpesApplyFlow";
 import { translateErrorCode } from "../utils/apiErrors";
 import { formatSpesDate, postingDocumentSlots } from "../utils/spesPostings";
 import { normalizeSpesStatus, requiredSlotsFor } from "../utils/spesSlots";
+import "../styles/news-feed.css";
 import "../styles/spes.css";
 
 // Blockers other than these are explained with the server's own translated message.
 const HANDLED_BLOCKERS = ["NSRP_INCOMPLETE", "SPES_ALREADY_APPLIED", "SPES_AGE_ABOVE_MAX"];
 
-// One SPES posting: what it is, who can apply, the documents it needs, and the
-// action the signed-in user can take. 15-17 apply here; 31 and older see a notice
-// where Apply would be.
+// One SPES posting, laid out like a news article (hero, article body, side panel): what it
+// is, who can apply, the documents it needs, and the action the signed-in user can take.
+// 15-17 apply here; 31 and older see a notice where Apply would be.
 export default function SpesPostingDetail() {
   const { id } = useParams();
   const { t, i18n } = useTranslation();
@@ -45,44 +45,56 @@ export default function SpesPostingDetail() {
     load();
   }, [load]);
 
+  const back = (plain) => (
+    <button type="button" className={plain ? "news-article-back--plain" : "news-article-back"} onClick={() => navigate("/spes/postings")}>
+      <FaArrowLeft /> {t("spesPostings.backToList")}
+    </button>
+  );
+
   if (loading) {
     return (
-      <main className="spes-page">
-        <StateBlock kind="loading" title={t("spesPostings.loading")} />
+      <main className="news-article-page" data-category="spes" aria-label={t("spesPostings.title")}>
+        <div className="news-article-col">
+          {back(true)}
+          <div className="news-skeleton" role="status" aria-live="polite">
+            <span className="ds-sr-only">{t("spesPostings.loading")}</span>
+            <div aria-hidden="true">
+              <span className="ds-skeleton news-sk-media news-sk-media--hero" />
+              <span className="ds-skeleton news-sk-line news-sk-line--badge" />
+              <span className="ds-skeleton news-sk-line news-sk-line--title" />
+              <span className="ds-skeleton news-sk-line" />
+              <span className="ds-skeleton news-sk-line news-sk-line--short" />
+            </div>
+          </div>
+        </div>
       </main>
     );
   }
-  if (notFound) {
+  if (notFound || error || !data) {
     return (
-      <main className="spes-page">
-        <StateBlock
-          kind="empty"
-          title={t("spesPostings.notFoundTitle")}
-          description={t("spesPostings.notFoundBody")}
-          action={<Link to="/spes/postings" className="spes-btn spes-btn--small">{t("spesPostings.backToList")}</Link>}
-        />
-      </main>
-    );
-  }
-  if (error || !data) {
-    return (
-      <main className="spes-page">
-        <StateBlock
-          kind="error"
-          title={t("spesPostings.errorTitle")}
-          description={error}
-          action={<button type="button" className="spes-btn spes-btn--small" onClick={load}>{t("spes.admin.retry")}</button>}
-        />
+      <main className="news-article-page" data-category="spes" aria-label={t("spesPostings.title")}>
+        <div className="news-article-col">
+          {back(true)}
+          <div className="ds-empty news-empty news-state-error" role="alert">
+            <h2 className="ds-empty__title">{notFound ? t("spesPostings.notFoundTitle") : t("spesPostings.errorTitle")}</h2>
+            <p>{notFound ? t("spesPostings.notFoundBody") : error}</p>
+            {!notFound ? (
+              <button type="button" className="ds-btn ds-btn--primary" onClick={load}>
+                {t("spes.admin.retry")}
+              </button>
+            ) : null}
+          </div>
+        </div>
       </main>
     );
   }
 
   const { posting, eligibility, application } = data;
   const status = posting.displayStatus;
-  const studentSlots = requiredSlotsFor(posting, "student");
-  const osySlots = requiredSlotsFor(posting, "osy");
-  const slots = postingDocumentSlots(studentSlots, osySlots);
+  const slots = postingDocumentSlots(requiredSlotsFor(posting, "student"), requiredSlotsFor(posting, "osy"));
   const otherBlockers = (eligibility?.blockers || []).filter((code) => !HANDLED_BLOCKERS.includes(code));
+  const ageMin = eligibility?.ageRange?.min ?? 15;
+  const ageMax = eligibility?.ageRange?.max ?? 30;
 
   const renderAction = () => {
     if (application) {
@@ -99,7 +111,7 @@ export default function SpesPostingDetail() {
     if (eligibility?.readOnly) {
       return (
         <p className="spes-notice spes-notice--info" role="note">
-          {t("spesPostings.readOnlyNotice", { min: eligibility.ageRange?.min ?? 15, max: eligibility.ageRange?.max ?? 30 })}
+          {t("spesPostings.readOnlyNotice", { min: ageMin, max: ageMax })}
         </p>
       );
     }
@@ -124,83 +136,101 @@ export default function SpesPostingDetail() {
   };
 
   return (
-    <main className="spes-page spes-detail">
-      <Link to="/spes/postings" className="spes-backlink">
-        {t("spesPostings.backToList")}
-      </Link>
+    <main className="news-article-page" data-category="spes" aria-label={t("spesPostings.title")}>
+      <article>
+        <header className={`news-hero${posting.coverImage ? "" : " news-hero--placeholder"}`}>
+          <button type="button" className="news-article-back" onClick={() => navigate("/spes/postings")}>
+            <FaArrowLeft /> {t("spesPostings.backToList")}
+          </button>
+          {posting.coverImage ? <img src={resolveAssetUrl(posting.coverImage)} alt="" /> : null}
+          <div className="news-hero__caption">
+            <span className="news-badge news-badge--onHero">{t(`spesPostings.status.${status}`)}</span>
+            <h1>{posting.title}</h1>
+          </div>
+        </header>
 
-      <article className="spes-card">
-        {posting.coverImage ? (
-          <img className="spes-detail__cover" src={resolveAssetUrl(posting.coverImage)} alt="" />
-        ) : null}
-        <div className="spes-card__head">
-          <div>
-            <h1 className="spes-detail__title">{posting.title}</h1>
-            <ul className="spes-meta">
+        <div className="news-article-layout">
+          <div className="news-article-main">
+            <div className="news-article-meta">
               {posting.applicationDeadline ? (
-                <li>
+                <span>
                   <FaCalendarAlt aria-hidden="true" />{" "}
                   {t("spes.panel.deadline", { date: formatSpesDate(posting.applicationDeadline, i18n.language) })}
-                </li>
-              ) : null}
+                </span>
+              ) : (
+                <span>{t("spes.admin.noDeadline")}</span>
+              )}
               {posting.slots ? (
-                <li>
-                  <FaUsers aria-hidden="true" /> {t("spes.panel.slots", { count: Number(posting.slots) })}
-                </li>
+                <>
+                  <span className="dot" />
+                  <span>
+                    <FaUsers aria-hidden="true" /> {t("spes.panel.slots", { count: Number(posting.slots) })}
+                  </span>
+                </>
               ) : null}
-            </ul>
-          </div>
-          <span className={`spes-chip spes-chip--posting-${status}`}>{t(`spesPostings.status.${status}`)}</span>
-        </div>
+            </div>
 
-        {status !== "open" && posting.closedReason ? (
-          <p className="spes-note">{t(`spes.admin.closedReason.${posting.closedReason}`)}</p>
-        ) : null}
+            {status !== "open" && posting.closedReason ? (
+              <p className="spes-note">{t(`spes.admin.closedReason.${posting.closedReason}`)}</p>
+            ) : null}
 
-        {posting.description ? <p className="spes-detail__text">{posting.description}</p> : null}
+            <div className="news-article-body">
+              {String(posting.description || "")
+                .split("\n")
+                .filter(Boolean)
+                .map((paragraph, index) => (
+                  <p key={index}>{paragraph}</p>
+                ))}
+            </div>
 
-        <div className="spes-reqs">
-          <h2 className="spes-reqs__label">
-            <FaClipboardCheck aria-hidden="true" /> {t("spes.panel.eligibilityTitle")}
-          </h2>
-          <ul>
-            <li>{t("spes.panel.eligAge", { min: eligibility?.ageRange?.min ?? 15, max: eligibility?.ageRange?.max ?? 30 })}</li>
-            <li>{t("spes.panel.eligNsrp")}</li>
-            <li>{t("spes.panel.eligStatus")}</li>
-          </ul>
-        </div>
+            <div className="spes-reqs">
+              <h2 className="spes-reqs__label">
+                <FaClipboardCheck aria-hidden="true" /> {t("spes.panel.eligibilityTitle")}
+              </h2>
+              <ul>
+                <li>{t("spes.panel.eligAge", { min: ageMin, max: ageMax })}</li>
+                <li>{t("spes.panel.eligNsrp")}</li>
+                <li>{t("spes.panel.eligStatus")}</li>
+              </ul>
+            </div>
 
-        <div className="spes-reqs">
-          <h2 className="spes-reqs__label">
-            <FaClipboardCheck aria-hidden="true" /> {t("spes.panel.documentsTitle")}
-          </h2>
-          <ul>
-            {slots.map((slot) => (
-              <li key={slot}>{t(`spes.docs.slot.${slot}`)}</li>
-            ))}
-            {(posting.requirements || []).map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </div>
+            <div className="spes-reqs">
+              <h2 className="spes-reqs__label">
+                <FaClipboardCheck aria-hidden="true" /> {t("spes.panel.documentsTitle")}
+              </h2>
+              <ul>
+                {slots.map((slot) => (
+                  <li key={slot}>{t(`spes.docs.slot.${slot}`)}</li>
+                ))}
+                {(posting.requirements || []).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
 
-        {posting.results?.status === "released" && posting.results.summary ? (
-          <div className="spes-result spes-result--waitlisted">
-            <strong>{t("spesPostings.resultsTitle")}</strong>
-            <p>{posting.results.summary}</p>
-            {posting.results.url ? (
-              <p>
-                <a href={posting.results.url} target="_blank" rel="noreferrer">
-                  {t("spes.outcome.officialResults")} <FaExternalLinkAlt aria-hidden="true" />
-                </a>
-              </p>
+            {posting.results?.status === "released" && posting.results.summary ? (
+              <div className="spes-result spes-result--waitlisted">
+                <strong>{t("spesPostings.resultsTitle")}</strong>
+                <p>{posting.results.summary}</p>
+                {posting.results.url ? (
+                  <p>
+                    <a href={posting.results.url} target="_blank" rel="noreferrer">
+                      {t("spes.outcome.officialResults")} <FaExternalLinkAlt aria-hidden="true" />
+                    </a>
+                  </p>
+                ) : null}
+              </div>
             ) : null}
           </div>
-        ) : null}
 
-        <p className="spes-note">{t("spes.panel.howItWorks")}</p>
-
-        {renderAction()}
+          <aside className="news-article-aside">
+            <section className="spes-panel" aria-label={t("spes.panel.aria")}>
+              <h2 className="spes-panel__title">{t("spes.panel.title")}</h2>
+              <p className="spes-note">{t("spes.panel.howItWorks")}</p>
+              {renderAction()}
+            </section>
+          </aside>
+        </div>
       </article>
 
       {applyOpen ? (

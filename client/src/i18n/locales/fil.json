@@ -1672,6 +1672,9 @@
       "coverRemove": "Alisin ang kasalukuyang larawan",
       "coverKeep": "Panatilihin ang kasalukuyang larawan",
       "coverPreviewAlt": "Preview ng cover image"
-    }
+    },
+    "searchLabel": "Maghanap ng mga SPES posting",
+    "searchPlaceholder": "Maghanap ng posting...",
+    "morePostings": "Iba pang SPES posting"
   }
 }

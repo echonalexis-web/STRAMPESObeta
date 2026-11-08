@@ -1672,6 +1672,9 @@
       "coverRemove": "Remove the current image",
       "coverKeep": "Keep the current image",
       "coverPreviewAlt": "Preview of the cover image"
-    }
+    },
+    "searchLabel": "Search SPES postings",
+    "searchPlaceholder": "Search postings...",
+    "morePostings": "More SPES postings"
   }
 }
