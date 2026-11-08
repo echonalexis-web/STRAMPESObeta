@@ -89,6 +89,7 @@ const PAGE_TITLE_EXACT = {
   "/jobs": "browseJobs",
   "/applications": "applications",
   "/spes/applications": "spes",
+  "/spes/postings": "spesPostings",
   "/news": "news",
   "/employer": "employerDashboard",
   "/employer-dashboard": "employerDashboard",
@@ -101,12 +102,17 @@ const PAGE_TITLE_EXACT = {
   "/admin/users/moderation": "reportsAppeals",
   "/admin/news": "newsManagement",
   "/admin/spes": "spesApplications",
+  "/admin/spes/postings": "spesPostings",
+  "/admin/spes/postings/new": "spesPostingForm",
+  "/admin/spes/monitoring": "spesMonitoring",
   "/admin/audit-logs": "auditTrail",
   "/superadmin": "superadminConsole",
 };
 
 const PAGE_TITLE_PREFIXES = [
   ["/jobs/", "jobDetails"],
+  ["/spes/postings/", "spesPostingDetails"],
+  ["/admin/spes/postings/", "spesPostingForm"],
   ["/news/", "article"],
   ["/employer/applicants/", "applicantProfile"],
   ["/admin/users/", "userProfile"],

@@ -1622,3 +1622,134 @@ body.app-with-sidebar {
     transition: none;
   }
 }
+
+/* ============================================ */
+/* COLLAPSIBLE NAV GROUPS (components/NavCollapsibleGroup.jsx) */
+/* ============================================ */
+.nav-collapsible {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+}
+
+.nav-collapsible__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  border: 0;
+  border-radius: var(--ds-radius-btn);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--ds-motion-fast) var(--ds-motion-ease-out),
+    color var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+
+.nav-collapsible__toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ds-surface);
+}
+
+.nav-collapsible__toggle > svg:first-child {
+  flex-shrink: 0;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.nav-collapsible__toggle .nav-link-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-collapsible__chevron {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  opacity: 0.8;
+  transition: transform var(--ds-motion-fast) var(--ds-motion-ease-out);
+}
+
+.nav-collapsible.is-open .nav-collapsible__chevron {
+  transform: rotate(180deg);
+}
+
+/* The group that holds the current page reads as "you are in here". */
+.nav-collapsible.is-child-active > .nav-collapsible__toggle {
+  color: var(--ds-surface);
+  font-weight: 700;
+}
+
+.nav-collapsible__list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 var(--ds-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+}
+
+/* display:flex above would otherwise beat the hidden attribute. */
+.nav-collapsible__list[hidden] {
+  display: none;
+}
+
+/* Mobile drawer: the drawer's own button/link styling applies; only indent. */
+.nav-collapsible--mobile {
+  gap: var(--ds-space-1);
+}
+
+.nav-collapsible--mobile .nav-collapsible__toggle {
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  font-size: var(--ds-text-md);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--ds-radius-md);
+  color: #ffffff;
+}
+
+.nav-collapsible--mobile.is-child-active > .nav-collapsible__toggle {
+  border-color: var(--ds-gold);
+}
+
+.nav-collapsible--mobile .nav-collapsible__list {
+  padding-left: var(--ds-space-3);
+}
+
+@media (min-width: 901px) {
+  /* Icons-only sidebar: the header is an icon button; an open group lists its
+     links inline as icon-only items (title tooltips carry the names). */
+  .navbar--auth-sidebar.is-compact .nav-collapsible__toggle {
+    justify-content: center;
+    gap: 0;
+    padding: 0.65rem 0.35rem;
+  }
+
+  .navbar--auth-sidebar.is-compact .nav-collapsible__chevron {
+    display: none;
+  }
+
+  .navbar--auth-sidebar.is-compact .nav-collapsible__list {
+    padding-left: 0;
+  }
+
+  /* Mark the open group so the inline icons read as its children. */
+  .navbar--auth-sidebar.is-compact .nav-collapsible.is-open > .nav-collapsible__list {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: var(--ds-space-1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-collapsible__toggle,
+  .nav-collapsible__chevron {
+    transition: none;
+  }
+}

@@ -146,7 +146,12 @@
     "openNav": "Buksan ang navigation menu",
     "closeNav": "Isara ang navigation menu",
     "collapseSidebar": "I-collapse ang sidebar",
-    "expandSidebar": "I-expand ang sidebar"
+    "expandSidebar": "I-expand ang sidebar",
+    "mySpesGroup": "Aking SPES",
+    "spesGroup": "SPES",
+    "spesPostings": "Mga SPES Posting",
+    "mySpesApplications": "Aking mga Aplikasyon",
+    "spesMonitoring": "Pagsubaybay sa SPES"
   },
   "shell": {
     "identity": {
@@ -185,7 +190,11 @@
         "newsManagement": "Pamamahala ng Balita",
         "spesApplications": "Mga Aplikasyon sa SPES",
         "auditTrail": "Audit Trail",
-        "superadminConsole": "Superadmin Console"
+        "superadminConsole": "Superadmin Console",
+        "spesPostings": "Mga SPES Posting",
+        "spesPostingDetails": "SPES Posting",
+        "spesPostingForm": "SPES Posting",
+        "spesMonitoring": "Pagsubaybay sa SPES"
       },
       "badge": {
         "systemAdministrator": "System Administrator",
@@ -1527,5 +1536,15 @@
       },
       "excludedNote": "{{status}} ang aplikasyong ito. Wala nang kailangang i-score o pagpasyahan."
     }
+  },
+  "spesPostings": {
+    "title": "Mga SPES Posting",
+    "emptyTitle": "Wala pang SPES posting ngayon",
+    "emptyBody": "Aabisuhan ka kapag may bagong posting na bumukas.",
+    "adminTitle": "Mga SPES Posting",
+    "adminDescription": "Gumawa at mamahala ng mga SPES posting: ang panahon ng aplikasyon, mga kinakailangang dokumento, pagsasara at mga resulta.",
+    "adminEmptyTitle": "Wala pang posting",
+    "adminEmptyBody": "Gumawa ng posting para magsimulang tumanggap ng mga aplikasyon sa SPES.",
+    "formTitle": "SPES Posting"
   }
 }

@@ -146,7 +146,12 @@
     "openNav": "Open navigation menu",
     "closeNav": "Close navigation menu",
     "collapseSidebar": "Collapse sidebar",
-    "expandSidebar": "Expand sidebar"
+    "expandSidebar": "Expand sidebar",
+    "mySpesGroup": "My SPES",
+    "spesGroup": "SPES",
+    "spesPostings": "SPES Postings",
+    "mySpesApplications": "My Applications",
+    "spesMonitoring": "SPES Monitoring"
   },
   "shell": {
     "identity": {
@@ -185,7 +190,11 @@
         "newsManagement": "News Management",
         "spesApplications": "SPES Applications",
         "auditTrail": "Audit Trail",
-        "superadminConsole": "Superadmin Console"
+        "superadminConsole": "Superadmin Console",
+        "spesPostings": "SPES Postings",
+        "spesPostingDetails": "SPES Posting",
+        "spesPostingForm": "SPES Posting",
+        "spesMonitoring": "SPES Monitoring"
       },
       "badge": {
         "systemAdministrator": "System Administrator",
@@ -1527,5 +1536,15 @@
       },
       "excludedNote": "This application is {{status}}. There is nothing left to score or decide."
     }
+  },
+  "spesPostings": {
+    "title": "SPES Postings",
+    "emptyTitle": "No SPES postings right now",
+    "emptyBody": "You will be notified when a new posting opens.",
+    "adminTitle": "SPES Postings",
+    "adminDescription": "Create and manage SPES postings: the application period, required documents, closing and results.",
+    "adminEmptyTitle": "No postings yet",
+    "adminEmptyBody": "Create a posting to start taking SPES applications.",
+    "formTitle": "SPES Posting"
   }
 }

@@ -43,7 +43,9 @@ export const ROUTES = [
   auth('profile.followers', '/profile/followers', 'chatbot.routes.profileFollowers'),
   auth('profile.edit', '/profile/edit', 'chatbot.routes.profileEdit'),
   // App.jsx has no requiredRole here; SPES age rules still apply to jobseekers.
-  auth('spes.mine', '/spes/applications', 'navbar.mySpes', null, ['spesAge']),
+  auth('spes.mine', '/spes/applications', 'navbar.mySpesApplications', null, ['spesAge']),
+  // Jobseekers aged 15 and older can open the postings (31+ read-only), so no age gate.
+  auth('spes.postings', '/spes/postings', 'navbar.spesPostings', ['jobseeker']),
 
   // Jobseeker only.
   auth('dashboard', '/dashboard', 'navbar.myDashboard', ['jobseeker']),
@@ -84,6 +86,9 @@ export const EXCLUDED = [
   '/admin/verification',
   '/admin/job-monitoring',
   '/admin/spes',
+  '/admin/spes/postings',
+  '/admin/spes/postings/new',
+  '/admin/spes/monitoring',
   '/admin/audit-logs',
   '/superadmin',
 ];

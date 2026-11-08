@@ -64,6 +64,10 @@ import PostJob from "./pages/PostJob";
 import Messages from "./pages/Messages";
 import Notifications from "./pages/Notifications";
 import YourApplications from "./pages/YourApplications";
+import SpesPostings from "./pages/SpesPostings";
+import SpesPostingDetail from "./pages/SpesPostingDetail";
+import SpesPostingsAdmin from "./pages/admin/SpesPostingsAdmin";
+import SpesPostingForm from "./pages/admin/SpesPostingForm";
 import MySpesApplications from "./pages/MySpesApplications";
 import SpesApplications from "./pages/admin/SpesApplications";
 
@@ -218,6 +222,9 @@ function AppRoutes() {
           <Route path="/settings/peso-help" element={<ProtectedRoute requiredRole={["jobseeker", "employer"]}><PesoHelpPage /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute requiredRole="jobseeker"><Dashboard /></ProtectedRoute>} />
           <Route path="/applications" element={<ProtectedRoute requiredRole="jobseeker"><JobVacancyAgeGate><YourApplications /></JobVacancyAgeGate></ProtectedRoute>} />
+          <Route path="/spes" element={<Navigate to="/spes/postings" replace />} />
+          <Route path="/spes/postings" element={<ProtectedRoute requiredRole="jobseeker"><SpesPostings /></ProtectedRoute>} />
+          <Route path="/spes/postings/:id" element={<ProtectedRoute requiredRole="jobseeker"><SpesPostingDetail /></ProtectedRoute>} />
           <Route path="/spes/applications" element={<ProtectedRoute><MySpesApplications /></ProtectedRoute>} />
           <Route path="/jobs" element={<ProtectedRoute requiredRole="jobseeker"><JobVacancyAgeGate><JobBoard /></JobVacancyAgeGate></ProtectedRoute>} />
           <Route path="/jobs/:id" element={<JobVacancyAgeGate><JobDetail /></JobVacancyAgeGate>} />
@@ -232,7 +239,11 @@ function AppRoutes() {
           <Route path="/admin/users/moderation" element={<ProtectedRoute requiredRole="superadmin"><UserModeration /></ProtectedRoute>} />
           <Route path="/admin/verification" element={<ProtectedRoute requiredRole={["admin", "superadmin"]}><EmployerVerification /></ProtectedRoute>} />
           <Route path="/admin/job-monitoring" element={<ProtectedRoute requiredRole={["admin", "superadmin"]}><JobMonitoring /></ProtectedRoute>} />
-          <Route path="/admin/spes" element={<ProtectedRoute requiredRole="admin"><SpesApplications /></ProtectedRoute>} />
+          <Route path="/admin/spes" element={<Navigate to="/admin/spes/monitoring" replace />} />
+          <Route path="/admin/spes/postings" element={<ProtectedRoute requiredRole="admin"><SpesPostingsAdmin /></ProtectedRoute>} />
+          <Route path="/admin/spes/postings/new" element={<ProtectedRoute requiredRole="admin"><SpesPostingForm /></ProtectedRoute>} />
+          <Route path="/admin/spes/postings/:id/edit" element={<ProtectedRoute requiredRole="admin"><SpesPostingForm /></ProtectedRoute>} />
+          <Route path="/admin/spes/monitoring" element={<ProtectedRoute requiredRole="admin"><SpesApplications /></ProtectedRoute>} />
           <Route path="/admin/audit-logs" element={<ProtectedRoute requiredRole="superadmin"><AuditTrail /></ProtectedRoute>} />
           <Route path="/admin/users/:userId" element={<ProtectedRoute requiredRole={["admin", "superadmin"]}><UserProfileView /></ProtectedRoute>} />
           <Route path="/admin/users/:userId/*" element={<ProtectedRoute requiredRole={["admin", "superadmin"]}><UserProfileView /></ProtectedRoute>} />

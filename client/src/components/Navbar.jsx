@@ -23,15 +23,17 @@ import {
   FaFileAlt,
   FaSearch,
   FaSignOutAlt,
+  FaClipboardList,
 } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { messageAPI, notificationAPI, resolveAssetUrl } from "../services/api";
 import { useSocket } from "../context/SocketContext";
 import { useNavbarStylePreference } from "../hooks/useNavbarStylePreference";
-import { canViewJobs as canViewJobsAge, isJobVacancyEligibleAge, isSpesEligibleAge } from "../utils/age";
+import { canViewJobs as canViewJobsAge, isJobVacancyEligibleAge } from "../utils/age";
 import "../styles/navbar.css";
 import pesoLogo from "../assets/images/peso-logo.png";
 import PublicNavbar from "./PublicNavbar";
+import NavCollapsibleGroup from "./NavCollapsibleGroup";
 import EmployerAvatar from "./EmployerAvatar";
 
 const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
@@ -98,7 +100,16 @@ const getLoggedInMenuItems = (userRole, t) => {
         submenu: [
           { label: t("navbar.newsFeed"), to: "/admin/news", icon: <FaNewspaper aria-hidden="true" /> },
           { label: t("navbar.postAnnouncement"), to: "/admin/news/create", icon: <FaBullhorn aria-hidden="true" /> },
-          { label: t("navbar.spesApplications"), to: "/admin/spes", icon: <FaGraduationCap aria-hidden="true" /> },
+        ],
+      },
+      // Collapsible SPES group (postings are managed here, applications monitored there).
+      {
+        id: "admin-spes",
+        label: t("navbar.spesGroup"),
+        icon: <FaGraduationCap aria-hidden="true" />,
+        children: [
+          { label: t("navbar.spesPostings"), to: "/admin/spes/postings", icon: <FaClipboardList aria-hidden="true" /> },
+          { label: t("navbar.spesMonitoring"), to: "/admin/spes/monitoring", icon: <FaChartBar aria-hidden="true" /> },
         ],
       },
       { label: t("navbar.employerVerification"), to: "/admin/verification", icon: <FaBuilding aria-hidden="true" /> },
@@ -154,17 +165,21 @@ const getDefaultRouteByRole = (role) => {
 const getJobseekerMenuGroups = (t, user) => {
   const canViewJobs = canViewJobsAge(user?.dateOfBirth);
   const canApplyJobs = isJobVacancyEligibleAge(user?.dateOfBirth);
-  const canApplySpes = isSpesEligibleAge(user?.dateOfBirth);
+  const canSeeSpes = canViewJobs; // 15 and older; 31+ can view postings but not apply
 
   const careerItems = [];
   if (canApplyJobs) {
     careerItems.push({ label: t("navbar.yourApplications"), to: "/applications", icon: <FaFileAlt aria-hidden="true" /> });
   }
-  if (canApplySpes) {
+  if (canSeeSpes) {
     careerItems.push({
-      label: canApplyJobs ? t("navbar.mySpes") : t("navbar.trackSpesApplications"),
-      to: "/spes/applications",
+      id: "my-spes",
+      label: t("navbar.mySpesGroup"),
       icon: <FaGraduationCap aria-hidden="true" />,
+      children: [
+        { label: t("navbar.spesPostings"), to: "/spes/postings", icon: <FaClipboardList aria-hidden="true" /> },
+        { label: t("navbar.mySpesApplications"), to: "/spes/applications", icon: <FaFileAlt aria-hidden="true" /> },
+      ],
     });
   }
   if (canViewJobs) careerItems.push({ label: t("navbar.browseJobs"), to: "/jobs", icon: <FaSearch aria-hidden="true" /> });
@@ -428,6 +443,9 @@ export default function Navbar() {
     if (to === "/employer") return location.pathname === "/employer" || location.pathname === "/employer-dashboard";
     if (to === "/dashboard") return location.pathname === "/dashboard";
     if (to === "/admin") return location.pathname === "/admin";
+    if (path === "/spes/postings" || path === "/admin/spes/postings") {
+      return location.pathname === path || location.pathname.startsWith(path + "/");
+    }
     if (path === "/admin/news") return location.pathname === "/admin/news";
     if (path === "/admin/news/create") return location.pathname === "/admin/news/create" || location.pathname.startsWith("/admin/news/create/");
 
@@ -534,7 +552,10 @@ export default function Navbar() {
     if (!isMobileMenuOpen) return undefined;
     const panel = mobilePanelRef.current;
     const toggle = mobileToggleRef.current;
-    const focusables = () => Array.from(panel?.querySelectorAll("a[href], button:not([disabled])") || []);
+    const focusables = () =>
+      Array.from(panel?.querySelectorAll("a[href], button:not([disabled])") || []).filter(
+        (el) => el.getClientRects().length > 0
+      );
     focusables()[0]?.focus();
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
@@ -652,18 +673,29 @@ export default function Navbar() {
               {jobseekerMenuGroups.map((group) => (
                 <div key={group.label} className="nav-section-group">
                   <div className="nav-section-label">{group.label}</div>
-                  {group.items.map((item) => (
-                    <Link
-                      key={`${group.label}-${item.to}`}
-                      to={item.to}
-                      className={isActiveLink(item.to) ? "nav-section-link is-active" : "nav-section-link"}
-                      aria-current={isActiveLink(item.to) ? "page" : undefined}
-                      title={item.label}
-                    >
-                      {item.icon}
-                      <span className="nav-link-text">{item.label}</span>
-                    </Link>
-                  ))}
+                  {group.items.map((item) =>
+                    item.children ? (
+                      <NavCollapsibleGroup
+                        key={item.id}
+                        id={item.id}
+                        label={item.label}
+                        icon={item.icon}
+                        items={item.children}
+                        isActiveLink={isActiveLink}
+                      />
+                    ) : (
+                      <Link
+                        key={`${group.label}-${item.to}`}
+                        to={item.to}
+                        className={isActiveLink(item.to) ? "nav-section-link is-active" : "nav-section-link"}
+                        aria-current={isActiveLink(item.to) ? "page" : undefined}
+                        title={item.label}
+                      >
+                        {item.icon}
+                        <span className="nav-link-text">{item.label}</span>
+                      </Link>
+                    )
+                  )}
                 </div>
               ))}
 
@@ -688,6 +720,19 @@ export default function Navbar() {
             </>
           ) : (
             loggedInMenuItems.map((item) => {
+              if (item.children) {
+                return (
+                  <div key={item.id} className="nav-section-group">
+                    <NavCollapsibleGroup
+                      id={item.id}
+                      label={item.label}
+                      icon={item.icon}
+                      items={item.children}
+                      isActiveLink={isActiveLink}
+                    />
+                  </div>
+                );
+              }
               if (item.submenu) {
                 const isSystemLogsGroup = isAdminRole && item.label === t("navbar.systemLogs");
                 return (
@@ -798,20 +843,46 @@ export default function Navbar() {
                   ? mobileMenuItems.map((section) => (
                     <div key={section.label} className="mobile-nav-section-group">
                       <div className="mobile-nav-section-label">{section.label}</div>
-                      {section.items.map((item) => (
-                        <Link
-                          key={`${section.label}-${item.to}`}
-                          to={item.to}
-                          className={isActiveLink(item.to) ? "is-active" : ""}
-                          aria-current={isActiveLink(item.to) ? "page" : undefined}
-                          onClick={closeMobileMenu}
-                        >
-                          {item.label}
-                        </Link>
-                      ))}
+                      {section.items.map((item) =>
+                        item.children ? (
+                          <NavCollapsibleGroup
+                            key={item.id}
+                            id={`m-${item.id}`}
+                            label={item.label}
+                            items={item.children}
+                            isActiveLink={isActiveLink}
+                            onNavigate={closeMobileMenu}
+                            variant="mobile"
+                          />
+                        ) : (
+                          <Link
+                            key={`${section.label}-${item.to}`}
+                            to={item.to}
+                            className={isActiveLink(item.to) ? "is-active" : ""}
+                            aria-current={isActiveLink(item.to) ? "page" : undefined}
+                            onClick={closeMobileMenu}
+                          >
+                            {item.label}
+                          </Link>
+                        )
+                      )}
                     </div>
                   ))
                   : mobileMenuItems.map((item) => {
+                    if (item.children) {
+                      return (
+                        <div key={item.id} className="mobile-nav-section-group">
+                          <NavCollapsibleGroup
+                            id={`m-${item.id}`}
+                            label={item.label}
+                            items={item.children}
+                            isActiveLink={isActiveLink}
+                            onNavigate={closeMobileMenu}
+                            variant="mobile"
+                          />
+                        </div>
+                      );
+                    }
                     if (item.submenu) {
                       const isSystemLogsGroup = isAdminRole && item.label === t("navbar.systemLogs");
                       return (
