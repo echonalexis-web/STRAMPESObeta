@@ -1321,8 +1321,8 @@
     "disqualified": {
       "title": "Hindi qualified ang aplikasyong ito",
       "reasonLabel": "Dahilan:",
-      "noReason": "Walang naitalang dahilan. Mangyaring makipag-ugnayan sa PESO office.",
-      "help": "Kung sa tingin mo ay may pagkakamali, dalhin ang iyong mga dokumento sa PESO office."
+      "noReason": "Walang naitalang dahilan.",
+      "help": "Sa tingin mo ba ay may pagkakamali? Dalhin ang iyong mga dokumento sa PESO office."
     },
     "withdrawn": {
       "body": "Binawi mo ang aplikasyong ito."
@@ -1359,7 +1359,10 @@
         "pending": "Naghihintay ng pagsusuri",
         "verified": "Na-verify",
         "needs_replacement": "Kailangang palitan"
-      }
+      },
+      "submittedTitle": "Mga isinumiteng file",
+      "untyped": "Na-upload na file (walang uri ng dokumento)",
+      "noneSubmitted": "Walang file sa talaan."
     },
     "panel": {
       "aria": "SPES program",
@@ -1514,7 +1517,15 @@
       "releaseWarning": "Makikita agad ng mga aplikante ang kanilang resulta. Maaari mo pa ring baguhin ang resulta mamaya.",
       "releaseConfirm": "I-release ang mga resulta",
       "releasing": "Nire-release...",
-      "released": "Na-release ang mga resulta."
+      "released": "Na-release ang mga resulta.",
+      "accountUnavailable": "Wala na ang account ng aplikante",
+      "closedReason": {
+        "deadline": "Lampas na ang deadline",
+        "manual": "Isinara ng PESO staff",
+        "inactive": "Hindi naka-publish ang program",
+        "notYetOpen": "Hindi pa bukas"
+      },
+      "excludedNote": "{{status}} ang aplikasyong ito. Wala nang kailangang i-score o pagpasyahan."
     }
   }
 }

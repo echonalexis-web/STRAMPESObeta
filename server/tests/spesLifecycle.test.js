@@ -391,6 +391,14 @@ describe("adminRecordEvaluation: transitions, validation, notifications, audit",
     expect(res.body.application.applicantAgeTier).toBe("unknown");
   });
 
+  test("a deleted applicant account is reported as deleted, not as a missing name", async () => {
+    const res = await evaluate(makeApp({ status: "qualified", applicant: null }), { examScore: 85 });
+    expect(res.status).toBe(200);
+    expect(res.body.application.applicantDeleted).toBe(true);
+    expect(res.body.application.applicantMissingProfile).toBe(false);
+    expect(res.body.application.applicantAgeTier).toBeUndefined();
+  });
+
   test("qualifying needs every document verified", async () => {
     const pending = makeApp({ status: "documents_review" });
     const refused = await evaluate(pending, { status: "qualified" });
@@ -652,6 +660,23 @@ describe("results release and amendment", () => {
     const event = logAuditEvent.mock.calls.map(([e]) => e).find((e) => e.action === "spes.result.amended");
     expect(event.severity).toBe("warning");
     expect(event.metadata).toMatchObject({ outcome: "waitlisted", previousOutcome: "accepted" });
+  });
+});
+
+describe("adminListPrograms says why a program is closed", () => {
+  test.each([
+    ["deadline passed", { spes: { applicationDeadline: new Date(Date.now() - 86400000) } }, false, "deadline"],
+    ["closed by staff", { spes: { closedAt: new Date(Date.now() - 1000) } }, false, "manual"],
+    ["unpublished", { isActive: false, spes: {} }, false, "inactive"],
+    ["not open yet", { spes: { opensAt: new Date(Date.now() + 86400000) } }, false, "notYetOpen"],
+    ["open", { spes: { applicationDeadline: new Date(Date.now() + 86400000) } }, true, null],
+  ])("%s", async (_label, program, open, reason) => {
+    Announcement.find.mockReturnValue(q([{ _id: PROGRAM, title: "SPES", isActive: true, ...program }]));
+    SpesApplication.aggregate.mockResolvedValue([]);
+    const res = await run(spes.adminListPrograms);
+    expect(res.status).toBe(200);
+    expect(res.body.items[0].open).toBe(open);
+    expect(res.body.items[0].closedReason).toBe(reason);
   });
 });
 

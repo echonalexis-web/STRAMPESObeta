@@ -1321,8 +1321,8 @@
     "disqualified": {
       "title": "This application was not qualified",
       "reasonLabel": "Reason:",
-      "noReason": "No reason was recorded. Please contact the PESO office.",
-      "help": "If you think this is a mistake, bring your documents to the PESO office."
+      "noReason": "No reason was recorded.",
+      "help": "Think this is a mistake? Bring your documents to the PESO office."
     },
     "withdrawn": {
       "body": "You withdrew this application."
@@ -1359,7 +1359,10 @@
         "pending": "Waiting for review",
         "verified": "Verified",
         "needs_replacement": "Needs replacement"
-      }
+      },
+      "submittedTitle": "Files submitted",
+      "untyped": "Uploaded file (no document type)",
+      "noneSubmitted": "No files on record."
     },
     "panel": {
       "aria": "SPES program",
@@ -1514,7 +1517,15 @@
       "releaseWarning": "Applicants will see their result immediately. You can still amend a result later.",
       "releaseConfirm": "Release results",
       "releasing": "Releasing...",
-      "released": "Results released."
+      "released": "Results released.",
+      "accountUnavailable": "Applicant account no longer exists",
+      "closedReason": {
+        "deadline": "Deadline has passed",
+        "manual": "Closed by PESO staff",
+        "inactive": "Program is unpublished",
+        "notYetOpen": "Not open yet"
+      },
+      "excludedNote": "This application is {{status}}. There is nothing left to score or decide."
     }
   }
 }

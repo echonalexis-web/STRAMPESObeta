@@ -63,12 +63,18 @@ function AgeBadge({ app, t }) {
 
 // The applicant's name, or a visible flag when the profile has none. Never a
 // bare placeholder.
-function ApplicantName({ app, t }) {
+const applicantLabel = (app, t) => {
   const name = String(app.applicant?.name || "").trim();
+  if (name) return { text: name, missing: false };
+  return { text: t(app.applicantDeleted ? "spes.admin.accountUnavailable" : "spes.admin.missingProfile"), missing: true };
+};
+
+function ApplicantName({ app, t }) {
+  const label = applicantLabel(app, t);
   return (
     <div className="admin-stack-cell">
-      {name ? <strong>{name}</strong> : <strong className="spes-missing">{t("spes.admin.missingProfile")}</strong>}
-      <span className="admin-muted">{app.applicant?.email || t("spes.admin.noEmail")}</span>
+      <strong className={label.missing ? "spes-missing" : undefined}>{label.text}</strong>
+      {app.applicantDeleted ? null : <span className="admin-muted">{app.applicant?.email || t("spes.admin.noEmail")}</span>}
     </div>
   );
 }
@@ -109,6 +115,8 @@ function SpesReviewDrawer({ app, released, onClose, onSaved }) {
   const documents = app.documents || [];
   const targets = adminTargets(status);
   const evaluating = canEvaluate(status);
+  // A disqualified or withdrawn applicant has nothing left to score or decide.
+  const excluded = status === "disqualified" || status === "withdrawn";
   const isDisqualify = target === "disqualified";
   const examErr = scoreError(examScore);
   const interviewErr = scoreError(interviewScore);
@@ -190,9 +198,10 @@ function SpesReviewDrawer({ app, released, onClose, onSaved }) {
       >
         <div className="spes-drawer__header">
           <div>
-            <h2>{String(app.applicant?.name || "").trim() || t("spes.admin.missingProfile")}</h2>
+            <h2>{applicantLabel(app, t).text}</h2>
             <p className="spes-drawer__subtitle">
-              {app.applicant?.email || t("spes.admin.noEmail")} · {app.announcement?.title || t("spes.my.programFallback")}
+              {app.applicantDeleted ? null : <>{app.applicant?.email || t("spes.admin.noEmail")} · </>}
+              {app.announcement?.title || t("spes.my.programFallback")}
             </p>
           </div>
           <button type="button" className="spes-drawer__close" onClick={onClose} aria-label={t("common.close", { defaultValue: "Close" })}>
@@ -245,18 +254,21 @@ function SpesReviewDrawer({ app, released, onClose, onSaved }) {
                       <div className="spes-doc-review__head">
                         <FileText size={18} className="spes-doc-card__icon" aria-hidden="true" />
                         <div className="spes-doc-review__name">
-                          <strong>{doc.slot ? t(`spes.docs.slot.${doc.slot}`) : t("spes.docs.otherItem", { n: i + 1 })}</strong>
+                          <strong>{doc.slot ? t(`spes.docs.slot.${doc.slot}`) : t("spes.docs.untyped")}</strong>
                           <span className="admin-muted">{doc.label}</span>
                         </div>
                         <SecureFileLink className="spes-doc-card__link" value={doc.fileUrl}>
                           <Download size={14} aria-hidden="true" /> {t("spes.docs.view")}
                         </SecureFileLink>
                       </div>
-                      <p className="spes-doc-review__state">
-                        {state === "verified" ? <CheckCircle2 size={14} aria-hidden="true" /> : state === "needs_replacement" ? <AlertTriangle size={14} aria-hidden="true" /> : <Clock size={14} aria-hidden="true" />}{" "}
-                        {t(`spes.docs.state.${state}`)}
-                        {state === "needs_replacement" && doc.verification?.reason ? ` — ${doc.verification.reason}` : ""}
-                      </p>
+                      {/* "Waiting for review" is only true while review can still happen. */}
+                      {locked && state === "pending" ? null : (
+                        <p className="spes-doc-review__state">
+                          {state === "verified" ? <CheckCircle2 size={14} aria-hidden="true" /> : state === "needs_replacement" ? <AlertTriangle size={14} aria-hidden="true" /> : <Clock size={14} aria-hidden="true" />}{" "}
+                          {t(`spes.docs.state.${state}`)}
+                          {state === "needs_replacement" && doc.verification?.reason ? ` — ${doc.verification.reason}` : ""}
+                        </p>
+                      )}
                       {!locked && doc._id ? (
                         <div className="spes-doc-review__actions">
                           <input
@@ -308,7 +320,11 @@ function SpesReviewDrawer({ app, released, onClose, onSaved }) {
             </section>
           ) : null}
 
-          {!released ? (
+          {excluded ? (
+            <section className="spes-drawer__section">
+              <p className="spes-note">{t("spes.admin.excludedNote", { status: t(`spes.status.${status}`) })}</p>
+            </section>
+          ) : !released ? (
             <section className="spes-drawer__section">
               <h3>{t("spes.admin.scoringTitle")}</h3>
               {!evaluating ? <p className="spes-note">{t("spes.admin.evaluateLocked")}</p> : null}
@@ -378,7 +394,7 @@ function SpesReviewDrawer({ app, released, onClose, onSaved }) {
           <button type="button" className="spes-btn spes-btn--ghost" onClick={onClose} disabled={Boolean(busy)}>
             {t("spes.admin.close")}
           </button>
-          {!released ? (
+          {!released && !excluded ? (
             <button type="button" className="spes-btn" onClick={saveEvaluation} disabled={!evaluating || busy === "eval" || Boolean(examErr || interviewErr)}>
               {busy === "eval" ? t("spes.admin.saving") : t("spes.admin.saveEvaluation")}
             </button>
@@ -568,10 +584,8 @@ export default function SpesApplications() {
     <div className="admin-page-container spes-admin">
       <AdminHeader title={t("spes.admin.pageTitle")} description={t("spes.admin.pageDescription")} />
 
-      <section className="admin-panel-card spes-programs" aria-label={t("spes.admin.programsTitle")}>
-        <div className="admin-card-header">
-          <h2 className="spes-admin__title">{t("spes.admin.programsTitle")}</h2>
-        </div>
+      <section className="spes-programs" aria-labelledby="spes-programs-title">
+        <h2 id="spes-programs-title" className="spes-admin__title spes-programs__title">{t("spes.admin.programsTitle")}</h2>
         {programs.length === 0 ? (
           <p className="spes-note spes-programs__empty">{t("spes.admin.noPrograms")}</p>
         ) : (
@@ -583,7 +597,7 @@ export default function SpesApplications() {
                 <article key={program._id} className={`spes-program-card${selected ? " is-selected" : ""}`}>
                   <div className="spes-program-card__head">
                     <h3>{program.title}</h3>
-                    <span className={`spes-chip ${released ? "spes-chip--results_released" : program.open ? "" : "spes-chip--withdrawn"}`}>
+                    <span className={`spes-chip ${released ? "spes-chip--results_released" : program.open ? "" : "spes-chip--closed"}`}>
                       {released ? t("spes.admin.resultsPublished") : program.open ? t("spes.admin.open") : t("spes.admin.closed")}
                     </span>
                   </div>
@@ -592,6 +606,9 @@ export default function SpesApplications() {
                     {" · "}
                     {t("spes.admin.applicantCount", { count: program.counts?.total || 0 })}
                   </p>
+                  {!released && !program.open && program.closedReason ? (
+                    <p className="spes-program-card__reason">{t(`spes.admin.closedReason.${program.closedReason}`)}</p>
+                  ) : null}
                   <div className="spes-program-card__counts">
                     {statusCounts(program).map(({ status, n }) => (
                       <span key={status} className={`spes-chip spes-chip--${status}`}>{t(`spes.status.${status}`)} · {n}</span>
@@ -606,7 +623,7 @@ export default function SpesApplications() {
                         <button type="button" className="spes-btn spes-btn--small spes-btn--ghost" onClick={() => toggleClosed(program)}>
                           {program.open ? t("spes.admin.closeApplications") : t("spes.admin.reopenApplications")}
                         </button>
-                        <button type="button" className="spes-btn spes-btn--small" onClick={() => setReleaseFor(program)} disabled={!program.counts?.total}>
+                        <button type="button" className="spes-btn spes-btn--small spes-program-card__release" onClick={() => setReleaseFor(program)} disabled={!program.counts?.total}>
                           {t("spes.admin.release")}
                         </button>
                       </>

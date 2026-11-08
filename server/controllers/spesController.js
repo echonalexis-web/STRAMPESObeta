@@ -40,6 +40,16 @@ const isProgramOpen = (announcement, now = new Date()) => {
   return null;
 };
 
+// Why a program is not taking applications, for staff. Null when it is open.
+const closedReasonOf = (announcement, now = new Date()) => {
+  if (announcement.isActive === false) return "inactive";
+  const spes = announcement.spes || {};
+  if (spes.closedAt && new Date(spes.closedAt) <= now) return "manual";
+  if (spes.opensAt && new Date(spes.opensAt) > now) return "notYetOpen";
+  if (spes.applicationDeadline && new Date(spes.applicationDeadline) < now) return "deadline";
+  return null;
+};
+
 const parseScore = (value) => {
   if (value === undefined || value === null || value === "") return { skip: true };
   const n = Number(value);
@@ -93,7 +103,9 @@ const adminView = (appDoc) => {
     obj.applicantAgeTier = getAgeTier(applicant.dateOfBirth);
     delete applicant.dateOfBirth;
   }
-  obj.applicantMissingProfile = !applicant || !String(applicant.name || "").trim();
+  // "No profile name" and "account no longer exists" read differently to staff.
+  obj.applicantDeleted = !applicant;
+  obj.applicantMissingProfile = Boolean(applicant) && !String(applicant.name || "").trim();
   return obj;
 };
 
@@ -863,7 +875,8 @@ exports.adminListPrograms = async (req, res) => {
           slots: p.spes?.slots ?? null,
           closedAt: p.spes?.closedAt || null,
           resultsStatus: p.spes?.resultsStatus || "pending",
-          open: !isProgramOpen(p, now) && p.isActive !== false,
+          open: !closedReasonOf(p, now),
+          closedReason: closedReasonOf(p, now),
           counts: entry,
         };
       }),

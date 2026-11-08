@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, Clock, FileText, Sparkles } from "lucide-react";
+import { CheckCircle2, Clock, Download, FileText, Sparkles } from "lucide-react";
 import { spesAPI } from "../services/api";
+import SecureFileLink from "../components/SecureFileLink";
 import StateBlock from "../components/StateBlock";
 import SpesDocChecklist from "../components/SpesDocChecklist";
 import { useConfirm, useToast } from "../components/feedback/context";
@@ -43,6 +44,27 @@ function SpesStepper({ status, t }) {
         );
       })}
     </ol>
+  );
+}
+
+// Plain list of the files an application holds, with no per-slot to-do state.
+function SpesFileList({ documents }) {
+  const { t } = useTranslation();
+  const files = Array.isArray(documents) ? documents : [];
+  if (files.length === 0) return <p className="spes-note">{t("spes.docs.noneSubmitted")}</p>;
+  return (
+    <ul className="spes-doc-list">
+      {files.map((doc, i) => (
+        <li key={doc._id || i}>
+          <span className="spes-doc-list__label">
+            {doc.slot ? t(`spes.docs.slot.${doc.slot}`) : doc.label || t("spes.docs.otherItem", { n: i + 1 })}
+          </span>
+          <SecureFileLink className="spes-doc-list__link" value={doc.fileUrl}>
+            <Download size={12} aria-hidden="true" /> {t("spes.docs.view")}
+          </SecureFileLink>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -170,6 +192,10 @@ export default function MySpesApplications() {
         const terminal = TERMINAL.includes(status);
         const disqualified = status === "disqualified";
         const nextKey = needsAttention(status) ? "needs_resubmission" : status;
+        // The to-do checklist only makes sense while documents can still change.
+        // Otherwise (closed, or filed before document types existed) just list the files.
+        const hasTypedDocs = (app.documents || []).some((d) => d.slot);
+        const showChecklist = !terminal && (canEditDocs(status) || hasTypedDocs);
 
         return (
           <article key={app._id} className="spes-card">
@@ -190,7 +216,7 @@ export default function MySpesApplications() {
                       <strong>{t("spes.disqualified.reasonLabel")}</strong>{" "}
                       {app.disqualification?.reason || t("spes.disqualified.noReason")}
                     </p>
-                    <p className="spes-note">{t("spes.disqualified.help")}</p>
+                    <p className="spes-terminal__help">{t("spes.disqualified.help")}</p>
                   </>
                 ) : (
                   <p className="spes-terminal__title">{t("spes.withdrawn.body")}</p>
@@ -200,19 +226,29 @@ export default function MySpesApplications() {
               <SpesStepper status={status} t={t} />
             )}
 
-            <div className="spes-card__grid">
+            {/* A closed application has nothing left to do: list the files that were
+                submitted instead of a to-do checklist, and drop the Next step panel
+                (the banner above already says what happened). Applications from before
+                document types existed also just list their files. */}
+            <div className={`spes-card__grid${showChecklist || !terminal ? "" : " spes-card__grid--single"}`}>
               <div className="spes-card__panel">
                 <h3>
-                  <FileText size={15} aria-hidden="true" /> {t("spes.docs.title")}
+                  <FileText size={15} aria-hidden="true" />{" "}
+                  {showChecklist ? t("spes.docs.title") : t("spes.docs.submittedTitle")}
                 </h3>
-                <SpesDocChecklist
-                  slots={slots}
-                  documents={app.documents}
-                  canEdit={canEditDocs(status)}
-                  onUpload={handleUpload(app)}
-                />
+                {showChecklist ? (
+                  <SpesDocChecklist
+                    slots={slots}
+                    documents={app.documents}
+                    canEdit={canEditDocs(status)}
+                    onUpload={handleUpload(app)}
+                  />
+                ) : (
+                  <SpesFileList documents={app.documents} />
+                )}
               </div>
 
+              {terminal ? null : (
               <div className="spes-card__panel spes-card__panel--highlight">
                 <h3>
                   <Sparkles size={15} aria-hidden="true" /> {t("spes.nextStep.title")}
@@ -246,6 +282,7 @@ export default function MySpesApplications() {
                   </button>
                 ) : null}
               </div>
+              )}
             </div>
           </article>
         );

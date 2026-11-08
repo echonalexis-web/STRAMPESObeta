@@ -1158,19 +1158,28 @@
 }
 
 /* ==========================================================================
-   SPES restructure: applicant tracker, document checklist, apply flow.
-   Hand-written, --ds-* tokens, mobile-first.
+   SPES restructure: applicant tracker, document checklist, apply flow, and
+   the admin programs view, queue, review drawer and release dialog.
+   Hand-written, --ds-* tokens, mobile-first. No cards inside cards: rows
+   inside a panel are separated by hairlines, not boxes.
    ========================================================================== */
 
-/* Lifecycle chips for the new states (old ones above still apply to legacy rows). */
+/* ---- Lifecycle chips (new states; legacy ones are defined above) ---- */
 .spes-chip--documents_review { background: #fff8e1; color: #8a6d00; }
 .spes-chip--needs_resubmission { background: #fdecea; color: #b91c1c; }
 .spes-chip--qualified { background: #ede9fe; color: #6d28d9; }
 .spes-chip--result_recorded { background: #e0f2fe; color: #0369a1; }
-.spes-page .spes-chip--documents_review { background: var(--ds-warning-bg); color: var(--ds-warning); }
-.spes-page .spes-chip--needs_resubmission { background: var(--ds-danger-bg); color: var(--ds-danger); }
-.spes-page .spes-chip--qualified { background: var(--ds-info-bg); color: var(--ds-info); }
-.spes-page .spes-chip--result_recorded { background: var(--ds-info-bg); color: var(--ds-info); }
+.spes-page .spes-chip--documents_review,
+.spes-admin .spes-chip--documents_review { background: var(--ds-warning-bg); color: var(--ds-warning); }
+.spes-page .spes-chip--needs_resubmission,
+.spes-admin .spes-chip--needs_resubmission { background: var(--ds-danger-bg); color: var(--ds-danger); }
+.spes-page .spes-chip--qualified,
+.spes-admin .spes-chip--qualified { background: var(--ds-info-bg); color: var(--ds-info); }
+.spes-page .spes-chip--result_recorded,
+.spes-admin .spes-chip--result_recorded { background: var(--ds-info-bg); color: var(--ds-info); }
+/* A closed program is a state, not an error: neutral, not red. */
+.spes-chip--closed,
+.spes-admin .spes-chip--closed { background: var(--ds-ink-100, #e5e7eb); color: var(--ds-ink-700, #374151); }
 
 .spes-btn--small {
   min-height: var(--ds-tap, 44px);
@@ -1178,51 +1187,58 @@
   font-size: var(--ds-text-sm, 0.875rem);
 }
 
-/* Withdrawn / disqualified: replaces the stepper, shows the reason once. */
+/* ---- Applicant: card body rhythm ---- */
+.spes-card > .spes-stepper,
+.spes-card > .spes-terminal { margin-top: var(--ds-space-5, 20px); }
+.spes-card__grid { margin-top: var(--ds-space-5, 20px); }
+.spes-card__grid--single { grid-template-columns: 1fr; }
+.spes-card__panel h3 { margin: 0 0 var(--ds-space-3, 12px); }
+
+/* Withdrawn / disqualified: replaces the stepper and says it once. */
 .spes-terminal {
   display: grid;
   gap: var(--ds-space-2, 8px);
-  padding: var(--ds-space-4, 16px);
+  padding: var(--ds-space-4, 16px) var(--ds-space-5, 20px);
   border-radius: var(--ds-radius-md, 10px);
   background: var(--ds-ink-50, #f8fafc);
   border: 1px solid var(--ds-border, #e5e7eb);
 }
 .spes-terminal--disqualified { background: var(--ds-danger-bg, #fef2f2); border-color: var(--ds-danger, #b91c1c); }
-.spes-terminal__title { margin: 0; font-weight: 700; color: var(--ds-text, #111827); }
+.spes-terminal__title { margin: 0; font-size: var(--ds-text-md, 1rem); font-weight: 700; color: var(--ds-text, #111827); }
 .spes-terminal__reason { margin: 0; color: var(--ds-ink-700, #374151); font-size: var(--ds-text-sm, 0.875rem); }
+.spes-terminal__help { margin: 0; color: var(--ds-ink-700, #374151); font-size: var(--ds-text-sm, 0.875rem); }
 
-/* Required-documents checklist: one row per slot. */
-.spes-slots__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ds-space-3, 12px); }
+/* ---- Required-documents checklist: hairline rows, no boxes ---- */
+.spes-slots__list { list-style: none; margin: 0; padding: 0; }
 .spes-slot {
   display: grid;
   gap: var(--ds-space-3, 12px);
-  padding: var(--ds-space-3, 12px);
-  border: 1px solid var(--ds-border, #e5e7eb);
-  border-radius: var(--ds-radius-md, 10px);
-  background: var(--ds-surface, #fff);
+  padding: var(--ds-space-3, 12px) 0;
+  border-top: 1px solid var(--ds-border, #e5e7eb);
 }
-.spes-slot--needs_replacement { border-color: var(--ds-danger, #b91c1c); background: var(--ds-danger-bg, #fef2f2); }
-.spes-slot--verified { border-color: var(--ds-green, #0f766e); }
+.spes-slot:first-child { border-top: 0; padding-top: 0; }
 .spes-slot__main { display: flex; gap: var(--ds-space-3, 12px); align-items: flex-start; min-width: 0; }
 .spes-slot__text { display: grid; gap: 2px; min-width: 0; }
-.spes-slot__name { font-weight: 600; color: var(--ds-text, #111827); font-size: var(--ds-text-sm, 0.875rem); }
+.spes-slot__name { font-weight: 600; color: var(--ds-text, #111827); font-size: var(--ds-text-sm, 0.875rem); line-height: 1.4; overflow-wrap: anywhere; }
 .spes-slot__state { color: var(--ds-muted, #6b7280); font-size: var(--ds-text-xs, 0.75rem); }
+.spes-slot--verified .spes-slot__state { color: var(--ds-green, #0f766e); font-weight: 600; }
+.spes-slot--needs_replacement .spes-slot__state { color: var(--ds-danger, #b91c1c); font-weight: 600; }
 .spes-slot__reason { color: var(--ds-danger, #b91c1c); font-size: var(--ds-text-xs, 0.75rem); overflow-wrap: anywhere; }
 .spes-slot__error { color: var(--ds-danger, #b91c1c); font-size: var(--ds-text-xs, 0.75rem); }
 .spes-slot__icon { flex: none; margin-top: 2px; color: var(--ds-muted, #6b7280); }
 .spes-slot__icon--ok { color: var(--ds-green, #0f766e); }
 .spes-slot__icon--warn { color: var(--ds-danger, #b91c1c); }
 .spes-slot__icon--wait { color: var(--ds-warning, #8a6d00); }
-.spes-slot__actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-3, 12px); align-items: center; }
+.spes-slot__actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-3, 12px); align-items: center; padding-left: calc(16px + var(--ds-space-3, 12px)); }
 .spes-slot__file { display: none; }
 .spes-slots__other h4 { margin: var(--ds-space-4, 16px) 0 var(--ds-space-2, 8px); font-size: var(--ds-text-sm, 0.875rem); }
 
 @media (min-width: 640px) {
-  .spes-slot { grid-template-columns: 1fr auto; align-items: center; }
-  .spes-slot__actions { justify-content: flex-end; }
+  .spes-slot { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .spes-slot__actions { justify-content: flex-end; padding-left: 0; }
 }
 
-/* Apply flow (AppModal panel). */
+/* ---- Apply flow (AppModal panel) ---- */
 .spes-apply { max-width: 560px; }
 .spes-apply__steps {
   list-style: none;
@@ -1273,22 +1289,12 @@
   .spes-apply__review dt { margin-top: 0; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .spes-slot, .spes-apply__step { transition: none; }
-}
-
-/* ==========================================================================
-   SPES restructure: admin programs view, queue, review drawer, release dialog.
-   ========================================================================== */
-
-/* The review drawer is right-aligned over the page, so the floating chatbot and
-   messenger bubbles (bottom-right) would sit on its footer actions. */
+/* ---- Admin: the floating chatbot / messenger would sit on the drawer footer ---- */
 body:has(.spes-drawer-overlay) .cb-root,
 body:has(.spes-drawer-overlay) .fm-root {
   display: none;
 }
 
-/* Never a bare placeholder name: missing profile data is flagged. */
 .spes-missing { color: var(--ds-warning, #8a6d00); font-style: italic; }
 
 .spes-tier {
@@ -1303,43 +1309,58 @@ body:has(.spes-drawer-overlay) .fm-root {
   white-space: nowrap;
 }
 .spes-tier--minor15to17 { background: var(--ds-warning-bg, #fff8e1); color: var(--ds-warning, #8a6d00); }
-.spes-tier--unknown { background: var(--ds-danger-bg, #fef2f2); color: var(--ds-danger, #b91c1c); }
+.spes-tier--unknown { background: var(--ds-ink-100, #e5e7eb); color: var(--ds-ink-700, #374151); }
 
-/* Programs view */
-.spes-programs { margin-bottom: var(--ds-space-5, 20px); }
-.spes-programs__empty { padding: var(--ds-space-4, 16px); }
+/* ---- Admin: programs. A heading and a grid of program cards; no wrapper card. ---- */
+.spes-programs { margin-bottom: var(--ds-space-6, 28px); }
+.spes-programs__title { margin: 0 0 var(--ds-space-4, 16px); }
+.spes-programs__empty { margin: 0; }
 .spes-programs__grid {
   display: grid;
   gap: var(--ds-space-4, 16px);
-  padding: var(--ds-space-4, 16px);
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
 }
 .spes-program-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--ds-space-3, 12px);
-  padding: var(--ds-space-4, 16px);
+  padding: var(--ds-space-4, 16px) var(--ds-space-5, 20px);
   border: 1px solid var(--ds-border, #e5e7eb);
   border-radius: var(--ds-radius-card, 14px);
   background: var(--ds-surface, #fff);
 }
-.spes-program-card.is-selected { border-color: var(--ds-green, #0f766e); box-shadow: 0 0 0 1px var(--ds-green, #0f766e); }
+.spes-program-card.is-selected { border-color: var(--ds-green, #0f766e); background: color-mix(in srgb, var(--ds-mint, #d1fae5) 35%, var(--ds-surface, #fff)); }
 .spes-program-card__head { display: flex; justify-content: space-between; gap: var(--ds-space-3, 12px); align-items: flex-start; }
-.spes-program-card__head h3 { margin: 0; font-size: var(--ds-text-md, 1rem); overflow-wrap: anywhere; }
+.spes-program-card__head h3 { margin: 0; font-size: var(--ds-text-md, 1rem); line-height: 1.35; overflow-wrap: anywhere; }
+.spes-program-card .spes-card__meta { margin: 0; }
+.spes-program-card__reason { margin: 0; font-size: var(--ds-text-sm, 0.875rem); color: var(--ds-ink-700, #374151); font-weight: 600; }
 .spes-program-card__counts { display: flex; flex-wrap: wrap; gap: var(--ds-space-2, 8px); }
-.spes-program-card__actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-2, 8px); }
-
-@media (min-width: 720px) {
-  .spes-programs__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.spes-program-card__actions {
+  margin-top: auto;
+  padding-top: var(--ds-space-2, 8px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-2, 8px);
 }
-@media (min-width: 1100px) {
-  .spes-programs__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.spes-program-card__release { grid-column: 1 / -1; }
+.spes-program-card__actions .spes-btn { justify-content: center; text-align: center; line-height: 1.25; }
+@media (max-width: 380px) {
+  .spes-program-card__actions { grid-template-columns: 1fr; }
 }
 
-/* Filters: wrap on small screens. */
-.spes-admin-controls { flex-wrap: wrap; }
-.spes-admin-controls label { min-width: 9rem; }
+/* ---- Admin: filters line up on a grid instead of ragged wrapping ---- */
+.spes-admin-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr));
+  gap: var(--ds-space-3, 12px);
+  align-items: end;
+}
+.spes-admin-controls label { min-width: 0; }
+.spes-admin-controls select,
+.spes-admin-controls input { width: 100%; min-height: var(--ds-tap, 44px); box-sizing: border-box; }
+.spes-release-bar { margin: 0 0 var(--ds-space-4, 16px); }
 
-/* Review drawer additions */
+/* ---- Admin: review drawer ---- */
 .spes-drawer__facts { display: flex; flex-wrap: wrap; gap: var(--ds-space-2, 8px); margin-bottom: var(--ds-space-3, 12px); }
 .spes-drawer__dl { margin: 0; display: grid; grid-template-columns: 1fr; gap: 2px var(--ds-space-4, 16px); font-size: var(--ds-text-sm, 0.875rem); }
 .spes-drawer__dl dt { color: var(--ds-muted, #6b7280); margin-top: var(--ds-space-2, 8px); }
@@ -1359,20 +1380,25 @@ body:has(.spes-drawer-overlay) .fm-root {
 .spes-drawer input:disabled,
 .spes-drawer select:disabled,
 .spes-drawer textarea:disabled { opacity: 0.6; cursor: not-allowed; }
+/* The stepper arrows crowd narrow number fields; typing and the keyboard still work. */
+.spes-drawer input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.spes-drawer input[type="number"]::-webkit-inner-spin-button,
+.spes-drawer input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
-.spes-doc-review { display: grid; gap: var(--ds-space-3, 12px); }
+/* Documents: hairline rows, one per file. */
+.spes-doc-review { display: grid; }
 .spes-doc-review__item {
   display: grid;
   gap: var(--ds-space-2, 8px);
-  padding: var(--ds-space-3, 12px);
-  border: 1px solid var(--ds-border, #e5e7eb);
-  border-radius: var(--ds-radius-md, 10px);
+  padding: var(--ds-space-3, 12px) 0;
+  border-top: 1px solid var(--ds-border, #e5e7eb);
 }
-.spes-doc-review__item--verified { border-color: var(--ds-green, #0f766e); }
-.spes-doc-review__item--needs_replacement { border-color: var(--ds-danger, #b91c1c); background: var(--ds-danger-bg, #fef2f2); }
+.spes-doc-review__item:first-child { border-top: 0; padding-top: 0; }
 .spes-doc-review__head { display: flex; gap: var(--ds-space-3, 12px); align-items: center; flex-wrap: wrap; }
 .spes-doc-review__name { display: grid; flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
 .spes-doc-review__state { margin: 0; font-size: var(--ds-text-xs, 0.75rem); color: var(--ds-ink-700, #374151); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.spes-doc-review__item--verified .spes-doc-review__state { color: var(--ds-green, #0f766e); font-weight: 600; }
+.spes-doc-review__item--needs_replacement .spes-doc-review__state { color: var(--ds-danger, #b91c1c); font-weight: 600; }
 .spes-doc-review__actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-2, 8px); align-items: center; }
 .spes-doc-review__reason { flex: 1 1 12rem; min-height: var(--ds-tap, 44px); padding: 0 var(--ds-space-3, 12px); border: 1px solid var(--ds-border, #d1d5db); border-radius: var(--ds-radius-md, 10px); font: inherit; box-sizing: border-box; }
 
@@ -1381,11 +1407,11 @@ body:has(.spes-drawer-overlay) .fm-root {
   .spes-drawer__dl dt { margin-top: 0; }
 }
 
-/* Release dialog */
+/* ---- Admin: release dialog ---- */
 .spes-release { display: grid; gap: var(--ds-space-3, 12px); }
 .spes-release__list { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; font-size: var(--ds-text-sm, 0.875rem); }
 .spes-release .spes-modal__actions { display: flex; justify-content: flex-end; gap: var(--ds-space-3, 12px); flex-wrap: wrap; }
 
 @media (prefers-reduced-motion: reduce) {
-  .spes-program-card { transition: none; }
+  .spes-slot, .spes-apply__step, .spes-program-card { transition: none; }
 }
