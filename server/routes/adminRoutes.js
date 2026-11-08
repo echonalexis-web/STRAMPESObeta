@@ -16,6 +16,7 @@ const {
   getAuditLogs,
   deleteUser,
   toggleHomepageFeature,
+  changeUserDateOfBirth,
 } = require("../controllers/adminController");
 const { adminExportForm1, adminExportForm2 } = require("../controllers/nsrpFormController");
 const {
@@ -59,6 +60,7 @@ router.get("/users/:id", validateMongoId("id"), sanitizeQueryParams, validateReq
 router.get("/users/:id/nsrp-form-1/export", validateMongoId("id"), validateRequest, adminExportForm1);
 router.get("/users/:id/nsrp-form-2/export", validateMongoId("id"), validateRequest, adminExportForm2);
 router.put("/users/:id/role", isSuperadmin, validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, updateUserRole);
+router.put("/users/:id/dob", validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, changeUserDateOfBirth);
 router.put("/users/:id/deactivate", isSuperadmin, validateMongoId("id"), sanitizeRequestBody, deactivateUser);
 router.put("/users/:id/reactivate", isSuperadmin, validateMongoId("id"), sanitizeRequestBody, reactivateUser);
 router.delete("/users/:id", isSuperadmin, validateMongoId("id"), deleteUser);

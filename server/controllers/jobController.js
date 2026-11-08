@@ -9,6 +9,7 @@ const { SEEKER_USER_FIELDS, SEEKER_PROFILE_FIELDS, buildSeekerForMatching } = re
 const { resolveJobWeightsForScoring } = require("../services/matchWeightsService");
 const Message = require("../models/Message");
 const { ensureConversationBetweenUsers } = require("./messageController");
+const { getAgeDenial, sendAgeDenial } = require("../utils/ageAccess");
 const { getHomepageJobsPayload, getApplicationCountMap, getHiredCountMap } = require("../utils/jobDisplay");
 const EmployerProfile = require("../models/EmployerProfile");
 const { createNotificationForUser } = require("../services/notificationService");
@@ -378,6 +379,11 @@ exports.applyToJob = async (req, res) => {
   let committed = false;
 
   try {
+    // Defense in depth: the route already runs requireJobApplyAge, but this
+    // endpoint creates the application, so it re-checks the age itself.
+    const ageDenial = getAgeDenial(req.user, "jobApply");
+    if (ageDenial) return sendAgeDenial(res, ageDenial);
+
     const job = await JobVacancy.findById(req.params.id);
     if (!job) {
       return res.status(404).json({ message: "Job not found" });

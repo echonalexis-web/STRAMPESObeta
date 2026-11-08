@@ -6,7 +6,7 @@ const JobseekerProfile = require("../models/JobseekerProfile");
 const User = require("../models/User");
 const Follow = require("../models/Follow");
 const { createNotificationForUser } = require("../services/notificationService");
-const { MIN_ACCOUNT_AGE } = require("../utils/age");
+const { MIN_ACCOUNT_AGE, getAgeTier, TIERS } = require("../utils/age");
 const { logAuditEvent } = require("../services/auditService");
 const { runPostCommit } = require("../utils/postCommit");
 const SystemSettings = require("../models/SystemSettings");
@@ -1318,9 +1318,23 @@ exports.getConnectedJobseekerProfile = async (req, res) => {
       return res.status(403).json({ message: "You can only view profiles of applicants or followers" });
     }
 
+    // 15-17 profiles are not shown to employers. The date of birth itself is
+    // never returned to employers; they get an age tier instead.
+    const ageTier = getAgeTier(targetUser.dateOfBirth);
+    if (ageTier === TIERS.MINOR) {
+      return res.status(403).json({ message: "This jobseeker has hidden their profile" });
+    }
+
     const profile = await JobseekerProfile.findOne({ userId: targetUser._id });
 
-    return res.json({ user: targetUser, profile });
+    const safeUser = targetUser.toObject ? targetUser.toObject() : { ...targetUser };
+    delete safeUser.dateOfBirth;
+    delete safeUser.dobLockedAt;
+    delete safeUser.dobSource;
+    delete safeUser.ageReviewRequired;
+    safeUser.ageTier = ageTier;
+
+    return res.json({ user: safeUser, profile });
   } catch (error) {
     return sendError(res, error, "Failed to fetch jobseeker profile");
   }

@@ -19,7 +19,8 @@ const {
   isJobseeker,
   isEmployer,
   isVerifiedEmployer,
-  requireJobVacancyAge,
+  requireJobViewAge,
+  requireJobApplyAge,
 } = require("../middleware/auth");
 const {
   validateJobApplication,
@@ -44,11 +45,12 @@ const APPLICATION_FILE_CATEGORIES = {
 };
 
 // ============ PUBLIC ROUTES ============
-// optionalAuth + requireJobVacancyAge are no-ops for guests/non-jobseeker
-// roles; they only block a logged-in 15-17 (or unknown-DOB) jobseeker.
+// optionalAuth + requireJobViewAge are no-ops for guests/non-jobseeker roles;
+// they only block a logged-in jobseeker with no usable date of birth or under 15.
+// 15-17 may browse; applying is gated separately by requireJobApplyAge.
 router.get("/homepage", getHomepageJobs);
-router.get("/", optionalAuth, requireJobVacancyAge, getJobs);
-router.get("/:id", optionalAuth, requireJobVacancyAge, getJobById);
+router.get("/", optionalAuth, requireJobViewAge, getJobs);
+router.get("/:id", optionalAuth, requireJobViewAge, getJobById);
 
 // ============ PROTECTED ROUTES ============
 
@@ -92,14 +94,14 @@ router.delete(
 router.get("/:id/applications", verifyToken, isEmployer, isVerifiedEmployer, getApplicationsForJob);
 
 // Jobseeker routes
-router.get("/applications/me", verifyToken, isJobseeker, requireJobVacancyAge, getMyApplications);
+router.get("/applications/me", verifyToken, isJobseeker, requireJobViewAge, getMyApplications);
 
 // Apply to job with resume and optional cover letter file upload
 router.post(
   "/:id/apply",
   verifyToken,
   isJobseeker,
-  requireJobVacancyAge,
+  requireJobApplyAge,
   validateMongoId("id"),
   upload.fields([
     { name: "resume", maxCount: 1 },
@@ -119,6 +121,7 @@ router.put(
   "/applications/:id",
   verifyToken,
   isJobseeker,
+  requireJobApplyAge,
   validateMongoId("id"),
   upload.fields([
     { name: "resume", maxCount: 1 },

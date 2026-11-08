@@ -81,7 +81,19 @@ const userSchema = new mongoose.Schema(
     profileImage: { type: String, default: null },
 
     // ===== Jobseeker-specific fields =====
+    // Calendar date stored as UTC midnight; age is computed on the server
+    // (utils/age.js, Asia/Manila). Once dobLockedAt is set the owner can no
+    // longer change it; only an admin with documentary proof (audit-logged).
     dateOfBirth: { type: Date, default: null },
+    dobLockedAt: { type: Date, default: null },
+    dobSource: {
+      type: String,
+      enum: ["registration", "google_pending", "onboarding", "legacy_prompt", "admin", null],
+      default: null,
+    },
+    // Set for legacy accounts found to be under the minimum age. Account is
+    // restricted pending admin review; nothing is deleted automatically.
+    ageReviewRequired: { type: Boolean, default: false },
     gender: {
       type: String,
       enum: ["Male", "Female", "Prefer not to say"],

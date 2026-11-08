@@ -15,6 +15,7 @@ const {
     requestEmailChange,
     confirmEmailChange,
     googleAuth,
+    googleComplete,
     resendEmailVerification,
     confirmEmailVerification,
     getMe,
@@ -111,6 +112,14 @@ router.post(
   sanitizeRequestBody,
   detectMaliciousPayload,
   googleAuth
+);
+
+// Google sign-in step 2 for first-time jobseekers: pendingToken + date of birth
+router.post(
+  "/google/complete",
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  googleComplete
 );
 
 // Confirm an email change (token from the link — no session needed)

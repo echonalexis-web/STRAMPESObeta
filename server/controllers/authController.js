@@ -27,7 +27,9 @@ const {
   sendBackupCodeRedeemedEmail,
 } = require("../services/mailService");
 const { OAuth2Client } = require("google-auth-library");
-const { isAdultAge, MIN_ACCOUNT_AGE } = require("../utils/age");
+const { validateDobInput, parseDateOnly, getAgeTier } = require("../utils/age");
+
+const { DOB_ERROR_MESSAGES } = require("../utils/dobPolicy");
 const { normalizeEmail } = require("../utils/normalizeEmail");
 const { normalizeHeightUnit, normalizeWeightUnit } = require("../utils/unitFields");
 const SystemSettings = require("../models/SystemSettings");
@@ -231,13 +233,12 @@ exports.register = async (req, res) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ message: "Email already exists" });
 
-    // Age gate: STRAM PESO accounts are for adults only.
-    if (dateOfBirth !== undefined && dateOfBirth !== null && dateOfBirth !== "") {
-      if (!isAdultAge(dateOfBirth)) {
-        return res.status(400).json({
-          message: `You must be at least ${MIN_ACCOUNT_AGE} years old to create an account.`,
-        });
-      }
+    // Age gate: the date of birth is required and must put the applicant at
+    // MIN_ACCOUNT_AGE or older (Asia/Manila calendar). A rejected attempt
+    // stores nothing and the date is never logged.
+    const dob = validateDobInput(dateOfBirth);
+    if (!dob.ok) {
+      return res.status(400).json({ code: dob.code, message: DOB_ERROR_MESSAGES[dob.code] });
     }
 
     // Optional — a blank/omitted field falls back to assignSuggestedUsername
@@ -257,7 +258,9 @@ exports.register = async (req, res) => {
         firstName: firstName || null,
         middleName: middleName || null,
         suffix: suffix || null,
-        dateOfBirth: dateOfBirth || null,
+        dateOfBirth: dob.date,
+        dobLockedAt: new Date(),
+        dobSource: "registration",
         email,
         password: hashed,
         role: "jobseeker",
@@ -319,6 +322,14 @@ exports.registerEmployer = async (req, res) => {
   const { name, password } = req.body;
   const email = normalizeEmail(req.body.email);
   try {
+    // Employers attest they are 18+; no date of birth is collected or stored.
+    if (!["true", "1", "on"].includes(String(req.body.confirmAdult ?? "").toLowerCase())) {
+      return res.status(400).json({
+        code: "EMPLOYER_ADULT_ATTESTATION_REQUIRED",
+        message: "You must confirm that you are 18 years old or older.",
+      });
+    }
+
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ message: "Email already exists" });
 
@@ -1421,55 +1432,30 @@ exports.googleAuth = async (req, res) => {
     let isNewUser = false;
 
     if (!user) {
-      // First sign-in with no existing account → create one and drop the user
-      // into onboarding to finish their profile.
-      user = await User.create({
-        name: displayName,
-        email,
-        googleId,
-        authProvider: "google",
-        role: signupRole,
-        // Google already verified this address before issuing the ID token
-        // (checked above via payload.email_verified) — no confirmation link
-        // needed on our side.
-        isEmailVerified: true,
-        emailVerifiedAt: new Date(),
-        // Left at the schema default ("unverified") — see the matching note
-        // in registerEmployer. A Google sign-up hasn't submitted any
-        // verification documents yet either.
-      });
+      // Employers attest 18+ and are created straight away (no DOB stored).
       if (signupRole === "employer") {
-        await EmployerProfile.create({ userId: user._id });
+        if (!["true", "1", "on"].includes(String(req.body.confirmAdult ?? "").toLowerCase())) {
+          return res.status(400).json({
+            code: "EMPLOYER_ADULT_ATTESTATION_REQUIRED",
+            message: "You must confirm that you are 18 years old or older.",
+          });
+        }
+        user = await createGoogleAccount(req, { email, googleId, displayName, signupRole, dob: null });
+        isNewUser = true;
       } else {
-        await JobseekerProfile.create({ userId: user._id });
-      }
-      await assignSuggestedUsername(user);
-      isNewUser = true;
-
-      await logAuditEvent({
-        req,
-        actorId: user._id,
-        actorRole: signupRole,
-        action: signupRole === "employer" ? "auth.employer.registered" : "auth.user.registered",
-        targetUserId: user._id,
-        targetType: "user",
-        targetId: String(user._id),
-        severity: "info",
-      });
-
-      if (signupRole === "employer") {
-        const admins = await User.find({ role: "admin" }).select("_id");
-        await notifyManyUsers({
-          recipientIds: admins.map((admin) => admin._id),
-          actorId: user._id,
-          type: "admin_action",
-          title: "New employer registered",
-          message: `${user.name} registered as an employer. They'll appear in the verification queue once they submit their documents.`,
-          relatedEntityType: "user",
-          relatedEntityId: user._id,
-          actionUrl: "/admin/verification",
-          io: req.app.get("io"),
-          preferenceKey: "notifyVerificationRequest",
+        // First-time jobseeker: nothing is created until a date of birth passes
+        // the age check. The verified Google identity is carried in a short-lived
+        // signed token (no DOB, no stored state) that /auth/google/complete
+        // exchanges for the account.
+        const pendingToken = jwt.sign(
+          { purpose: GOOGLE_PENDING_PURPOSE, email, googleId, name: displayName },
+          process.env.JWT_SECRET,
+          { expiresIn: GOOGLE_PENDING_TTL }
+        );
+        return res.status(202).json({
+          code: "DOB_REQUIRED",
+          message: "Enter your date of birth to finish creating your account.",
+          pendingToken,
         });
       }
     } else {
@@ -1490,6 +1476,87 @@ exports.googleAuth = async (req, res) => {
       if (needsSave) await user.save({ validateModifiedOnly: true });
     }
 
+    return finishGoogleLogin(req, res, user, isNewUser);
+  } catch (error) {
+    return googleRaceError(res, error);
+  }
+};
+
+const GOOGLE_PENDING_PURPOSE = "google_signup";
+const GOOGLE_PENDING_TTL = "10m";
+
+const googleRaceError = (res, error) => {
+  // Same email-uniqueness race as register/registerEmployer: two concurrent
+  // first-time Google sign-ins (or a Google sign-in racing a plain
+  // register) can both pass the find-or-create check before either
+  // commits. The loser hits the unique index instead of creating a
+  // duplicate — tell the user to just try signing in again.
+  if (error.code === 11000) {
+    return res.status(409).json({
+      message: "An account with this email was just created. Please try signing in again.",
+    });
+  }
+  return sendError(res, error, "Google sign-in failed");
+};
+
+// Creates the account for a first-time Google sign-in and drops the user
+// into onboarding. `dob` is the validated date (jobseekers) or null (employers).
+async function createGoogleAccount(req, { email, googleId, displayName, signupRole, dob }) {
+  const user = await User.create({
+    name: displayName,
+    email,
+    googleId,
+    authProvider: "google",
+    role: signupRole,
+    ...(dob ? { dateOfBirth: dob, dobLockedAt: new Date(), dobSource: "google_pending" } : {}),
+    // Google already verified this address before issuing the ID token
+    // (checked by the caller via payload.email_verified) — no confirmation link
+    // needed on our side.
+    isEmailVerified: true,
+    emailVerifiedAt: new Date(),
+    // Left at the schema default ("unverified") — see the matching note
+    // in registerEmployer. A Google sign-up hasn't submitted any
+    // verification documents yet either.
+  });
+  if (signupRole === "employer") {
+    await EmployerProfile.create({ userId: user._id });
+  } else {
+    await JobseekerProfile.create({ userId: user._id });
+  }
+  await assignSuggestedUsername(user);
+
+  await logAuditEvent({
+    req,
+    actorId: user._id,
+    actorRole: signupRole,
+    action: signupRole === "employer" ? "auth.employer.registered" : "auth.user.registered",
+    targetUserId: user._id,
+    targetType: "user",
+    targetId: String(user._id),
+    severity: "info",
+  });
+
+  if (signupRole === "employer") {
+    const admins = await User.find({ role: "admin" }).select("_id");
+    await notifyManyUsers({
+      recipientIds: admins.map((admin) => admin._id),
+      actorId: user._id,
+      type: "admin_action",
+      title: "New employer registered",
+      message: `${user.name} registered as an employer. They'll appear in the verification queue once they submit their documents.`,
+      relatedEntityType: "user",
+      relatedEntityId: user._id,
+      actionUrl: "/admin/verification",
+      io: req.app.get("io"),
+      preferenceKey: "notifyVerificationRequest",
+    });
+  }
+  return user;
+}
+
+// Reactivation, suspension check, JWT, audit and the login response shared by
+// googleAuth (existing account / employer) and googleComplete (new jobseeker).
+async function finishGoogleLogin(req, res, user, isNewUser) {
     // Self-deactivated — a successful Google sign-in already proves identity
     // ownership the same way a correct password would, so it reactivates the
     // account here too (see the matching comment in login()).
@@ -1555,18 +1622,53 @@ exports.googleAuth = async (req, res) => {
       termsVersion: CURRENT_TERMS_VERSION,
       ...(reactivated ? { reactivated: true } : {}),
     });
-  } catch (error) {
-    // Same email-uniqueness race as register/registerEmployer: two concurrent
-    // first-time Google sign-ins (or a Google sign-in racing a plain
-    // register) can both pass the find-or-create check before either
-    // commits. The loser hits the unique index instead of creating a
-    // duplicate — tell the user to just try signing in again.
-    if (error.code === 11000) {
-      return res.status(409).json({
-        message: "An account with this email was just created. Please try signing in again.",
+}
+
+// ---------- Google sign-in, step 2: date of birth for a first-time jobseeker ----------
+// Exchanges the pendingToken from googleAuth plus a date of birth for the
+// account. Under the minimum age nothing is created or stored.
+exports.googleComplete = async (req, res) => {
+  try {
+    const pendingToken = String(req.body.pendingToken || "").trim();
+    let pending;
+    try {
+      pending = jwt.verify(pendingToken, process.env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({
+        code: "GOOGLE_PENDING_EXPIRED",
+        message: "Your Google sign-up expired. Please start again.",
       });
     }
-    return sendError(res, error, "Google sign-in failed");
+    if (!pending || pending.purpose !== GOOGLE_PENDING_PURPOSE || !pending.email || !pending.googleId) {
+      return res.status(401).json({
+        code: "GOOGLE_PENDING_EXPIRED",
+        message: "Your Google sign-up expired. Please start again.",
+      });
+    }
+
+    const dob = validateDobInput(req.body.dateOfBirth);
+    if (!dob.ok) {
+      return res.status(400).json({ code: dob.code, message: DOB_ERROR_MESSAGES[dob.code] });
+    }
+
+    // Someone may have registered the same email since the first step.
+    const existing = await User.findOne({ $or: [{ googleId: pending.googleId }, { email: pending.email }] });
+    if (existing) {
+      return res.status(409).json({
+        message: "An account with this email already exists. Please sign in instead.",
+      });
+    }
+
+    const user = await createGoogleAccount(req, {
+      email: pending.email,
+      googleId: pending.googleId,
+      displayName: pending.name,
+      signupRole: "jobseeker",
+      dob: dob.date,
+    });
+    return finishGoogleLogin(req, res, user, true);
+  } catch (error) {
+    return googleRaceError(res, error);
   }
 };
 
@@ -1683,7 +1785,8 @@ exports.getMe = async (req, res) => {
     const user = await User.findById(req.user.id).select(CLIENT_UNSAFE_FIELDS);
     if (!user) return res.status(404).json({ message: "User not found" });
     const hasPassword = await checkHasPassword(user._id);
-    res.json({ ...user.toObject(), hasPassword });
+    // ageTier is computed per request on the server (never stored or put in the JWT).
+    res.json({ ...user.toObject(), hasPassword, ageTier: getAgeTier(user.dateOfBirth) });
   } catch (error) {
     sendError(res, error);
   }
@@ -1707,7 +1810,11 @@ exports.getProfile = async (req, res) => {
       user.role === "jobseeker" ? computeProfileCompleteness(user, profile) : null;
     const hasPassword = await checkHasPassword(user._id);
 
-    res.json({ user: { ...user.toObject(), hasPassword }, profile, profileCompleteness });
+    res.json({
+      user: { ...user.toObject(), hasPassword, ageTier: getAgeTier(user.dateOfBirth) },
+      profile,
+      profileCompleteness,
+    });
   } catch (error) {
     sendError(res, error);
   }
@@ -1717,7 +1824,7 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.user._id || req.user.id;
-    const currentUser = await User.findById(userId).select("role password verificationStatus");
+    const currentUser = await User.findById(userId).select("role password verificationStatus dateOfBirth");
     if (!currentUser) return res.status(404).json({ message: "User not found" });
 
     // ---- 1. Email is immutable through this endpoint ----
@@ -1746,7 +1853,26 @@ exports.updateProfile = async (req, res) => {
       about: req.body.about,
       address: req.body.address,
     };
-    if (req.body.dateOfBirth !== undefined) commonUpdates.dateOfBirth = req.body.dateOfBirth || null;
+    // The date of birth is locked once set: only an admin with documentary
+    // proof can change it. An unchanged value echoed back by a full-form save
+    // is ignored; a different value is refused. Employers never store one.
+    if (req.body.dateOfBirth !== undefined && currentUser.role !== "employer") {
+      const submittedDob = parseDateOnly(req.body.dateOfBirth);
+      if (currentUser.dateOfBirth) {
+        const sameDay = submittedDob && submittedDob.getTime() === parseDateOnly(currentUser.dateOfBirth).getTime();
+        if (!sameDay) {
+          return res.status(403).json({ code: "DOB_LOCKED", message: DOB_ERROR_MESSAGES.DOB_LOCKED });
+        }
+      } else {
+        const dob = validateDobInput(req.body.dateOfBirth);
+        if (!dob.ok) {
+          return res.status(400).json({ code: dob.code, message: DOB_ERROR_MESSAGES[dob.code] });
+        }
+        commonUpdates.dateOfBirth = dob.date;
+        commonUpdates.dobLockedAt = new Date();
+        commonUpdates.dobSource = "legacy_prompt";
+      }
+    }
     if (req.body.gender !== undefined) commonUpdates.gender = req.body.gender || null;
     // Government ID type/number — verification status is explicitly out of
     // scope (data-entry only). Reject silently (ignore) rather than 400 on

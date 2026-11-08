@@ -51,6 +51,9 @@ const getAllowedSearchRoles = (role) => {
   return [];
 };
 
+const { getAgeDenial, sendAgeDenial } = require("../utils/ageAccess");
+const { getAgeTier, TIERS } = require("../utils/age");
+
 const canMessageTarget = (sourceRole, targetRole) => {
   const source = normalizeRole(sourceRole);
   const target = normalizeRole(targetRole);
@@ -138,7 +141,7 @@ exports.createConversation = async (req, res) => {
     }
 
     const [currentUser, targetUser] = await Promise.all([
-      User.findById(userId).select("role isActive"),
+      User.findById(userId).select("role isActive dateOfBirth ageReviewRequired"),
       User.findById(participantId).select("role isActive name privacy"),
     ]);
 
@@ -148,6 +151,21 @@ exports.createConversation = async (req, res) => {
 
     if (!targetUser || targetUser.isActive === false) {
       return res.status(404).json({ message: "Target user not found" });
+    }
+
+    // 15-17 accounts can reply to messages but cannot start a conversation with
+    // anyone except PESO staff. Under-15 / unknown-DOB accounts are blocked by
+    // the same age check used for the job board.
+    if (["jobseeker", "employee", "resident"].includes(String(currentUser.role))) {
+      const denial = getAgeDenial(currentUser, "jobView");
+      if (denial) return sendAgeDenial(res, denial);
+      const targetIsStaff = ["admin", "superadmin"].includes(String(targetUser.role));
+      if (getAgeTier(currentUser.dateOfBirth) === TIERS.MINOR && !targetIsStaff) {
+        return res.status(403).json({
+          code: "MESSAGING_AGE_RESTRICTED",
+          message: "Accounts under 18 can reply to messages but cannot start new conversations.",
+        });
+      }
     }
 
     // Settings → Privacy → "Who can message me" widens the default role

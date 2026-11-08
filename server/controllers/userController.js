@@ -5,7 +5,8 @@ const bcrypt = require("bcryptjs");
 const authController = require("./authController");
 const { sendError } = require("../utils/sendError");
 const { getActiveValues } = require("../services/systemOptionService");
-const { isAdultAge, MIN_ACCOUNT_AGE } = require("../utils/age");
+const { validateDobInput } = require("../utils/age");
+const { DOB_ERROR_MESSAGES } = require("../utils/dobPolicy");
 const { logAuditEvent } = require("../services/auditService");
 const { normalizeHeightUnit, normalizeWeightUnit } = require("../utils/unitFields");
 
@@ -52,15 +53,17 @@ exports.completeOnboarding = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Age gate — enforced here too because jobseekers supply their birth date
-    // during onboarding rather than at registration.
-    const dobForCheck = req.body.dateOfBirth || user.dateOfBirth;
-    if (dobForCheck) {
-      if (!isAdultAge(dobForCheck)) {
-        return res.status(400).json({
-          message: `You must be at least ${MIN_ACCOUNT_AGE} years old to use STRAM PESO.`,
-        });
+    // Age gate. The date of birth is set once and then locked: onboarding never
+    // overwrites an existing value (and never writes null over it). A jobseeker
+    // with no date of birth yet (legacy account) must supply a valid one here.
+    // Employers never have a date of birth stored.
+    let dobUpdate = null;
+    if (user.role !== "employer" && !user.dateOfBirth) {
+      const dob = validateDobInput(req.body.dateOfBirth);
+      if (!dob.ok) {
+        return res.status(400).json({ code: dob.code, message: DOB_ERROR_MESSAGES[dob.code] });
       }
+      dobUpdate = { dateOfBirth: dob.date, dobLockedAt: new Date(), dobSource: "onboarding" };
     }
 
     // 1. Build common updates (fields that belong to User model)
@@ -307,3 +310,52 @@ exports.changePassword = async (req, res) => {
   }
 };
 
+
+// ---------- Legacy accounts: set the date of birth once ----------
+// For accounts created before the date of birth was required. Accepted only
+// while no date is stored; the value is then locked. Under the minimum age the
+// date is NOT stored: the account is flagged for admin review instead (nothing
+// is deleted automatically).
+exports.setMyDateOfBirth = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const user = await User.findById(userId).select("role dateOfBirth ageReviewRequired");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (user.role === "employer") {
+      return res.status(400).json({ code: "DOB_NOT_APPLICABLE", message: "Employer accounts do not store a date of birth." });
+    }
+    if (user.dateOfBirth) {
+      return res.status(409).json({ code: "DOB_LOCKED", message: DOB_ERROR_MESSAGES.DOB_LOCKED });
+    }
+
+    const dob = validateDobInput(req.body.dateOfBirth);
+    if (!dob.ok) {
+      if (dob.code === "AGE_UNDER_MINIMUM") {
+        await User.updateOne({ _id: userId }, { $set: { ageReviewRequired: true } });
+        await logAuditEvent({
+          req,
+          actorId: userId,
+          actorRole: user.role,
+          action: "user.age_review.flagged",
+          targetUserId: userId,
+          targetType: "user",
+          targetId: String(userId),
+          severity: "warning",
+          metadata: { tier: "under15", source: "legacy_prompt" },
+        });
+      }
+      return res.status(dob.code === "AGE_UNDER_MINIMUM" ? 403 : 400).json({
+        code: dob.code,
+        message: DOB_ERROR_MESSAGES[dob.code],
+      });
+    }
+
+    await User.updateOne(
+      { _id: userId },
+      { $set: { dateOfBirth: dob.date, dobLockedAt: new Date(), dobSource: "legacy_prompt", ageReviewRequired: false } }
+    );
+    return res.json({ message: "Date of birth saved.", ageTier: dob.tier });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};

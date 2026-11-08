@@ -7,6 +7,7 @@ const {
   uploadProfileImage,
   changePassword,
   uploadResume,
+  setMyDateOfBirth,
 } = require("../controllers/userController");
 const { submitEmployerVerification } = require("../controllers/verificationController");
 const { profileUpload, validateFile, persistUploads, cleanupUploadedFiles } = require("../middleware/upload");
@@ -31,6 +32,9 @@ router.put(
   validateRequest,
   completeOnboarding
 );
+
+// Legacy accounts: set the date of birth once (locked afterwards)
+router.post("/me/dob", sanitizeRequestBody, detectMaliciousPayload, sensitiveOperationLimiter, setMyDateOfBirth);
 
 // Profile routes
 router.get("/profile", sanitizeQueryParams, getProfile);

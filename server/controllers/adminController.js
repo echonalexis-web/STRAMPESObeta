@@ -1383,3 +1383,52 @@ exports.adminUpdateJob = async (req, res) => {
     return sendError(res, error, "Failed to update job");
   }
 };
+
+// ---------- Admin: change a user's locked date of birth ----------
+// The only way to change a date of birth after it is locked. Needs a reason and
+// a reference to the documentary proof (e.g. the verified birth certificate).
+// The audit entry records the age tiers only, never the dates.
+exports.changeUserDateOfBirth = async (req, res) => {
+  try {
+    const { validateDobInput, getAgeTier } = require("../utils/age");
+    const reason = String(req.body.reason || "").trim().slice(0, 500);
+    const proofRef = String(req.body.proofRef || "").trim().slice(0, 200);
+    if (!reason || !proofRef) {
+      return res.status(400).json({
+        code: "DOB_CHANGE_PROOF_REQUIRED",
+        message: "A reason and a reference to the documentary proof are required.",
+      });
+    }
+
+    const dob = validateDobInput(req.body.dateOfBirth);
+    if (!dob.ok) return res.status(400).json({ code: dob.code, message: "Enter a valid date of birth of 15 years or older." });
+
+    const target = await User.findById(req.params.id).select("role dateOfBirth");
+    if (!target) return res.status(404).json({ message: "User not found" });
+    if (target.role === "employer") {
+      return res.status(400).json({ code: "DOB_NOT_APPLICABLE", message: "Employer accounts do not store a date of birth." });
+    }
+
+    const previousTier = getAgeTier(target.dateOfBirth);
+    await User.updateOne(
+      { _id: target._id },
+      { $set: { dateOfBirth: dob.date, dobLockedAt: new Date(), dobSource: "admin", ageReviewRequired: false } }
+    );
+
+    await logAuditEvent({
+      req,
+      actorId: req.user.id || req.user._id,
+      actorRole: req.user.role,
+      action: "user.dob.changed",
+      targetUserId: target._id,
+      targetType: "user",
+      targetId: String(target._id),
+      severity: "warning",
+      metadata: { previousTier, newTier: dob.tier, reason, proofRef },
+    });
+
+    return res.json({ message: "Date of birth updated.", ageTier: dob.tier });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};

@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { hybridSearch } = require('../controllers/recommendationController');
-const { optionalAuth } = require('../middleware/auth');
+const { optionalAuth, requireJobViewAge } = require('../middleware/auth');
 
 // Use optional auth so unauthenticated users can still see jobs
 // If token is present, req.user will be set; otherwise req.user = null
-router.get('/jobs', optionalAuth, hybridSearch);
+router.get('/jobs', optionalAuth, requireJobViewAge, hybridSearch);
 
 module.exports = router;
