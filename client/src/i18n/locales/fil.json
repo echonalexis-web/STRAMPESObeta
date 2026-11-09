@@ -2227,5 +2227,19 @@
     "preferences": "Mga gustong trabaho",
     "salary": "Inaasahang sahod",
     "languages": "Mga wika"
+  },
+  "profileCard": {
+    "loading": "Naglo-load ng profile",
+    "unavailable": "Hindi available ang profile na ito.",
+    "error": "Hindi ma-load ang profile na ito.",
+    "verified": "Beripikado",
+    "view": "Tingnan ang profile",
+    "viewOwn": "Tingnan ang iyong profile",
+    "role": {
+      "jobseeker": "Jobseeker",
+      "employee": "Jobseeker",
+      "resident": "Jobseeker",
+      "employer": "Employer"
+    }
   }
 }

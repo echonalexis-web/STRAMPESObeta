@@ -2227,5 +2227,19 @@
     "preferences": "Job preferences",
     "salary": "Expected salary",
     "languages": "Languages"
+  },
+  "profileCard": {
+    "loading": "Loading profile",
+    "unavailable": "This profile is unavailable.",
+    "error": "Could not load this profile.",
+    "verified": "Verified",
+    "view": "View profile",
+    "viewOwn": "View your profile",
+    "role": {
+      "jobseeker": "Jobseeker",
+      "employee": "Jobseeker",
+      "resident": "Jobseeker",
+      "employer": "Employer"
+    }
   }
 }
