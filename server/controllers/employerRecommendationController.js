@@ -41,7 +41,7 @@ exports.getRankedApplicants = async (req, res) => {
     let applications = await JobApplication.find({ vacancy: jobId, status: { $ne: 'withdrawn' } })
       .populate({
         path: 'applicant',
-        select: `name email phone address about isActive ${SEEKER_USER_FIELDS}`,
+        select: `name email phone address about isActive profileImage privacy.profileVisibility ${SEEKER_USER_FIELDS}`,
       })
       .lean();
 
@@ -116,17 +116,24 @@ exports.getRankedApplicants = async (req, res) => {
     });
 
     // 7. Format response (clean up)
-    const formatted = ranked.map(item => ({
-      _id: item._id,
-      applicant: {
-        _id: item.user._id,
-        name: item.user.name,
-        email: item.user.email,
-        phone: item.user.phone,
+    // A hidden profile shows the employer only the name, the contact details of
+    // this (active) application and the application's own data: no skills,
+    // work experience or education, and the photo only if the applicant chose it.
+    const formatApplicant = (item) => {
+      const base = { _id: item.user._id, name: item.user.name, email: item.user.email, phone: item.user.phone };
+      if (item.user.privacy?.profileVisibility === 'hidden') {
+        return item.includePhoto === true && item.user.profileImage ? { ...base, profileImage: item.user.profileImage } : base;
+      }
+      return {
+        ...base,
         skills: item.profile.skills,
         workExperience: item.user.workExperience,
         educationalAttainment: item.user.educationalAttainment,
-      },
+      };
+    };
+    const formatted = ranked.map(item => ({
+      _id: item._id,
+      applicant: formatApplicant(item),
       vacancy: item.vacancy,
       status: item.status,
       appliedAt: item.createdAt || item.appliedAt,

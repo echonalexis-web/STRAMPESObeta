@@ -11,7 +11,23 @@ const { logAuditEvent } = require("../services/auditService");
 const { runPostCommit } = require("../utils/postCommit");
 const SystemSettings = require("../models/SystemSettings");
 const { sendError } = require("../utils/sendError");
-const { resolveRelationship, projectJobseeker } = require("../services/profileProjection");
+const { resolveRelationship, projectJobseeker, projectApplicant } = require("../services/profileProjection");
+
+// Fields an applicant list may populate. Resume, resume file, ID file and the
+// whole JobseekerProfile are NOT part of an application list: the application
+// carries its own resume, and everything else goes through projectApplicant.
+const APPLICANT_POPULATE_FIELDS = "name email phone address skills isActive profileImage privacy.profileVisibility workExperience educationalAttainment";
+
+// Replace the populated applicant on an application with its projected form.
+const shapeApplicant = (appObj, profile) => {
+  if (!appObj || !appObj.applicant) return appObj;
+  appObj.applicant = projectApplicant({
+    user: appObj.applicant,
+    profile: profile || null,
+    includePhoto: appObj.includePhoto === true,
+  });
+  return appObj;
+};
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 // How many days before the auto-close cutoff the "about to close" warning
@@ -599,7 +615,7 @@ exports.getApplicantsForJob = async (req, res) => {
     }
 
     let applications = await JobApplication.find({ vacancy: jobId })
-      .populate("applicant", "name email phone address skills resume resumeFile validIdFile isActive")
+      .populate("applicant", APPLICANT_POPULATE_FIELDS)
       .sort({ createdAt: -1 });
 
     // Hide applications from jobseekers whose account is suspended/deleted.
@@ -618,13 +634,7 @@ exports.getApplicantsForJob = async (req, res) => {
     // Merge profile into each application
     const mergedApplications = applications.map(app => {
       const appObj = app.toObject();
-      const applicant = appObj.applicant;
-      if (applicant) {
-        const profile = profileMap[String(applicant._id)];
-        if (profile) {
-          applicant.profile = profile;
-        }
-      }
+      if (appObj.applicant) shapeApplicant(appObj, profileMap[String(appObj.applicant._id)]);
       return appObj;
     });
 
@@ -764,19 +774,16 @@ exports.updateApplicationStatus = async (req, res) => {
 
     // Refetch with full details and profile
     const updatedApplication = await JobApplication.findById(applicationId)
-      .populate("applicant", "name email phone address skills resume resumeFile validIdFile")
+      .populate("applicant", APPLICANT_POPULATE_FIELDS)
       .populate("vacancy", "title location");
 
-    if (updatedApplication.applicant) {
-      const profile = await JobseekerProfile.findOne({ userId: updatedApplication.applicant._id });
-      if (profile) {
-        const appObj = updatedApplication.toObject();
-        appObj.applicant.profile = profile;
-        return res.json(appObj);
-      }
+    const updatedObj = updatedApplication.toObject();
+    if (updatedObj.applicant) {
+      const profile = await JobseekerProfile.findOne({ userId: updatedObj.applicant._id });
+      shapeApplicant(updatedObj, profile);
     }
 
-    return res.json(updatedApplication);
+    return res.json(updatedObj);
   } catch (error) {
     return res.status(500).json({ message: "Failed to update application status" });
   }
@@ -1225,7 +1232,7 @@ exports.bulkUpdateApplicationStatuses = async (req, res) => {
 
     // Refetch all updated applications with full details
     const updatedApplications = await JobApplication.find({ _id: { $in: updatedIds } })
-      .populate("applicant", "name email phone address skills resume resumeFile validIdFile")
+      .populate("applicant", APPLICANT_POPULATE_FIELDS)
       .populate("vacancy", "title location");
 
     // Fetch and merge jobseeker profiles
@@ -1238,12 +1245,7 @@ exports.bulkUpdateApplicationStatuses = async (req, res) => {
 
     const mergedApplications = updatedApplications.map(app => {
       const appObj = app.toObject();
-      if (appObj.applicant) {
-        const profile = profileMap[String(appObj.applicant._id)];
-        if (profile) {
-          appObj.applicant.profile = profile;
-        }
-      }
+      if (appObj.applicant) shapeApplicant(appObj, profileMap[String(appObj.applicant._id)]);
       return appObj;
     });
 
