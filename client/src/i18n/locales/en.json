@@ -1640,7 +1640,16 @@
       "releaseNote": "Release results for a posting from SPES Postings.",
       "releasedNote": "Results for this posting are released. You can still amend a result in the review.",
       "emptyTitle": "No applications",
-      "emptyBody": "Nothing matches these filters yet."
+      "emptyBody": "Nothing matches these filters yet.",
+      "reviewShort": "Review",
+      "reviewAria": "Review {{name}}",
+      "tableCaption": "SPES applications, page {{page}} of {{pages}}",
+      "showing": "Showing {{from}} to {{to}} of {{total}} applications",
+      "pageAnnounce": "Page {{page}} of {{pages}}",
+      "allStatuses": "All",
+      "noMatchTitle": "No applications match these filters",
+      "noMatchBody": "Try different filters, or clear them to see every application.",
+      "clearFilters": "Clear filters"
     }
   },
   "spesPostings": {
@@ -1781,5 +1790,12 @@
     },
     "ready": "Ready to submit",
     "uploaded": "Uploaded"
+  },
+  "pagination": {
+    "label": "Pagination",
+    "rowsPerPage": "Rows per page",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {{page}}"
   }
 }

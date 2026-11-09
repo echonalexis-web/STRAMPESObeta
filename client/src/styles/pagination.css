@@ -1,0 +1,54 @@
+/* Generic table pagination (components/Pagination.jsx). --ds-* tokens, 44px targets. */
+.pager {
+  display: grid;
+  gap: var(--ds-space-3);
+  align-items: center;
+  padding: var(--ds-space-4);
+  border-top: 1px solid var(--ds-border);
+}
+.pager__size { display: inline-flex; align-items: center; gap: var(--ds-space-2); font-size: var(--ds-text-sm); color: var(--ds-muted); }
+.pager .pager__size select {
+  width: auto;
+  max-width: none;
+  margin: 0;
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background-color: var(--ds-surface);
+  color: var(--ds-text);
+  font: inherit;
+}
+.pager__summary { margin: 0; font-size: var(--ds-text-sm); color: var(--ds-muted); }
+.pager__nav { display: flex; align-items: center; flex-wrap: wrap; gap: var(--ds-space-2); }
+.pager__pages { display: flex; align-items: center; flex-wrap: wrap; gap: var(--ds-space-1); margin: 0; padding: 0; list-style: none; }
+.pager__gap { min-width: 24px; text-align: center; color: var(--ds-muted); }
+.pager__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-1);
+  min-width: var(--ds-tap);
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.pager__btn:hover:not(:disabled):not(.is-current) { background: var(--ds-mint); border-color: var(--ds-green-secondary); }
+.pager__btn:focus-visible { outline: 3px solid var(--ds-focus); outline-offset: 2px; }
+.pager__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pager__btn.is-current { background: var(--ds-green-deep); border-color: var(--ds-green-deep); color: #fff; cursor: default; }
+@media (max-width: 559px) {
+  .pager__step-text { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (min-width: 900px) {
+  .pager { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .pager__summary { text-align: center; }
+}

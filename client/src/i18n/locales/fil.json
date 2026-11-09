@@ -1640,7 +1640,16 @@
       "releaseNote": "I-release ang mga resulta ng posting mula sa SPES Postings.",
       "releasedNote": "Na-release na ang mga resulta ng posting na ito. Maaari mo pa ring baguhin ang resulta sa review.",
       "emptyTitle": "Walang aplikasyon",
-      "emptyBody": "Wala pang tugma sa mga filter na ito."
+      "emptyBody": "Wala pang tugma sa mga filter na ito.",
+      "reviewShort": "Suriin",
+      "reviewAria": "Suriin si {{name}}",
+      "tableCaption": "Mga SPES na aplikasyon, pahina {{page}} sa {{pages}}",
+      "showing": "Ipinapakita ang {{from}} hanggang {{to}} sa {{total}} aplikasyon",
+      "pageAnnounce": "Pahina {{page}} sa {{pages}}",
+      "allStatuses": "Lahat",
+      "noMatchTitle": "Walang aplikasyong tumutugma sa mga filter na ito",
+      "noMatchBody": "Subukan ang ibang filter, o alisin ang mga ito para makita ang lahat ng aplikasyon.",
+      "clearFilters": "Alisin ang mga filter"
     }
   },
   "spesPostings": {
@@ -1781,5 +1790,12 @@
     },
     "ready": "Handa nang isumite",
     "uploaded": "Na-upload na"
+  },
+  "pagination": {
+    "label": "Pagination",
+    "rowsPerPage": "Hilera bawat pahina",
+    "previous": "Nakaraan",
+    "next": "Susunod",
+    "page": "Pahina {{page}}"
   }
 }

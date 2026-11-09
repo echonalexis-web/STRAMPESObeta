@@ -8,6 +8,8 @@ import { useTranslation } from "react-i18next";
 import { useToast } from "../../components/feedback/context";
 import { useModalA11y } from "../../hooks/useModalA11y";
 import StateBlock from "../../components/StateBlock";
+import Pagination from "../../components/Pagination";
+import { DEFAULT_PAGE_SIZE, pageRange, parsePage, parsePageSize } from "../../utils/pagination";
 import { translateErrorCode } from "../../utils/apiErrors";
 import {
   AMEND_OUTCOMES,
@@ -22,6 +24,7 @@ import {
 import AdminHeader from "./AdminHeader";
 import "../../styles/admin.css";
 import "../../styles/spes.css";
+import "../../styles/spes-queue.css";
 
 // Every lifecycle status, for the queue filter.
 const STATUS_FILTER_OPTIONS = [
@@ -407,14 +410,75 @@ function SpesReviewDrawer({ app, released, onClose, onSaved }) {
 
 const COUNT_STATUSES = ["submitted", "documents_review", "needs_resubmission", "qualified", "evaluated", "result_recorded", "results_released"];
 
+// One row of the queue. Long names and schools stay on one line with an ellipsis (the full
+// text is in a title attribute); the Review button is one word with the applicant's name in
+// its accessible name.
+function QueueRow({ app, t, formatDate, onReview }) {
+  const status = normalizeSpesStatus(app.status);
+  const label = applicantLabel(app, t);
+  const email = app.applicantDeleted ? "" : app.applicant?.email || t("spes.admin.noEmail");
+  const school = app.school || "—";
+  return (
+    <tr className="spes-queue__row">
+      <td className="spes-queue__applicant">
+        <strong className={`spes-queue__name${label.missing ? " spes-queue__name--warn" : ""}`} title={label.text}>
+          {label.text}
+        </strong>
+        {email ? (
+          <span className="spes-queue__sub" title={email}>
+            {email}
+          </span>
+        ) : null}
+      </td>
+      <td className="spes-queue__age" data-label={t("spes.admin.colAge")}>
+        <TierBadge tier={app.applicantAgeTier} t={t} />
+      </td>
+      <td className="spes-queue__school" data-label={t("spes.admin.colSchool")}>
+        {isOsyApplication(app) ? (
+          <span className="spes-chip spes-chip--osy">{t("spes.apply.typeOsy")}</span>
+        ) : (
+          <>
+            <span className="spes-queue__name spes-queue__name--plain" title={school}>
+              {school}
+            </span>
+            {app.gradeLevel ? (
+              <span className="spes-queue__sub" title={app.gradeLevel}>
+                {app.gradeLevel}
+              </span>
+            ) : null}
+          </>
+        )}
+      </td>
+      <td className="spes-queue__date" data-label={t("spes.admin.colSubmitted")}>
+        <span className="spes-queue__date-text">{formatDate(app.createdAt)}</span>
+        <AgeBadge app={app} t={t} />
+      </td>
+      <td className="spes-queue__status">
+        <span className={`spes-chip spes-chip--${status}`}>{t(`spes.status.${status}`)}</span>
+      </td>
+      <td className="spes-queue__action">
+        <button type="button" className="spes-queue__review" aria-label={t("spes.monitoring.reviewAria", { name: label.text })} onClick={() => onReview(app)}>
+          {t("spes.monitoring.reviewShort")}
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 // SPES Monitoring: the application queue for one posting (or all), with per-status
 // counts, filters, and the review drawer. Postings themselves (create, close, release
 // results) are managed under SPES Postings.
+//
+// The list is paginated by the server (page and limit on /spes/admin/list). The page and
+// page size live in the URL (?page=2&pageSize=25) next to ?posting=, so a refresh or a
+// shared link keeps the position; any filter change returns to page 1.
 export default function SpesApplications() {
   const { t, i18n } = useTranslation();
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const postingId = searchParams.get("posting") || "";
+  const page = parsePage(searchParams.get("page"));
+  const pageSize = parsePageSize(searchParams.get("pageSize"));
   const [postings, setPostings] = useState([]);
   const [postingsLoaded, setPostingsLoaded] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
@@ -423,9 +487,17 @@ export default function SpesApplications() {
   const [schoolQuery, setSchoolQuery] = useState("");
   const [schoolFilter, setSchoolFilter] = useState("");
   const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [reviewing, setReviewing] = useState(null);
+  const [announce, setAnnounce] = useState("");
+  const cardRef = useRef(null);
+  const summaryRef = useRef(null);
+  const focusAfterLoad = useRef(false);
+  const requestId = useRef(0);
+  const appliedSchool = useRef("");
 
   const formatDate = (value) => {
     if (!value) return "—";
@@ -435,7 +507,38 @@ export default function SpesApplications() {
       : d.toLocaleDateString(i18n.language?.startsWith("fil") ? "fil-PH" : "en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
-  const setPostingId = (id) => setSearchParams(id ? { posting: id } : {}, { replace: true });
+  // Merges changes into the query string. page 1 and the default size are left out of the URL.
+  const updateParams = useCallback(
+    (patch, replace = true) =>
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          Object.entries(patch).forEach(([key, value]) => {
+            const drop = value === undefined || value === null || value === "" || (key === "page" && value === 1) || (key === "pageSize" && value === DEFAULT_PAGE_SIZE);
+            if (drop) next.delete(key);
+            else next.set(key, String(value));
+          });
+          return next;
+        },
+        { replace }
+      ),
+    [setSearchParams]
+  );
+
+  const setPostingId = (id) => updateParams({ posting: id, page: 1 });
+  // Every filter change starts again from the first page.
+  const onFilter = (setter) => (value) => {
+    setter(value);
+    updateParams({ page: 1 });
+  };
+  const changePage = (next) => {
+    focusAfterLoad.current = true;
+    updateParams({ page: next }, false);
+  };
+  const changePageSize = (size) => {
+    focusAfterLoad.current = true;
+    updateParams({ pageSize: size, page: 1 });
+  };
 
   const loadPostings = useCallback(async () => {
     try {
@@ -452,34 +555,66 @@ export default function SpesApplications() {
     loadPostings();
   }, [loadPostings]);
 
-  // The school filter waits for a pause in typing before querying.
+  // The school filter waits for a pause in typing, then returns to page 1 (but not on the
+  // first run, so a refresh keeps the page from the URL).
   useEffect(() => {
-    const id = setTimeout(() => setSchoolFilter(schoolQuery.trim()), 350);
+    const id = setTimeout(() => {
+      const value = schoolQuery.trim();
+      if (value === appliedSchool.current) return;
+      appliedSchool.current = value;
+      setSchoolFilter(value);
+      updateParams({ page: 1 });
+    }, 350);
     return () => clearTimeout(id);
-  }, [schoolQuery]);
+  }, [schoolQuery, updateParams]);
 
-  const loadApplications = useCallback(async () => {
-    setLoading(true);
-    setLoadError(false);
-    try {
-      const { data } = await spesAPI.adminList({
-        posting: postingId || undefined,
-        status: statusFilter || undefined,
-        applicantType: typeFilter || undefined,
-        ageTier: tierFilter || undefined,
-        school: schoolFilter || undefined,
-        limit: 200,
-      });
-      setItems(Array.isArray(data?.items) ? data.items : []);
-    } catch (err) {
-      setLoadError(true);
-      toast.error(translateErrorCode(err?.response?.data?.code, err?.response?.data?.message || t("spes.admin.loadFailed")));
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
+  const loadApplications = useCallback(
+    async ({ silent = false } = {}) => {
+      const mine = ++requestId.current;
+      if (!silent) setLoading(true);
+      setLoadError(false);
+      try {
+        const { data } = await spesAPI.adminList({
+          posting: postingId || undefined,
+          status: statusFilter || undefined,
+          applicantType: typeFilter || undefined,
+          ageTier: tierFilter || undefined,
+          school: schoolFilter || undefined,
+          page,
+          limit: pageSize,
+        });
+        if (mine !== requestId.current) return; // a newer request replaced this one
+        const count = Number(data?.total) || 0;
+        const pages = Math.max(Number(data?.totalPages) || 1, 1);
+        // The page no longer exists (filters narrowed, or rows left the filter): go to the last one.
+        if (count > 0 && page > pages) {
+          updateParams({ page: pages });
+          return;
+        }
+        setItems(Array.isArray(data?.items) ? data.items : []);
+        setTotal(count);
+        setTotalPages(pages);
+        if (focusAfterLoad.current) {
+          focusAfterLoad.current = false;
+          setAnnounce(t("spes.monitoring.pageAnnounce", { page, pages }));
+          requestAnimationFrame(() => {
+            cardRef.current?.scrollIntoView?.({ block: "start" });
+            summaryRef.current?.focus({ preventScroll: true });
+          });
+        }
+      } catch (err) {
+        if (mine !== requestId.current) return;
+        setLoadError(true);
+        toast.error(translateErrorCode(err?.response?.data?.code, err?.response?.data?.message || t("spes.admin.loadFailed")));
+        setItems([]);
+        setTotal(0);
+      } finally {
+        if (mine === requestId.current) setLoading(false);
+      }
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postingId, statusFilter, typeFilter, tierFilter, schoolFilter]);
+    [postingId, statusFilter, typeFilter, tierFilter, schoolFilter, page, pageSize, updateParams]
+  );
 
   useEffect(() => {
     loadApplications();
@@ -496,6 +631,7 @@ export default function SpesApplications() {
     }
     return by;
   }, [postings, selected]);
+  const countTotal = COUNT_STATUSES.reduce((sum, s) => sum + (counts[s] || 0), 0);
 
   const reviewingReleased = reviewing
     ? Boolean(reviewing.resultReleasedAt) ||
@@ -503,17 +639,35 @@ export default function SpesApplications() {
       reviewing.posting?.results?.status === "released"
     : false;
 
-  // Every PATCH returns the populated application, so merge it over the row and the
-  // open drawer.
+  // Every PATCH returns the populated application, so merge it over the row and the open
+  // drawer, then reload the current page quietly: a row that left the status filter drops
+  // out, and an emptied last page steps back. The drawer keeps its own copy, so it stays
+  // open across all of this.
   const patchItem = (updated) => {
     if (!updated) return;
     setItems((prev) => prev.map((a) => (a._id === updated._id ? { ...a, ...updated } : a)));
     setReviewing((prev) => (prev && prev._id === updated._id ? { ...prev, ...updated } : prev));
     loadPostings();
+    loadApplications({ silent: true });
   };
 
+  const filtersActive = Boolean(postingId || statusFilter || typeFilter || tierFilter || schoolQuery.trim());
+  const clearFilters = () => {
+    setStatusFilter("");
+    setTypeFilter("");
+    setTierFilter("");
+    setSchoolQuery("");
+    setSchoolFilter("");
+    appliedSchool.current = "";
+    updateParams({ posting: "", page: 1 });
+  };
+
+  const { from, to } = pageRange(page, pageSize, total);
+  const showing = t("spes.monitoring.showing", { from, to, total });
+  const COLS = 6;
+
   return (
-    <div className="admin-page-container spes-admin">
+    <div className="admin-page-container spes-admin spes-queue-page">
       <AdminHeader title={t("spes.monitoring.title")} description={t("spes.monitoring.description")} />
 
       {postingsLoaded && postings.length === 0 ? (
@@ -537,7 +691,7 @@ export default function SpesApplications() {
         </label>
         <label>
           {t("spes.admin.filterStatus")}
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <select value={statusFilter} onChange={(e) => onFilter(setStatusFilter)(e.target.value)}>
             <option value="">{t("spes.admin.anyStatus")}</option>
             {STATUS_FILTER_OPTIONS.map((s) => (
               <option key={s} value={s}>{t(`spes.status.${s}`)}</option>
@@ -546,7 +700,7 @@ export default function SpesApplications() {
         </label>
         <label>
           {t("spes.admin.filterType")}
-          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <select value={typeFilter} onChange={(e) => onFilter(setTypeFilter)(e.target.value)}>
             <option value="">{t("spes.admin.anyType")}</option>
             <option value="student">{t("spes.apply.typeStudent")}</option>
             <option value="osy">{t("spes.apply.typeOsy")}</option>
@@ -554,7 +708,7 @@ export default function SpesApplications() {
         </label>
         <label>
           {t("spes.admin.filterAge")}
-          <select value={tierFilter} onChange={(e) => setTierFilter(e.target.value)}>
+          <select value={tierFilter} onChange={(e) => onFilter(setTierFilter)(e.target.value)}>
             <option value="">{t("spes.admin.anyAge")}</option>
             {TIER_OPTIONS.map((tier) => (
               <option key={tier} value={tier}>{t(`spes.admin.tier.${tier}`)}</option>
@@ -568,14 +722,23 @@ export default function SpesApplications() {
       </div>
 
       {Object.keys(counts).length > 0 ? (
-        <div className="spes-monitor-counts" role="group" aria-label={t("spes.monitoring.countsLabel")}>
+        <div className="spes-queue__chips" role="group" aria-label={t("spes.monitoring.countsLabel")}>
+          <span className="spes-queue__chips-label" aria-hidden="true">{t("spes.monitoring.countsLabel")}</span>
+          <button
+            type="button"
+            className={`spes-chip spes-monitor-counts__chip spes-queue__chip${statusFilter === "" ? " is-active" : ""}`}
+            aria-pressed={statusFilter === ""}
+            onClick={() => onFilter(setStatusFilter)("")}
+          >
+            {t("spes.monitoring.allStatuses")} · {countTotal}
+          </button>
           {COUNT_STATUSES.filter((s) => counts[s]).map((s) => (
             <button
               key={s}
               type="button"
-              className={`spes-chip spes-chip--${s} spes-monitor-counts__chip${statusFilter === s ? " is-active" : ""}`}
+              className={`spes-chip spes-chip--${s} spes-monitor-counts__chip spes-queue__chip${statusFilter === s ? " is-active" : ""}`}
               aria-pressed={statusFilter === s}
-              onClick={() => setStatusFilter(statusFilter === s ? "" : s)}
+              onClick={() => onFilter(setStatusFilter)(statusFilter === s ? "" : s)}
             >
               {t(`spes.status.${s}`)} · {counts[s]}
             </button>
@@ -592,82 +755,93 @@ export default function SpesApplications() {
         </p>
       ) : null}
 
-      <div className="admin-panel-card">
-        <div className="admin-card-header">
+      <div className="admin-panel-card spes-queue" ref={cardRef}>
+        <div className="admin-card-header spes-queue__head">
           <h2 className="spes-admin__title">{t("spes.admin.queueTitle")}</h2>
+          {total > 0 && !loadError ? (
+            <p className="spes-queue__summary" ref={summaryRef} tabIndex={-1}>
+              {showing}
+            </p>
+          ) : null}
         </div>
-        <div className="admin-table-wrap">
-          <table className="admin-table">
+
+        <div className="spes-queue__wrap">
+          <table className="spes-queue__table">
+            <caption className="ds-sr-only">{t("spes.monitoring.tableCaption", { page, pages: totalPages })}</caption>
+            <colgroup>
+              <col className="spes-queue__col-applicant" />
+              <col className="spes-queue__col-age" />
+              <col className="spes-queue__col-school" />
+              <col className="spes-queue__col-date" />
+              <col className="spes-queue__col-status" />
+              <col className="spes-queue__col-action" />
+            </colgroup>
             <thead>
               <tr>
-                <th>{t("spes.admin.colApplicant")}</th>
-                <th>{t("spes.admin.colAge")}</th>
-                <th>{t("spes.admin.colSchool")}</th>
-                <th>{t("spes.admin.colSubmitted")}</th>
-                <th>{t("spes.admin.colStatus")}</th>
-                <th>{t("spes.admin.colAction")}</th>
+                <th scope="col">{t("spes.admin.colApplicant")}</th>
+                <th scope="col">{t("spes.admin.colAge")}</th>
+                <th scope="col">{t("spes.admin.colSchool")}</th>
+                <th scope="col">{t("spes.admin.colSubmitted")}</th>
+                <th scope="col">{t("spes.admin.colStatus")}</th>
+                <th scope="col">{t("spes.admin.colAction")}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="spes-admin__state-cell">
-                    <StateBlock kind="loading" title={t("admin.spes.loading")} />
-                  </td>
-                </tr>
+                [0, 1, 2, 3, 4].map((n) => (
+                  <tr key={n} className="spes-queue__row spes-queue__row--skeleton" aria-hidden="true">
+                    <td colSpan={COLS}>
+                      <span className="ds-skeleton spes-queue__skeleton" />
+                    </td>
+                  </tr>
+                ))
               ) : loadError ? (
-                <tr>
-                  <td colSpan={6} className="spes-admin__state-cell">
+                <tr className="spes-queue__state-row">
+                  <td colSpan={COLS} className="spes-admin__state-cell">
                     <StateBlock
                       kind="error"
                       title={t("spes.admin.loadFailed")}
-                      action={<button type="button" className="spes-btn spes-btn--small" onClick={loadApplications}>{t("spes.admin.retry")}</button>}
+                      action={<button type="button" className="spes-btn spes-btn--small" onClick={() => loadApplications()}>{t("spes.admin.retry")}</button>}
                     />
                   </td>
                 </tr>
               ) : items.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="spes-admin__state-cell">
-                    <StateBlock kind="empty" title={t("spes.monitoring.emptyTitle")} description={t("spes.monitoring.emptyBody")} />
+                <tr className="spes-queue__state-row">
+                  <td colSpan={COLS} className="spes-admin__state-cell">
+                    {filtersActive ? (
+                      <StateBlock
+                        kind="empty"
+                        title={t("spes.monitoring.noMatchTitle")}
+                        description={t("spes.monitoring.noMatchBody")}
+                        action={<button type="button" className="spes-btn spes-btn--small" onClick={clearFilters}>{t("spes.monitoring.clearFilters")}</button>}
+                      />
+                    ) : (
+                      <StateBlock kind="empty" title={t("spes.monitoring.emptyTitle")} description={t("spes.monitoring.emptyBody")} />
+                    )}
                   </td>
                 </tr>
               ) : (
-                items.map((app) => {
-                  const status = normalizeSpesStatus(app.status);
-                  return (
-                    <tr key={app._id}>
-                      <td><ApplicantName app={app} t={t} /></td>
-                      <td><TierBadge tier={app.applicantAgeTier} t={t} /></td>
-                      <td>
-                        {isOsyApplication(app) ? (
-                          <span className="spes-chip spes-chip--osy">{t("spes.apply.typeOsy")}</span>
-                        ) : (
-                          <div className="admin-stack-cell">
-                            <span>{app.school || "—"}</span>
-                            {app.gradeLevel ? <span className="admin-muted">{app.gradeLevel}</span> : null}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span className="spes-submitted-date">
-                          <Clock size={13} aria-hidden="true" /> {formatDate(app.createdAt)}
-                        </span>
-                        <AgeBadge app={app} t={t} />
-                      </td>
-                      <td><span className={`spes-chip spes-chip--${status}`}>{t(`spes.status.${status}`)}</span></td>
-                      <td>
-                        <button type="button" className="admin-inline-btn" onClick={() => setReviewing(app)}>
-                          <Eye size={16} aria-hidden="true" /> {t("spes.admin.review")}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
+                items.map((app) => <QueueRow key={app._id} app={app} t={t} formatDate={formatDate} onReview={setReviewing} />)
               )}
             </tbody>
           </table>
         </div>
+
+        {total > 0 && !loadError ? (
+          <Pagination
+            idPrefix="spes-queue"
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            summary={showing}
+            disabled={loading}
+            onPageChange={changePage}
+            onPageSizeChange={changePageSize}
+          />
+        ) : null}
       </div>
+
+      <p className="ds-sr-only" role="status" aria-live="polite">{announce}</p>
 
       {reviewing ? (
         <SpesReviewDrawer app={reviewing} released={reviewingReleased} onClose={() => setReviewing(null)} onSaved={patchItem} />
