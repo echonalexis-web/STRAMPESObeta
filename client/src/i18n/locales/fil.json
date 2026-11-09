@@ -1394,7 +1394,8 @@
       "TEMPLATE_ORDER_INVALID": "Hindi ma-save ang pagkakasunod-sunod. I-reload at subukang muli.",
       "COVER_TEMPLATE_NOT_FOUND": "Hindi makita ang banner na iyon.",
       "COVER_TEMPLATE_INACTIVE": "Hindi na available ang banner na iyon.",
-      "COVER_ONLY_TEMPLATE_ALLOWED": "Isa lamang sa mga banner sa listahan ang maaari mong piliin."
+      "COVER_ONLY_TEMPLATE_ALLOWED": "Isa lamang sa mga banner sa listahan ang maaari mong piliin.",
+      "COVER_NOT_ALLOWED": "Walang cover sa profile ang ganitong uri ng account."
     }
   },
   "spes": {
@@ -2161,5 +2162,22 @@
       "saving": "Sine-save…",
       "cancel": "Kanselahin"
     }
+  },
+  "cover": {
+    "edit": "I-edit ang cover",
+    "close": "Isara",
+    "pickerTitle": "Pumili ng cover",
+    "groupLabel": "Mga template ng cover",
+    "loading": "Naglo-load ng mga cover",
+    "loadError": "Hindi ma-load ang mga cover.",
+    "retry": "Subukang muli",
+    "empty": "Walang available na cover ngayon. Mananatili ang default sa profile mo.",
+    "selected": "Napili",
+    "useDefault": "Gamitin ang default",
+    "cancel": "Kanselahin",
+    "save": "I-save",
+    "saving": "Sine-save…",
+    "saved": "Na-update ang cover.",
+    "saveError": "Hindi na-save ang cover. Subukang muli."
   }
 }

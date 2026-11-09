@@ -1394,7 +1394,8 @@
       "TEMPLATE_ORDER_INVALID": "The order could not be saved. Reload and try again.",
       "COVER_TEMPLATE_NOT_FOUND": "That banner could not be found.",
       "COVER_TEMPLATE_INACTIVE": "That banner is no longer available.",
-      "COVER_ONLY_TEMPLATE_ALLOWED": "You can only choose one of the banners in the list."
+      "COVER_ONLY_TEMPLATE_ALLOWED": "You can only choose one of the banners in the list.",
+      "COVER_NOT_ALLOWED": "This account type has no profile cover."
     }
   },
   "spes": {
@@ -2161,5 +2162,22 @@
       "saving": "Saving…",
       "cancel": "Cancel"
     }
+  },
+  "cover": {
+    "edit": "Edit cover",
+    "close": "Close",
+    "pickerTitle": "Choose your cover",
+    "groupLabel": "Cover templates",
+    "loading": "Loading covers",
+    "loadError": "Could not load the covers.",
+    "retry": "Try again",
+    "empty": "No covers are available right now. Your profile keeps the default.",
+    "selected": "Selected",
+    "useDefault": "Use default",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Cover updated.",
+    "saveError": "Could not save your cover. Please try again."
   }
 }

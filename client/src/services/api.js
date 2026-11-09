@@ -293,6 +293,8 @@ export const authAPI = {
     fd.append('profileImage', file);
     return api.patch('/auth/profile/avatar', fd, getAuthFormHeader());
   },
+  // Profile banner: a preset template id, or null to reset to the default.
+  setCover: (templateId) => api.put('/auth/profile/cover', { templateId }, getAuthHeader()),
   registerEmployer: (data) => api.post('/auth/register/employer', data),
   acceptTerms: (version) => api.post('/auth/accept-terms', { version }, getAuthHeader()),
   changePassword: (payload) => api.post('/auth/change-password', payload, getAuthHeader()),

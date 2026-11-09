@@ -44,6 +44,7 @@ import JobseekerDocumentsPanel from "../components/JobseekerDocumentsPanel";
 import VerificationTab from "../components/VerificationTab";
 import { downloadBlob } from "../utils/exportUtils";
 import ProfileBanner from "../components/ProfileBanner";
+import CoverPicker, { CoverEditButton } from "../components/CoverPicker";
 import StateBlock from "../components/StateBlock";
 import Pagination from "../components/Pagination";
 import usePagination from "../hooks/usePagination";
@@ -286,9 +287,16 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
 
   const togglePanel = (key) => setPanels((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  // A new banner was saved: show it now, and keep the signed-in user in step.
+  const handleCoverSaved = (cover) => {
+    setProfile((prev) => (prev ? { ...prev, cover } : prev));
+    setUser((prev) => (prev ? { ...prev, cover } : prev));
+  };
+
   const avatarFileInputRef = useRef(null);
   const avatarEditUrlRef = useRef("");
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+  const [coverPickerOpen, setCoverPickerOpen] = useState(false);
   const [avatarEditSrc, setAvatarEditSrc] = useState("");
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState("");
@@ -752,6 +760,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
       <section className="rd-shell">
         <header className="rd2-head ds-card">
           <ProfileBanner cover={profile?.cover} />
+          {!isReadOnly && !isAdmin ? <CoverEditButton onClick={() => setCoverPickerOpen(true)} /> : null}
           <div className="rd2-head-row">
             <div className={`rd2-avatar-wrap${isEmployer ? " rd2-avatar-wrap--company" : ""}`}>
               <button
@@ -1396,6 +1405,15 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
           </main>
         )}
       </section>
+
+      {!isReadOnly && !isAdmin ? (
+        <CoverPicker
+          isOpen={coverPickerOpen}
+          onClose={() => setCoverPickerOpen(false)}
+          cover={profile?.cover}
+          onSaved={handleCoverSaved}
+        />
+      ) : null}
 
       {avatarModalOpen && avatarUrl ? (
         <div
