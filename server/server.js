@@ -424,6 +424,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   const systemOptionRoutes = require("./routes/systemOptionRoutes");
   console.log("✅ System option routes loaded");
 
+  const { publicRouter: bannerTemplatePublicRoutes, superadminRouter: bannerTemplateSuperadminRoutes } = require("./routes/bannerTemplateRoutes");
+  console.log("✅ Banner template routes loaded");
+
   const mountApiRoutes = (basePath) => {
     console.log(`📁 Mounting routes at ${basePath}...`);
     
@@ -571,6 +574,14 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       console.log(`✅ ${basePath}/system-options mounted`);
     } catch (e) {
       logger.error(`Failed to mount ${basePath}/system-options`, { error: e.message });
+    }
+
+    try {
+      app.use(`${basePath}/banner-templates`, bannerTemplatePublicRoutes);
+      app.use(`${basePath}/superadmin/banner-templates`, bannerTemplateSuperadminRoutes);
+      console.log(`✅ ${basePath}/banner-templates mounted`);
+    } catch (e) {
+      logger.error(`Failed to mount ${basePath}/banner-templates`, { error: e.message });
     }
 
     try {

@@ -155,6 +155,36 @@ const userSchema = new mongoose.Schema(
     address: { type: String, default: null },
     profileImage: { type: String, default: null },
 
+    // Profile banner (COVER_PHOTO_PLAN.md). Absent on every existing account,
+    // which then renders the built-in default. Jobseekers can only hold
+    // kind "template"; verified employers may also hold an uploaded image.
+    cover: {
+      kind: { type: String, enum: ["template", "image"], default: undefined },
+      templateId: { type: mongoose.Schema.Types.ObjectId, ref: "BannerTemplate", default: undefined },
+      image: {
+        url: String,
+        thumbUrl: String,
+        storedValue: String,
+        thumbStoredValue: String,
+        width: Number,
+        height: Number,
+        bytes: Number,
+        cropData: { x: Number, y: Number, zoom: Number, rotation: Number, aspect: Number },
+        placeholderColor: String,
+        uploadedAt: Date,
+        // No default: a default here would add cover.image to every account.
+        status: { type: String, enum: ["published", "removed_by_staff"] },
+        removedAt: Date,
+        removedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        removedReason: String,
+      },
+      updatedAt: Date,
+    },
+    // Moderation removals of an uploaded cover; the second one ends the upload
+    // right until an admin restores it with a reason.
+    coverRemovalCount: { type: Number, default: 0 },
+    coverUploadRevoked: { type: Boolean, default: false },
+
     // ===== Jobseeker-specific fields =====
     // Calendar date stored as UTC midnight; age is computed on the server
     // (utils/age.js, Asia/Manila). Once dobLockedAt is set the owner can no
@@ -499,6 +529,9 @@ userSchema.pre("validate", function normaliseCompanySize(next) {
 // coexist while real values stay unique. These replace `email_1`, the old
 // full `email_unique_ci` and the sparse `username_unique_ci`; the swap on an
 // existing database is done by scripts/swapUserEmailUsernameIndexes.js.
+// Usage counts for banner templates.
+userSchema.index({ "cover.templateId": 1 }, { sparse: true });
+
 userSchema.index(
   { email: 1 },
   {

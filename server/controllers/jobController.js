@@ -13,6 +13,7 @@ const { getAgeDenial, sendAgeDenial } = require("../utils/ageAccess");
 const { getHomepageJobsPayload, getApplicationCountMap, getHiredCountMap } = require("../utils/jobDisplay");
 const EmployerProfile = require("../models/EmployerProfile");
 const { scrubEmployerForJobPayload } = require("../services/profileProjection");
+const { resolveCover } = require("../services/bannerTemplateService");
 const { createNotificationForUser } = require("../services/notificationService");
 const storageService = require("../services/storageService");
 const { logAuditEvent } = require("../services/auditService");
@@ -174,7 +175,7 @@ const archiveJobRecord = async (job, archiveReason = "manual_close", io = null) 
 exports.getJobs = async (req, res) => {
   try {
     let jobs = await JobVacancy.find({ isActive: true })
-      .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone isActive profileImage")
+      .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone isActive profileImage cover")
       .sort({ createdAt: -1 });
 
     // Filter out closed, expired, and archived jobs
@@ -207,7 +208,7 @@ exports.getJobs = async (req, res) => {
       getApplicationCountMap(jobIdsForCounts),
       getHiredCountMap(jobIdsForCounts),
     ]);
-    const jobsWithCounts = jobs.map((job) => {
+    const jobsWithCounts = await Promise.all(jobs.map(async (job) => {
       const jobObj = job.toObject();
       const employer = jobObj.employer;
       if (employer && profileMap[String(employer._id)]) {
@@ -215,12 +216,15 @@ exports.getJobs = async (req, res) => {
       }
       // Registration data and contact-person details are never public, and a
       // signed-out visitor gets no employer email or phone.
-      if (employer) jobObj.employer = scrubEmployerForJobPayload(employer, req.user || null);
+      if (employer) {
+        jobObj.employer = scrubEmployerForJobPayload(employer, req.user || null);
+        jobObj.employer.cover = await resolveCover(employer.cover);
+      }
       jobObj.applicationCount = Number(countMap[String(job._id)] || 0);
       jobObj.remainingSlots = Math.max(0, Number(jobObj.slots || 0) - Number(hiredCountMap[String(job._id)] || 0));
       jobObj.qualifications = formatQualifications(jobObj.qualifications);
       return jobObj;
-    });
+    }));
 
     res.json(jobsWithCounts);
   } catch (error) {
@@ -237,7 +241,7 @@ exports.getJobs = async (req, res) => {
 exports.getHomepageJobs = async (req, res) => {
   try {
     let jobs = await JobVacancy.find({ isActive: true, status: { $ne: "closed" } })
-      .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone isActive profileImage")
+      .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone isActive profileImage cover")
       .sort({ createdAt: -1 });
 
     // Filter out closed, expired, and archived jobs
@@ -265,17 +269,20 @@ exports.getHomepageJobs = async (req, res) => {
       return map;
     }, {});
 
-    const jobsWithProfile = jobs.map(job => {
+    const jobsWithProfile = await Promise.all(jobs.map(async job => {
       const jobObj = job.toObject();
       const employer = jobObj.employer;
       if (employer && profileMap[String(employer._id)]) {
         employer.profile = profileMap[String(employer._id)];
       }
       // /homepage has no authentication: never any employer email or phone.
-      if (employer) jobObj.employer = scrubEmployerForJobPayload(employer, null);
+      if (employer) {
+        jobObj.employer = scrubEmployerForJobPayload(employer, null);
+        jobObj.employer.cover = await resolveCover(employer.cover);
+      }
       jobObj.qualifications = formatQualifications(jobObj.qualifications);
       return jobObj;
-    });
+    }));
 
     const featuredJobs = await getHomepageJobsPayload(jobsWithProfile, 4);
     res.json(featuredJobs);
@@ -291,7 +298,7 @@ exports.getHomepageJobs = async (req, res) => {
 exports.getJobById = async (req, res) => {
   try {
     const job = await JobVacancy.findById(req.params.id)
-      .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone isActive profileImage");
+      .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone isActive profileImage cover");
     if (!job) return res.status(404).json({ message: "Job not found" });
 
     // Treat a suspended employer's posting as unavailable to the public.
@@ -311,7 +318,9 @@ exports.getJobById = async (req, res) => {
       if (profile) {
         jobObj.employer.profile = profile;
       }
+      const rawCover = jobObj.employer.cover;
       jobObj.employer = scrubEmployerForJobPayload(jobObj.employer, req.user || null);
+      jobObj.employer.cover = await resolveCover(rawCover);
     }
 
     const [countMap, hiredCountMap] = await Promise.all([

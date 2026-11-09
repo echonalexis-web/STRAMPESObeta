@@ -5,6 +5,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { getActiveValues } = require("../services/systemOptionService");
+const { resolveCover } = require("../services/bannerTemplateService");
 const { GOVERNMENT_ID_TYPE_OTHER } = require("../data/governmentIdTypes");
 const { computeProfileCompleteness } = require("../utils/profileCompleteness");
 const storageService = require("../services/storageService");
@@ -1903,6 +1904,7 @@ exports.getMe = async (req, res) => {
     // ageTier is computed per request on the server (never stored or put in the JWT).
     res.json({
       ...user.toObject(),
+      cover: await resolveCover(user.cover),
       hasPassword,
       ageTier: getAgeTier(user.dateOfBirth),
       hasVerifiedEmail: hasVerifiedEmail(user),
@@ -1934,6 +1936,7 @@ exports.getProfile = async (req, res) => {
     res.json({
       user: {
         ...user.toObject(),
+        cover: await resolveCover(user.cover),
         hasPassword,
         ageTier: getAgeTier(user.dateOfBirth),
         hasVerifiedEmail: hasVerifiedEmail(user),
