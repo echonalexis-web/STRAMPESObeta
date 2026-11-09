@@ -269,31 +269,31 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
       className="am--full spes-apply-overlay"
       panelClassName="spes-apply"
     >
-      <nav className="spes-stepper" aria-label={t("spes.apply.stepsLabel")}>
-        <ol className="spes-stepper__list">
+      <nav className="spes-apply-steps" aria-label={t("spes.apply.stepsLabel")}>
+        <ol className="spes-apply-steps__list">
           {STEPS.map((key, i) => {
             const state = step === key ? "is-current" : STEPS.indexOf(step) > i ? "is-done" : "";
             return (
               <Fragment key={key}>
-                <li className={`spes-stepper__item ${state}`} aria-current={step === key ? "step" : undefined}>
+                <li className={`spes-apply-steps__item ${state}`} aria-current={step === key ? "step" : undefined}>
                   {state === "is-done" ? (
-                    <Check size={18} strokeWidth={3} className="spes-stepper__check" aria-hidden="true" />
+                    <Check size={18} strokeWidth={3} className="spes-apply-steps__check" aria-hidden="true" />
                   ) : (
-                    <span className="spes-stepper__dot" aria-hidden="true">
+                    <span className="spes-apply-steps__dot" aria-hidden="true">
                       {i + 1}
                     </span>
                   )}
-                  <span className="spes-stepper__label">{t(`spes.apply.step.${key}`)}</span>
+                  <span className="spes-apply-steps__label">{t(`spes.apply.step.${key}`)}</span>
                   {state === "is-done" ? <span className="ds-sr-only">{t("spes.apply.stepDone")}</span> : null}
                 </li>
                 {i < STEPS.length - 1 ? (
-                  <li className={`spes-stepper__line${STEPS.indexOf(step) > i ? " is-done" : ""}`} role="presentation" aria-hidden="true" />
+                  <li className={`spes-apply-steps__line${STEPS.indexOf(step) > i ? " is-done" : ""}`} role="presentation" aria-hidden="true" />
                 ) : null}
               </Fragment>
             );
           })}
         </ol>
-        <p className="spes-stepper__count">{t("spes.apply.stepOf", { current: STEPS.indexOf(step) + 1, total: STEPS.length })}</p>
+        <p className="spes-apply-steps__count">{t("spes.apply.stepOf", { current: STEPS.indexOf(step) + 1, total: STEPS.length })}</p>
       </nav>
       <span className="ds-sr-only" role="status" aria-live="polite">
         {t("spes.apply.stepOf", { current: STEPS.indexOf(step) + 1, total: STEPS.length })}: {t(`spes.apply.step.${step}`)}

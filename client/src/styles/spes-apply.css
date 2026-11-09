@@ -56,68 +56,76 @@
   outline-offset: 2px;
 }
 
-/* ---- stepper: one flex row (step, line, step, line, step) on a shared center axis ---- */
-.spes-stepper {
+/* ---- stepper ----
+   Class names are spes-apply-steps*: the older My Applications tracker in spes.css owns
+   .spes-stepper* (with an absolutely positioned ::before connector per item), and sharing
+   those names drew a second line through the labels. Here every connector is a real
+   flex item, so a line can only occupy the space between one label and the next circle. */
+.spes-apply-steps {
   flex: none;
   display: flex;
   align-items: center;
   gap: var(--ds-space-4);
   padding: var(--ds-space-4) 16px 0;
 }
-.spes-stepper .spes-stepper__list {
+.spes-apply-steps .spes-apply-steps__list {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-flow: row nowrap;
   align-items: center;
-  gap: var(--ds-space-3);
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.spes-stepper .spes-stepper__item {
-  flex: none;
+.spes-apply-steps .spes-apply-steps__item {
+  flex: 0 0 auto;
   display: flex;
   flex-flow: row nowrap;
   align-items: center;
   gap: var(--ds-space-2);
   margin: 0;
+  padding: 0;
   color: var(--ds-muted);
   font-size: var(--ds-text-sm);
   line-height: 1.2;
-  white-space: nowrap;
 }
-.spes-stepper .spes-stepper__line {
-  flex: 1 1 0;
-  min-width: 12px;
+.spes-apply-steps__label { white-space: nowrap; }
+.spes-apply-steps .spes-apply-steps__line {
+  flex: 1 1 24px;
+  min-width: 16px;
   height: 2px;
-  margin: 0;
+  margin: 0 12px;
+  padding: 0;
   border-radius: 2px;
   background: var(--ds-border);
+  list-style: none;
 }
-.spes-stepper .spes-stepper__line.is-done { background: var(--ds-green-secondary); }
-.spes-stepper__dot {
+.spes-apply-steps .spes-apply-steps__line.is-done { background: var(--ds-green-secondary); }
+.spes-apply-steps__dot {
   flex: none;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
   border: 2px solid var(--ds-border);
   border-radius: 50%;
   background: var(--ds-surface);
   font-weight: 700;
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   line-height: 1;
 }
-.spes-stepper__check { flex: none; color: var(--ds-green-secondary); }
-.spes-stepper__item.is-done { color: var(--ds-green-deep); font-weight: 600; }
-.spes-stepper__item.is-current { color: var(--ds-text); font-weight: 700; }
-.spes-stepper__item.is-current .spes-stepper__dot {
+.spes-apply-steps__check { flex: none; color: var(--ds-green-secondary); }
+.spes-apply-steps__item.is-done { color: var(--ds-green-deep); font-weight: 600; }
+.spes-apply-steps__item.is-current { color: var(--ds-text); font-weight: 700; }
+.spes-apply-steps__item.is-current .spes-apply-steps__dot {
   border-color: var(--ds-green-deep);
   background: var(--ds-green-deep);
   color: #fff;
 }
-.spes-stepper__count {
+.spes-apply-steps__count {
   flex: none;
   margin: 0;
   font-size: var(--ds-text-sm);
@@ -125,9 +133,14 @@
   white-space: nowrap;
 }
 
-/* Under 560px: circles and "Step n of 3"; only the current label stays visible. */
+/* Under 560px: only the current label stays visible; the others remain for screen readers.
+   The count moves to its own line. */
 @media (max-width: 559px) {
-  .spes-stepper__item:not(.is-current) .spes-stepper__label {
+  .spes-apply-steps { flex-wrap: wrap; row-gap: var(--ds-space-2); }
+  .spes-apply-steps .spes-apply-steps__list { flex-basis: 100%; }
+  .spes-apply-steps__count { order: 2; flex-basis: 100%; }
+  .spes-apply-steps .spes-apply-steps__line { margin: 0 8px; }
+  .spes-apply-steps__item:not(.is-current) .spes-apply-steps__label {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -136,11 +149,6 @@
     clip-path: inset(50%);
     white-space: nowrap;
   }
-}
-@media (max-width: 380px) {
-  .spes-stepper { flex-wrap: wrap; row-gap: var(--ds-space-2); }
-  .spes-stepper .spes-stepper__list { flex-basis: 100%; }
-  .spes-stepper__count { order: -1; }
 }
 
 /* ---- step 1: fluid fields. One column, two from 640px; every control fills its cell. ---- */
@@ -366,7 +374,7 @@
   }
   .spes-apply-overlay .spes-apply .app-modal-title { padding: 24px 88px 18px 32px; font-size: var(--ds-text-xl); }
   .spes-apply-overlay .spes-apply .app-modal-close { top: 24px; right: 28px; }
-  .spes-stepper { padding: var(--ds-space-5) 32px 0; }
+  .spes-apply-steps { padding: var(--ds-space-5) 32px 0; }
   .spes-apply__scroll { padding: var(--ds-space-6) 32px var(--ds-space-5); }
   .spes-apply__status { padding: 0 32px; }
   .spes-apply__footer {
