@@ -112,11 +112,11 @@ export default function MySpesApplications() {
   const replaceItem = (id, next) =>
     setItems((prev) => prev.map((it) => (it._id === id ? mergeApplication(it, next) : it)));
 
-  const handleUpload = (app) => async (slot, file) => {
+  const handleUpload = (app) => async (slot, file, config = {}) => {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const { data } = await spesAPI.replaceDocument(app.posting?._id, slot, fd);
+      const { data } = await spesAPI.replaceDocument(app.posting?._id, slot, fd, config);
       replaceItem(app._id, data.application);
       toast.success(t("spes.docs.uploaded"));
       return null;

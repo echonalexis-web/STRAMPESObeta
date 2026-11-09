@@ -1,20 +1,26 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2, Circle, AlertTriangle, Clock, Download, Upload } from "lucide-react";
 import SecureFileLink from "./SecureFileLink";
 import { checkSpesFile } from "../utils/spesSlots";
 import { translateErrorCode } from "../utils/apiErrors";
+import "../styles/file-upload.css";
 
 // One row per required document slot: its state (missing, pending review,
 // verified, needs replacement with the staff reason) and an Upload / Replace
 // action while the application is still open for document changes.
 //
-// onUpload(slot, file) resolves to null on success or an error code string.
+// onUpload(slot, file, { signal, onUploadProgress }) resolves to null on success or an
+// error code string; a cancelled upload resolves to "UPLOAD_CANCELED" and shows no error.
 export default function SpesDocChecklist({ slots, documents, canEdit, onUpload }) {
   const { t } = useTranslation();
   const [busySlot, setBusySlot] = useState("");
   const [rowError, setRowError] = useState({});
+  const [progress, setProgress] = useState(0);
   const inputs = useRef({});
+  const abortRef = useRef(null);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const docBySlot = new Map();
   (documents || []).forEach((doc) => {
@@ -30,11 +36,20 @@ export default function SpesDocChecklist({ slots, documents, canEdit, onUpload }
       return;
     }
     setRowError((prev) => ({ ...prev, [slot]: "" }));
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setProgress(0);
     setBusySlot(slot);
     try {
-      const code = await onUpload(slot, file);
-      if (code) setRowError((prev) => ({ ...prev, [slot]: code }));
+      const code = await onUpload(slot, file, {
+        signal: controller.signal,
+        onUploadProgress: (e) => {
+          if (e.total) setProgress(Math.round((e.loaded / e.total) * 100));
+        },
+      });
+      if (code && code !== "UPLOAD_CANCELED") setRowError((prev) => ({ ...prev, [slot]: code }));
     } finally {
+      abortRef.current = null;
       setBusySlot("");
     }
   };
@@ -67,6 +82,18 @@ export default function SpesDocChecklist({ slots, documents, canEdit, onUpload }
                       {t("spes.docs.reasonLabel")} {doc.verification.reason}
                     </span>
                   ) : null}
+                  {busySlot === slot ? (
+                    <span
+                      className="fu__progress"
+                      role="progressbar"
+                      aria-label={t("upload.progressLabel", { name: t(`spes.docs.slot.${slot}`) })}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={progress}
+                    >
+                      <span className="fu__progress-bar" style={{ width: `${progress}%` }} />
+                    </span>
+                  ) : null}
                   {errorCode ? (
                     <span className="spes-slot__error" role="alert">
                       {translateErrorCode(errorCode, t("spes.docs.uploadFailed"))}
@@ -96,15 +123,20 @@ export default function SpesDocChecklist({ slots, documents, canEdit, onUpload }
                       }}
                       tabIndex={-1}
                     />
+                    {busySlot === slot ? (
+                      <button type="button" className="spes-btn spes-btn--small spes-btn--ghost" onClick={() => abortRef.current?.abort()}>
+                        {t("upload.cancel")}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className={`spes-btn spes-btn--small${needsAction ? "" : " spes-btn--ghost"}`}
-                      disabled={busySlot === slot}
+                      disabled={Boolean(busySlot)}
                       onClick={() => inputs.current[slot]?.click()}
                     >
                       <Upload size={13} aria-hidden="true" />{" "}
                       {busySlot === slot
-                        ? t("spes.docs.uploading")
+                        ? `${t("spes.docs.uploading")} ${progress}%`
                         : doc
                           ? t("spes.docs.replace")
                           : t("spes.docs.upload")}
