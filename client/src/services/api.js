@@ -602,6 +602,22 @@ export const systemOptionsAPI = {
 
 // Profile banner templates. Any signed-in user reads the active list; the
 // superadmin manages them (validated gradient and pattern definitions only).
+// Employer cover image (verified employers): upload a cropped image, or remove it.
+export const employerCoverAPI = {
+  uploadImage: (file, cropData, onProgress) => {
+    const fd = new FormData();
+    fd.append('cover', file);
+    if (cropData) fd.append('cropData', JSON.stringify(cropData));
+    return api.post('/employer/cover/image', fd, {
+      ...getAuthFormHeader(),
+      onUploadProgress: (event) => {
+        if (onProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    });
+  },
+  removeImage: () => api.delete('/employer/cover/image', getAuthHeader()),
+};
+
 export const bannerTemplateAPI = {
   listActive: () => api.get('/banner-templates', getAuthHeader()),
   adminList: () => api.get('/superadmin/banner-templates', getAuthHeader()),

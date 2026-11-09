@@ -1395,7 +1395,18 @@
       "COVER_TEMPLATE_NOT_FOUND": "That banner could not be found.",
       "COVER_TEMPLATE_INACTIVE": "That banner is no longer available.",
       "COVER_ONLY_TEMPLATE_ALLOWED": "You can only choose one of the banners in the list.",
-      "COVER_NOT_ALLOWED": "This account type has no profile cover."
+      "COVER_NOT_ALLOWED": "This account type has no profile cover.",
+      "COVER_EMPLOYER_NOT_VERIFIED": "Only verified employers can upload their own cover.",
+      "COVER_UPLOAD_REVOKED": "Your right to upload a cover was ended after repeated removals. Contact PESO to restore it.",
+      "COVER_IMAGE_REQUIRED": "Choose an image to upload.",
+      "COVER_IMAGE_TYPE": "The cover must be a JPG, PNG or WebP image.",
+      "COVER_IMAGE_TOO_LARGE": "The cover must be 3 MB or smaller.",
+      "COVER_IMAGE_DIMENSIONS": "The cover must be at least 1200 by 300 pixels.",
+      "COVER_IMAGE_PROCESSING_FAILED": "We could not read that image. Try another file.",
+      "COVER_UPLOAD_FAILED": "We could not store the cover. Please try again.",
+      "COVER_DAILY_LIMIT": "You reached the daily limit for cover uploads. Try again tomorrow.",
+      "COVER_NO_IMAGE": "This account has no uploaded cover image.",
+      "COVER_UPLOAD_NOT_REVOKED": "This account can already upload a cover."
     }
   },
   "spes": {
@@ -2178,6 +2189,26 @@
     "save": "Save",
     "saving": "Saving…",
     "saved": "Cover updated.",
-    "saveError": "Could not save your cover. Please try again."
+    "saveError": "Could not save your cover. Please try again.",
+    "tabTemplates": "Templates",
+    "tabUpload": "Upload your own",
+    "notVerified": "Only verified employers can upload their own cover. You can choose a template instead.",
+    "revoked": "Your right to upload a cover was ended after repeated removals. You can still choose a template. Contact PESO to ask for it to be restored.",
+    "currentImage": "Your current cover image.",
+    "previewLabel": "How your cover will look",
+    "previewDesktop": "On a computer",
+    "previewMobile": "On a phone",
+    "dropTitle": "Choose an image",
+    "dropHint": "JPG, PNG or WebP, up to 3 MB, at least 1200 by 300 pixels.",
+    "guidelines": "Use a photo or design that is appropriate for all ages. Do not include personal details. Inappropriate covers are removed, and repeated removals end the upload right.",
+    "chooseAnother": "Choose another",
+    "replace": "Replace",
+    "removeImage": "Remove (back to default)",
+    "upload": "Upload",
+    "uploading": "Uploading…",
+    "uploadError": "Could not upload the cover. Please try again.",
+    "removed": "Cover image removed.",
+    "removeError": "Could not remove the cover image.",
+    "editorTitle": "Adjust your cover"
   }
 }

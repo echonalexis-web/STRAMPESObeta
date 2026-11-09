@@ -1395,7 +1395,18 @@
       "COVER_TEMPLATE_NOT_FOUND": "Hindi makita ang banner na iyon.",
       "COVER_TEMPLATE_INACTIVE": "Hindi na available ang banner na iyon.",
       "COVER_ONLY_TEMPLATE_ALLOWED": "Isa lamang sa mga banner sa listahan ang maaari mong piliin.",
-      "COVER_NOT_ALLOWED": "Walang cover sa profile ang ganitong uri ng account."
+      "COVER_NOT_ALLOWED": "Walang cover sa profile ang ganitong uri ng account.",
+      "COVER_EMPLOYER_NOT_VERIFIED": "Tanging mga beripikadong employer ang makakapag-upload ng sariling cover.",
+      "COVER_UPLOAD_REVOKED": "Natapos ang karapatan mong mag-upload ng cover matapos ang paulit-ulit na pag-alis. Makipag-ugnayan sa PESO upang maibalik ito.",
+      "COVER_IMAGE_REQUIRED": "Pumili ng larawang i-a-upload.",
+      "COVER_IMAGE_TYPE": "Dapat na JPG, PNG o WebP ang cover.",
+      "COVER_IMAGE_TOO_LARGE": "Dapat na 3 MB o mas maliit ang cover.",
+      "COVER_IMAGE_DIMENSIONS": "Dapat na hindi bababa sa 1200 by 300 pixels ang cover.",
+      "COVER_IMAGE_PROCESSING_FAILED": "Hindi namin mabasa ang larawang iyon. Subukan ang ibang file.",
+      "COVER_UPLOAD_FAILED": "Hindi namin ma-save ang cover. Subukang muli.",
+      "COVER_DAILY_LIMIT": "Naabot mo na ang daily limit ng pag-upload ng cover. Subukan bukas.",
+      "COVER_NO_IMAGE": "Walang na-upload na cover na larawan ang account na ito.",
+      "COVER_UPLOAD_NOT_REVOKED": "Maaari nang mag-upload ng cover ang account na ito."
     }
   },
   "spes": {
@@ -2178,6 +2189,26 @@
     "save": "I-save",
     "saving": "Sine-save…",
     "saved": "Na-update ang cover.",
-    "saveError": "Hindi na-save ang cover. Subukang muli."
+    "saveError": "Hindi na-save ang cover. Subukang muli.",
+    "tabTemplates": "Mga template",
+    "tabUpload": "Mag-upload ng sarili",
+    "notVerified": "Tanging mga beripikadong employer ang makakapag-upload ng sariling cover. Maaari kang pumili ng template.",
+    "revoked": "Natapos ang karapatan mong mag-upload ng cover matapos ang paulit-ulit na pag-alis. Maaari ka pa ring pumili ng template. Makipag-ugnayan sa PESO upang maibalik ito.",
+    "currentImage": "Ang kasalukuyan mong cover na larawan.",
+    "previewLabel": "Ganito ang magiging itsura ng cover mo",
+    "previewDesktop": "Sa computer",
+    "previewMobile": "Sa phone",
+    "dropTitle": "Pumili ng larawan",
+    "dropHint": "JPG, PNG o WebP, hanggang 3 MB, hindi bababa sa 1200 by 300 pixels.",
+    "guidelines": "Gumamit ng larawan o disenyong angkop sa lahat ng edad. Huwag maglagay ng personal na detalye. Aalisin ang hindi angkop na cover, at ang paulit-ulit na pag-alis ay magtatapos sa karapatang mag-upload.",
+    "chooseAnother": "Pumili ng iba",
+    "replace": "Palitan",
+    "removeImage": "Alisin (balik sa default)",
+    "upload": "I-upload",
+    "uploading": "Ina-upload…",
+    "uploadError": "Hindi ma-upload ang cover. Subukang muli.",
+    "removed": "Naalis ang cover na larawan.",
+    "removeError": "Hindi maalis ang cover na larawan.",
+    "editorTitle": "Ayusin ang cover mo"
   }
 }

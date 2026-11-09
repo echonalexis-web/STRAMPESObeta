@@ -1412,6 +1412,9 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
           onClose={() => setCoverPickerOpen(false)}
           cover={profile?.cover}
           onSaved={handleCoverSaved}
+          isEmployer={isEmployer}
+          verified={profile?.verificationStatus === "verified"}
+          uploadRevoked={Boolean(profile?.coverUploadRevoked)}
         />
       ) : null}
 

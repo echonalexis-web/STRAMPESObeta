@@ -31,6 +31,9 @@ export default function ImageEditorModal({
   cropShape = "rect", // "round" | "rect"
   aspect = 16 / 9, // used when cropShape === "rect"
   allowAspectPresets = false,
+  // Optional fixed output width in pixels for a rectangular crop (height follows
+  // the crop frame's aspect). Omitted: the original behavior, up to 1600px.
+  outputWidth = null,
   onCancel,
   onConfirm,
 }) {
@@ -172,10 +175,12 @@ export default function ImageEditorModal({
     try {
       const out = round
         ? { w: 512, h: 512 }
-        : (() => {
-            const up = Math.min(3, 1600 / frame.w);
-            return { w: Math.round(frame.w * up), h: Math.round(frame.h * up) };
-          })();
+        : outputWidth
+          ? { w: Math.round(outputWidth), h: Math.round((outputWidth * frame.h) / frame.w) }
+          : (() => {
+              const up = Math.min(3, 1600 / frame.w);
+              return { w: Math.round(frame.w * up), h: Math.round(frame.h * up) };
+            })();
       const k = out.w / frame.w;
 
       const canvas = document.createElement("canvas");
