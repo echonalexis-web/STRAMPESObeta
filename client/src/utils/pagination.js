@@ -45,3 +45,17 @@ export const getPageItems = (current, totalPages, siblings = 1) => {
   if (showLeft && !showRight) return [1, ELLIPSIS, ...range(totalPages - (2 + siblings * 2), totalPages)];
   return [1, ELLIPSIS, ...range(left, right), ELLIPSIS, totalPages];
 };
+
+// Client-side slicing: the page is clamped into range, so a list that shrinks while on its
+// last page lands on the new last page instead of an empty one.
+export const paginateList = (items, page, pageSize) => {
+  const list = Array.isArray(items) ? items : [];
+  const total = list.length;
+  const totalPages = totalPagesFor(total, pageSize);
+  const safePage = clampPage(page, totalPages);
+  const start = (safePage - 1) * pageSize;
+  return { pageItems: list.slice(start, start + pageSize), total, totalPages, page: safePage, ...pageRange(safePage, pageSize, total) };
+};
+
+// Filters, search or sort changing (a different resetKey) sends the list back to page 1.
+export const reconcilePage = ({ page, resetKey, prevKey }) => (resetKey !== prevKey ? 1 : page);

@@ -44,3 +44,43 @@ test("numbered pages with ellipses", () => {
     }
   }
 });
+
+import { paginateList, reconcilePage } from "./pagination.js";
+
+test("paginateList slices, clamps, and handles empty and single-page lists", () => {
+  const items = Array.from({ length: 23 }, (_, i) => i + 1);
+  const first = paginateList(items, 1, 10);
+  assert.deepEqual(first.pageItems, items.slice(0, 10));
+  assert.equal(first.totalPages, 3);
+  assert.deepEqual([first.from, first.to, first.total], [1, 10, 23]);
+
+  const last = paginateList(items, 3, 10);
+  assert.deepEqual(last.pageItems, [21, 22, 23]);
+  assert.deepEqual([last.from, last.to], [21, 23]);
+
+  // The list shrank while on page 3: land on the new last page, never an empty one.
+  const shrunk = paginateList(items.slice(0, 12), 3, 10);
+  assert.equal(shrunk.page, 2);
+  assert.deepEqual(shrunk.pageItems, [11, 12]);
+
+  // Exact multiple of the page size.
+  const exact = paginateList(items.slice(0, 20), 2, 10);
+  assert.equal(exact.totalPages, 2);
+  assert.equal(exact.pageItems.length, 10);
+
+  // Single page: everything, page 1 of 1.
+  const single = paginateList([1, 2, 3, 4, 5, 6, 7], 1, 10);
+  assert.deepEqual([single.page, single.totalPages, single.from, single.to, single.total], [1, 1, 1, 7, 7]);
+
+  // Empty (and not an array): no rows, "0 to 0 of 0", still page 1 of 1.
+  for (const empty of [[], null, undefined]) {
+    const none = paginateList(empty, 5, 10);
+    assert.deepEqual([none.pageItems.length, none.page, none.totalPages, none.from, none.to, none.total], [0, 1, 1, 0, 0, 0]);
+  }
+});
+
+test("a changed filter, search or sort key resets to page 1; an unchanged key keeps the page", () => {
+  assert.equal(reconcilePage({ page: 4, resetKey: "a|x", prevKey: "a|x" }), 4);
+  assert.equal(reconcilePage({ page: 4, resetKey: "b|x", prevKey: "a|x" }), 1);
+  assert.equal(reconcilePage({ page: 1, resetKey: "b", prevKey: "a" }), 1);
+});

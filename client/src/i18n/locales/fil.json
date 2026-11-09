@@ -1796,6 +1796,18 @@
     "rowsPerPage": "Hilera bawat pahina",
     "previous": "Nakaraan",
     "next": "Susunod",
-    "page": "Pahina {{page}}"
+    "page": "Pahina {{page}}",
+    "showing": "Ipinapakita ang {{from}} hanggang {{to}} sa {{total}}",
+    "showingWithLabel": "Ipinapakita ang {{from}} hanggang {{to}} sa {{total}} {{label}}",
+    "noResults": "Walang resulta",
+    "pageOf": "Pahina {{page}} sa {{pages}}",
+    "items": {
+      "applications": "aplikasyon",
+      "notifications": "abiso",
+      "postings": "posting",
+      "accounts": "account",
+      "announcements": "anunsyo",
+      "jobs": "trabaho"
+    }
   }
 }

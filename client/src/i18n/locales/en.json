@@ -1796,6 +1796,18 @@
     "rowsPerPage": "Rows per page",
     "previous": "Previous",
     "next": "Next",
-    "page": "Page {{page}}"
+    "page": "Page {{page}}",
+    "showing": "Showing {{from}} to {{to}} of {{total}}",
+    "showingWithLabel": "Showing {{from}} to {{to}} of {{total}} {{label}}",
+    "noResults": "No results",
+    "pageOf": "Page {{page}} of {{pages}}",
+    "items": {
+      "applications": "applications",
+      "notifications": "notifications",
+      "postings": "postings",
+      "accounts": "accounts",
+      "announcements": "announcements",
+      "jobs": "jobs"
+    }
   }
 }

@@ -45,8 +45,11 @@
 .pager__btn:focus-visible { outline: 3px solid var(--ds-focus); outline-offset: 2px; }
 .pager__btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .pager__btn.is-current { background: var(--ds-green-deep); border-color: var(--ds-green-deep); color: #fff; cursor: default; }
+.pager__compact { display: none; font-size: var(--ds-text-sm); font-weight: 600; color: var(--ds-text); padding: 0 var(--ds-space-2); white-space: nowrap; }
 @media (max-width: 559px) {
-  .pager__step-text { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .pager__pages { display: none; }
+  .pager__compact { display: inline; }
+  .pager__nav { justify-content: space-between; }
 }
 @media (min-width: 900px) {
   .pager { grid-template-columns: auto minmax(0, 1fr) auto; }

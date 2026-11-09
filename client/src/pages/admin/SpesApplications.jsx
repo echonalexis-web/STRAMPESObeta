@@ -492,10 +492,7 @@ export default function SpesApplications() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [reviewing, setReviewing] = useState(null);
-  const [announce, setAnnounce] = useState("");
   const cardRef = useRef(null);
-  const summaryRef = useRef(null);
-  const focusAfterLoad = useRef(false);
   const requestId = useRef(0);
   const appliedSchool = useRef("");
 
@@ -531,14 +528,8 @@ export default function SpesApplications() {
     setter(value);
     updateParams({ page: 1 });
   };
-  const changePage = (next) => {
-    focusAfterLoad.current = true;
-    updateParams({ page: next }, false);
-  };
-  const changePageSize = (size) => {
-    focusAfterLoad.current = true;
-    updateParams({ pageSize: size, page: 1 });
-  };
+  const changePage = (next) => updateParams({ page: next }, false);
+  const changePageSize = (size) => updateParams({ pageSize: size, page: 1 });
 
   const loadPostings = useCallback(async () => {
     try {
@@ -594,14 +585,6 @@ export default function SpesApplications() {
         setItems(Array.isArray(data?.items) ? data.items : []);
         setTotal(count);
         setTotalPages(pages);
-        if (focusAfterLoad.current) {
-          focusAfterLoad.current = false;
-          setAnnounce(t("spes.monitoring.pageAnnounce", { page, pages }));
-          requestAnimationFrame(() => {
-            cardRef.current?.scrollIntoView?.({ block: "start" });
-            summaryRef.current?.focus({ preventScroll: true });
-          });
-        }
       } catch (err) {
         if (mine !== requestId.current) return;
         setLoadError(true);
@@ -759,7 +742,7 @@ export default function SpesApplications() {
         <div className="admin-card-header spes-queue__head">
           <h2 className="spes-admin__title">{t("spes.admin.queueTitle")}</h2>
           {total > 0 && !loadError ? (
-            <p className="spes-queue__summary" ref={summaryRef} tabIndex={-1}>
+            <p className="spes-queue__summary">
               {showing}
             </p>
           ) : null}
@@ -827,21 +810,20 @@ export default function SpesApplications() {
           </table>
         </div>
 
-        {total > 0 && !loadError ? (
+        {!loadError ? (
           <Pagination
             idPrefix="spes-queue"
+            total={total}
             page={page}
-            totalPages={totalPages}
             pageSize={pageSize}
-            summary={showing}
+            label={t("pagination.items.applications")}
             disabled={loading}
+            scrollTargetRef={cardRef}
             onPageChange={changePage}
             onPageSizeChange={changePageSize}
           />
         ) : null}
       </div>
-
-      <p className="ds-sr-only" role="status" aria-live="polite">{announce}</p>
 
       {reviewing ? (
         <SpesReviewDrawer app={reviewing} released={reviewingReleased} onClose={() => setReviewing(null)} onSaved={patchItem} />
