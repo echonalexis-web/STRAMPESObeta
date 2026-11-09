@@ -29,6 +29,8 @@ const {
 const { OAuth2Client } = require("google-auth-library");
 const { validateDobInput, parseDateOnly, getAgeTier } = require("../utils/age");
 const { isUsernameSignupEnabled, hasVerifiedEmail } = require("../utils/usernameSignup");
+const { sessionUserPayload } = require("../utils/sessionUser");
+const loginLock = require("../services/loginLockService");
 
 const { DOB_ERROR_MESSAGES } = require("../utils/dobPolicy");
 const { normalizeEmail } = require("../utils/normalizeEmail");
@@ -228,25 +230,6 @@ const getDocumentFieldRemovals = (payload = {}) => {
 
   return removals;
 };
-
-// Shape of the user object returned to the client on sign-in. `email` may be
-// null (username-only account); `isEmailVerified` is kept for old clients,
-// `hasVerifiedEmail` is the truthful flag.
-const sessionUserPayload = (user) => ({
-  id: user._id,
-  name: user.name,
-  email: user.email || null,
-  username: user.username || null,
-  role: user.role,
-  verificationStatus: user.verificationStatus,
-  isEmailVerified: user.isEmailVerified !== false,
-  hasVerifiedEmail: hasVerifiedEmail(user),
-  hasCompletedOnboarding: user.hasCompletedOnboarding,
-  onboardingComplete: user.onboardingComplete,
-  acceptedTermsAt: user.acceptedTermsAt,
-  termsVersion: user.termsVersion,
-  mustChangePassword: user.mustChangePassword === true,
-});
 
 // Which unique index fired on an E11000.
 const duplicateKeyField = (error) => {
@@ -531,10 +514,26 @@ exports.login = async (req, res) => {
     // Same generic message and the same bcrypt work either way, so neither
     // the response text nor the response time discloses whether this
     // identifier has an account.
+    // Per-account lockout: only while the username sign-up feature is on, and
+    // only for jobseeker accounts (a staff account must never be lockable by
+    // someone typing its name).
+    const lockoutOn = isUsernameSignupEnabled();
+    const lockable = lockoutOn && user && ["jobseeker", "employee", "resident"].includes(user.role);
+    const locked = Boolean(lockable && loginLock.isLocked(user));
+
     const match = await bcrypt.compare(password || "", user?.password || DUMMY_PASSWORD_HASH);
-    if (!user || !match || user.staffRecoveryPending) {
+    if (!user || !match || user.staffRecoveryPending || locked) {
+      if (lockoutOn) {
+        // One database write on every failure path, real or dummy, so response
+        // time does not tell "no such account" from "wrong password" from
+        // "locked". A locked account answers exactly like a wrong password,
+        // even when the password is right.
+        if (lockable && !match && !locked) await loginLock.recordFailure(user, { req });
+        else await loginLock.recordFailureDummy();
+      }
       return res.status(400).json({ message: "Invalid username/email or password" });
     }
+    if (lockable && user.loginLock) await loginLock.clearLock(user._id);
 
     if (user.isActive === false && (user.role === "admin" || user.role === "superadmin")) {
       // Staff accounts are disabled by a superadmin, not moderated — no appeal
@@ -946,6 +945,9 @@ exports.resetPassword = async (req, res) => {
     user.password = await bcrypt.hash(password, 10);
     user.passwordResetToken = null;
     user.passwordResetExpires = null;
+    // A completed reset also unlocks the account and drops any pending email code.
+    user.loginLock = undefined;
+    user.emailCode = undefined;
     // Invalidates every token issued before this reset — the reset flow
     // itself sends the user to a fresh login, so there's no "current
     // session" to keep alive here (unlike the self-service changePassword).
@@ -1426,6 +1428,9 @@ exports.recoverSetPassword = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     user.password = await bcrypt.hash(newPassword, 10);
+    // Recovery also unlocks the account and drops any pending email code.
+    user.loginLock = undefined;
+    user.emailCode = undefined;
     // Spends this single-use recovery token the moment it's used for its
     // one allowed action — same bump-on-every-credential-change pattern as
     // changePassword/resetPassword/setPassword above.

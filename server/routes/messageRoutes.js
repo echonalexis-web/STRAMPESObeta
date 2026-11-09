@@ -10,6 +10,7 @@ const {
   searchUsers,
 } = require("../controllers/messageController");
 const { verifyToken: protect } = require("../middleware/auth");
+const { requireVerifiedEmail } = require("../middleware/requireVerifiedEmail");
 const {
   validateMessage,
   validateRequest,
@@ -27,13 +28,14 @@ router.get("/users/search", sanitizeQueryParams, searchUsers);
 
 // Conversations
 router.get("/conversations", sanitizeQueryParams, getConversations);
-router.post("/conversations", sanitizeRequestBody, detectMaliciousPayload, createConversation);
+router.post("/conversations", requireVerifiedEmail, sanitizeRequestBody, detectMaliciousPayload, createConversation);
 router.delete("/conversations/:conversationId", validateMongoId("conversationId"), deleteConversation);
 
 // Messages
 router.get("/conversations/:conversationId/messages", validateMongoId("conversationId"), sanitizeQueryParams, getMessages);
 router.post(
   "/conversations/:conversationId/messages",
+  requireVerifiedEmail,
   validateMongoId("conversationId"),
   sanitizeRequestBody,
   detectMaliciousPayload,

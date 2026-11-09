@@ -26,6 +26,7 @@ const { startEmailOutboxWorker } = require("./services/emailOutboxService");
 const logger = require("./utils/logger");
 const { sendError } = require("./utils/sendError");
 const { buildRegisterLimiters } = require("./middleware/registerLimiter");
+const { assertUsernameSignupConfig } = require("./utils/usernameSignup");
 const { MongoRateLimitStore } = require("./middleware/mongoRateLimitStore");
 const RateLimitCounter = require("./models/RateLimitCounter");
 
@@ -49,6 +50,15 @@ process.on("uncaughtException", (err) => {
 });
 
 // ============ CONFIGURATION ============
+
+// With USERNAME_SIGNUP_ENABLED on, refuse to start without a usable code pepper.
+// The message names the variable and never prints its value.
+try {
+  assertUsernameSignupConfig();
+} catch (err) {
+  logger.error("Invalid configuration", { error: err.message });
+  process.exit(1);
+}
 
 // Allow multiple origins
 const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:5173,http://127.0.0.1:5173")

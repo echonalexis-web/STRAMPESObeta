@@ -80,6 +80,39 @@ const userSchema = new mongoose.Schema(
     // changes. Mongoose applies this default even to documents that predate
     // the field, so no data migration is needed.
     tokenVersion: { type: Number, default: 0 },
+    // Per-account login lockout (username sign-up feature; see
+    // services/loginLockService.js). Absent on every legacy account.
+    loginLock: {
+      type: new mongoose.Schema(
+        {
+          failures: { type: Number, default: 0 },
+          lastFailureAt: { type: Date },
+          lockedUntil: { type: Date },
+          level: { type: Number, default: 0 },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
+    // Pending six-digit email code (see controllers/emailCodeController.js).
+    // `hash` is an HMAC with a server pepper, never the code itself.
+    // select:false so it is never returned by ordinary reads.
+    emailCode: {
+      type: new mongoose.Schema(
+        {
+          hash: { type: String },
+          target: { type: String },
+          expiresAt: { type: Date },
+          attempts: { type: Number, default: 0 },
+          lastSentAt: { type: Date },
+          windowStart: { type: Date },
+          sendCount: { type: Number, default: 0 },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+      select: false,
+    },
     // ===== Google sign-in =====
     // Google's stable account id (the ID token `sub`). Uniqueness is enforced
     // in the controller (find-by-googleId) rather than a partial index, to keep

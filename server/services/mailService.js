@@ -257,6 +257,30 @@ const sendEmailVerification = async ({ to, name, verifyUrl, expiresHours = 24 })
 };
 
 /* ------------------------------------------------------------------ */
+/* Six-digit code to add an email (username-only accounts)              */
+/* ------------------------------------------------------------------ */
+
+/** Sent to the address being added. The code is shown, never logged. */
+const sendEmailCode = async ({ to, name, code, expiresMinutes = 10 }) => {
+  const subject = "Your STRAM PESO verification code";
+  const text =
+    `Hi ${name || "there"},\n\n` +
+    `Your STRAM PESO verification code is: ${code}\n\n` +
+    `It expires in ${expiresMinutes} minutes. Enter it in the app to add this email address to your account.\n\n` +
+    `If you did not request this, ignore this email. Nobody can use this code without your account password.`;
+  const html = renderEmail({
+    heading: "Your verification code",
+    paragraphs: [
+      `Hi ${name || "there"},`,
+      `Use this code to add this email address to your ${BRAND} account. It expires in <strong>${expiresMinutes} minutes</strong>.`,
+      `<span style="display:inline-block;font-size:28px;font-weight:800;letter-spacing:.3em;color:#0f172a;">${code}</span>`,
+    ],
+    footnote: "If you did not request this, ignore this email.",
+  });
+  return sendMail({ to, subject, text, html });
+};
+
+/* ------------------------------------------------------------------ */
 /* Email change                                                        */
 /* ------------------------------------------------------------------ */
 
@@ -425,6 +449,7 @@ module.exports = {
   sendPasswordChangedEmail,
   sendPasswordAddedEmail,
   sendEmailVerification,
+  sendEmailCode,
   sendEmailChangeVerification,
   sendEmailChangeAlert,
   sendRecoveryEmailVerification,

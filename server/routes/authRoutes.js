@@ -37,7 +37,7 @@ const {
     updateSettings,
     deactivateAccount
 } = require("../controllers/authController");
-const { verifyToken: protect, verifyRecoveryToken, isAdmin } = require("../middleware/auth");
+const { verifyToken: protect, verifyRecoveryToken, isAdmin, isJobseeker } = require("../middleware/auth");
 const { exportOwnForm1, exportOwnForm2 } = require("../controllers/nsrpFormController");
 const {
   sanitizeRequestBody,
@@ -47,7 +47,10 @@ const {
   validateRequest
 } = require("../middleware/validation");
 const { detectMaliciousPayload, sensitiveOperationLimiter } = require("../middleware/security");
-const { rejectUsernameSignupWhenDisabled } = require("../middleware/signupFlag");
+const { rejectUsernameSignupWhenDisabled, requireUsernameSignupEnabled } = require("../middleware/signupFlag");
+const { requireVerifiedEmailForFiles, requireVerifiedEmail } = require("../middleware/requireVerifiedEmail");
+const { dbLimiter } = require("../middleware/dbLimiter");
+const { requestAddEmail, verifyAddEmail } = require("../controllers/emailCodeController");
 const idUploadLimit = require("../middleware/idUploadLimit");
 const { confirmIdOcr, getIdFormats } = require("../controllers/idOcrController");
 
@@ -200,6 +203,41 @@ router.get(
   checkUsernameAvailable
 );
 
+// Add a verified email to a username-only account (six-digit code). Every
+// route here is a 404 while USERNAME_SIGNUP_ENABLED is off. The IP limits are
+// database-backed and generous (shared PESO and school networks); the strict
+// limits are per account, in the controller.
+router.post(
+  "/email/add/request",
+  requireUsernameSignupEnabled,
+  protect,
+  isJobseeker,
+  dbLimiter({
+    name: "email-add-request-ip",
+    windowMs: 60 * 60 * 1000,
+    max: 60,
+    envName: "EMAIL_CODE_REQUEST_LIMIT_PER_HOUR_IP",
+  }),
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  requestAddEmail
+);
+router.post(
+  "/email/add/verify",
+  requireUsernameSignupEnabled,
+  protect,
+  isJobseeker,
+  dbLimiter({
+    name: "email-add-verify-ip",
+    windowMs: 60 * 60 * 1000,
+    max: 120,
+    envName: "EMAIL_CODE_VERIFY_LIMIT_PER_HOUR_IP",
+  }),
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  verifyAddEmail
+);
+
 // Protected routes
 router.get("/me", protect, getMe);
 router.get("/profile", protect, getProfile);
@@ -275,6 +313,7 @@ router.put(
   documentsUpload.fields(PROFILE_DOC_FIELDS),
   idUploadLimit,
   cleanupUploadedFiles,
+  requireVerifiedEmailForFiles,
   persistFields(PROFILE_DOC_CATEGORIES),
   sanitizeRequestBody,
   detectMaliciousPayload,
@@ -287,6 +326,7 @@ router.patch(
   documentsUpload.fields(ME_DOC_FIELDS),
   idUploadLimit,
   cleanupUploadedFiles,
+  requireVerifiedEmailForFiles,
   persistFields(ME_DOC_CATEGORIES),
   sanitizeRequestBody,
   detectMaliciousPayload,
@@ -297,6 +337,7 @@ router.patch(
 router.patch(
   "/profile/avatar",
   protect,
+  requireVerifiedEmail,
   avatarUpload.single("profileImage"),
   validateFile,
   cleanupUploadedFiles,
