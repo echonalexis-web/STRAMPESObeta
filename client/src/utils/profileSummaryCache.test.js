@@ -207,3 +207,21 @@ test("cancelling before the request starts rejects without loading anything", as
   assert.equal(loaded, false);
   assert.equal(cache.inFlightCount(), 0);
 });
+
+test("a fetch after a cancel starts a fresh request (StrictMode remount)", async () => {
+  const cache = createSummaryCache();
+  let calls = 0;
+  const load = (controller) =>
+    new Promise((resolve, reject) => {
+      calls += 1;
+      controller.signal.addEventListener("abort", () => reject(new Error("aborted")));
+      setTimeout(() => resolve({ name: "A" }), 5);
+    });
+  const first = cache.fetch("a", load);
+  first.promise.catch(() => {});
+  first.cancel();
+  const second = cache.fetch("a", load);
+  assert.deepEqual(await second.promise, { name: "A" });
+  assert.equal(calls <= 2, true);
+  assert.deepEqual(cache.get("a"), { name: "A" });
+});

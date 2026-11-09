@@ -68,11 +68,14 @@ export const createSummaryCache = ({ max = CACHE_MAX_ENTRIES, ttlMs = CACHE_TTL_
         return value;
       })
       .finally(() => {
-        inFlight.delete(id);
+        if (inFlight.get(id) === record) inFlight.delete(id);
       });
     const record = {
       promise,
       cancel: () => {
+        // Drop it first so a later fetch (a StrictMode re-mount, a new hover)
+        // starts a fresh request instead of joining the aborted one.
+        if (inFlight.get(id) === record) inFlight.delete(id);
         controller?.abort();
       },
     };
