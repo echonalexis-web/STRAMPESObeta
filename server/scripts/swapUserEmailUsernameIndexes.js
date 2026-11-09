@@ -57,7 +57,8 @@ const NEW_INDEXES = [
 
 // Pure: the shape of the plan, so it can be tested without a database.
 const buildPlan = () => ({
-  unsetExplicitNullUsername: { filter: { username: null }, update: { $unset: { username: "" } } },
+  // $type null matches only a stored null, not a missing field (which is fine).
+  unsetExplicitNullUsername: { filter: { username: { $type: "null" } }, update: { $unset: { username: "" } } },
   unsetEmptyEmail: { filter: { email: "" }, update: { $unset: { email: "" } } },
   dropIndexes: [...OLD_INDEX_NAMES],
   createIndexes: NEW_INDEXES,
