@@ -56,65 +56,67 @@
   outline-offset: 2px;
 }
 
-/* ---- stepper ---- */
+/* ---- stepper: one flex row (step, line, step, line, step) on a shared center axis ---- */
 .spes-stepper {
   flex: none;
   display: flex;
   align-items: center;
-  gap: var(--ds-space-3);
+  gap: var(--ds-space-4);
   padding: var(--ds-space-4) 16px 0;
 }
-.spes-stepper__list {
-  flex: 1;
+.spes-stepper .spes-stepper__list {
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
+  flex-flow: row nowrap;
   align-items: center;
+  gap: var(--ds-space-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.spes-stepper__item {
+.spes-stepper .spes-stepper__item {
+  flex: none;
   display: flex;
+  flex-flow: row nowrap;
   align-items: center;
   gap: var(--ds-space-2);
+  margin: 0;
   color: var(--ds-muted);
   font-size: var(--ds-text-sm);
+  line-height: 1.2;
+  white-space: nowrap;
 }
-.spes-stepper__item:not(:last-child) { flex: 1; }
-.spes-stepper__item:not(:last-child)::after {
-  content: "";
-  flex: 1;
-  height: 2px;
+.spes-stepper .spes-stepper__line {
+  flex: 1 1 0;
   min-width: 12px;
-  margin: 0 var(--ds-space-3);
+  height: 2px;
+  margin: 0;
   border-radius: 2px;
   background: var(--ds-border);
 }
-.spes-stepper__item.is-done:not(:last-child)::after { background: var(--ds-green-secondary); }
+.spes-stepper .spes-stepper__line.is-done { background: var(--ds-green-secondary); }
 .spes-stepper__dot {
   flex: none;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: 2px solid var(--ds-border);
   border-radius: 50%;
   background: var(--ds-surface);
   font-weight: 700;
-  font-size: var(--ds-text-sm);
+  font-size: var(--ds-text-xs);
+  line-height: 1;
 }
-.spes-stepper__item.is-done .spes-stepper__dot {
-  border-color: var(--ds-green-secondary);
-  background: var(--ds-green-secondary);
-  color: #fff;
-}
+.spes-stepper__check { flex: none; color: var(--ds-green-secondary); }
+.spes-stepper__item.is-done { color: var(--ds-green-deep); font-weight: 600; }
 .spes-stepper__item.is-current { color: var(--ds-text); font-weight: 700; }
 .spes-stepper__item.is-current .spes-stepper__dot {
   border-color: var(--ds-green-deep);
   background: var(--ds-green-deep);
   color: #fff;
 }
-.spes-stepper__item.is-done { color: var(--ds-green-deep); }
 .spes-stepper__count {
   flex: none;
   margin: 0;
@@ -123,8 +125,8 @@
   white-space: nowrap;
 }
 
-/* Narrow screens: circles + "Step n of 3"; only the current label stays visible. */
-@media (max-width: 599px) {
+/* Under 560px: circles and "Step n of 3"; only the current label stays visible. */
+@media (max-width: 559px) {
   .spes-stepper__item:not(.is-current) .spes-stepper__label {
     position: absolute;
     width: 1px;
@@ -137,8 +139,64 @@
 }
 @media (max-width: 380px) {
   .spes-stepper { flex-wrap: wrap; row-gap: var(--ds-space-2); }
-  .spes-stepper__list { flex-basis: 100%; }
+  .spes-stepper .spes-stepper__list { flex-basis: 100%; }
   .spes-stepper__count { order: -1; }
+}
+
+/* ---- step 1: fluid fields. One column, two from 640px; every control fills its cell. ---- */
+.spes-apply .spes-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ds-space-4);
+}
+.spes-apply .spes-field {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+.spes-field__label { font-size: var(--ds-text-sm); font-weight: 600; color: var(--ds-text); }
+.spes-req { color: var(--ds-danger); }
+
+/* Beats the global input rule in style.css (max-width 600px, margin auto) and gives
+   inputs, selects and number inputs one height, radius, border, background and focus ring. */
+.spes-apply .spes-fields :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background-color: var(--ds-surface);
+  color: var(--ds-text);
+  font: inherit;
+  font-weight: 400;
+  box-shadow: none;
+}
+.spes-apply .spes-fields select {
+  appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a6c65' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+.spes-apply .spes-fields input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.spes-apply .spes-fields input[type="number"]::-webkit-outer-spin-button,
+.spes-apply .spes-fields input[type="number"]::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.spes-apply .spes-fields :is(input, select):focus-visible {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 1px;
+  border-color: var(--ds-green-secondary);
+}
+.spes-apply .spes-fields .autosuggest { width: 100%; min-width: 0; }
+.spes-apply .spes-fields .spes-field--wide { grid-column: 1 / -1; }
+@media (min-width: 640px) {
+  .spes-apply .spes-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ds-space-4) var(--ds-space-5); }
 }
 
 /* ---- scrolling body ---- */
@@ -219,8 +277,9 @@
 
 .spes-review__details {
   padding: var(--ds-space-5);
+  border: 1px solid var(--ds-border);
   border-radius: var(--ds-radius-lg);
-  background: var(--ds-mint);
+  background: var(--ds-bg);
   align-self: start;
 }
 .spes-review__list { display: grid; gap: var(--ds-space-4); margin: var(--ds-space-4) 0 0; }

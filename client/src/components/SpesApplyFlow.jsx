@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { Fragment, useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Check, FileText, Info, TriangleAlert } from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
@@ -50,6 +50,14 @@ const EMPTY_FORM = {
 };
 
 const STEPS = ["info", "docs", "review"];
+
+// Visual required marker; the control itself carries aria-required.
+const Req = () => (
+  <span className="spes-req" aria-hidden="true">
+    {" "}
+    *
+  </span>
+);
 
 // The 3-step apply dialog (your details, typed documents, review and submit) for one
 // SPES posting. The server re-checks everything; `guardianRequired` comes from the
@@ -266,13 +274,22 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
           {STEPS.map((key, i) => {
             const state = step === key ? "is-current" : STEPS.indexOf(step) > i ? "is-done" : "";
             return (
-              <li key={key} className={`spes-stepper__item ${state}`} aria-current={step === key ? "step" : undefined}>
-                <span className="spes-stepper__dot" aria-hidden="true">
-                  {state === "is-done" ? <Check size={16} strokeWidth={3} /> : i + 1}
-                </span>
-                <span className="spes-stepper__label">{t(`spes.apply.step.${key}`)}</span>
-                {state === "is-done" ? <span className="ds-sr-only">{t("spes.apply.stepDone")}</span> : null}
-              </li>
+              <Fragment key={key}>
+                <li className={`spes-stepper__item ${state}`} aria-current={step === key ? "step" : undefined}>
+                  {state === "is-done" ? (
+                    <Check size={18} strokeWidth={3} className="spes-stepper__check" aria-hidden="true" />
+                  ) : (
+                    <span className="spes-stepper__dot" aria-hidden="true">
+                      {i + 1}
+                    </span>
+                  )}
+                  <span className="spes-stepper__label">{t(`spes.apply.step.${key}`)}</span>
+                  {state === "is-done" ? <span className="ds-sr-only">{t("spes.apply.stepDone")}</span> : null}
+                </li>
+                {i < STEPS.length - 1 ? (
+                  <li className={`spes-stepper__line${STEPS.indexOf(step) > i ? " is-done" : ""}`} role="presentation" aria-hidden="true" />
+                ) : null}
+              </Fragment>
             );
           })}
         </ol>
@@ -284,22 +301,22 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
 
       <div className="spes-apply__scroll">
       {step === "info" ? (
-        <div className="spes-apply__body">
-          <label>
-            {t("spes.apply.applicantType")}
-            <select value={form.applicantType} onChange={(e) => handleTypeChange(e.target.value)}>
+        <div className="spes-apply__body spes-fields">
+          <label className="spes-field">
+            <span className="spes-field__label">{t("spes.apply.applicantType")}<Req /></span>
+            <select aria-required="true" value={form.applicantType} onChange={(e) => handleTypeChange(e.target.value)}>
               <option value="student">{t("spes.apply.typeStudent")}</option>
               <option value="osy">{t("spes.apply.typeOsy")}</option>
             </select>
           </label>
-          <label>
-            {t("spes.apply.contact")}
-            <input type="tel" required value={form.contactNumber} onChange={(e) => updateField("contactNumber", e.target.value)} />
+          <label className="spes-field">
+            <span className="spes-field__label">{t("spes.apply.contact")}<Req /></span>
+            <input type="tel" required aria-required="true" value={form.contactNumber} onChange={(e) => updateField("contactNumber", e.target.value)} />
           </label>
           {!isOsy ? (
             <>
-              <label>
-                {t("spes.apply.school")}
+              <label className="spes-field spes-field--wide">
+                <span className="spes-field__label">{t("spes.apply.school")}<Req /></span>
                 <Autosuggest
                   id="spes-school"
                   name="school"
@@ -309,9 +326,9 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
                   placeholder={t("spes.apply.schoolPlaceholder")}
                 />
               </label>
-              <label>
-                {t("spes.apply.yearLevel")}
-                <select value={form.gradeLevel} onChange={(e) => updateField("gradeLevel", e.target.value)}>
+              <label className="spes-field spes-field--wide">
+                <span className="spes-field__label">{t("spes.apply.yearLevel")}<Req /></span>
+                <select aria-required="true" value={form.gradeLevel} onChange={(e) => updateField("gradeLevel", e.target.value)}>
                   <option value="">{t("spes.apply.yearLevelPlaceholder")}</option>
                   {schoolLevel !== "college" ? (
                     <optgroup label={t("spes.apply.highSchool")}>
@@ -333,38 +350,43 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
                   ) : null}
                 </select>
               </label>
-              <div className="spes-apply__row">
-                <label>
-                  {t("spes.apply.gwaScale")}
-                  <select value={form.gwaScale} onChange={(e) => updateField("gwaScale", e.target.value)}>
-                    <option value="percent">{t("spes.apply.scalePercent")}</option>
-                    <option value="one_to_five">{t("spes.apply.scaleOneToFive")}</option>
-                  </select>
-                </label>
-                <label>
-                  {t("spes.apply.gwa")}
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min={GWA_SCALES[form.gwaScale].min}
-                    max={GWA_SCALES[form.gwaScale].max}
-                    step={GWA_SCALES[form.gwaScale].step}
-                    value={form.gwa}
-                    onChange={(e) => updateField("gwa", e.target.value)}
-                  />
-                </label>
-              </div>
+              <label className="spes-field">
+                <span className="spes-field__label">{t("spes.apply.gwaScale")}</span>
+                <select value={form.gwaScale} onChange={(e) => updateField("gwaScale", e.target.value)}>
+                  <option value="percent">{t("spes.apply.scalePercent")}</option>
+                  <option value="one_to_five">{t("spes.apply.scaleOneToFive")}</option>
+                </select>
+              </label>
+              <label className="spes-field">
+                <span className="spes-field__label">{t("spes.apply.gwa")}<Req /></span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  aria-required="true"
+                  min={GWA_SCALES[form.gwaScale].min}
+                  max={GWA_SCALES[form.gwaScale].max}
+                  step={GWA_SCALES[form.gwaScale].step}
+                  value={form.gwa}
+                  onChange={(e) => updateField("gwa", e.target.value)}
+                />
+              </label>
             </>
           ) : null}
-          <label>
-            {guardianRequired ? t("spes.apply.guardianName") : t("spes.apply.guardianNameOptional")}
-            <input type="text" value={form.guardianName} onChange={(e) => updateField("guardianName", e.target.value)} />
+          <label className="spes-field">
+            <span className="spes-field__label">
+              {guardianRequired ? t("spes.apply.guardianName") : t("spes.apply.guardianNameOptional")}
+              {guardianRequired ? <Req /> : null}
+            </span>
+            <input type="text" aria-required={guardianRequired ? "true" : undefined} value={form.guardianName} onChange={(e) => updateField("guardianName", e.target.value)} />
           </label>
-          <label>
-            {guardianRequired ? t("spes.apply.guardianContact") : t("spes.apply.guardianContactOptional")}
-            <input type="tel" value={form.guardianContact} onChange={(e) => updateField("guardianContact", e.target.value)} />
+          <label className="spes-field">
+            <span className="spes-field__label">
+              {guardianRequired ? t("spes.apply.guardianContact") : t("spes.apply.guardianContactOptional")}
+              {guardianRequired ? <Req /> : null}
+            </span>
+            <input type="tel" aria-required={guardianRequired ? "true" : undefined} value={form.guardianContact} onChange={(e) => updateField("guardianContact", e.target.value)} />
           </label>
-          {guardianRequired ? <p className="spes-note">{t("spes.apply.guardianHint")}</p> : null}
+          {guardianRequired ? <p className="spes-note spes-field--wide">{t("spes.apply.guardianHint")}</p> : null}
         </div>
       ) : null}
 
