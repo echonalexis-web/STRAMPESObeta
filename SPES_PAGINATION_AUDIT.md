@@ -38,6 +38,7 @@ most need a `total` that their API already returns (everything above except the 
 | News management (`pages/admin/NewsFeedManagement.jsx`) | admin | announcements | `newsAPI.listAdmin({ page: 1, limit: 20 })`, API returns `totalPages` | hundreds | use the API's `page`/`limit` (it shows only the first 20 today) | Server-side (API exists, UI never paged) |
 | Saved / favorited jobs (`pages/ProfilePage.jsx`, Favorites tab) | jobseeker | liked vacancies | `jobLikeAPI.getLikedJobs({ page: 1, limit: 60 })` (API pages, UI loads the first 60 only) | up to 60 loaded | slice the loaded list; follow-up: page through the API so favorites beyond 60 are reachable | Client |
 | Liked news (`pages/ProfilePage.jsx`, Likes tab) | jobseeker, employer | liked announcements | `newsLikeAPI.getLiked({ page: 1, limit: 60 })` | up to 60 loaded | slice the loaded list | Client |
+| Followers and following (`pages/ProfilePage.jsx`, Followers tab) | jobseeker, employer | users | `followAPI.getFollowers/getFollowing({ page: 1, limit: 100 })` | up to 100 loaded each | slice each loaded list | Client |
 | Admin accounts (`pages/superadmin/SuperadminConsole.jsx`) | superadmin | admin accounts | `listAdmins` returns all | tens | slice the filtered list | Client |
 
 ## Not paginated, with reasons
@@ -50,7 +51,7 @@ most need a `total` that their API already returns (everything above except the 
 | Dashboards (`Dashboard.jsx` cards, `AdminDashboard.jsx`, `ProvincialAnalyticsOverview.jsx`) | Stat cards, charts and "top 3 / top 4" teasers, short and fixed. |
 | Admin user moderation tabs (`UserModeration.jsx`) | Tab switcher over the queues above. |
 | Profile page sections (`ProfilePage.jsx`) | The IntersectionObserver is a section spy, not a list. The Favorites and Likes tabs are lists and are listed above. |
-| Follows | No follows list screen exists in the client (follow state shows as a button on cards and profiles). |
+| Superadmin option, NSRP template and match-weight settings (`NsrpTemplateSettings`, `SystemOptionsSettings`, `MatchWeightBoundsSettings`) | Short configuration lists, fixed by design. |
 | Selects, dropdown options, tab sets, filter option lists, apply-modal documents, skeleton rows | Fixed or short by design. |
 
 ## Server-side follow-ups (not done in this run)
@@ -60,7 +61,7 @@ most need a `total` that their API already returns (everything above except the 
 | `GET /notifications` | Accept `page`, `limit`, return `total`, `totalPages` (keep today's shape under `items` or the current key) | The navbar bell and the page share the hook; keep `limit` default so the bell is unchanged. |
 | `GET /spes/postings` (applicant) and `GET /spes/admin/postings` | Accept `page`, `limit`, return `total` | Counts per status currently come from the unpaged list; keep them in a separate `counts` field. |
 | `GET /spes/applications` (mine) | Accept `page`, `limit`, return `total` | Low; the list is short. |
-| `GET /jobs/liked` and `GET /news/liked` | Return `total` / `totalPages` so the UI can page past 60 | Low; the endpoints already accept page and limit. |
+| `GET /jobs/liked`, `GET /news/liked`, and the followers/following endpoints | Return `total` / `totalPages` so the UI can page past 60 | Low; the endpoints already accept page and limit. |
 | `GET /superadmin/admins` | Accept `page`, `limit`, return `total` | Low. |
 
 ## Questions
@@ -73,3 +74,18 @@ The twelve already-paginated screens above each draw their own previous/next and
 buttons (`.um-pagination`, `.mq-pagination`, `.admin-audit-pagination`, `.jsd-pager`,
 `.recovery-queue__pager`, plain "Page x of y"). They behave the same but look different; the
 shared `Pagination` can replace them one by one.
+
+## Final status after this run
+
+| List | Final status |
+|---|---|
+| Notifications page | Paginated client-side (10 per page, filter tabs reset the page) |
+| SPES postings feed (applicant) | Paginated client-side (10 per page, featured card plus grid) |
+| My SPES applications | Paginated client-side (10 per page) |
+| SPES postings admin | Paginated client-side (10 per page) |
+| Admin accounts (superadmin) | Paginated client-side |
+| Saved jobs, liked news, followers, following (Profile) | Paginated client-side over the loaded 60 or 100 |
+| News management | Paginated server-side (page, limit and total from the API); previously showed only the first 20 |
+| SPES Monitoring | Server-side, now on the generalized component |
+| The twelve existing paginated screens | Untouched; unify later |
+| News feed, notification dropdown, chat, dashboards, settings lists | Not applicable (see above) |

@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { resolveAssetUrl, spesAPI } from "../../services/api";
 import StateBlock from "../../components/StateBlock";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 import SpesReleaseDialog from "../../components/SpesReleaseDialog";
 import { useConfirm, useToast } from "../../components/feedback/context";
 import { translateErrorCode } from "../../utils/apiErrors";
@@ -26,6 +28,8 @@ export default function SpesPostingsAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [releaseFor, setReleaseFor] = useState(null);
+  const gridRef = useRef(null);
+  const pager = usePagination(items, { pageSize: 10, resetKey: filter });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -120,8 +124,8 @@ export default function SpesPostingsAdmin() {
       ) : null}
 
       {!loading && !error && items.length > 0 ? (
-        <div className="spes-programs__grid">
-          {items.map((p) => {
+        <div className="spes-programs__grid" ref={gridRef}>
+          {pager.pageItems.map((p) => {
             const status = p.displayStatus;
             const counts = p.counts?.byStatus || {};
             const total = p.counts?.total || 0;
@@ -194,6 +198,15 @@ export default function SpesPostingsAdmin() {
           })}
         </div>
       ) : null}
+
+      <Pagination
+        {...pager.paginationProps}
+        variant="card"
+        idPrefix="spes-postings-admin"
+        label={t("pagination.items.postings")}
+        disabled={loading}
+        scrollTargetRef={gridRef}
+      />
 
       {releaseFor ? (
         <SpesReleaseDialog posting={releaseFor} onClose={() => setReleaseFor(null)} onReleased={load} />

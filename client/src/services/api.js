@@ -467,6 +467,8 @@ export const adminAPI = {
 export const newsAPI = {
   list: (params = {}) => api.get('/news', { params }),
   listAdmin: (params = {}) => api.get('/news', { ...getAuthHeader(), params: { ...params, includeInactive: true } }),
+  // Published announcements only, with page/limit/total (what News Management lists).
+  listPublishedAdmin: (params = {}) => api.get('/news', { ...getAuthHeader(), params }),
   getById: (id) => api.get(`/news/${id}`),
   create: (data) =>
     data instanceof FormData

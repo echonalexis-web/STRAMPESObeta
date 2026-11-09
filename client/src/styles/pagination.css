@@ -6,6 +6,7 @@
   padding: var(--ds-space-4);
   border-top: 1px solid var(--ds-border);
 }
+.pager--card { margin: var(--ds-space-4) 0 112px; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-lg); background: var(--ds-surface); }
 .pager__size { display: inline-flex; align-items: center; gap: var(--ds-space-2); font-size: var(--ds-text-sm); color: var(--ds-muted); }
 .pager .pager__size select {
   width: auto;

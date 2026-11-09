@@ -25,6 +25,7 @@ export default function Pagination({
   disabled = false,
   idPrefix = "pager",
   scrollTargetRef,
+  variant = "inline", // "card": a standalone bar under a list (inline sits inside a table card)
 }) {
   const { t } = useTranslation();
   const summaryRef = useRef(null);
@@ -64,7 +65,7 @@ export default function Pagination({
   };
 
   return (
-    <div className="pager">
+    <div className={`pager${variant === "card" ? " pager--card" : ""}`}>
       <label className="pager__size" htmlFor={`${idPrefix}-size`}>
         <span>{t("pagination.rowsPerPage")}</span>
         <select id={`${idPrefix}-size`} value={pageSize} disabled={disabled} onChange={(event) => changeSize(Number(event.target.value))}>

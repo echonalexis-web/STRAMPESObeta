@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   FaUserShield,
@@ -13,6 +13,8 @@ import {
   FaTriangleExclamation,
 } from "react-icons/fa6";
 import NsrpTemplateSettings from "../../components/NsrpTemplateSettings";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 import MatchWeightBoundsSettings from "../../components/MatchWeightBoundsSettings";
 import SystemOptionsSettings from "../../components/SystemOptionsSettings";
 import StateBlock from "../../components/StateBlock";
@@ -244,6 +246,8 @@ export default function SuperadminConsole() {
   }, [admins, search, filter]);
 
   const hasAnyAdmins = admins.length > 0;
+  const tableRef = useRef(null);
+  const pager = usePagination(filteredAdmins, { resetKey: `${filter}|${search}` });
 
   return (
     <div className="sac">
@@ -352,7 +356,7 @@ export default function SuperadminConsole() {
               }
             />
           ) : (
-            <div className="sac__table-wrap">
+            <div className="sac__table-wrap" ref={tableRef}>
               <table className="sac__table">
                 <thead>
                   <tr>
@@ -364,7 +368,7 @@ export default function SuperadminConsole() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAdmins.map((admin) => {
+                  {pager.pageItems.map((admin) => {
                     const status = statusOf(admin);
                     const meta = STATUS_META[status];
                     const rowBusy = busyId === admin.id;
@@ -443,6 +447,12 @@ export default function SuperadminConsole() {
               </table>
             </div>
           )}
+          <Pagination
+            {...pager.paginationProps}
+            idPrefix="sac-admins"
+            label={t("pagination.items.accounts")}
+            scrollTargetRef={tableRef}
+          />
         </section>
         <NsrpTemplateSettings />
         <MatchWeightBoundsSettings />

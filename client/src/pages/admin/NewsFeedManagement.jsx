@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,6 +15,8 @@ import {
 import { newsAPI } from "../../services/api";
 import { useToast, useConfirm } from "../../components/feedback/context";
 import StateBlock from "../../components/StateBlock";
+import Pagination from "../../components/Pagination";
+import { parsePageSize } from "../../utils/pagination";
 import "../../styles/admin.css";
 import "../../styles/newsAdmin.css";
 import AdminHeader from "./AdminHeader";
@@ -42,25 +44,39 @@ export default function NewsFeedManagement() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Server-side pagination: the API returns page, limit and the total of published posts.
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+  const tableRef = useRef(null);
 
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await newsAPI.listAdmin({ page: 1, limit: 20 });
+      const { data } = await newsAPI.listPublishedAdmin({ page, limit: pageSize });
       const published = Array.isArray(data?.items) ? data.items.filter((post) => post.isActive) : [];
+      const count = Number(data?.total) || 0;
+      const pages = Math.max(Number(data?.totalPages) || 1, 1);
+      // The page vanished (the last post on it was removed): step back to the last real page.
+      if (count > 0 && page > pages) {
+        setPage(pages);
+        return;
+      }
       setPosts(published);
+      setTotal(count);
       setError("");
     } catch (err) {
       setError(err.response?.data?.message || "Failed to load news posts");
       setPosts([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize]);
 
   useEffect(() => {
     loadPosts();
-  }, []);
+  }, [loadPosts]);
 
   const handleToggleStatus = async (post) => {
     try {
@@ -108,8 +124,8 @@ export default function NewsFeedManagement() {
       return acc;
     }, {});
     const topCategory = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
-    return { total: posts.length, totalLikes, topCategory };
-  }, [posts]);
+    return { total, totalLikes, topCategory };
+  }, [posts, total]);
 
   return (
     <div className="admin-page-container na-scope">
@@ -145,7 +161,7 @@ export default function NewsFeedManagement() {
         </div>
 
         <div className="na-table-wrap">
-          <table className="na-table">
+          <table className="na-table" ref={tableRef}>
             <thead>
               <tr>
                 <th>Announcement</th>
@@ -268,6 +284,20 @@ export default function NewsFeedManagement() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          total={total}
+          page={page}
+          pageSize={pageSize}
+          idPrefix="news-admin"
+          label={t("pagination.items.announcements")}
+          disabled={loading}
+          scrollTargetRef={tableRef}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(parsePageSize(size));
+            setPage(1);
+          }}
+        />
       </section>
     </div>
   );

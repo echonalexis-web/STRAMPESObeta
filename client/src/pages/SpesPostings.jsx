@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FaSearch } from "react-icons/fa";
 import { spesAPI } from "../services/api";
 import SpesPostingCard from "../components/SpesPostingCard";
+import Pagination from "../components/Pagination";
+import usePagination from "../hooks/usePagination";
 import { translateErrorCode } from "../utils/apiErrors";
 import { POSTING_TABS, matchesTab } from "../utils/spesPostings";
 import "../styles/news-feed.css";
@@ -50,8 +52,10 @@ export default function SpesPostings() {
   }, [items, tab, search]);
 
   const openPosting = (id) => navigate(`/spes/postings/${id}`);
-  const featured = !loading && !error ? visible[0] : null;
-  const rest = featured ? visible.slice(1) : [];
+  const listRef = useRef(null);
+  const pager = usePagination(visible, { resetKey: `${tab}|${search}` });
+  const featured = !loading && !error ? pager.pageItems[0] : null;
+  const rest = featured ? pager.pageItems.slice(1) : [];
 
   return (
     <main className="news-feed-page" aria-label={t("spesPostings.title")}>
@@ -112,7 +116,7 @@ export default function SpesPostings() {
         </div>
       </section>
 
-      <section className="news-feed-list-wrap">
+      <section className="news-feed-list-wrap" ref={listRef}>
         {ageTier === "minor15to17" ? (
           <p className="spes-notice spes-notice--info" role="note">{t("spesPostings.noticeMinor")}</p>
         ) : null}
@@ -167,6 +171,15 @@ export default function SpesPostings() {
             <SpesPostingCard key={String(item.posting._id)} item={item} onOpen={openPosting} />
           ))}
         </div>
+
+        <Pagination
+          {...pager.paginationProps}
+          variant="card"
+          idPrefix="spes-feed"
+          label={t("pagination.items.postings")}
+          disabled={loading}
+          scrollTargetRef={listRef}
+        />
       </section>
     </main>
   );

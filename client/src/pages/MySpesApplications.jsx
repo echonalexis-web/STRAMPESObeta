@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { spesAPI } from "../services/api";
 import StateBlock from "../components/StateBlock";
+import Pagination from "../components/Pagination";
+import usePagination from "../hooks/usePagination";
 import ApplicationsHeader from "../components/spesApplications/ApplicationsHeader";
 import ApplicationsToolbar from "../components/spesApplications/ApplicationsToolbar";
 import ApplicationRow from "../components/spesApplications/ApplicationRow";
@@ -111,6 +113,10 @@ export default function MySpesApplications() {
     return sortApplications(searchApplications(filtered, query, titleOf), sort);
   }, [items, filter, query, sort, titleOf]);
 
+  // Ten applications per page; a filter, sort or search change returns to page 1.
+  const pageRef = useRef(null);
+  const pager = usePagination(visible, { resetKey: `${filter}|${sort}|${query}` });
+
   const clearFilters = () => {
     setFilter("all");
     setQuery("");
@@ -119,7 +125,7 @@ export default function MySpesApplications() {
   const ready = !loading && !error;
 
   return (
-    <main className="spes-page spes-apps">
+    <main className="spes-page spes-apps" ref={pageRef}>
       <ApplicationsHeader counts={counts} filter={filter} onFilter={setFilter} />
 
       {loading ? (
@@ -191,7 +197,7 @@ export default function MySpesApplications() {
             />
           ) : (
             <ul className="spes-apps__list" aria-label={t("spes.my.listLabel")}>
-              {visible.map((app) => {
+              {pager.pageItems.map((app) => {
                 const id = String(app._id);
                 return (
                   <ApplicationRow
@@ -210,6 +216,17 @@ export default function MySpesApplications() {
             </ul>
           )}
         </>
+      ) : null}
+
+      {!error ? (
+        <Pagination
+          {...pager.paginationProps}
+          variant="card"
+          idPrefix="my-spes"
+          label={t("pagination.items.applications")}
+          disabled={loading}
+          scrollTargetRef={pageRef}
+        />
       ) : null}
     </main>
   );

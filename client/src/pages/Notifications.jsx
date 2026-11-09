@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -18,6 +18,8 @@ import {
 import { useNotifications } from "../hooks/useNotifications";
 import { useToast } from "../components/feedback/context";
 import StateBlock from "../components/StateBlock";
+import Pagination from "../components/Pagination";
+import usePagination from "../hooks/usePagination";
 import "../styles/notifications.css";
 
 const formatDateTime = (value) => {
@@ -106,6 +108,10 @@ export default function Notifications() {
     return sortedItems.filter(tab.match);
   }, [sortedItems, activeFilter]);
 
+  // The page shows 10 at a time; a filter change returns to page 1, a delete on the last page steps back.
+  const pageRef = useRef(null);
+  const pager = usePagination(visibleItems, { resetKey: activeFilter });
+
   const handleOpen = async (item) => {
     if (!item?.isRead) {
       await markAsRead(item._id);
@@ -117,7 +123,7 @@ export default function Notifications() {
   };
 
   return (
-    <main className="notifications-page">
+    <main className="notifications-page" ref={pageRef}>
       <header className="notifications-page__header">
         <div>
           <h1>Notifications</h1>
@@ -189,7 +195,7 @@ export default function Notifications() {
 
       {!loading && visibleItems.length > 0 && (
         <section className="notifications-list" aria-label="Notification list">
-          {visibleItems.map((item) => {
+          {pager.pageItems.map((item) => {
             const TypeIcon = iconForType(item.type);
             return (
               <article
@@ -239,6 +245,15 @@ export default function Notifications() {
           })}
         </section>
       )}
+
+      <Pagination
+        {...pager.paginationProps}
+        variant="card"
+        idPrefix="notifications"
+        label={t("pagination.items.notifications")}
+        disabled={loading}
+        scrollTargetRef={pageRef}
+      />
     </main>
   );
 }

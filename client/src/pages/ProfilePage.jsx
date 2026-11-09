@@ -45,6 +45,8 @@ import VerificationTab from "../components/VerificationTab";
 import { downloadBlob } from "../utils/exportUtils";
 import useParallaxLayer from "../hooks/useParallaxLayer";
 import StateBlock from "../components/StateBlock";
+import Pagination from "../components/Pagination";
+import usePagination from "../hooks/usePagination";
 import "../styles/profile-redesign.css";
 
 const formatStructuredAddress = (addr) => {
@@ -285,6 +287,11 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
   const [likedNewsLoading, setLikedNewsLoading] = useState(false);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
+  // Saved jobs, liked news, followers and following: the loaded lists, ten per page each.
+  const favPager = usePagination(likedJobs);
+  const newsPager = usePagination(likedNews);
+  const followersPager = usePagination(followers);
+  const followingPager = usePagination(following);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
   const [activeSection, setActiveSection] = useState("sec-about");
   const [panels, setPanels] = useState({ demographics: true, govids: false, credentials: false, resume: false });
@@ -926,7 +933,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
               <EmptyNote>No liked announcements yet. Tap the heart on any post in the News Feed to save it here.</EmptyNote>
             ) : (
               <div className="rd-favorites-grid">
-                {likedNews.map((post) => (
+                {newsPager.pageItems.map((post) => (
                   <article key={post._id} className="rd-favorite-item">
                     <div className="rd-favorite-head">
                       <h3>{post.title || "Untitled announcement"}</h3>
@@ -941,6 +948,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                 ))}
               </div>
             )}
+            <Pagination {...newsPager.paginationProps} idPrefix="profile-news" label={t("pagination.items.announcements")} disabled={likedNewsLoading} />
           </section>
         ) : activeTab === "favorites" && !isEmployer && !isAdmin ? (
           <section className="rd-card ds-card">
@@ -951,7 +959,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
               <EmptyNote>No saved jobs yet. Use the heart icon in Browse Jobs to add favorites.</EmptyNote>
             ) : (
               <div className="rd-favorites-grid">
-                {likedJobs.map((job) => {
+                {favPager.pageItems.map((job) => {
                   const employerUnavailable = isEmployerUnavailable(job);
                   return (
                     <article key={job._id} className={`rd-favorite-item${employerUnavailable ? " rd-favorite-item--inactive" : ""}`}>
@@ -973,6 +981,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                 })}
               </div>
             )}
+            <Pagination {...favPager.paginationProps} idPrefix="profile-favorites" label={t("pagination.items.jobs")} disabled={likedJobsLoading} />
           </section>
         ) : activeTab === "followers" ? (
           <section className="rd-card ds-card">
@@ -988,7 +997,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                       <EmptyNote>No followers yet.</EmptyNote>
                     ) : (
                       <div className="rd-connections-list">
-                        {followers.map((follower) => {
+                        {followersPager.pageItems.map((follower) => {
                           const followerRole = follower.role === "employee" || follower.role === "resident" ? "jobseeker" : follower.role;
                           const canViewProfile = !isReadOnly && followerRole === "jobseeker";
                           return (
@@ -1017,6 +1026,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                         })}
                       </div>
                     )}
+                    <Pagination {...followersPager.paginationProps} idPrefix="profile-followers" label={t("pagination.items.accounts")} disabled={connectionsLoading} />
                   </div>
                 ) : null}
                 <div>
@@ -1025,7 +1035,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                     <EmptyNote>Not following any employers yet. Follow one from a job listing to see their new postings fast-tracked to your recommended jobs.</EmptyNote>
                   ) : (
                     <div className="rd-connections-list">
-                      {following.map((followedUser) => (
+                      {followingPager.pageItems.map((followedUser) => (
                         <div key={followedUser._id} className="rd-connection-row">
                           <div className="rd-connection-avatar">
                             {getUserAvatarUrl(followedUser) ? <img src={getUserAvatarUrl(followedUser)} alt="" /> : (followedUser.name?.charAt(0).toUpperCase() || "U")}
@@ -1037,6 +1047,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                       ))}
                     </div>
                   )}
+                  <Pagination {...followingPager.paginationProps} idPrefix="profile-following" label={t("pagination.items.accounts")} disabled={connectionsLoading} />
                 </div>
               </div>
             )}
