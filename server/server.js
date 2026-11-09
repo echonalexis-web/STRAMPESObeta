@@ -26,6 +26,8 @@ const { startEmailOutboxWorker } = require("./services/emailOutboxService");
 const logger = require("./utils/logger");
 const { sendError } = require("./utils/sendError");
 const { buildRegisterLimiters } = require("./middleware/registerLimiter");
+const { MongoRateLimitStore } = require("./middleware/mongoRateLimitStore");
+const RateLimitCounter = require("./models/RateLimitCounter");
 
 const app = express();
 const server = http.createServer(app);
@@ -137,7 +139,10 @@ const globalLimiter = createLimiter({
 });
 
 // Successful-sign-up limiter (see middleware/registerLimiter.js).
-const registerLimiter = buildRegisterLimiters(createLimiter);
+const registerLimiter = buildRegisterLimiters(
+  createLimiter,
+  (name) => new MongoRateLimitStore({ model: RateLimitCounter, name })
+);
 
 // Auth limiter
 const authLimiter = createLimiter({

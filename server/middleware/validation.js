@@ -305,7 +305,8 @@ const validateUserRegistration = (req, res, next) => {
   const { name, email, password, phone } = req.body;
   // Username-only sign-up (jobseekers, behind USERNAME_SIGNUP_ENABLED) has no
   // email field; the route has already refused the mode when the flag is off.
-  const usernameMode = req.body.signupMode === 'username';
+  // Only the jobseeker route (/register) honours it; /register/employer ignores it.
+  const usernameMode = req.body.signupMode === 'username' && req.path === '/register';
   const errors = [];
 
   if (!name || name.length < 2 || name.length > 50) {

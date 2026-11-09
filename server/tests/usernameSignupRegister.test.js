@@ -61,6 +61,8 @@ const buildApp = () => {
     validateUserRegistration,
     authController.register
   );
+  // The employer route shares the validator but must ignore signupMode.
+  app.post("/register/employer", validateUserRegistration, (req, res) => res.status(201).json({ reached: true }));
   app.post("/login", authController.login);
   return app;
 };
@@ -379,6 +381,23 @@ describe("login response shape", () => {
     });
     expect(res.status).toBe(403);
     expect(res.body.code).toBe("EMAIL_NOT_VERIFIED");
+  });
+});
+
+describe("employer route ignores signupMode", () => {
+  test("signupMode username on /register/employer still requires an email", async () => {
+    const res = await request(buildApp())
+      .post("/register/employer")
+      .send({ name: "Acme Hiring", password: "Sup3rSecret!", signupMode: "username" });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/valid email/i);
+  });
+
+  test("the same body with an email passes validation", async () => {
+    const res = await request(buildApp())
+      .post("/register/employer")
+      .send({ name: "Acme Hiring", email: "hr@acme.com", password: "Sup3rSecret!", signupMode: "username" });
+    expect(res.status).toBe(201);
   });
 });
 

@@ -13,19 +13,22 @@ const positiveIntEnv = (name, fallback) => {
 // SIGNUP_LIMIT_PER_DAY. Read when the server builds its middleware, so a change
 // needs a restart. `createLimiter` is server.js's wrapper (honours
 // DISABLE_RATE_LIMITS).
-const buildRegisterLimiters = (createLimiter) => {
-  const options = (windowMs, max) => ({
+const buildRegisterLimiters = (createLimiter, makeStore) => {
+  const options = (windowMs, max, name) => ({
     windowMs,
     max,
     message: { code: "RATE_LIMITED", message: "Too many sign-ups from this network. Please try again later." },
     standardHeaders: true,
     legacyHeaders: false,
     skipFailedRequests: true,
+    // Database-backed when a store factory is given (server.js), so counts
+    // survive restarts and are shared across instances.
+    ...(makeStore ? { store: makeStore(name) } : {}),
     skip: (req) => !isUsernameSignupEnabled() || req.method !== "POST" || req.path !== "/",
   });
   return [
-    createLimiter(options(60 * 60 * 1000, positiveIntEnv("SIGNUP_LIMIT_PER_HOUR", 30))),
-    createLimiter(options(24 * 60 * 60 * 1000, positiveIntEnv("SIGNUP_LIMIT_PER_DAY", 200))),
+    createLimiter(options(60 * 60 * 1000, positiveIntEnv("SIGNUP_LIMIT_PER_HOUR", 30), "register-hour")),
+    createLimiter(options(24 * 60 * 60 * 1000, positiveIntEnv("SIGNUP_LIMIT_PER_DAY", 200), "register-day")),
   ];
 };
 

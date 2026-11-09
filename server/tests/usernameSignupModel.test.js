@@ -103,3 +103,26 @@ describe("scripts (pure parts only; never run against a database here)", () => {
     }
   });
 });
+
+describe("update validators (findByIdAndUpdate + runValidators): `this` is a query, not a document", () => {
+  // Uses mongoose's internal update-validator helper because there is no
+  // database here to run a real findByIdAndUpdate against.
+  const updateValidators = require("mongoose/lib/helpers/updateValidators");
+  const validateUpdate = (update) =>
+    new Promise((resolve) => {
+      const query = User.findOneAndUpdate({ _id: "507f1f77bcf86cd799439011" }, update, { runValidators: true });
+      updateValidators(query, User.schema, query._update, query.getOptions())((err) =>
+        resolve(err ? Object.keys(err.errors || {}) : [])
+      );
+    });
+
+  test("removing or blanking an email through an update is always refused, and nothing throws", async () => {
+    expect(await validateUpdate({ $unset: { email: 1 } })).toContain("email");
+    expect(await validateUpdate({ $set: { email: "" } })).toContain("email");
+  });
+
+  test("setting an email, or touching other fields, passes", async () => {
+    expect(await validateUpdate({ $set: { email: "a@b.co" } })).toEqual([]);
+    expect(await validateUpdate({ $set: { name: "New Name" } })).toEqual([]);
+  });
+});

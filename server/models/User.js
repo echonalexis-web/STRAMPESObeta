@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: function () {
+        // Update validators (findByIdAndUpdate + runValidators) call this with a
+        // Query or no context, not a document: stay strict there, so an update
+        // can never remove an email.
+        if (!this || typeof this.get !== "function" || typeof this.isNew !== "boolean") return true;
         return !(this.role === "jobseeker" && this.username);
       },
       trim: true,
