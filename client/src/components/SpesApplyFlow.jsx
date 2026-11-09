@@ -1,5 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ArrowLeft, Check, FileText, Info, TriangleAlert } from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
 import { spesAPI } from "../services/api";
 import { translateErrorCode } from "../utils/apiErrors";
@@ -9,6 +10,7 @@ import { useConfirm, useToast } from "./feedback/context";
 import AppModal from "./AppModal";
 import Autosuggest from "./Autosuggest";
 import FileUpload from "./FileUpload";
+import "../styles/spes-apply.css";
 import marinduqueSchoolsData from "../data/marinduque_schools.json";
 
 // Secondary schools map to the high school grade options; higher-ed and
@@ -249,29 +251,38 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
     }
   };
 
-  const fileSummary = (slot) =>
-    files[slot] ? `${files[slot].name} (${formatFileSize(files[slot].size)})` : t("spes.apply.noFile");
-
   return (
     <AppModal
       isOpen={isOpen}
       onClose={closeModal}
       title={t("spes.apply.title")}
+      titleId="spes-apply-title"
       closeLabel={t("common.close", { defaultValue: "Close" })}
+      className="am--full spes-apply-overlay"
       panelClassName="spes-apply"
     >
-      <ol className="spes-apply__steps" aria-label={t("spes.apply.stepsLabel")}>
-        {STEPS.map((key, i) => (
-          <li
-            key={key}
-            className={`spes-apply__step${step === key ? " is-active" : STEPS.indexOf(step) > i ? " is-done" : ""}`}
-            aria-current={step === key ? "step" : undefined}
-          >
-            {i + 1}. {t(`spes.apply.step.${key}`)}
-          </li>
-        ))}
-      </ol>
+      <nav className="spes-stepper" aria-label={t("spes.apply.stepsLabel")}>
+        <ol className="spes-stepper__list">
+          {STEPS.map((key, i) => {
+            const state = step === key ? "is-current" : STEPS.indexOf(step) > i ? "is-done" : "";
+            return (
+              <li key={key} className={`spes-stepper__item ${state}`} aria-current={step === key ? "step" : undefined}>
+                <span className="spes-stepper__dot" aria-hidden="true">
+                  {state === "is-done" ? <Check size={16} strokeWidth={3} /> : i + 1}
+                </span>
+                <span className="spes-stepper__label">{t(`spes.apply.step.${key}`)}</span>
+                {state === "is-done" ? <span className="ds-sr-only">{t("spes.apply.stepDone")}</span> : null}
+              </li>
+            );
+          })}
+        </ol>
+        <p className="spes-stepper__count">{t("spes.apply.stepOf", { current: STEPS.indexOf(step) + 1, total: STEPS.length })}</p>
+      </nav>
+      <span className="ds-sr-only" role="status" aria-live="polite">
+        {t("spes.apply.stepOf", { current: STEPS.indexOf(step) + 1, total: STEPS.length })}: {t(`spes.apply.step.${step}`)}
+      </span>
 
+      <div className="spes-apply__scroll">
       {step === "info" ? (
         <div className="spes-apply__body">
           <label>
@@ -388,43 +399,96 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
       ) : null}
 
       {step === "review" ? (
-        <div className="spes-apply__body">
-          <p className="spes-note">{t("spes.apply.reviewHint")}</p>
-          <dl className="spes-apply__review">
-            <dt>{t("spes.apply.applicantType")}</dt>
-            <dd>{isOsy ? t("spes.apply.typeOsy") : t("spes.apply.typeStudent")}</dd>
-            <dt>{t("spes.apply.contact")}</dt>
-            <dd>{form.contactNumber}</dd>
-            {!isOsy ? (
-              <>
-                <dt>{t("spes.apply.school")}</dt>
-                <dd>
-                  {form.school}, {form.gradeLevel}
-                </dd>
-                <dt>{t("spes.apply.gwa")}</dt>
-                <dd>
-                  {form.gwa} ({t(form.gwaScale === "percent" ? "spes.apply.scalePercent" : "spes.apply.scaleOneToFive")})
-                </dd>
-              </>
-            ) : null}
-            {form.guardianName ? (
-              <>
-                <dt>{t("spes.apply.guardianNameOptional")}</dt>
-                <dd>
-                  {form.guardianName} {form.guardianContact ? `· ${form.guardianContact}` : ""}
-                </dd>
-              </>
-            ) : null}
-            {slots.map((slot) => (
-              <div key={slot} className="spes-apply__review-doc">
-                <dt>{t(`spes.docs.slot.${slot}`)}</dt>
-                <dd>{fileSummary(slot)}</dd>
-              </div>
-            ))}
-          </dl>
+        <div className="spes-apply__body spes-review">
+          <div className="spes-review__intro">
+            <h4 className="spes-review__title">{t("spes.apply.reviewTitle")}</h4>
+            <p className="spes-review__sub">{t("spes.apply.reviewSub")}</p>
+          </div>
+          <div className="spes-review__cols">
+            <section className="spes-review__details" aria-labelledby="spes-review-details">
+              <h5 id="spes-review-details" className="spes-review__card-title">{t("spes.apply.detailsTitle")}</h5>
+              <dl className="spes-review__list">
+                <div>
+                  <dt>{t("spes.apply.applicantType")}</dt>
+                  <dd>{isOsy ? t("spes.apply.typeOsy") : t("spes.apply.typeStudent")}</dd>
+                </div>
+                {form.contactNumber ? (
+                  <div>
+                    <dt>{t("spes.apply.contact")}</dt>
+                    <dd>{form.contactNumber}</dd>
+                  </div>
+                ) : null}
+                {!isOsy && form.school ? (
+                  <div>
+                    <dt>{t("spes.apply.school")}</dt>
+                    <dd>{[form.school, form.gradeLevel].filter(Boolean).join(", ")}</dd>
+                  </div>
+                ) : null}
+                {!isOsy && form.gwa !== "" ? (
+                  <div>
+                    <dt>{t("spes.apply.gwa")}</dt>
+                    <dd>
+                      {form.gwa}
+                      <span className="spes-review__aside">
+                        {t(form.gwaScale === "percent" ? "spes.apply.scalePercent" : "spes.apply.scaleOneToFive")}
+                      </span>
+                    </dd>
+                  </div>
+                ) : null}
+                {form.guardianName ? (
+                  <div>
+                    <dt>{t("spes.apply.guardianNameOptional")}</dt>
+                    <dd>
+                      {form.guardianName}
+                      {form.guardianContact ? <span className="spes-review__aside">{form.guardianContact}</span> : null}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+            </section>
+
+            <section className="spes-review__docs" aria-labelledby="spes-review-docs">
+              <header className="spes-review__docs-head">
+                <h5 id="spes-review-docs" className="spes-review__card-title">{t("spes.apply.documentsTitle")}</h5>
+                <span className="spes-review__count">{t("spes.apply.filesAttached", { count: addedCount })}</span>
+              </header>
+              <ul className="spes-review__doclist">
+                {slots.map((slot) => {
+                  const file = files[slot];
+                  return (
+                    <li key={slot} className={`spes-review__doc${file ? "" : " is-missing"}`}>
+                      <span className="spes-review__doc-title">{t(`spes.docs.slotShort.${slot}`)}</span>
+                      <span className="spes-review__doc-desc">{t(`spes.docs.slotDesc.${slot}`)}</span>
+                      {file ? (
+                        <span className="spes-review__file">
+                          <FileText size={18} aria-hidden="true" />
+                          <span className="spes-review__file-name" title={file.name}>{file.name}</span>
+                          <span className="spes-review__file-size">{formatFileSize(file.size)}</span>
+                        </span>
+                      ) : (
+                        <span className="spes-review__file spes-review__file--missing">
+                          <TriangleAlert size={18} aria-hidden="true" />
+                          <span className="spes-review__file-name">{t("spes.apply.missing")}</span>
+                          <button type="button" className="spes-review__fix" onClick={() => setStep("docs")}>
+                            {t("spes.apply.addMissing")}
+                          </button>
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          </div>
+          <p className="spes-review__info">
+            <Info size={18} aria-hidden="true" />
+            <span>{t("spes.apply.replaceNote")}</span>
+          </p>
         </div>
       ) : null}
+      </div>
 
+      <div className="spes-apply__status">
       {fieldError || submitError ? (
         <p className="spes-apply__error" role="alert">
           {submitError || translateErrorCode(fieldError, t("spes.apply.failed"))}
@@ -446,45 +510,56 @@ export default function SpesApplyFlow({ isOpen, onClose, posting, guardianRequir
           </div>
         </div>
       ) : null}
-
-      <div className="spes-modal__actions">
-        {submitting ? (
-          <button type="button" className="spes-btn spes-btn--ghost" onClick={cancelSubmit}>
-            {t("spes.apply.cancelSubmit")}
-          </button>
-        ) : step !== "info" ? (
-          <button
-            type="button"
-            className="spes-btn spes-btn--ghost"
-            onClick={() => {
-              setFieldError("");
-              setSubmitError("");
-              setStep(step === "review" ? "docs" : "info");
-            }}
-          >
-            {t("spes.apply.back")}
-          </button>
-        ) : (
-          <button type="button" className="spes-btn spes-btn--ghost" onClick={closeModal}>
-            {t("common.cancel", { defaultValue: "Cancel" })}
-          </button>
-        )}
-        {step === "review" ? (
-          <button type="button" className="spes-btn" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? t("spes.apply.submitting") : submitError ? t("upload.retry") : t("spes.apply.submit")}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="spes-btn"
-            onClick={goNext}
-            disabled={step === "docs" && !docsComplete}
-            aria-describedby={step === "docs" && !docsComplete ? "spes-docs-needed" : undefined}
-          >
-            {t("spes.apply.next")}
-          </button>
-        )}
       </div>
+
+      <footer className="spes-apply__footer">
+        <p className="spes-apply__helper">{step === "review" ? t("spes.apply.footerHelper") : ""}</p>
+        <div className="spes-apply__buttons">
+          {submitting ? (
+            <button type="button" className="spes-btn spes-btn--ghost" onClick={cancelSubmit}>
+              {t("spes.apply.cancelSubmit")}
+            </button>
+          ) : step !== "info" ? (
+            <button
+              type="button"
+              className="spes-btn spes-btn--ghost"
+              onClick={() => {
+                setFieldError("");
+                setSubmitError("");
+                setStep(step === "review" ? "docs" : "info");
+              }}
+            >
+              <ArrowLeft size={16} aria-hidden="true" /> {t("spes.apply.back")}
+            </button>
+          ) : (
+            <button type="button" className="spes-btn spes-btn--ghost" onClick={closeModal}>
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </button>
+          )}
+          {step === "review" ? (
+            // aria-disabled (not disabled) while sending, so focus stays on the button inside the dialog.
+            <button
+              type="button"
+              className="spes-btn spes-btn--primary"
+              onClick={handleSubmit}
+              aria-disabled={submitting}
+            >
+              {submitting ? <span className="spes-spinner" aria-hidden="true" /> : null}
+              {submitting ? t("spes.apply.submitting") : submitError ? t("upload.retry") : t("spes.apply.submit")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="spes-btn spes-btn--primary"
+              onClick={goNext}
+              disabled={step === "docs" && !docsComplete}
+              aria-describedby={step === "docs" && !docsComplete ? "spes-docs-needed" : undefined}
+            >
+              {t("spes.apply.next")}
+            </button>
+          )}
+        </div>
+      </footer>
     </AppModal>
   );
 }

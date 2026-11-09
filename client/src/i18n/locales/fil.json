@@ -1389,7 +1389,21 @@
       },
       "submittedTitle": "Mga isinumiteng file",
       "untyped": "Na-upload na file (walang uri ng dokumento)",
-      "noneSubmitted": "Walang file sa talaan."
+      "noneSubmitted": "Walang file sa talaan.",
+      "slotShort": {
+        "form2": "SPES Form 2",
+        "proof_of_age": "Patunay ng edad",
+        "proof_of_financial_status": "Patunay ng kalagayang pinansyal",
+        "proof_of_academic_standing": "Patunay ng estado sa pag-aaral",
+        "osy_certification": "Sertipikasyon ng out-of-school youth"
+      },
+      "slotDesc": {
+        "form2": "Kumpletong napunan, may 2x2 na larawan",
+        "proof_of_age": "Birth certificate o government ID",
+        "proof_of_financial_status": "ITR ng magulang, o sertipiko ng tax exemption, mababang kita o indigency",
+        "proof_of_academic_standing": "Form 138, class card, o sertipikasyon ng registrar",
+        "osy_certification": "Inilabas ng SWDO o Barangay"
+      }
     },
     "panel": {
       "aria": "SPES program",
@@ -1457,7 +1471,19 @@
       "discard": "Itapon at isara",
       "submittingProgress": "Isinusumite ang iyong aplikasyon… {{percent}}%",
       "cancelSubmit": "Kanselahin ang pagsusumite",
-      "submitCanceled": "Nakansela ang pagsusumite. Nandito pa rin ang iyong mga file."
+      "submitCanceled": "Nakansela ang pagsusumite. Nandito pa rin ang iyong mga file.",
+      "stepOf": "Hakbang {{current}} sa {{total}}",
+      "stepDone": "tapos na",
+      "reviewTitle": "Suriin ang iyong aplikasyon",
+      "reviewSub": "Siguraduhing tama ang iyong mga detalye at mga kalakip na dokumento bago isumite.",
+      "detailsTitle": "Iyong mga detalye",
+      "documentsTitle": "Mga dokumento",
+      "filesAttached_one": "{{count}} file ang nakalakip",
+      "filesAttached_other": "{{count}} file ang nakalakip",
+      "missing": "Kulang",
+      "addMissing": "Magdagdag ng dokumento",
+      "replaceNote": "Maaari mong palitan ang mga dokumento mamaya kung hihilingin ng staff.",
+      "footerHelper": "Suriin ang iyong mga detalye at file bago magsumite."
     },
     "admin": {
       "pageTitle": "Mga Aplikasyon sa SPES",

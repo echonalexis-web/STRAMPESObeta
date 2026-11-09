@@ -1389,7 +1389,21 @@
       },
       "submittedTitle": "Files submitted",
       "untyped": "Uploaded file (no document type)",
-      "noneSubmitted": "No files on record."
+      "noneSubmitted": "No files on record.",
+      "slotShort": {
+        "form2": "SPES Form 2",
+        "proof_of_age": "Proof of age",
+        "proof_of_financial_status": "Proof of financial status",
+        "proof_of_academic_standing": "Proof of academic standing",
+        "osy_certification": "Out-of-school youth certification"
+      },
+      "slotDesc": {
+        "form2": "Duly accomplished, with a 2x2 photo",
+        "proof_of_age": "Birth certificate or government ID",
+        "proof_of_financial_status": "Parents' ITR, or certificate of tax exemption, low income or indigence",
+        "proof_of_academic_standing": "Form 138, class card, or registrar's certification",
+        "osy_certification": "Issued by the SWDO or Barangay"
+      }
     },
     "panel": {
       "aria": "SPES program",
@@ -1457,7 +1471,19 @@
       "discard": "Discard and close",
       "submittingProgress": "Submitting your application… {{percent}}%",
       "cancelSubmit": "Cancel submission",
-      "submitCanceled": "Submission canceled. Your files are still here."
+      "submitCanceled": "Submission canceled. Your files are still here.",
+      "stepOf": "Step {{current}} of {{total}}",
+      "stepDone": "completed",
+      "reviewTitle": "Review your application",
+      "reviewSub": "Make sure your details and attached documents are correct before you submit.",
+      "detailsTitle": "Your details",
+      "documentsTitle": "Documents",
+      "filesAttached_one": "{{count}} file attached",
+      "filesAttached_other": "{{count}} files attached",
+      "missing": "Missing",
+      "addMissing": "Add document",
+      "replaceNote": "You can replace documents later if staff ask.",
+      "footerHelper": "Check your details and files before submitting."
     },
     "admin": {
       "pageTitle": "SPES Applications",
