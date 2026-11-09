@@ -25,6 +25,7 @@ const presenceService = require("./services/presenceService");
 const { startEmailOutboxWorker } = require("./services/emailOutboxService");
 const logger = require("./utils/logger");
 const { sendError } = require("./utils/sendError");
+const { buildRegisterLimiters } = require("./middleware/registerLimiter");
 
 const app = express();
 const server = http.createServer(app);
@@ -134,6 +135,9 @@ const globalLimiter = createLimiter({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Successful-sign-up limiter (see middleware/registerLimiter.js).
+const registerLimiter = buildRegisterLimiters(createLimiter);
 
 // Auth limiter
 const authLimiter = createLimiter({
@@ -410,6 +414,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     
     app.use(`${basePath}/auth/login`, authLimiter);
     app.use(`${basePath}/auth/register`, authLimiter);
+    app.use(`${basePath}/auth/register`, registerLimiter);
     app.use(`${basePath}/auth/forgot-password`, authLimiter);
     app.use(`${basePath}/auth/reset-password`, authLimiter);
     app.use(`${basePath}/auth/google`, authLimiter);

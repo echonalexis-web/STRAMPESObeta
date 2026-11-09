@@ -2,6 +2,11 @@ const mongoose = require("mongoose");
 const { getActiveValues } = require("../services/systemOptionService");
 const governmentIdOcrSchema = require("./schemas/governmentIdOcr");
 
+const emptyToUndefined = (value) => {
+  if (typeof value !== "string") return value;
+  return value.trim() === "" ? undefined : value;
+};
+
 const userSchema = new mongoose.Schema(
   {
     // ===== Authentication =====
@@ -15,7 +20,24 @@ const userSchema = new mongoose.Schema(
     // it ever reaches here, but any write path that forgets still can't
     // persist a non-canonical value that would otherwise slip past the
     // (case-sensitive) unique index below.
-    email: { type: String, required: true, unique: true, trim: true, lowercase: true },
+    //
+    // Email is optional ONLY for a jobseeker that signed up with a username
+    // (USERNAME_SIGNUP_ENABLED). `email` always means a proven address: an
+    // unverified one lives in `pendingEmail`. The setter turns an empty or
+    // whitespace value into `undefined` so an empty string is never stored
+    // (it would collide on the unique index). Uniqueness is the partial
+    // index `email_unique_ci` at the bottom of this file; `unique: true` is
+    // deliberately NOT set here, or autoIndex would recreate the full
+    // `email_1` index that rejects two email-less accounts.
+    email: {
+      type: String,
+      required: function () {
+        return !(this.role === "jobseeker" && this.username);
+      },
+      trim: true,
+      lowercase: true,
+      set: emptyToUndefined,
+    },
     // Optional second sign-in identifier (see login() — resolved by email
     // when the identifier contains "@", by username otherwise). Format
     // rules (charset, reserved words, confusable normalization) are
@@ -23,7 +45,20 @@ const userSchema = new mongoose.Schema(
     // not here — this field only records the result. `null` (not required)
     // for every account that hasn't set one; the index below is sparse so
     // that's any number of accounts, not just one.
-    username: { type: String, default: null, trim: true, lowercase: true, minlength: 3, maxlength: 30 },
+    //
+    // NOTE (supersedes the sparse-index remark above): the default is now
+    // `undefined` (field absent), not null, and the unique index below is
+    // PARTIAL on `$type: "string"`. A sparse index skips only absent fields,
+    // so an explicit null would be indexed and collide.
+    username: {
+      type: String,
+      default: undefined,
+      trim: true,
+      lowercase: true,
+      minlength: 3,
+      maxlength: 30,
+      set: emptyToUndefined,
+    },
     // 30-day change cooldown (see utils/username.js) is enforced against
     // this at the point of a change request.
     usernameChangedAt: { type: Date, default: null },
@@ -417,29 +452,31 @@ userSchema.pre("validate", function normaliseCompanySize(next) {
   next();
 });
 
-// Case-insensitive uniqueness backstop, on top of the plain unique index the
-// `unique: true` above already creates (kept as-is, so this adds a second,
-// distinctly-named index rather than replacing/dropping anything). Every
-// write path already normalizes email to lowercase (see
-// server/utils/normalizeEmail.js and the trim/lowercase schema options
-// above), so in practice the two indexes agree — this one just makes that
-// guarantee hold at the database level too, for any write that somehow
-// bypasses both of those (e.g. a script using the raw driver). strength: 2
-// compares case-insensitively while still treating accented letters as
-// distinct, which is the standard collation for this kind of check.
+// Case-insensitive uniqueness. strength: 2 compares case-insensitively while
+// still treating accented letters as distinct. Both indexes are PARTIAL on
+// `$type: "string"`: a document with no email (or no username) is simply not
+// in the index, so any number of email-less or username-less accounts can
+// coexist while real values stay unique. These replace `email_1`, the old
+// full `email_unique_ci` and the sparse `username_unique_ci`; the swap on an
+// existing database is done by scripts/swapUserEmailUsernameIndexes.js.
 userSchema.index(
   { email: 1 },
-  { unique: true, collation: { locale: "en", strength: 2 }, name: "email_unique_ci" }
+  {
+    unique: true,
+    collation: { locale: "en", strength: 2 },
+    partialFilterExpression: { email: { $type: "string" } },
+    name: "email_unique_ci",
+  }
 );
 
-// Same pattern as email_unique_ci above, but sparse: `username` is optional,
-// and a sparse unique index lets any number of documents share the same
-// `null` (no unique-index collision between two accounts that haven't set
-// one) while still enforcing case-insensitive uniqueness among the ones
-// that have.
 userSchema.index(
   { username: 1 },
-  { unique: true, sparse: true, collation: { locale: "en", strength: 2 }, name: "username_unique_ci" }
+  {
+    unique: true,
+    collation: { locale: "en", strength: 2 },
+    partialFilterExpression: { username: { $type: "string" } },
+    name: "username_unique_ci",
+  }
 );
 
 module.exports = mongoose.model("User", userSchema);

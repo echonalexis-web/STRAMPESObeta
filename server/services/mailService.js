@@ -141,6 +141,9 @@ const renderEmail = ({ heading, paragraphs = [], button, footnote, alert }) => {
  * @returns {Promise<{delivered:boolean, channel:string}>}
  */
 const sendMail = async ({ to, subject, text, html }) => {
+  // An email-less (username-only) account has no address; never hand an empty
+  // recipient to the transport or the console fallback.
+  if (!to || !String(to).trim()) return { delivered: false, channel: "skipped" };
   const transporter = await buildTransporter();
   if (!transporter) {
     logToConsole({ to, subject, text });

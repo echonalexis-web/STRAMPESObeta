@@ -47,6 +47,7 @@ const {
   validateRequest
 } = require("../middleware/validation");
 const { detectMaliciousPayload, sensitiveOperationLimiter } = require("../middleware/security");
+const { rejectUsernameSignupWhenDisabled } = require("../middleware/signupFlag");
 const idUploadLimit = require("../middleware/idUploadLimit");
 const { confirmIdOcr, getIdFormats } = require("../controllers/idOcrController");
 
@@ -76,6 +77,7 @@ const ME_DOC_CATEGORIES = {
 // Public routes
 router.post(
   "/register",
+  rejectUsernameSignupWhenDisabled,
   sanitizeRequestBody,
   detectMaliciousPayload,
   validateUserRegistration,

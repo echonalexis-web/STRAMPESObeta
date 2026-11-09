@@ -87,7 +87,9 @@ const validateUserUpdate = (req, res, next) => {
     }
   }
   
-  if (email !== undefined && !/^\S+@\S+\.\S+$/.test(email)) {
+  // An empty string is tolerated (old clients send it for an email-less
+  // account); the model setter discards it, and email is immutable here anyway.
+  if (email !== undefined && email !== '' && !/^\S+@\S+\.\S+$/.test(email)) {
     errors.push('Please provide a valid email');
   }
   
@@ -301,13 +303,16 @@ const validateRequest = (req, res, next) => {
 
 const validateUserRegistration = (req, res, next) => {
   const { name, email, password, phone } = req.body;
+  // Username-only sign-up (jobseekers, behind USERNAME_SIGNUP_ENABLED) has no
+  // email field; the route has already refused the mode when the flag is off.
+  const usernameMode = req.body.signupMode === 'username';
   const errors = [];
 
   if (!name || name.length < 2 || name.length > 50) {
     errors.push('Name must be between 2 and 50 characters');
   }
-  
-  if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+
+  if (!usernameMode && (!email || !/^\S+@\S+\.\S+$/.test(email))) {
     errors.push('Please provide a valid email');
   }
   

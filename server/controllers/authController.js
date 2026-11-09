@@ -28,6 +28,7 @@ const {
 } = require("../services/mailService");
 const { OAuth2Client } = require("google-auth-library");
 const { validateDobInput, parseDateOnly, getAgeTier } = require("../utils/age");
+const { isUsernameSignupEnabled, hasVerifiedEmail } = require("../utils/usernameSignup");
 
 const { DOB_ERROR_MESSAGES } = require("../utils/dobPolicy");
 const { normalizeEmail } = require("../utils/normalizeEmail");
@@ -103,6 +104,8 @@ const exposeDevLinks = () => process.env.EXPOSE_DEV_LINKS === "true";
 // SMTP transport can't fail registration.
 // @returns {Promise<string|null>} the verify URL only when EXPOSE_DEV_LINKS=true
 const issueEmailVerification = async (user) => {
+  // A username-only account has no address to verify.
+  if (!user.email) return null;
   const rawToken = crypto.randomBytes(32).toString("hex");
   user.emailVerificationToken = hashToken(rawToken);
   user.emailVerificationExpires = new Date(Date.now() + EMAIL_VERIFICATION_TTL_HOURS * 60 * 60 * 1000);
@@ -129,6 +132,7 @@ const issueEmailVerification = async (user) => {
 // the user never actually chose. Never throws: account creation must
 // succeed whether or not a username could be found.
 const assignSuggestedUsername = async (user) => {
+  if (!user.email) return;
   try {
     const suggested = await usernameUtil.suggestFromEmailLocalPart(user.email.split("@")[0]);
     if (suggested) {
@@ -225,27 +229,75 @@ const getDocumentFieldRemovals = (payload = {}) => {
   return removals;
 };
 
+// Shape of the user object returned to the client on sign-in. `email` may be
+// null (username-only account); `isEmailVerified` is kept for old clients,
+// `hasVerifiedEmail` is the truthful flag.
+const sessionUserPayload = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email || null,
+  username: user.username || null,
+  role: user.role,
+  verificationStatus: user.verificationStatus,
+  isEmailVerified: user.isEmailVerified !== false,
+  hasVerifiedEmail: hasVerifiedEmail(user),
+  hasCompletedOnboarding: user.hasCompletedOnboarding,
+  onboardingComplete: user.onboardingComplete,
+  acceptedTermsAt: user.acceptedTermsAt,
+  termsVersion: user.termsVersion,
+  mustChangePassword: user.mustChangePassword === true,
+});
+
+// Which unique index fired on an E11000.
+const duplicateKeyField = (error) => {
+  const pattern = error?.keyPattern || error?.keyValue || {};
+  if (pattern.username !== undefined) return "username";
+  if (pattern.email !== undefined) return "email";
+  return null;
+};
+
 // ---------- Registration ----------
 exports.register = async (req, res) => {
   const { name, password, surname, firstName, middleName, suffix, dateOfBirth } = req.body;
-  const email = normalizeEmail(req.body.email);
+  const usernameMode = req.body.signupMode === "username";
   try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: "Email already exists" });
+    // Defence in depth: the route also refuses this before validation runs.
+    if (usernameMode && !isUsernameSignupEnabled()) {
+      return res.status(403).json({
+        code: "SIGNUP_DISABLED",
+        message: "Sign-up with a username is not available right now.",
+      });
+    }
 
-    // Age gate: the date of birth is required and must put the applicant at
-    // MIN_ACCOUNT_AGE or older (Asia/Manila calendar). A rejected attempt
-    // stores nothing and the date is never logged.
+    // Age gate FIRST, before any username or email lookup: the date of birth is
+    // required and must put the applicant at MIN_ACCOUNT_AGE or older
+    // (Asia/Manila calendar). A rejected attempt stores nothing and the date is
+    // never logged.
     const dob = validateDobInput(dateOfBirth);
     if (!dob.ok) {
       return res.status(400).json({ code: dob.code, message: DOB_ERROR_MESSAGES[dob.code] });
     }
 
-    // Optional — a blank/omitted field falls back to assignSuggestedUsername
-    // after the account exists, same as it always has.
+    // Username mode never has an email: any email sent is ignored, never
+    // queried, never stored.
+    const email = usernameMode ? "" : normalizeEmail(req.body.email);
+    if (!usernameMode) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) return res.status(400).json({ message: "Email already exists" });
+    }
+
+    // Optional in email mode (blank falls back to assignSuggestedUsername after
+    // the account exists); required in username mode.
     const usernameChoice = await resolveChosenUsername(req.body.username);
     if (usernameChoice.error) {
-      return res.status(400).json({ message: usernameChoice.error, field: "username" });
+      return res.status(400).json({
+        ...(usernameMode ? { code: "USERNAME_INVALID" } : {}),
+        message: usernameChoice.error,
+        field: "username",
+      });
+    }
+    if (usernameMode && !usernameChoice.username) {
+      return res.status(400).json({ code: "USERNAME_INVALID", message: "Choose a username.", field: "username" });
     }
 
     const hashed = await bcrypt.hash(password, 10);
@@ -261,19 +313,27 @@ exports.register = async (req, res) => {
         dateOfBirth: dob.date,
         dobLockedAt: new Date(),
         dobSource: "registration",
-        email,
+        ...(usernameMode ? {} : { email }),
         password: hashed,
         role: "jobseeker",
         ...(usernameChoice.username ? { username: usernameChoice.username } : {}),
       });
     } catch (createError) {
       // A concurrent registration can still win a race against the
-      // isAvailable() check above — the username's own unique index is the
-      // final word. keyPattern tells us which index actually fired, so a
-      // rare username collision here doesn't get mislabeled as the (much
-      // more common) email one below.
-      if (createError.code === 11000 && createError.keyPattern?.username) {
-        return res.status(400).json({ message: "That username is already taken.", field: "username" });
+      // isAvailable() check above: the unique indexes are the final word.
+      // keyPattern tells us which one actually fired.
+      if (createError.code === 11000) {
+        const field = duplicateKeyField(createError);
+        if (field === "username") {
+          return res.status(400).json({
+            ...(usernameMode ? { code: "USERNAME_TAKEN" } : {}),
+            message: "That username is already taken.",
+            field: "username",
+          });
+        }
+        if (field === "email" && !usernameMode) {
+          return res.status(400).json({ message: "Email already exists" });
+        }
       }
       throw createError;
     }
@@ -287,20 +347,33 @@ exports.register = async (req, res) => {
       targetType: "user",
       targetId: String(user._id),
       severity: "info",
+      metadata: { signupMode: usernameMode ? "username" : "email" },
     });
 
     await JobseekerProfile.create({ userId: user._id });
 
+    if (usernameMode) {
+      // No mailbox to prove, so no inert-until-verified step: the user gets a
+      // session straight away. `isEmailVerified` stays unset (a literal false
+      // would block login); the absent email is what limits access.
+      const token = jwt.sign(
+        { id: user._id, role: user.role, tokenVersion: user.tokenVersion },
+        process.env.JWT_SECRET,
+        { expiresIn: "30d" }
+      );
+      return res.status(201).json({ token, user: sessionUserPayload(user), termsVersion: CURRENT_TERMS_VERSION });
+    }
+
     user.isEmailVerified = false;
     const devVerifyUrl = await issueEmailVerification(user);
-    // Only auto-suggest when the user didn't choose their own above.
+    // Only auto-suggest when the user did not choose their own above.
     if (!usernameChoice.username) {
       await assignSuggestedUsername(user);
     }
 
     // Deliberately no session token here: the account exists but stays
-    // inert (can't sign in — see the isEmailVerified check in login()) until
-    // the verification link is opened. A bogus/typo'd email just never
+    // inert (cannot sign in, see the isEmailVerified check in login()) until
+    // the verification link is opened. A bogus or mistyped email just never
     // receives that link, so that account can never reach onboarding at all.
     res.status(201).json({
       message: "Account created. Check your email to verify it before signing in.",
@@ -309,9 +382,19 @@ exports.register = async (req, res) => {
     });
   } catch (error) {
     // A concurrent request can slip past the findOne check above and lose the
-    // race to the unique index on email — surface the same clean message
-    // instead of a raw duplicate-key error.
+    // race to a unique index: surface a clean message instead of a raw
+    // duplicate-key error.
     if (error.code === 11000) {
+      if (duplicateKeyField(error) === "username") {
+        return res.status(400).json({ message: "That username is already taken.", field: "username" });
+      }
+      if (usernameMode) {
+        // No email is stored in this mode, so an email-index collision means the
+        // old full unique index is still in place (scripts/swapUserEmailUsernameIndexes.js
+        // not run yet). That is a deployment fault, not something to blame on the user.
+        logger.error("Username sign-up hit the email unique index; run the index swap script", { error: error.message });
+        return sendError(res, error);
+      }
       return res.status(400).json({ message: "Email already exists" });
     }
     sendError(res, error);
@@ -522,20 +605,7 @@ exports.login = async (req, res) => {
 
     res.json({
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        username: user.username || null,
-        role: user.role,
-        verificationStatus: user.verificationStatus,
-        isEmailVerified: user.isEmailVerified !== false,
-        hasCompletedOnboarding: user.hasCompletedOnboarding,
-        onboardingComplete: user.onboardingComplete,
-        acceptedTermsAt: user.acceptedTermsAt,
-        termsVersion: user.termsVersion,
-        mustChangePassword: user.mustChangePassword === true,
-      },
+      user: sessionUserPayload(user),
       termsVersion: CURRENT_TERMS_VERSION,
       ...(reactivated ? { reactivated: true } : {}),
     });
@@ -1614,6 +1684,7 @@ async function finishGoogleLogin(req, res, user, isNewUser) {
         role: user.role,
         verificationStatus: user.verificationStatus,
         isEmailVerified: user.isEmailVerified === true,
+        hasVerifiedEmail: hasVerifiedEmail(user),
         hasCompletedOnboarding: user.hasCompletedOnboarding,
         onboardingComplete: user.onboardingComplete,
         acceptedTermsAt: user.acceptedTermsAt,
@@ -1786,7 +1857,13 @@ exports.getMe = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
     const hasPassword = await checkHasPassword(user._id);
     // ageTier is computed per request on the server (never stored or put in the JWT).
-    res.json({ ...user.toObject(), hasPassword, ageTier: getAgeTier(user.dateOfBirth) });
+    res.json({
+      ...user.toObject(),
+      hasPassword,
+      ageTier: getAgeTier(user.dateOfBirth),
+      hasVerifiedEmail: hasVerifiedEmail(user),
+      hasPendingEmail: Boolean(user.pendingEmail),
+    });
   } catch (error) {
     sendError(res, error);
   }
@@ -1811,7 +1888,13 @@ exports.getProfile = async (req, res) => {
     const hasPassword = await checkHasPassword(user._id);
 
     res.json({
-      user: { ...user.toObject(), hasPassword, ageTier: getAgeTier(user.dateOfBirth) },
+      user: {
+        ...user.toObject(),
+        hasPassword,
+        ageTier: getAgeTier(user.dateOfBirth),
+        hasVerifiedEmail: hasVerifiedEmail(user),
+        hasPendingEmail: Boolean(user.pendingEmail),
+      },
       profile,
       profileCompleteness,
     });
