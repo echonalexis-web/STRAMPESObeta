@@ -114,7 +114,7 @@ exports.listNews = async (req, res) => {
     const [total, items] = await Promise.all([
       Announcement.countDocuments(filter),
       Announcement.find(filter)
-        .populate("author", "name email")
+        .populate("author", "name")
         .sort({ publishedAt: -1, createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -135,7 +135,7 @@ exports.listNews = async (req, res) => {
 
 exports.getNewsById = async (req, res) => {
   try {
-    const item = await Announcement.findOne({ _id: req.params.id, isActive: true }).populate("author", "name email");
+    const item = await Announcement.findOne({ _id: req.params.id, isActive: true }).populate("author", "name");
     if (!item) {
       return res.status(404).json({ message: "News post not found" });
     }
@@ -178,7 +178,7 @@ exports.createNews = async (req, res) => {
     }
     let populated = created;
     await runPostCommit("news_create.populate", postCommitCtx, async () => {
-      populated = await Announcement.findById(created._id).populate("author", "name email");
+      populated = await Announcement.findById(created._id).populate("author", "name");
     });
     await runPostCommit("news_create.audit", postCommitCtx, () => logAuditEvent({
       req,
@@ -238,7 +238,7 @@ exports.updateNews = async (req, res) => {
       removeNewsImage(existing.imageUrl);
     }
 
-    const updated = await Announcement.findByIdAndUpdate(req.params.id, cleaned, { new: true, runValidators: true }).populate("author", "name email");
+    const updated = await Announcement.findByIdAndUpdate(req.params.id, cleaned, { new: true, runValidators: true }).populate("author", "name");
 
     if (!updated) {
       return res.status(404).json({ message: "News post not found" });

@@ -12,6 +12,7 @@ const { ensureConversationBetweenUsers } = require("./messageController");
 const { getAgeDenial, sendAgeDenial } = require("../utils/ageAccess");
 const { getHomepageJobsPayload, getApplicationCountMap, getHiredCountMap } = require("../utils/jobDisplay");
 const EmployerProfile = require("../models/EmployerProfile");
+const { scrubEmployerForJobPayload } = require("../services/profileProjection");
 const { createNotificationForUser } = require("../services/notificationService");
 const storageService = require("../services/storageService");
 const { logAuditEvent } = require("../services/auditService");
@@ -212,6 +213,9 @@ exports.getJobs = async (req, res) => {
       if (employer && profileMap[String(employer._id)]) {
         employer.profile = profileMap[String(employer._id)];
       }
+      // Registration data and contact-person details are never public, and a
+      // signed-out visitor gets no employer email or phone.
+      if (employer) jobObj.employer = scrubEmployerForJobPayload(employer, req.user || null);
       jobObj.applicationCount = Number(countMap[String(job._id)] || 0);
       jobObj.remainingSlots = Math.max(0, Number(jobObj.slots || 0) - Number(hiredCountMap[String(job._id)] || 0));
       jobObj.qualifications = formatQualifications(jobObj.qualifications);
@@ -267,6 +271,8 @@ exports.getHomepageJobs = async (req, res) => {
       if (employer && profileMap[String(employer._id)]) {
         employer.profile = profileMap[String(employer._id)];
       }
+      // /homepage has no authentication: never any employer email or phone.
+      if (employer) jobObj.employer = scrubEmployerForJobPayload(employer, null);
       jobObj.qualifications = formatQualifications(jobObj.qualifications);
       return jobObj;
     });
@@ -305,6 +311,7 @@ exports.getJobById = async (req, res) => {
       if (profile) {
         jobObj.employer.profile = profile;
       }
+      jobObj.employer = scrubEmployerForJobPayload(jobObj.employer, req.user || null);
     }
 
     const [countMap, hiredCountMap] = await Promise.all([
