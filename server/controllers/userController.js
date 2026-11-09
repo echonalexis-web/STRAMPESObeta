@@ -10,6 +10,10 @@ const { DOB_ERROR_MESSAGES } = require("../utils/dobPolicy");
 const { logAuditEvent } = require("../services/auditService");
 const { normalizeHeightUnit, normalizeWeightUnit } = require("../utils/unitFields");
 
+// Same exclusions as authController: the owner never needs backup codes, the
+// recovery-email token or the raw ID OCR text back from these endpoints.
+const CLIENT_UNSAFE_FIELDS = "-password -backupCodes -recoveryEmailToken -governmentIdOcr.rawText";
+
 // Helper to update or create profile
 const upsertProfile = async (userId, role, data) => {
   let Model = role === "jobseeker" ? JobseekerProfile : EmployerProfile;
@@ -30,7 +34,7 @@ const parseJSON = (value, fallback = null) => {
 // ---------- Get full profile (user + role profile) ----------
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id).select(CLIENT_UNSAFE_FIELDS);
     if (!user) return res.status(404).json({ message: "User not found" });
 
     let profile = null;
@@ -209,7 +213,7 @@ exports.completeOnboarding = async (req, res) => {
       updatedProfile = await upsertProfile(userId, user.role, profileData);
     }
 
-    const updatedUser = await User.findById(userId).select("-password");
+    const updatedUser = await User.findById(userId).select(CLIENT_UNSAFE_FIELDS);
 
     await logAuditEvent({
       req,
@@ -243,7 +247,7 @@ exports.uploadProfileImage = async (req, res) => {
       req.user.id,
       { profileImage: imageUrl },
       { new: true }
-    ).select("-password");
+    ).select(CLIENT_UNSAFE_FIELDS);
 
     await logAuditEvent({
       req,
@@ -269,7 +273,7 @@ exports.uploadResume = async (req, res) => {
       req.user.id,
       { resumeFile: resumeUrl },
       { new: true }
-    ).select("-password");
+    ).select(CLIENT_UNSAFE_FIELDS);
 
     await logAuditEvent({
       req,

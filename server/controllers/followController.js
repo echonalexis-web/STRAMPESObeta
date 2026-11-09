@@ -111,10 +111,19 @@ exports.unfollowUser = async (req, res) => {
   }
 };
 
+// Follower and following lists are visible only to their owner and PESO staff.
+// Everyone else uses the counts from the follow-status endpoint.
+const canSeeFollowLists = (req, userId) =>
+  String(req.user?.id || req.user?._id) === String(userId) || ["admin", "superadmin"].includes(req.user?.role);
+
+const denyFollowList = (res) =>
+  res.status(403).json({ code: "FOLLOW_LIST_PRIVATE", error: "This list is private.", message: "This list is private." });
+
 // Get followers of a user
 exports.getFollowers = async (req, res) => {
   try {
     const { userId } = req.params;
+    if (!canSeeFollowLists(req, userId)) return denyFollowList(res);
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 10, 100);
     const skip = (page - 1) * limit;
@@ -160,6 +169,7 @@ exports.getFollowers = async (req, res) => {
 exports.getFollowing = async (req, res) => {
   try {
     const { userId } = req.params;
+    if (!canSeeFollowLists(req, userId)) return denyFollowList(res);
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 10, 100);
     const skip = (page - 1) * limit;
