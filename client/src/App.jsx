@@ -47,6 +47,7 @@ import Dashboard from "./pages/Dashboard";
 import JobBoard from "./pages/JobBoard";
 import JobDetail from "./pages/JobDetail";
 import ProfilePage from "./pages/ProfilePage";
+import PersonProfile from "./pages/PersonProfile";
 import EditProfile from "./pages/EditProfile";
 import ResumeStudio from "./pages/ResumeStudio";
 import Settings from "./pages/Settings";
@@ -221,6 +222,7 @@ function AppRoutes() {
           <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/people/:id" element={<ProtectedRoute><PersonProfile /></ProtectedRoute>} />
           <Route path="/profile/favorites" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/profile/likes" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/profile/followers" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />

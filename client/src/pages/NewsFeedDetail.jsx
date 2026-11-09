@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FaArrowLeft, FaHeart, FaRegHeart, FaRegComment, FaTrashAlt, FaCommentSlash } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
+import ProfileLink from "../components/ProfileLink";
 import { newsAPI, newsLikeAPI, newsCommentAPI, resolveAssetUrl } from "../services/api";
 import { useToast, useConfirm } from "../components/feedback/context";
 import ReportButton from "../components/ReportButton";
@@ -33,9 +34,11 @@ const getInitials = (name) => {
 const CommentAvatar = ({ author }) => {
   const src = author?.profileImage ? resolveAssetUrl(author.profileImage) : "";
   return (
-    <span className="news-comment__avatar" aria-hidden="true">
-      {src ? <img src={src} alt="" /> : getInitials(author?.name)}
-    </span>
+    <ProfileLink userId={author?._id} role={author?.role} decorative>
+      <span className="news-comment__avatar" aria-hidden="true">
+        {src ? <img src={src} alt="" /> : getInitials(author?.name)}
+      </span>
+    </ProfileLink>
   );
 };
 
@@ -321,7 +324,11 @@ export default function NewsFeedDetail() {
                             <CommentAvatar author={comment.author} />
                             <div className="news-comment__main">
                               <div className="news-comment__head">
-                                <strong>{comment.author?.name || "User"}</strong>
+                                <strong>
+                                  <ProfileLink userId={comment.author?._id} role={comment.author?.role} className="news-comment__name">
+                                    {comment.author?.name || "User"}
+                                  </ProfileLink>
+                                </strong>
                                 <span>{formatCommentDate(comment.createdAt)}</span>
                               </div>
                               <p className="news-comment__body">{comment.content}</p>

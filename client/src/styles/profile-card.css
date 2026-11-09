@@ -1,0 +1,231 @@
+/* Profile hover card (COVER_PHOTO_PLAN.md section 18). A non-modal dialog in a
+   portal on document.body. z-index 1400: above modals (1350) so a trigger inside a
+   dialog works, below the floating messenger (3500), help buttons and toasts. */
+.pcard {
+  position: fixed;
+  z-index: 1400;
+  width: min(320px, calc(100vw - 16px));
+  overflow: hidden;
+  border: 1px solid var(--ds-ink-100);
+  border-radius: 14px;
+  background: var(--ds-surface);
+  color: var(--ds-ink-900);
+  box-shadow: var(--ds-elev-2);
+  animation: pcard-in var(--ds-motion-fast, 150ms) ease-out;
+}
+
+@keyframes pcard-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pcard {
+    animation: none;
+  }
+}
+
+.pcard__cover {
+  display: block;
+  width: 100%;
+  height: 56px;
+  border-radius: 0;
+  background-color: var(--ds-green);
+  overflow: hidden;
+}
+
+.pcard__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.pcard__body {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 0 14px 14px;
+}
+
+.pcard__avatar {
+  width: 52px;
+  height: 52px;
+  margin-top: -26px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 3px solid var(--ds-surface);
+  border-radius: 50%;
+  background: var(--ds-mint);
+  color: var(--ds-green);
+  font-weight: 700;
+}
+
+.pcard__avatar--company {
+  border-radius: 12px;
+}
+
+.pcard__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pcard__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.pcard__name {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.pcard__role,
+.pcard__verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ds-ink-50);
+  color: var(--ds-ink-700);
+  font-size: 0.75rem;
+}
+
+.pcard__verified {
+  background: var(--ds-mint);
+  color: var(--ds-green);
+}
+
+.pcard__line {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ds-ink-700);
+}
+
+.pcard__line--muted {
+  color: var(--ds-ink-500);
+}
+
+.pcard__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.pcard__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--ds-radius-btn, 10px);
+  background: var(--ds-green);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pcard__link:focus-visible {
+  outline: 3px solid var(--ds-gold);
+  outline-offset: 2px;
+}
+
+.pcard__note {
+  margin: 0;
+  padding: 16px 14px;
+  font-size: 0.875rem;
+  color: var(--ds-ink-500);
+}
+
+.pcard__skeleton {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--ds-ink-50);
+}
+
+.pcard__skeleton--cover {
+  height: 56px;
+  margin: 0 -14px 8px;
+  border-radius: 0;
+}
+
+.pcard__skeleton--short {
+  width: 55%;
+}
+
+/* Links that carry the hover card keep the look of the text they wrap. */
+.news-comment__name {
+  color: inherit;
+  text-decoration: none;
+}
+
+.news-comment__name:hover,
+.news-comment__name:focus-visible {
+  text-decoration: underline;
+}
+
+/* ---------- /people/:id page ---------- */
+.person-main {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.person-line {
+  margin: 4px 0 0;
+  color: var(--ds-ink-700);
+}
+
+.person-note {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  color: var(--ds-ink-500);
+}
+
+.person-muted {
+  color: var(--ds-ink-500);
+}
+
+.person-chips,
+.person-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.person-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.person-chips li {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--ds-mint);
+  color: var(--ds-green);
+  font-size: 0.875rem;
+}
+
+.person-list {
+  display: grid;
+  gap: 8px;
+}
+
+.person-back {
+  margin: 16px 0 0;
+}

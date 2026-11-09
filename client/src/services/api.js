@@ -602,6 +602,14 @@ export const systemOptionsAPI = {
 
 // Profile banner templates. Any signed-in user reads the active list; the
 // superadmin manages them (validated gradient and pattern definitions only).
+// Profile viewing for every signed-in role: the hover card summary and the full
+// profile for this viewer. Both answer 404 PROFILE_UNAVAILABLE for anything the
+// viewer may not see.
+export const profileViewAPI = {
+  summary: (id, signal) => api.get(`/profiles/${id}/summary`, { ...getAuthHeader(), signal }),
+  get: (id, signal) => api.get(`/profiles/${id}`, { ...getAuthHeader(), signal }),
+};
+
 // Employer cover image (verified employers): upload a cropped image, or remove it.
 export const employerCoverAPI = {
   uploadImage: (file, cropData, onProgress) => {

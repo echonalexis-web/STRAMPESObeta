@@ -2210,5 +2210,22 @@
     "removed": "Naalis ang cover na larawan.",
     "removeError": "Hindi maalis ang cover na larawan.",
     "editorTitle": "Ayusin ang cover mo"
+  },
+  "person": {
+    "unavailableTitle": "Hindi available ang profile na ito",
+    "unavailableBody": "Maaaring wala ito, o hindi mo ito maaaring tingnan.",
+    "errorTitle": "Hindi ma-load ang profile na ito",
+    "errorBody": "Suriin ang koneksyon mo at subukang muli.",
+    "back": "Bumalik",
+    "contactNote": "Makikita ang contact details kapag nag-apply sa iyo ang taong ito o ibinahagi niya ang mga ito.",
+    "about": "Tungkol",
+    "website": "Website",
+    "skills": "Mga kasanayan",
+    "education": "Edukasyon",
+    "work": "Karanasan sa trabaho",
+    "credentials": "Training at mga kredensyal",
+    "preferences": "Mga gustong trabaho",
+    "salary": "Inaasahang sahod",
+    "languages": "Mga wika"
   }
 }

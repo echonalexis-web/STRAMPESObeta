@@ -2210,5 +2210,22 @@
     "removed": "Cover image removed.",
     "removeError": "Could not remove the cover image.",
     "editorTitle": "Adjust your cover"
+  },
+  "person": {
+    "unavailableTitle": "This profile is unavailable",
+    "unavailableBody": "It may not exist, or you may not be able to view it.",
+    "errorTitle": "Could not load this profile",
+    "errorBody": "Check your connection and try again.",
+    "back": "Go back",
+    "contactNote": "Contact details are shown after this person applies to you or shares them with you.",
+    "about": "About",
+    "website": "Website",
+    "skills": "Skills",
+    "education": "Education",
+    "work": "Work experience",
+    "credentials": "Training and credentials",
+    "preferences": "Job preferences",
+    "salary": "Expected salary",
+    "languages": "Languages"
   }
 }
