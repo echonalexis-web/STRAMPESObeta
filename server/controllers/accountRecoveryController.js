@@ -17,6 +17,11 @@ const mail = require("../services/staffRecoveryMailService");
 const logger = require("../utils/logger");
 const { sendError } = require("../utils/sendError");
 const { forceLogout } = require("../services/sessionService");
+const { isUsernameSignupEnabled } = require("../utils/usernameSignup");
+const { normalizePhone } = require("../utils/phone");
+const { applyOfficeReset } = require("../services/officeResetService");
+const { checkStaffInputs } = require("./officeResetController");
+const { notifyPasswordResetByStaff, notifyRecoveryRequested } = require("../services/accountAlertService");
 const { scheduleOcrTask } = require("../services/idOcrService");
 const hash = (value) => crypto.createHash("sha256").update(String(value)).digest("hex");
 const randomToken = () => crypto.randomBytes(32).toString("hex");
@@ -47,12 +52,15 @@ exports.submit = async (req, res) => {
   try {
     const body = req.body;
     const identifier = String(body.identifier || "").trim().normalize("NFKC").toLowerCase();
-    const contactEmail = normalizeEmail(body.contactEmail);
+    // A phone contact is accepted only while the username sign-up feature is on.
+    const contactMethod = isUsernameSignupEnabled() && body.contactMethod === "phone" ? "phone" : "email";
+    const contactEmail = contactMethod === "email" ? normalizeEmail(body.contactEmail) : "";
+    const contactPhone = contactMethod === "phone" ? normalizePhone(body.contactPhone) : null;
     const fullName = String(body.fullName || "").trim();
     const dateOfBirth = parseDate(body.dateOfBirth);
     const idFile = req.files?.governmentIdFile?.[0];
     const selfie = req.files?.selfieFile?.[0];
-    if (!identifier || identifier.length > 254 || !validator.isEmail(contactEmail) || !fullName || fullName.length > 200 || !dateOfBirth || dateOfBirth > new Date() || !idFile?.storedValue || !selfie?.storedValue) {
+    if (!identifier || identifier.length > 254 || !(contactMethod === "phone" ? contactPhone : validator.isEmail(contactEmail)) || !fullName || fullName.length > 200 || !dateOfBirth || dateOfBirth > new Date() || !idFile?.storedValue || !selfie?.storedValue) {
       return res.status(400).json({ message: "Provide your identifier, name, date of birth, contact email, ID and selfie." });
     }
     const user = await User.findOne(identifier.includes("@") ? { email: normalizeEmail(identifier) } : { username: identifier }).collation({ locale: "en", strength: 2 });
@@ -62,7 +70,7 @@ exports.submit = async (req, res) => {
       await Promise.allSettled([storage.remove(idFile.storedValue), storage.remove(selfie.storedValue)]);
       // Contact-mail presence must not disclose the cooldown/account match.
       // This disposable link receives the same generic confirmation response.
-      sendLater(mail.sendContactVerification({ to: contactEmail, token: randomToken() }));
+      if (contactMethod === "email") sendLater(mail.sendContactVerification({ to: contactEmail, token: randomToken() }));
       await logAuditEvent({ req, action: "auth.recovery_request.cooldown", targetType: "user", targetId: String(user._id), severity: "warning" });
       return res.json(generic);
     }
@@ -74,10 +82,17 @@ exports.submit = async (req, res) => {
       fullName, dateOfBirth, phone: String(body.phone || "").slice(0, 40), lastKnownAddress: String(body.lastKnownAddress || "").slice(0, 500),
       governmentIdFile: idFile.storedValue, selfieFile: selfie.storedValue,
       idTypeDeclared: String(body.idTypeDeclared || "").slice(0, 150), idNumberDeclared: String(body.idNumberDeclared || "").slice(0, 80),
-      contactEmail, contactVerifiedAt: null, contactVerificationHash: hash(token), contactVerificationExpires: new Date(Date.now() + 86400000),
+      contactMethod, contactVerifiedAt: null,
+      ...(contactMethod === "email"
+        ? { contactEmail, contactVerificationHash: hash(token), contactVerificationExpires: new Date(Date.now() + 86400000) }
+        : { contactPhone }),
       revision, status: "pending", reviewedBy: null, adminResponse: null, resolvedAt: null, ocr: { status: "queued" },
       expiresAt: new Date(Date.now() + 14 * 86400000), ipAddress: req.ip, userAgent: String(req.headers["user-agent"] || "").slice(0, 500),
     } };
+    // Keep each request clean when a person re-submits with the other contact method.
+    update.$unset = contactMethod === "phone"
+      ? { contactEmail: 1, contactVerificationHash: 1, contactVerificationExpires: 1 }
+      : { contactPhone: 1 };
     let previous;
     try { previous = await Request.findOneAndUpdate(filter, update, { upsert: true, new: false, setDefaultsOnInsert: true }); }
     catch (error) {
@@ -90,8 +105,18 @@ exports.submit = async (req, res) => {
     if (previous) await Promise.allSettled([storage.remove(previous.governmentIdFile), storage.remove(previous.selfieFile)]);
     // All syntactically valid submissions get the same contact-possession flow,
     // including unknown accounts. No email discloses whether an account matched.
-    sendLater(mail.sendContactVerification({ to: contactEmail, token }));
-    await logAuditEvent({ req, action: "auth.recovery_request.submitted", targetType: "accountRecovery", targetId: String(saved?._id || ""), severity: "warning" });
+    if (contactMethod === "email") sendLater(mail.sendContactVerification({ to: contactEmail, token }));
+    await logAuditEvent({ req, action: "auth.recovery_request.submitted", targetType: "accountRecovery", targetId: String(saved?._id || ""), severity: "warning", metadata: { contactMethod } });
+    // A phone contact has no emailed link to confirm, so staff are told now that a
+    // request is waiting for in-person completion, and the account owner gets an
+    // in-app alert (nothing changes unless staff check an ID at the counter).
+    if (contactMethod === "phone" && saved) {
+      try {
+        const staff = await User.find({ role: { $in: ["admin", "superadmin"] }, isActive: { $ne: false } }).select("_id");
+        await notifyManyUsers({ recipientIds: staff.map((member) => member._id), type: "account_recovery", title: "Phone-contact recovery request", message: "A recovery request with a phone contact is waiting for in-person completion.", relatedEntityType: "system", relatedEntityId: saved._id, actionUrl: "/admin/account-recovery", preferenceKey: "notifyAccountRecovery", io: req.app.get("io") });
+        if (user) void notifyRecoveryRequested(user._id, req);
+      } catch { logger.error("Phone recovery notifications failed"); }
+    }
     if (saved && !req.ocrCancelled) {
       req.ocrScheduled = true;
       scheduleOcrTask(() => processOcr(saved._id, revision, idFile), req.releaseOcrSlot);
@@ -116,7 +141,7 @@ exports.list = async (req, res) => {
   try {
     const status = ["pending", "under_review", "approved", "rejected", "expired"].includes(req.query.status) ? req.query.status : "pending";
     const page = Math.max(1, Math.min(10000, Math.floor(Number(req.query.page)) || 1));
-    const requests = await Request.find({ status }).select("fullName claimedIdentifier contactEmail contactVerifiedAt status createdAt expiresAt revision delivery").sort({ createdAt: 1 }).skip((page - 1) * 25).limit(25);
+    const requests = await Request.find({ status }).select("fullName claimedIdentifier contactEmail contactMethod contactPhone contactVerifiedAt status createdAt expiresAt revision delivery").sort({ createdAt: 1 }).skip((page - 1) * 25).limit(25);
     return res.json({ requests, page });
   } catch (error) { return sendError(res, error); }
 };
@@ -134,17 +159,31 @@ exports.detail = async (req, res) => {
 
 exports.review = async (req, res) => {
   try {
-    const { decision, revision, currentPassword, reason, identityMatched } = req.body;
-    if (!["approve", "reject", "under_review"].includes(decision) || typeof revision !== "string") return res.status(400).json({ message: "Invalid review decision" });
+    const { decision, revision, currentPassword, reason, identityMatched, idChecked, idTypePresented } = req.body;
+    if (!["approve", "reject", "under_review", "complete_in_person"].includes(decision) || typeof revision !== "string") return res.status(400).json({ message: "Invalid review decision" });
     const actor = await User.findById(req.user.id);
     if (!actor?.password) return res.status(400).json({ message: "Set a password first (Settings → Security → Add a password) before reviewing recovery requests." });
     if (!await bcrypt.compare(String(currentPassword || ""), actor.password)) return res.status(403).json({ message: "Current password is incorrect" });
     if (decision !== "under_review" && (typeof reason !== "string" || reason.trim().length < 10 || reason.length > 2000)) return res.status(400).json({ message: "Record a review reason (10–2000 characters)" });
     const rawToken = randomToken();
+    let temporaryPassword = null;
     const outcome = await transaction(async (session) => {
       const request = await Request.findOne({ _id: req.params.id, revision, status: { $in: openStatuses }, expiresAt: { $gt: new Date() } }).session(session);
       if (!request) fail(409, "This request changed or expired. Reload before reviewing.");
       let user = null;
+      if (decision === "approve" && request.contactMethod === "phone") fail(400, "A phone-contact request cannot be approved by link. Use Complete in person at the counter.");
+      if (decision === "complete_in_person") {
+        // Staff checked the physical ID, so the "ID already on file" rule is waived
+        // here; the ID type shown is recorded in the audit event.
+        if (request.contactMethod !== "phone") fail(400, "Complete in person is only for phone-contact requests.");
+        const invalid = checkStaffInputs({ reason, idChecked, idTypePresented });
+        if (invalid) fail(400, invalid.message);
+        user = request.resolvedUser ? await User.findById(request.resolvedUser).session(session) : null;
+        if (!user || user.role !== "jobseeker" || user.isActive === false) fail(403, "Only active jobseeker accounts can be recovered here.");
+        if (user.staffRecoveryPending) fail(409, "A PESO recovery is already in progress for this account.");
+        ({ temporaryPassword } = await applyOfficeReset(user, { session }));
+        request.delivery = { status: "sent", channel: "in_person", attempts: 0, lastAttemptAt: new Date(), lastAttemptBy: actor._id };
+      }
       if (decision === "approve") {
         if (!request.contactVerifiedAt || identityMatched !== true) fail(400, "Confirm contact possession and match both identity documents before approval");
         user = request.resolvedUser ? await User.findById(request.resolvedUser).session(session) : null;
@@ -159,7 +198,7 @@ exports.review = async (req, res) => {
           staffRecoveryToken: hash(rawToken), staffRecoveryExpires: new Date(Date.now() + 30 * 60000), staffRecoveryRequest: request._id, staffRecoveryVersion: (user.tokenVersion || 0) + 1,
         } }, { session });
       }
-      request.status = decision === "approve" ? "approved" : decision === "reject" ? "rejected" : "under_review";
+      request.status = decision === "approve" || decision === "complete_in_person" ? "approved" : decision === "reject" ? "rejected" : "under_review";
       request.reviewedBy = actor._id;
       request.adminResponse = String(reason || "").trim();
       if (decision !== "under_review") { request.resolvedAt = new Date(); request.openAccountKey = undefined; }
@@ -176,7 +215,13 @@ exports.review = async (req, res) => {
     });
     const { request, user } = outcome;
     let delivery = null;
-    if (decision === "approve") {
+    if (decision === "complete_in_person") {
+      for (const to of new Set([user.email, user.recoveryEmail].filter(Boolean))) sendLater(mail.sendRecoveryAlert({ to }));
+      forceLogout(req.app.get("io"), user._id, { code: "SESSION_EXPIRED", message: "Your password was reset by PESO staff. Please sign in again." });
+      void notifyPasswordResetByStaff(user._id, req);
+      // The temporary password, the ID number and the date of birth are never recorded here.
+      await logAuditEvent({ req, actorId: actor._id, actorRole: actor.role, action: "auth.password.reset_by_staff", targetUserId: user._id, targetType: "user", targetId: String(user._id), severity: "critical", metadata: { via: "recovery_request", requestId: String(request._id), idType: idTypePresented, reason: String(reason).trim() } });
+    } else if (decision === "approve") {
       // The approval is committed and the raw token exists only in this email,
       // so the send result must be recorded: a silent failure used to leave
       // the user locked out with nothing telling staff to resend.
@@ -185,7 +230,8 @@ exports.review = async (req, res) => {
       forceLogout(req.app.get("io"), user._id, { code: "SESSION_EXPIRED", message: "Your account is being recovered by PESO staff." });
     } else if (decision === "reject" && request.contactVerifiedAt) sendLater(mail.sendRecoveryRejected({ to: request.contactEmail, reason: request.adminResponse }));
     await runPostCommit("recovery_review.audit", { req, resourceType: "account_recovery_request", resourceId: request._id }, () => logAuditEvent({ req, actorId: actor._id, actorRole: actor.role, action: decision === "approve" ? "auth.account.recovered" : `admin.recovery_request.${decision}`, targetType: "user", targetId: String(request.resolvedUser || ""), severity: decision === "approve" ? "critical" : "warning", metadata: { requestId: String(request._id), googleUnlinked: Boolean(user?.googleId) } }));
-    return res.json({ message: "Review recorded", status: request.status, ...(delivery ? { delivery } : {}) });
+    if (temporaryPassword) res.set("Cache-Control", "no-store");
+    return res.json({ message: "Review recorded", status: request.status, ...(delivery ? { delivery } : {}), ...(temporaryPassword ? { temporaryPassword, mustChangePassword: true } : {}) });
   } catch (error) { return sendError(res, error, error.status ? error.message : "Could not record recovery decision", error.status || 500); }
 };
 

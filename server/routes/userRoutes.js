@@ -1,6 +1,6 @@
 const router = require("express").Router();
 const { verifyToken: protect } = require("../middleware/auth");
-const { requireVerifiedEmail } = require("../middleware/requireVerifiedEmail");
+const { uploadBudget } = require("../middleware/budgets");
 const {
   completeOnboarding,
   getProfile,
@@ -44,7 +44,7 @@ router.put("/profile", sanitizeRequestBody, detectMaliciousPayload, validateUser
 // Profile image upload (public asset)
 router.post(
   "/upload-profile-image",
-  requireVerifiedEmail,
+  uploadBudget,
   profileUpload.single("profileImage"),
   validateFile,
   cleanupUploadedFiles,
@@ -55,7 +55,7 @@ router.post(
 // Resume upload (private document)
 router.post(
   "/upload-resume",
-  requireVerifiedEmail,
+  uploadBudget,
   profileUpload.single("resume"),
   validateFile,
   cleanupUploadedFiles,

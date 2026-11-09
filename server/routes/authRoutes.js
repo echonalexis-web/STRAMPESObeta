@@ -47,8 +47,8 @@ const {
   validateRequest
 } = require("../middleware/validation");
 const { detectMaliciousPayload, sensitiveOperationLimiter } = require("../middleware/security");
-const { rejectUsernameSignupWhenDisabled, requireUsernameSignupEnabled } = require("../middleware/signupFlag");
-const { requireVerifiedEmailForFiles, requireVerifiedEmail } = require("../middleware/requireVerifiedEmail");
+const { rejectUsernameSignupWhenDisabled, requireUsernameSignupEnabled, flagSwitch } = require("../middleware/signupFlag");
+const { uploadBudget, uploadBudgetForFiles, backupCodesBudget } = require("../middleware/budgets");
 const { dbLimiter, positiveIntEnv } = require("../middleware/dbLimiter");
 const { signupGuard } = require("../middleware/signupGuard");
 const { issueToken: issueSignupToken } = require("../utils/signupToken");
@@ -332,7 +332,9 @@ router.post(
 router.post(
   "/backup-codes/generate",
   protect,
-  sensitiveOperationLimiter(3, 60 * 60 * 1000),
+  // Per ACCOUNT (3 per hour) while the username sign-up feature is on, so a job-fair
+  // network is not blocked; unchanged per-IP limiter otherwise.
+  flagSwitch(backupCodesBudget, sensitiveOperationLimiter(3, 60 * 60 * 1000)),
   sanitizeRequestBody,
   detectMaliciousPayload,
   generateBackupCodes
@@ -344,7 +346,7 @@ router.put(
   documentsUpload.fields(PROFILE_DOC_FIELDS),
   idUploadLimit,
   cleanupUploadedFiles,
-  requireVerifiedEmailForFiles,
+  uploadBudgetForFiles,
   persistFields(PROFILE_DOC_CATEGORIES),
   sanitizeRequestBody,
   detectMaliciousPayload,
@@ -357,7 +359,7 @@ router.patch(
   documentsUpload.fields(ME_DOC_FIELDS),
   idUploadLimit,
   cleanupUploadedFiles,
-  requireVerifiedEmailForFiles,
+  uploadBudgetForFiles,
   persistFields(ME_DOC_CATEGORIES),
   sanitizeRequestBody,
   detectMaliciousPayload,
@@ -368,7 +370,7 @@ router.patch(
 router.patch(
   "/profile/avatar",
   protect,
-  requireVerifiedEmail,
+  uploadBudget,
   avatarUpload.single("profileImage"),
   validateFile,
   cleanupUploadedFiles,

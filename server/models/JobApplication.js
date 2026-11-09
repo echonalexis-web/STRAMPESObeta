@@ -64,5 +64,7 @@ const jobApplicationSchema = new mongoose.Schema({
 // "applicants for this job" queries below need their own index for that).
 jobApplicationSchema.index({ applicant: 1, vacancy: 1 }, { unique: true });
 jobApplicationSchema.index({ vacancy: 1 });
+// Daily application cap (middleware/applyGuards.js): count one applicant recent applications.
+jobApplicationSchema.index({ applicant: 1, createdAt: -1 });
 
 module.exports = mongoose.model("JobApplication", jobApplicationSchema);

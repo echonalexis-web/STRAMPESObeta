@@ -25,6 +25,10 @@ const {
 
 const getUserId = (req) => req.user._id || req.user.id;
 
+const JOBSEEKER_ROLES = ["jobseeker", "employee", "resident"];
+// What a PESO admin (not superadmin) may record on a report about a jobseeker.
+const ADMIN_ALLOWED_ACTIONS = ["none", "warning"];
+
 // Resolve the owning user of whatever was reported, so the admin queue can act
 // on the person (warn / suspend) directly from the report.
 const resolveTargetOwner = async (targetType, targetId) => {
@@ -114,7 +118,13 @@ exports.createReport = async (req, res) => {
 
     // Alert superadmins — moderation is their surface now.
     try {
-      const admins = await User.find({ role: "superadmin" }).select("_id");
+      // Superadmins always; PESO admins too when the report is about a jobseeker account.
+      let notifyRoles = ["superadmin"];
+      if (targetType === "user" && targetOwner) {
+        const owner = await User.findById(targetOwner).select("role");
+        if (owner && JOBSEEKER_ROLES.includes(owner.role)) notifyRoles = ["superadmin", "admin"];
+      }
+      const admins = await User.find({ role: { $in: notifyRoles } }).select("_id");
       await notifyManyUsers({
         recipientIds: admins.map((a) => a._id),
         actorId: reporterId,
@@ -149,18 +159,30 @@ exports.listReports = async (req, res) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
 
+    // A PESO admin only ever sees reports about jobseeker accounts: the list,
+    // the counts and today's resolved count all use this scope.
+    let scope = {};
+    if (req.user.role === "admin") {
+      const owners = await Report.distinct("targetOwner", { targetType: "user" });
+      const jobseekerIds = owners.length
+        ? await User.find({ _id: { $in: owners }, role: { $in: JOBSEEKER_ROLES } }).distinct("_id")
+        : [];
+      scope = { targetType: "user", targetOwner: { $in: jobseekerIds } };
+      Object.assign(filter, scope);
+    }
+
     const [reports, total, statusCounts, resolvedToday] = await Promise.all([
       Report.find(filter)
         .populate("reporter", "name email role")
-        .populate("targetOwner", "name email role isActive accountStatus createdAt suspendedAt")
+        .populate("targetOwner", "name email username role isActive accountStatus createdAt suspendedAt")
         .populate("resolution.handledBy", "name")
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .lean(),
       Report.countDocuments(filter),
-      Report.aggregate([{ $group: { _id: "$status", n: { $sum: 1 } } }]),
-      Report.countDocuments({ "resolution.resolvedAt": { $gte: startOfToday() } }),
+      Report.aggregate([{ $match: scope }, { $group: { _id: "$status", n: { $sum: 1 } } }]),
+      Report.countDocuments({ ...scope, "resolution.resolvedAt": { $gte: startOfToday() } }),
     ]);
 
     // Per-reported-user context so admins can triage a row without opening it:
@@ -250,6 +272,23 @@ exports.resolveReport = async (req, res) => {
 
     const report = await Report.findById(id);
     if (!report) return res.status(404).json({ message: "Report not found" });
+
+    // PESO admins: only reports about jobseeker accounts, and only the
+    // non-punitive decisions. Suspension and ban are superadmin-only.
+    if (req.user.role === "admin") {
+      const owner = report.targetType === "user" && report.targetOwner
+        ? await User.findById(report.targetOwner).select("role")
+        : null;
+      if (!owner || !JOBSEEKER_ROLES.includes(owner.role)) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      if (!ADMIN_ALLOWED_ACTIONS.includes(resolutionAction)) {
+        return res.status(403).json({
+          code: "REPORT_ACTION_FORBIDDEN",
+          message: "Only the superadmin can suspend or ban an account.",
+        });
+      }
+    }
 
     report.status = status;
     report.resolution = {

@@ -70,7 +70,7 @@ exports.verifyToken = async (req, res, next) => {
     }
 
     const user = await User.findById(decoded.id).select(
-      "isActive role verificationStatus accountStatus suspensionReason suspendedAt tokenVersion dateOfBirth ageReviewRequired staffRecoveryPending email isEmailVerified"
+      "isActive role verificationStatus accountStatus suspensionReason suspendedAt tokenVersion dateOfBirth ageReviewRequired staffRecoveryPending"
     );
 
     if (!user) {
@@ -131,9 +131,6 @@ exports.verifyToken = async (req, res, next) => {
       verificationStatus: user.verificationStatus,
       dateOfBirth: user.dateOfBirth,
       ageReviewRequired: user.ageReviewRequired === true,
-      // For requireVerifiedEmail (middleware/requireVerifiedEmail.js).
-      email: user.email,
-      isEmailVerified: user.isEmailVerified,
     };
     next();
   } catch (error) {
@@ -323,7 +320,7 @@ exports.optionalAuth = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select("isActive role verificationStatus tokenVersion dateOfBirth ageReviewRequired email isEmailVerified");
+    const user = await User.findById(decoded.id).select("isActive role verificationStatus tokenVersion dateOfBirth ageReviewRequired");
 
     if (!user || user.isActive === false) {
       req.user = null;
@@ -341,8 +338,6 @@ exports.optionalAuth = async (req, res, next) => {
       verificationStatus: user.verificationStatus,
       dateOfBirth: user.dateOfBirth,
       ageReviewRequired: user.ageReviewRequired === true,
-      email: user.email,
-      isEmailVerified: user.isEmailVerified,
     };
     next();
   } catch (error) {

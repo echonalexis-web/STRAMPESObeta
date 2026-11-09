@@ -1,5 +1,5 @@
 const express = require("express");
-const { requireVerifiedEmail } = require("../middleware/requireVerifiedEmail");
+const { requireApplyPhone, requireApplyBudget } = require("../middleware/applyGuards");
 const router = express.Router();
 const {
   getJobs,
@@ -103,7 +103,8 @@ router.post(
   verifyToken,
   isJobseeker,
   requireJobApplyAge,
-  requireVerifiedEmail,
+  requireApplyPhone,
+  requireApplyBudget,
   validateMongoId("id"),
   upload.fields([
     { name: "resume", maxCount: 1 },
@@ -124,7 +125,6 @@ router.put(
   verifyToken,
   isJobseeker,
   requireJobApplyAge,
-  requireVerifiedEmail,
   validateMongoId("id"),
   upload.fields([
     { name: "resume", maxCount: 1 },

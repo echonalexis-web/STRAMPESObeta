@@ -29,6 +29,14 @@ const ALERTS = {
     title: "Failed sign-in attempts",
     message: "There were several incorrect password attempts on your account before you signed in.",
   },
+  passwordResetByStaff: {
+    title: "Your password was reset by PESO staff",
+    message: "A PESO staff member reset your password after checking your ID. You will be asked to choose a new one when you sign in. If this was not you, contact the PESO office.",
+  },
+  recoveryRequested: {
+    title: "A recovery request was filed for your account",
+    message: "Someone asked PESO to help recover this account. Nothing changes unless staff check an ID in person. If this was not you, tell the PESO office.",
+  },
   accountLocked: {
     title: "Your account is temporarily locked",
     message: "Too many incorrect password attempts. Sign-in is paused for a while. You can reset your password, use a backup code, or ask the PESO office.",
@@ -114,4 +122,6 @@ module.exports = {
   notifyPasswordChanged: (userId, req) => notify(userId, "passwordChanged", req),
   notifyFailedAttempts: (userId, req) => notify(userId, "failedAttempts", req),
   notifyAccountLocked: (userId, req) => notify(userId, "accountLocked", req),
+  notifyPasswordResetByStaff: (userId, req) => notify(userId, "passwordResetByStaff", req),
+  notifyRecoveryRequested: (userId, req) => notify(userId, "recoveryRequested", req),
 };

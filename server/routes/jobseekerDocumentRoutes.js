@@ -7,7 +7,7 @@ const {
   setPrimaryDocument,
 } = require("../controllers/jobseekerDocumentController");
 const { verifyToken, isJobseeker } = require("../middleware/auth");
-const { requireVerifiedEmail } = require("../middleware/requireVerifiedEmail");
+const { uploadBudget } = require("../middleware/budgets");
 const { documentsUpload, validateFile } = require("../middleware/upload");
 const { validateMongoId, validateRequest, sanitizeRequestBody } = require("../middleware/validation");
 
@@ -19,7 +19,7 @@ router.post(
   "/upload",
   verifyToken,
   isJobseeker,
-  requireVerifiedEmail,
+  uploadBudget,
   documentsUpload.single("file"),
   validateFile,
   sanitizeRequestBody,

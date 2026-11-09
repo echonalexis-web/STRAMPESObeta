@@ -21,4 +21,8 @@ const requireUsernameSignupEnabled = (req, res, next) => {
   next();
 };
 
-module.exports = { rejectUsernameSignupWhenDisabled, requireUsernameSignupEnabled };
+// Picks a middleware per request from the feature flag.
+const flagSwitch = (whenOn, whenOff) => (req, res, next) =>
+  (isUsernameSignupEnabled() ? whenOn : whenOff)(req, res, next);
+
+module.exports = { rejectUsernameSignupWhenDisabled, requireUsernameSignupEnabled, flagSwitch };

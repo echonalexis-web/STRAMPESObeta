@@ -33,6 +33,7 @@ const { sessionUserPayload } = require("../utils/sessionUser");
 const loginLock = require("../services/loginLockService");
 const accountAlerts = require("../services/accountAlertService");
 const passwordPolicy = require("../utils/passwordPolicy");
+const { phoneProblem } = require("../utils/phone");
 
 // Applies the shared password policy for a known account. Returns true when it
 // already answered the request (400), so callers can `if (rejectWeakPassword(...)) return;`.
@@ -1950,7 +1951,7 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.user._id || req.user.id;
-    const currentUser = await User.findById(userId).select("role password verificationStatus dateOfBirth");
+    const currentUser = await User.findById(userId).select("role password verificationStatus dateOfBirth phone");
     if (!currentUser) return res.status(404).json({ message: "User not found" });
 
     // ---- 1. Email is immutable through this endpoint ----
@@ -2150,6 +2151,21 @@ exports.updateProfile = async (req, res) => {
 
     // Onboarding completion flag
     if (req.body.onboardingComplete === true || req.body.onboardingComplete === "true") {
+      // With the username sign-up feature on, a jobseeker must have a plausible
+      // phone number to finish onboarding (the browser already asks for it; this
+      // is the server enforcing it). Format check only. The phone being saved in
+      // this same request counts.
+      if (isUsernameSignupEnabled() && currentUser.role === "jobseeker") {
+        const effectivePhone = commonUpdates.phone !== undefined ? commonUpdates.phone : currentUser.phone;
+        const problem = phoneProblem(effectivePhone);
+        if (problem) {
+          return res.status(400).json({
+            code: problem,
+            message: problem === "PHONE_REQUIRED" ? "Add your phone number to finish setting up." : "Enter a valid phone number.",
+            field: "phone",
+          });
+        }
+      }
       commonUpdates.hasCompletedOnboarding = true;
       commonUpdates.onboardingComplete = true;
     }

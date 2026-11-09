@@ -18,7 +18,19 @@ const schema = new Schema({
   idTypeDeclared: { type: String, maxlength: 150 },
   idNumberDeclared: { type: String, maxlength: 80 },
   ocr: { type: governmentIdOcrSchema, default: () => ({ status: "queued" }) },
-  contactEmail: { type: String, required: true, lowercase: true, trim: true },
+  // How the PESO office can reach the requester. "phone" (only while the username
+  // sign-up feature is on) is for someone with no email: nothing is emailed, the
+  // request cannot be approved by link, and staff complete it in person.
+  contactMethod: { type: String, enum: ["email", "phone"], default: "email" },
+  contactEmail: {
+    type: String,
+    required: function () {
+      return this.contactMethod !== "phone";
+    },
+    lowercase: true,
+    trim: true,
+  },
+  contactPhone: { type: String, maxlength: 40 },
   contactVerifiedAt: { type: Date, default: null },
   contactVerificationHash: { type: String, select: false },
   contactVerificationExpires: { type: Date, select: false },

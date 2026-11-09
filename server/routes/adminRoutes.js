@@ -42,6 +42,8 @@ const {
 } = require("../middleware/validation");
 const { detectMaliciousPayload } = require("../middleware/security");
 const { getSecuritySummary, unlockLogin } = require("../controllers/accountSecurityAdminController");
+const { resetPasswordAtCounter } = require("../controllers/officeResetController");
+const { staffResetBudget } = require("../middleware/budgets");
 
 // All admin routes require authentication and admin role
 router.use(protect, isAdmin);
@@ -59,6 +61,17 @@ router.get("/analytics/provincial", sanitizeQueryParams, getProvincialAnalytics)
 router.get("/users", sanitizeQueryParams, getAllUsers);
 // Username-only accounts: counts only, and unlocking a locked-out jobseeker.
 router.get("/accounts/security-summary", getSecuritySummary);
+// Staff-assisted password reset at the counter (ID checked in person). Admin or
+// superadmin; needs the staff member's own password, a reason and the ID check.
+router.post(
+  "/users/:id/reset-password",
+  validateMongoId("id"),
+  staffResetBudget,
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  validateRequest,
+  resetPasswordAtCounter
+);
 router.put("/users/:id/unlock-login", validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, validateRequest, unlockLogin);
 router.get("/users/:id", validateMongoId("id"), sanitizeQueryParams, validateRequest, getUserProfileDetails);
 router.get("/users/:id/nsrp-form-1/export", validateMongoId("id"), validateRequest, adminExportForm1);
