@@ -1343,7 +1343,45 @@
       "count_other": "Mga aplikasyon",
       "mostRecent": "Pinakabago",
       "programFallback": "SPES program",
-      "applied": "Nag-apply noong {{date}}"
+      "applied": "Nag-apply noong {{date}}",
+      "browse": "Tingnan ang mga SPES Posting",
+      "tile": {
+        "total": "Kabuuang aplikasyon",
+        "inProgress": "Isinasagawa",
+        "needsAction": "Kailangan ng aksyon",
+        "released": "Inilabas na ang resulta"
+      },
+      "summaryLabel": "Buod ng mga aplikasyon. Pumili ng tile para i-filter ang listahan.",
+      "filter": {
+        "all": "Lahat",
+        "inProgress": "Isinasagawa",
+        "needsAction": "Kailangan ng aksyon",
+        "released": "Inilabas na ang resulta",
+        "closed": "Sarado na"
+      },
+      "filterLabel": "I-filter ang mga aplikasyon",
+      "sortLabel": "Ayusin ayon sa",
+      "sort": {
+        "newest": "Pinakabago muna",
+        "oldest": "Pinakaluma muna"
+      },
+      "searchLabel": "Maghanap ng aplikasyon",
+      "searchPlaceholder": "Hanapin ayon sa pangalan ng programa",
+      "details": "Mga detalye",
+      "detailsFor": "Mga detalye ng {{title}}",
+      "listLabel": "Iyong mga SPES na aplikasyon",
+      "actionNeeded": "Kailangan ng aksyon",
+      "needsReplacing_one": "{{count}} dokumento ang kailangang palitan",
+      "needsReplacing_other": "{{count}} dokumento ang kailangang palitan",
+      "progressText": "Hakbang {{current}} sa {{total}}: {{step}}",
+      "shown_one": "{{count}} aplikasyon ang ipinapakita",
+      "shown_other": "{{count}} aplikasyon ang ipinapakita",
+      "noMatchTitle": "Walang aplikasyong tumutugma sa filter na ito",
+      "noMatchBody": "Subukan ang ibang filter o burahin ang iyong hinahanap.",
+      "clearFilter": "Alisin ang filter",
+      "submittedFiles": "Mga isinumiteng file",
+      "closedNotice": "Saradong aplikasyon",
+      "retry": "Subukan muli"
     },
     "disqualified": {
       "title": "Hindi qualified ang aplikasyong ito",

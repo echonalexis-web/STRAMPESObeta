@@ -75,8 +75,9 @@ export default function SpesDocChecklist({ slots, documents, canEdit, onUpload }
               <div className="spes-slot__main">
                 {iconFor(state)}
                 <div className="spes-slot__text">
-                  <span className="spes-slot__name">{t(`spes.docs.slot.${slot}`)}</span>
-                  <span className="spes-slot__state">{t(`spes.docs.state.${state}`)}</span>
+                  <span className="spes-slot__name" title={t(`spes.docs.slot.${slot}`)}>
+                    {t(`spes.docs.slotShort.${slot}`)}
+                  </span>
                   {state === "needs_replacement" && doc?.verification?.reason ? (
                     <span className="spes-slot__reason">
                       {t("spes.docs.reasonLabel")} {doc.verification.reason}
@@ -101,10 +102,16 @@ export default function SpesDocChecklist({ slots, documents, canEdit, onUpload }
                   ) : null}
                 </div>
               </div>
+              <span className={`spes-slot__chip spes-slot__chip--${state}`}>{t(`spes.docs.state.${state}`)}</span>
               <div className="spes-slot__actions">
                 {doc ? (
-                  <SecureFileLink className="spes-doc-list__link" value={doc.fileUrl}>
-                    <Download size={12} aria-hidden="true" /> {t("spes.docs.view")}
+                  <SecureFileLink
+                    className="spes-icon-btn"
+                    value={doc.fileUrl}
+                    title={t("spes.docs.view")}
+                    ariaLabel={`${t("spes.docs.view")}: ${t(`spes.docs.slotShort.${slot}`)}`}
+                  >
+                    <Download size={16} aria-hidden="true" />
                   </SecureFileLink>
                 ) : null}
                 {showUpload ? (
@@ -130,16 +137,19 @@ export default function SpesDocChecklist({ slots, documents, canEdit, onUpload }
                     ) : null}
                     <button
                       type="button"
-                      className={`spes-btn spes-btn--small${needsAction ? "" : " spes-btn--ghost"}`}
+                      className={`spes-icon-btn${needsAction ? " spes-icon-btn--primary" : ""}`}
                       disabled={Boolean(busySlot)}
+                      title={doc ? t("spes.docs.replace") : t("spes.docs.upload")}
+                      aria-label={`${
+                        busySlot === slot
+                          ? `${t("spes.docs.uploading")} ${progress}%`
+                          : doc
+                            ? t("spes.docs.replace")
+                            : t("spes.docs.upload")
+                      }: ${t(`spes.docs.slotShort.${slot}`)}`}
                       onClick={() => inputs.current[slot]?.click()}
                     >
-                      <Upload size={13} aria-hidden="true" />{" "}
-                      {busySlot === slot
-                        ? `${t("spes.docs.uploading")} ${progress}%`
-                        : doc
-                          ? t("spes.docs.replace")
-                          : t("spes.docs.upload")}
+                      <Upload size={16} aria-hidden="true" />
                     </button>
                   </>
                 ) : null}

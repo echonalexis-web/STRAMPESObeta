@@ -1343,7 +1343,45 @@
       "count_other": "Applications",
       "mostRecent": "Most recent",
       "programFallback": "SPES program",
-      "applied": "Applied {{date}}"
+      "applied": "Applied {{date}}",
+      "browse": "Browse SPES Postings",
+      "tile": {
+        "total": "Total applications",
+        "inProgress": "In progress",
+        "needsAction": "Needs action",
+        "released": "Results released"
+      },
+      "summaryLabel": "Application summary. Select a tile to filter the list.",
+      "filter": {
+        "all": "All",
+        "inProgress": "In progress",
+        "needsAction": "Needs action",
+        "released": "Results released",
+        "closed": "Closed"
+      },
+      "filterLabel": "Filter applications",
+      "sortLabel": "Sort by",
+      "sort": {
+        "newest": "Newest first",
+        "oldest": "Oldest first"
+      },
+      "searchLabel": "Search applications",
+      "searchPlaceholder": "Search by program name",
+      "details": "Details",
+      "detailsFor": "Details for {{title}}",
+      "listLabel": "Your SPES applications",
+      "actionNeeded": "Action needed",
+      "needsReplacing_one": "{{count}} document needs replacing",
+      "needsReplacing_other": "{{count}} documents need replacing",
+      "progressText": "Step {{current}} of {{total}}: {{step}}",
+      "shown_one": "{{count}} application shown",
+      "shown_other": "{{count}} applications shown",
+      "noMatchTitle": "No applications match this filter",
+      "noMatchBody": "Try another filter or clear your search.",
+      "clearFilter": "Clear filter",
+      "submittedFiles": "Submitted files",
+      "closedNotice": "Closed application",
+      "retry": "Try again"
     },
     "disqualified": {
       "title": "This application was not qualified",

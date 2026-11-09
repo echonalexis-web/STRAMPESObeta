@@ -1,74 +1,29 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, Clock, Download, FileText, Sparkles } from "lucide-react";
 import { spesAPI } from "../services/api";
-import SecureFileLink from "../components/SecureFileLink";
 import StateBlock from "../components/StateBlock";
-import SpesDocChecklist from "../components/SpesDocChecklist";
+import ApplicationsHeader from "../components/spesApplications/ApplicationsHeader";
+import ApplicationsToolbar from "../components/spesApplications/ApplicationsToolbar";
+import ApplicationRow from "../components/spesApplications/ApplicationRow";
 import { useConfirm, useToast } from "../components/feedback/context";
 import { translateErrorCode } from "../utils/apiErrors";
 import { uploadErrorCode } from "../utils/spesUploadLimits";
+import { normalizeSpesStatus } from "../utils/spesSlots";
 import {
-  SPES_STAGE_KEYS,
-  canEditDocs,
-  canWithdrawStatus,
-  isOsyApplication,
-  normalizeSpesStatus,
-  requiredSlotsFor,
-  spesStageIndex,
-} from "../utils/spesSlots";
+  countGroups,
+  initialOpenId,
+  matchesFilter,
+  searchApplications,
+  sortApplications,
+} from "../utils/spesApplications";
 import "../styles/spes.css";
+import "../styles/file-upload.css";
+import "../styles/spes-my-applications.css";
 
-const TERMINAL = ["withdrawn", "disqualified"];
-
-// A status the applicant should treat as "your move" gets the attention tone.
-const needsAttention = (status) => status === "needs_resubmission";
-
-function SpesStepper({ status, t }) {
-  const activeIndex = spesStageIndex(status);
-  return (
-    <ol className="spes-stepper" aria-label={t("spes.tracker.label")}>
-      {SPES_STAGE_KEYS.map((key, i) => {
-        const state = i < activeIndex ? "done" : i === activeIndex ? "active" : "upcoming";
-        return (
-          <li
-            key={key}
-            className={`spes-stepper__item spes-stepper__item--${state}`}
-            aria-current={state === "active" ? "step" : undefined}
-          >
-            <span className="spes-stepper__dot">
-              {state === "done" ? <CheckCircle2 size={16} aria-hidden="true" /> : state === "active" ? <Clock size={16} aria-hidden="true" /> : i + 1}
-            </span>
-            <span className="spes-stepper__label">{t(`spes.stage.${key}`)}</span>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-// Plain list of the files an application holds, with no per-slot to-do state.
-function SpesFileList({ documents }) {
-  const { t } = useTranslation();
-  const files = Array.isArray(documents) ? documents : [];
-  if (files.length === 0) return <p className="spes-note">{t("spes.docs.noneSubmitted")}</p>;
-  return (
-    <ul className="spes-doc-list">
-      {files.map((doc, i) => (
-        <li key={doc._id || i}>
-          <span className="spes-doc-list__label">
-            {doc.slot ? t(`spes.docs.slot.${doc.slot}`) : doc.label || t("spes.docs.otherItem", { n: i + 1 })}
-          </span>
-          <SecureFileLink className="spes-doc-list__link" value={doc.fileUrl}>
-            <Download size={12} aria-hidden="true" /> {t("spes.docs.view")}
-          </SecureFileLink>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
+// Applicant "My SPES Applications": a header band with stat tiles, filters and sort, then one
+// collapsed row per application that opens to the tracker, documents and next step.
+// Only one row is open at a time (component state only, not persisted).
 export default function MySpesApplications() {
   const { t, i18n } = useTranslation();
   const toast = useToast();
@@ -76,6 +31,10 @@ export default function MySpesApplications() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState("newest");
+  const [query, setQuery] = useState("");
+  const [openId, setOpenId] = useState(null);
 
   const formatDate = (value) => {
     if (!value) return "";
@@ -89,21 +48,24 @@ export default function MySpesApplications() {
         });
   };
 
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const { data } = await spesAPI.getMine();
+      const next = Array.isArray(data?.items) ? data.items : [];
+      setItems(next);
+      setOpenId(initialOpenId(sortApplications(next, "newest")));
+    } catch (err) {
+      setError(translateErrorCode(err?.response?.data?.code, t("applications.spesErrorBody")));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const { data } = await spesAPI.getMine();
-        if (active) setItems(Array.isArray(data?.items) ? data.items : []);
-      } catch (err) {
-        if (active) setError(translateErrorCode(err?.response?.data?.code, t("applications.spesErrorBody")));
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
+    load();
+    // Load once on mount; a language change must not refetch or reset the open row.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -142,152 +104,113 @@ export default function MySpesApplications() {
     }
   };
 
-  const mostRecent = items[0] || null;
+  const titleOf = useCallback((app) => app.posting?.title || t("spes.my.programFallback"), [t]);
+  const counts = useMemo(() => countGroups(items), [items]);
+  const visible = useMemo(() => {
+    const filtered = items.filter((app) => matchesFilter(app, filter));
+    return sortApplications(searchApplications(filtered, query, titleOf), sort);
+  }, [items, filter, query, sort, titleOf]);
+
+  const clearFilters = () => {
+    setFilter("all");
+    setQuery("");
+  };
+
+  const ready = !loading && !error;
 
   return (
-    <main className="spes-page">
-      <div className="spes-page__banner">
-        <div>
-          <h1>{t("spes.my.title")}</h1>
-          <p className="spes-note">{t("spes.my.subtitle")}</p>
-        </div>
-        <div className="spes-summary-strip">
-          <div className="spes-summary-stat">
-            <strong>{items.length}</strong>
-            <span>{t("spes.my.count", { count: items.length })}</span>
-          </div>
-          {mostRecent ? (
-            <div className="spes-summary-stat spes-summary-stat--program">
-              <span className="spes-summary-stat__label">{t("spes.my.mostRecent")}</span>
-              <strong>{mostRecent.posting?.title || t("spes.my.programFallback")}</strong>
-              <span className={`spes-chip spes-chip--${normalizeSpesStatus(mostRecent.status)}`}>
-                {t(`spes.status.${normalizeSpesStatus(mostRecent.status)}`)}
-              </span>
-            </div>
-          ) : null}
-        </div>
-      </div>
+    <main className="spes-page spes-apps">
+      <ApplicationsHeader counts={counts} filter={filter} onFilter={setFilter} />
 
-      {loading ? <StateBlock kind="loading" title={t("applications.spesLoading")} /> : null}
-      {!loading && error ? (
-        <StateBlock kind="error" title={t("applications.spesErrorTitle")} description={error} />
+      {loading ? (
+        <div className="spes-apps__skeleton" role="status" aria-live="polite">
+          <span className="ds-sr-only">{t("applications.spesLoading")}</span>
+          {[0, 1, 2].map((n) => (
+            <div key={n} className="spes-apps__skeleton-row" aria-hidden="true">
+              <span className="ds-skeleton spes-apps__skeleton-icon" />
+              <span className="ds-skeleton spes-apps__skeleton-line" />
+              <span className="ds-skeleton spes-apps__skeleton-chip" />
+            </div>
+          ))}
+        </div>
       ) : null}
-      {!loading && !error && items.length === 0 ? (
+
+      {!loading && error ? (
+        <StateBlock
+          kind="error"
+          title={t("applications.spesErrorTitle")}
+          description={error}
+          action={
+            <button type="button" className="ds-btn ds-btn--primary" onClick={load}>
+              {t("spes.my.retry")}
+            </button>
+          }
+        />
+      ) : null}
+
+      {ready && items.length === 0 ? (
         <StateBlock
           kind="empty"
           title={t("applications.spesEmptyTitle")}
           description={t("applications.spesEmptyBody")}
           action={
-            <Link to="/news" className="ds-btn ds-btn--primary">
-              {t("applications.spesEmptyAction")}
+            <Link to="/spes/postings" className="ds-btn ds-btn--primary">
+              {t("spes.my.browse")}
             </Link>
           }
         />
       ) : null}
 
-      {items.map((app) => {
-        const status = normalizeSpesStatus(app.status);
-        const released = status === "results_released" && app.result;
-        const title = app.posting?.title || t("spes.my.programFallback");
-        const slots = requiredSlotsFor(app.posting, isOsyApplication(app) ? "osy" : "student");
-        const terminal = TERMINAL.includes(status);
-        const disqualified = status === "disqualified";
-        const nextKey = needsAttention(status) ? "needs_resubmission" : status;
-        // The to-do checklist only makes sense while documents can still change.
-        // Otherwise (closed, or filed before document types existed) just list the files.
-        const hasTypedDocs = (app.documents || []).some((d) => d.slot);
-        const showChecklist = !terminal && (canEditDocs(status) || hasTypedDocs);
+      {ready && items.length > 0 ? (
+        <>
+          <ApplicationsToolbar
+            filter={filter}
+            onFilter={setFilter}
+            sort={sort}
+            onSort={setSort}
+            query={query}
+            onQuery={setQuery}
+            total={items.length}
+            counts={counts}
+          />
 
-        return (
-          <article key={app._id} className="spes-card">
-            <div className="spes-card__head">
-              <div>
-                <h2>{title}</h2>
-                <p className="spes-card__meta">{t("spes.my.applied", { date: formatDate(app.createdAt) })}</p>
-              </div>
-              <span className={`spes-chip spes-chip--${status}`}>{t(`spes.status.${status}`)}</span>
-            </div>
+          <p className="ds-sr-only" role="status" aria-live="polite">
+            {t("spes.my.shown", { count: visible.length })}
+          </p>
 
-            {terminal ? (
-              <div className={`spes-terminal spes-terminal--${status}`} role="status">
-                {disqualified ? (
-                  <>
-                    <p className="spes-terminal__title">{t("spes.disqualified.title")}</p>
-                    <p className="spes-terminal__reason">
-                      <strong>{t("spes.disqualified.reasonLabel")}</strong>{" "}
-                      {app.disqualification?.reason || t("spes.disqualified.noReason")}
-                    </p>
-                    <p className="spes-terminal__help">{t("spes.disqualified.help")}</p>
-                  </>
-                ) : (
-                  <p className="spes-terminal__title">{t("spes.withdrawn.body")}</p>
-                )}
-              </div>
-            ) : (
-              <SpesStepper status={status} t={t} />
-            )}
-
-            {/* A closed application has nothing left to do: list the files that were
-                submitted instead of a to-do checklist, and drop the Next step panel
-                (the banner above already says what happened). Applications from before
-                document types existed also just list their files. */}
-            <div className={`spes-card__grid${showChecklist || !terminal ? "" : " spes-card__grid--single"}`}>
-              <div className="spes-card__panel">
-                <h3>
-                  <FileText size={15} aria-hidden="true" />{" "}
-                  {showChecklist ? t("spes.docs.title") : t("spes.docs.submittedTitle")}
-                </h3>
-                {showChecklist ? (
-                  <SpesDocChecklist
-                    slots={slots}
-                    documents={app.documents}
-                    canEdit={canEditDocs(status)}
+          {visible.length === 0 ? (
+            <StateBlock
+              kind="empty"
+              title={t("spes.my.noMatchTitle")}
+              description={t("spes.my.noMatchBody")}
+              action={
+                <button type="button" className="ds-btn ds-btn--secondary" onClick={clearFilters}>
+                  {t("spes.my.clearFilter")}
+                </button>
+              }
+            />
+          ) : (
+            <ul className="spes-apps__list" aria-label={t("spes.my.listLabel")}>
+              {visible.map((app) => {
+                const id = String(app._id);
+                return (
+                  <ApplicationRow
+                    key={id}
+                    app={app}
+                    status={normalizeSpesStatus(app.status)}
+                    title={titleOf(app)}
+                    dateText={formatDate(app.createdAt)}
+                    open={openId === id}
+                    onToggle={() => setOpenId((current) => (current === id ? null : id))}
                     onUpload={handleUpload(app)}
+                    onWithdraw={handleWithdraw}
                   />
-                ) : (
-                  <SpesFileList documents={app.documents} />
-                )}
-              </div>
-
-              {terminal ? null : (
-              <div className="spes-card__panel spes-card__panel--highlight">
-                <h3>
-                  <Sparkles size={15} aria-hidden="true" /> {t("spes.nextStep.title")}
-                </h3>
-                <p>{t(`spes.nextStep.${nextKey}`, { defaultValue: t("spes.nextStep.default") })}</p>
-                {needsAttention(status) && app.needsResubmission?.reason ? (
-                  <p className="spes-slot__reason">
-                    {t("spes.docs.reasonLabel")} {app.needsResubmission.reason}
-                  </p>
-                ) : null}
-
-                {released ? (
-                  <div className={`spes-result spes-result--${app.result.outcome}`}>
-                    <strong>{t(`spes.outcome.${app.result.outcome}`)}</strong>
-                    {app.result.rank ? <p>{t("spes.outcome.rank", { rank: app.result.rank })}</p> : null}
-                    {app.result.remarks ? <p>{app.result.remarks}</p> : null}
-                    {app.posting?.results?.summary ? <p>{app.posting.results.summary}</p> : null}
-                    {app.posting?.results?.url ? (
-                      <p>
-                        <a href={app.posting.results.url} target="_blank" rel="noreferrer">
-                          {t("spes.outcome.officialResults")}
-                        </a>
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                {canWithdrawStatus(status) ? (
-                  <button type="button" className="spes-btn spes-btn--ghost spes-btn--small" onClick={() => handleWithdraw(app)}>
-                    {t("spes.withdraw.button")}
-                  </button>
-                ) : null}
-              </div>
-              )}
-            </div>
-          </article>
-        );
-      })}
+                );
+              })}
+            </ul>
+          )}
+        </>
+      ) : null}
     </main>
   );
 }
