@@ -31,6 +31,23 @@ const { validateDobInput, parseDateOnly, getAgeTier } = require("../utils/age");
 const { isUsernameSignupEnabled, hasVerifiedEmail } = require("../utils/usernameSignup");
 const { sessionUserPayload } = require("../utils/sessionUser");
 const loginLock = require("../services/loginLockService");
+const accountAlerts = require("../services/accountAlertService");
+const passwordPolicy = require("../utils/passwordPolicy");
+
+// Applies the shared password policy for a known account. Returns true when it
+// already answered the request (400), so callers can `if (rejectWeakPassword(...)) return;`.
+// Inert while USERNAME_SIGNUP_ENABLED is off.
+const rejectWeakPassword = (res, user, password) => {
+  const verdict = passwordPolicy.enforce({
+    password,
+    username: user.username,
+    dateOfBirth: user.dateOfBirth,
+    usernameOnly: !user.email,
+  });
+  if (verdict.ok) return false;
+  res.status(400).json({ code: verdict.code, message: verdict.message });
+  return true;
+};
 
 const { DOB_ERROR_MESSAGES } = require("../utils/dobPolicy");
 const { normalizeEmail } = require("../utils/normalizeEmail");
@@ -533,7 +550,13 @@ exports.login = async (req, res) => {
       }
       return res.status(400).json({ message: "Invalid username/email or password" });
     }
-    if (lockable && user.loginLock) await loginLock.clearLock(user._id);
+    if (lockable) {
+      const failedBefore = (user.loginLock && user.loginLock.failures) || 0;
+      if (user.loginLock) await loginLock.clearLock(user._id);
+      // In-app alerts (they need no mailbox). Never awaited into the response path.
+      if (failedBefore >= 3) void accountAlerts.notifyFailedAttempts(user._id, req);
+      void accountAlerts.checkNewDevice(user._id, req.headers && req.headers["user-agent"], req);
+    }
 
     if (user.isActive === false && (user.role === "admin" || user.role === "superadmin")) {
       // Staff accounts are disabled by a superadmin, not moderated — no appeal
@@ -635,8 +658,9 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    const ok = await bcrypt.compare(currentPassword, user.password);
+    const ok = await loginLock.checkPasswordWithLock(user, currentPassword, { req });
     if (!ok) return res.status(400).json({ message: "Your current password is incorrect." });
+    if (rejectWeakPassword(res, user, newPassword)) return;
 
     if (await bcrypt.compare(newPassword, user.password)) {
       return res.status(400).json({ message: "The new password must be different from the current one." });
@@ -654,6 +678,7 @@ exports.changePassword = async (req, res) => {
     sendPasswordChangedEmail({ to: user.email, name: user.name }).catch((err) =>
       logger.error("Failed to send password-changed notification email", { userId: String(user._id), error: err.message })
     );
+    void accountAlerts.notifyPasswordChanged(user._id, req);
 
     await logAuditEvent({
       req,
@@ -713,6 +738,7 @@ exports.setPassword = async (req, res) => {
         message: "This account already has a password. Use Change Password instead.",
       });
     }
+    if (rejectWeakPassword(res, user, newPassword)) return;
     if (!user.googleId) {
       return res.status(400).json({ message: "This account isn't linked to Google." });
     }
@@ -865,15 +891,23 @@ exports.forgotPassword = async (req, res) => {
   // emails have accounts.
   const generic = { message: "If that email is registered, a password reset link has been sent." };
   try {
-    const email = normalizeEmail(req.body.email);
-    if (!email) return res.status(400).json({ message: "Email is required" });
+    // With the username sign-up feature on, the page may send a username in
+    // `identifier`. The answer is the same neutral message either way, and a
+    // reset is only ever mailed to the account's verified email, if it has one.
+    const rawIdentifier = isUsernameSignupEnabled() ? req.body.identifier || req.body.email : req.body.email;
+    const byUsername = isUsernameSignupEnabled() && rawIdentifier && !String(rawIdentifier).includes("@");
+    const email = byUsername ? "" : normalizeEmail(rawIdentifier);
+    if (!email && !byUsername) return res.status(400).json({ message: "Email is required" });
     // Explicit opt-in only — never silently preferred, and never reflected
     // in the response either way, so this can't be used to probe whether an
     // account has a (verified) recovery email configured at all.
     const useRecoveryEmail = req.body.useRecoveryEmail === true;
 
-    const user = await User.findOne({ email });
+    const user = byUsername ? await resolveIdentifierToUser(rawIdentifier) : await User.findOne({ email });
     if (!user || user.staffRecoveryPending) return res.json(generic);
+    // A username-only account with no email has nowhere to send a link.
+    if (byUsername && !hasVerifiedEmail(user)) return res.json(generic);
+    const primaryEmail = byUsername ? normalizeEmail(user.email) : email;
 
     const rawToken = crypto.randomBytes(32).toString("hex");
     user.passwordResetToken = hashResetToken(rawToken);
@@ -883,9 +917,9 @@ exports.forgotPassword = async (req, res) => {
     // The link itself always encodes the PRIMARY email — resetPassword()
     // matches on that field regardless of which inbox actually received
     // this message. Only the delivery destination changes.
-    const resetUrl = `${clientBaseUrl()}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
+    const resetUrl = `${clientBaseUrl()}/reset-password?token=${rawToken}&email=${encodeURIComponent(primaryEmail)}`;
     const destination =
-      useRecoveryEmail && user.recoveryEmail && user.recoveryEmailVerifiedAt ? user.recoveryEmail : email;
+      useRecoveryEmail && user.recoveryEmail && user.recoveryEmailVerifiedAt ? user.recoveryEmail : primaryEmail;
 
     await sendPasswordResetEmail({
       to: destination,
@@ -942,6 +976,8 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
+    if (rejectWeakPassword(res, user, password)) return;
+
     user.password = await bcrypt.hash(password, 10);
     user.passwordResetToken = null;
     user.passwordResetExpires = null;
@@ -959,6 +995,7 @@ exports.resetPassword = async (req, res) => {
     sendPasswordChangedEmail({ to: user.email, name: user.name }).catch((err) =>
       logger.error("Failed to send password-reset notification email", { userId: String(user._id), error: err.message })
     );
+    void accountAlerts.notifyPasswordChanged(user._id, req);
 
     await logAuditEvent({
       req,
@@ -1003,7 +1040,7 @@ exports.requestEmailChange = async (req, res) => {
           'Set a password first (use "Forgot password?" on the login page) before changing your email.',
       });
     }
-    const passwordOk = await bcrypt.compare(currentPassword, user.password);
+    const passwordOk = await loginLock.checkPasswordWithLock(user, currentPassword, { req });
     if (!passwordOk) {
       return res.status(400).json({ message: "Your current password is incorrect." });
     }
@@ -1165,7 +1202,7 @@ exports.requestRecoveryEmail = async (req, res) => {
         message: 'Set a password first (Settings → Security → Add a password) before adding a recovery email.',
       });
     }
-    const passwordOk = await bcrypt.compare(currentPassword, user.password);
+    const passwordOk = await loginLock.checkPasswordWithLock(user, currentPassword, { req });
     if (!passwordOk) {
       return res.status(400).json({ message: "Your current password is incorrect." });
     }
@@ -1426,6 +1463,7 @@ exports.recoverSetPassword = async (req, res) => {
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
+    if (rejectWeakPassword(res, user, newPassword)) return;
 
     user.password = await bcrypt.hash(newPassword, 10);
     // Recovery also unlocks the account and drops any pending email code.
@@ -2488,7 +2526,7 @@ exports.deactivateAccount = async (req, res) => {
         message: 'Set a password first (use "Forgot password?" on the login page) before deactivating your account.',
       });
     }
-    const passwordOk = await bcrypt.compare(password, user.password);
+    const passwordOk = await loginLock.checkPasswordWithLock(user, password, { req });
     if (!passwordOk) {
       return res.status(400).json({ message: "Your password is incorrect." });
     }

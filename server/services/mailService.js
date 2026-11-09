@@ -280,6 +280,25 @@ const sendEmailCode = async ({ to, name, code, expiresMinutes = 10 }) => {
   return sendMail({ to, subject, text, html });
 };
 
+/** Username reminder, sent only to a verified email on file. */
+const sendUsernameReminder = async ({ to, name, username }) => {
+  const subject = "Your STRAM PESO username";
+  const text =
+    `Hi ${name || "there"},\n\n` +
+    `You asked for the username on your STRAM PESO account. It is: ${username}\n\n` +
+    `If you did not ask for this, you can ignore this email. Your password was not changed.`;
+  const html = renderEmail({
+    heading: "Your username",
+    paragraphs: [
+      `Hi ${name || "there"},`,
+      `The username on your ${BRAND} account is:`,
+      `<strong style="font-size:20px;">${username}</strong>`,
+    ],
+    footnote: "If you did not ask for this, ignore this email. Your password was not changed.",
+  });
+  return sendMail({ to, subject, text, html });
+};
+
 /* ------------------------------------------------------------------ */
 /* Email change                                                        */
 /* ------------------------------------------------------------------ */
@@ -450,6 +469,7 @@ module.exports = {
   sendPasswordAddedEmail,
   sendEmailVerification,
   sendEmailCode,
+  sendUsernameReminder,
   sendEmailChangeVerification,
   sendEmailChangeAlert,
   sendRecoveryEmailVerification,

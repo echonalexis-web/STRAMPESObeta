@@ -69,12 +69,29 @@ const detectMaliciousPayload = (req, res, next) => {
 };
 
 // Rate limiting for sensitive operations
-const sensitiveOperationLimiter = (maxRequests = 5, windowMs = 60 * 60 * 1000) => {
+//
+// In-memory and per process: it resets on restart and is not shared between
+// instances, so use it for low-stakes limits only. Security-critical limits for
+// the username sign-up feature are database-backed (middleware/dbLimiter.js).
+//   options.keyFn(req) -> string  optional; defaults to the client IP. Used to
+//                                 key by identifier plus IP.
+// Idle keys are pruned at most once per window, so the map cannot grow forever.
+const sensitiveOperationLimiter = (maxRequests = 5, windowMs = 60 * 60 * 1000, options = {}) => {
   const requests = new Map();
-  
+  let lastSweep = Date.now();
+  const keyFn = typeof options.keyFn === 'function' ? options.keyFn : (req) => req.ip;
+
   return (req, res, next) => {
-    const ip = req.ip;
+    const ip = keyFn(req);
     const now = Date.now();
+
+    if (now - lastSweep >= windowMs) {
+      for (const [key, times] of requests) {
+        if (!times.some((time) => now - time < windowMs)) requests.delete(key);
+      }
+      lastSweep = now;
+    }
+
     const userRequests = requests.get(ip) || [];
     
     // Clean old requests

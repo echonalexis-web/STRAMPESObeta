@@ -10,6 +10,12 @@ jest.mock("../models/JobseekerProfile", () => ({ create: jest.fn() }));
 jest.mock("../models/EmployerProfile", () => ({ create: jest.fn() }));
 jest.mock("../services/auditService", () => ({ logAuditEvent: jest.fn().mockResolvedValue(undefined) }));
 jest.mock("../services/notificationService", () => ({ notifyManyUsers: jest.fn().mockResolvedValue([]) }));
+jest.mock("../services/accountAlertService", () => ({
+  notifyAccountLocked: jest.fn().mockResolvedValue(undefined),
+  notifyFailedAttempts: jest.fn().mockResolvedValue(undefined),
+  notifyPasswordChanged: jest.fn().mockResolvedValue(undefined),
+  checkNewDevice: jest.fn().mockResolvedValue(false),
+}));
 jest.mock("../utils/logger", () => ({ info: jest.fn(), error: jest.fn(), warn: jest.fn() }));
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret";
@@ -19,6 +25,8 @@ const request = require("supertest");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const { logAuditEvent } = require("../services/auditService");
+const alerts = require("../services/accountAlertService");
+const auditActions = () => logAuditEvent.mock.calls.map(([e]) => e);
 const lock = require("../services/loginLockService");
 const authController = require("../controllers/authController");
 
@@ -103,15 +111,17 @@ describe("recordFailure", () => {
     expect(update.$set["loginLock.failures"]).toBe(0);
     expect(update.$set["loginLock.level"]).toBe(level + 1);
     expect(update.$set["loginLock.lockedUntil"].getTime()).toBe(now.getTime() + minutes * 60_000);
-    expect(logAuditEvent.mock.calls[0][0].action).toBe("auth.account.locked");
-    expect(JSON.stringify(logAuditEvent.mock.calls[0][0].metadata)).toBe(JSON.stringify({ level: level + 1, minutes }));
+    const lockedEvent = auditActions().find((e) => e.action === "auth.account.locked");
+    expect(JSON.stringify(lockedEvent.metadata)).toBe(JSON.stringify({ level: level + 1, minutes }));
+    expect(alerts.notifyAccountLocked).toHaveBeenCalledTimes(1); // in-app alert to the owner
   });
 
   test("a parallel request that loses the lock claim does not audit twice", async () => {
     User.findOneAndUpdate.mockResolvedValueOnce({ loginLock: { failures: 6, level: 0 } }).mockResolvedValueOnce(null);
     const r = await lock.recordFailure(user);
     expect(r.locked).toBe(false);
-    expect(logAuditEvent).not.toHaveBeenCalled();
+    expect(auditActions().some((e) => e.action === "auth.account.locked")).toBe(false);
+    expect(alerts.notifyAccountLocked).not.toHaveBeenCalled();
   });
 
   test("never throws when the database fails", async () => {
@@ -188,11 +198,26 @@ describe("login with lockout", () => {
     expect(User.updateOne.mock.calls.some(([, u]) => u.$unset && u.$unset.loginLock === 1)).toBe(true);
   });
 
-  test("a normal success on an account with no lock record writes nothing extra for the lock", async () => {
+  test("a normal success on an account with no lock record writes nothing extra for the lock, and checks the device", async () => {
     const res = await loginWith(makeUser(), "Sup3rSecret!");
     expect(res.status).toBe(200);
     expect(User.updateOne.mock.calls.some(([, u]) => u.$unset)).toBe(false);
     expect(User.findOneAndUpdate).not.toHaveBeenCalled();
+    expect(alerts.checkNewDevice).toHaveBeenCalledTimes(1);
+    expect(alerts.notifyFailedAttempts).not.toHaveBeenCalled();
+  });
+
+  test("a success after several failures raises the failed-attempts alert", async () => {
+    const res = await loginWith(makeUser({ loginLock: { failures: 3, level: 0 } }), "Sup3rSecret!");
+    expect(res.status).toBe(200);
+    expect(alerts.notifyFailedAttempts).toHaveBeenCalledTimes(1);
+  });
+
+  test("flag OFF: no device check and no alerts", async () => {
+    process.env.USERNAME_SIGNUP_ENABLED = "false";
+    const res = await loginWith(makeUser(), "Sup3rSecret!");
+    expect(res.status).toBe(200);
+    expect(alerts.checkNewDevice).not.toHaveBeenCalled();
   });
 
   test("staff accounts are never locked by failed logins (dummy write only)", async () => {

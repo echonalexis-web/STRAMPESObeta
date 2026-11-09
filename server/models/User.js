@@ -94,6 +94,9 @@ const userSchema = new mongoose.Schema(
       ),
       default: undefined,
     },
+    // Hashes of coarse browser+OS labels this account has signed in from
+    // (capped at 10, no IP) for the "new sign-in" in-app alert. select:false.
+    knownDevices: { type: [String], default: undefined, select: false },
     // Pending six-digit email code (see controllers/emailCodeController.js).
     // `hash` is an HMAC with a server pepper, never the code itself.
     // select:false so it is never returned by ordinary reads.

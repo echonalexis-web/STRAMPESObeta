@@ -41,6 +41,7 @@ const {
   validateQualifications,
 } = require("../middleware/validation");
 const { detectMaliciousPayload } = require("../middleware/security");
+const { getSecuritySummary, unlockLogin } = require("../controllers/accountSecurityAdminController");
 
 // All admin routes require authentication and admin role
 router.use(protect, isAdmin);
@@ -56,6 +57,9 @@ router.get("/analytics/provincial", sanitizeQueryParams, getProvincialAnalytics)
 // reachable from job monitoring. Employer verification lives on its own route
 // module (routes/verificationRoutes.js).
 router.get("/users", sanitizeQueryParams, getAllUsers);
+// Username-only accounts: counts only, and unlocking a locked-out jobseeker.
+router.get("/accounts/security-summary", getSecuritySummary);
+router.put("/users/:id/unlock-login", validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, validateRequest, unlockLogin);
 router.get("/users/:id", validateMongoId("id"), sanitizeQueryParams, validateRequest, getUserProfileDetails);
 router.get("/users/:id/nsrp-form-1/export", validateMongoId("id"), validateRequest, adminExportForm1);
 router.get("/users/:id/nsrp-form-2/export", validateMongoId("id"), validateRequest, adminExportForm2);

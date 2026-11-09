@@ -25,6 +25,7 @@ const { normalizeEmail } = require("../utils/normalizeEmail");
 const { sessionUserPayload } = require("../utils/sessionUser");
 const { sendError } = require("../utils/sendError");
 const logger = require("../utils/logger");
+const { notifyEmailAdded } = require("../services/accountAlertService");
 
 const EMAIL_FORMAT = /^\S+@\S+\.\S+$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -240,6 +241,7 @@ exports.verifyAddEmail = async (req, res) => {
     if (!updated) return res.status(400).json(INVALID_CODE_BODY);
 
     await neutralAudit(req, user._id, "auth.email.verified", { domain: emailCode.emailDomain(target) });
+    void notifyEmailAdded(user._id, req);
 
     const token = jwt.sign(
       { id: updated._id, role: updated.role, tokenVersion: updated.tokenVersion },

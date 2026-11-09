@@ -49,7 +49,10 @@ const {
 const { detectMaliciousPayload, sensitiveOperationLimiter } = require("../middleware/security");
 const { rejectUsernameSignupWhenDisabled, requireUsernameSignupEnabled } = require("../middleware/signupFlag");
 const { requireVerifiedEmailForFiles, requireVerifiedEmail } = require("../middleware/requireVerifiedEmail");
-const { dbLimiter } = require("../middleware/dbLimiter");
+const { dbLimiter, positiveIntEnv } = require("../middleware/dbLimiter");
+const { signupGuard } = require("../middleware/signupGuard");
+const { issueToken: issueSignupToken } = require("../utils/signupToken");
+const { forgotUsername } = require("../controllers/forgotUsernameController");
 const { requestAddEmail, verifyAddEmail } = require("../controllers/emailCodeController");
 const idUploadLimit = require("../middleware/idUploadLimit");
 const { confirmIdOcr, getIdFormats } = require("../controllers/idOcrController");
@@ -81,6 +84,7 @@ const ME_DOC_CATEGORIES = {
 router.post(
   "/register",
   rejectUsernameSignupWhenDisabled,
+  signupGuard,
   sanitizeRequestBody,
   detectMaliciousPayload,
   validateUserRegistration,
@@ -149,7 +153,13 @@ router.post(
 // or a single generic failure — see authController.redeemBackupCode.
 router.post(
   "/recover/backup-code",
-  sensitiveOperationLimiter(5, 60 * 60 * 1000),
+  // Strict per identifier+IP, plus a generous IP-only cap so one shared network
+  // (a PESO event, a school) is not locked out by a few people, and rotating
+  // identifiers does not make it unlimited.
+  sensitiveOperationLimiter(5, 60 * 60 * 1000, {
+    keyFn: (req) => req.ip + "|" + String((req.body && (req.body.identifier || req.body.email)) || "").trim().toLowerCase(),
+  }),
+  sensitiveOperationLimiter(60, 60 * 60 * 1000),
   sanitizeRequestBody,
   detectMaliciousPayload,
   redeemBackupCode
@@ -198,9 +208,30 @@ router.post(
 // trade-off accepted deliberately — see authController.checkUsernameAvailable.
 router.get(
   "/username-available",
-  sensitiveOperationLimiter(10, 60 * 1000),
+  sensitiveOperationLimiter(positiveIntEnv("USERNAME_CHECK_LIMIT_PER_MIN", 60), 60 * 1000),
   sanitizeQueryParams,
   checkUsernameAvailable
+);
+
+// Signed form token for username sign-up (honeypot + minimum submit time).
+router.get(
+  "/signup-token",
+  requireUsernameSignupEnabled,
+  dbLimiter({ name: "signup-token-ip", windowMs: 60 * 60 * 1000, max: 300, envName: "SIGNUP_TOKEN_LIMIT_PER_HOUR_IP" }),
+  (req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.json({ formToken: issueSignupToken() });
+  }
+);
+
+// Forgot username: neutral answer, mailed only to a verified email.
+router.post(
+  "/forgot-username",
+  requireUsernameSignupEnabled,
+  dbLimiter({ name: "forgot-username-ip", windowMs: 60 * 60 * 1000, max: 30, envName: "FORGOT_USERNAME_LIMIT_PER_HOUR_IP" }),
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  forgotUsername
 );
 
 // Add a verified email to a username-only account (six-digit code). Every

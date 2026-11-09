@@ -11,9 +11,15 @@
 // authController.login.
 
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const { logAuditEvent } = require("./auditService");
+const { notifyAccountLocked } = require("./accountAlertService");
+const { isUsernameSignupEnabled } = require("../utils/usernameSignup");
 const logger = require("../utils/logger");
+
+const LOCKABLE_ROLES = ["jobseeker", "employee", "resident"];
+const isLockable = (user) => isUsernameSignupEnabled() && Boolean(user) && LOCKABLE_ROLES.includes(user.role);
 
 const LOCK_THRESHOLD = 5;
 const BASE_LOCK_MINUTES = 15;
@@ -37,6 +43,18 @@ const recordFailure = async (user, { req = null, now = new Date() } = {}) => {
       { new: true, projection: { loginLock: 1 } }
     );
     const failures = doc?.loginLock?.failures || 0;
+    // Count only: never the password, never what was typed.
+    await logAuditEvent({
+      req,
+      actorId: null,
+      actorRole: "anonymous",
+      action: "auth.login.failed",
+      targetUserId: user._id,
+      targetType: "user",
+      targetId: String(user._id),
+      severity: "info",
+      metadata: { failures },
+    }).catch(() => {});
     if (failures < LOCK_THRESHOLD) return { locked: false };
 
     const level = (doc.loginLock.level || 0) + 1;
@@ -65,6 +83,7 @@ const recordFailure = async (user, { req = null, now = new Date() } = {}) => {
         severity: "warning",
         metadata: { level, minutes: lockMinutes(level) },
       }).catch(() => {});
+      await notifyAccountLocked(user._id, req);
     }
     return { locked: Boolean(claimed), level };
   } catch (error) {
@@ -96,7 +115,37 @@ const clearLock = async (userId) => {
   }
 };
 
+// Checks a password the way login does, so every place that asks for the
+// CURRENT password feeds the same per-account counter (changePassword,
+// change email, recovery email, deactivate). A stolen session therefore cannot
+// use those routes as a free password-guessing oracle. Locked accounts and
+// wrong passwords both return false. With the feature flag off, or for a
+// non-jobseeker, it is a plain bcrypt comparison.
+const checkPasswordWithLock = async (user, plain, { req = null } = {}) => {
+  const hash = user && user.password;
+  if (!hash) return false;
+  if (!isLockable(user)) return bcrypt.compare(String(plain || ""), hash);
+  const locked = isLocked(user);
+  const ok = await bcrypt.compare(String(plain || ""), hash);
+  if (locked) return false;
+  if (!ok) {
+    await recordFailure(user, { req });
+    return false;
+  }
+  if (user.loginLock) await clearLock(user._id);
+  return true;
+};
+
+// Admin unlock. Returns true when a lock record existed.
+const unlock = async (userId) => {
+  const result = await User.updateOne({ _id: userId, loginLock: { $exists: true } }, { $unset: { loginLock: 1 } });
+  return Boolean(result && (result.modifiedCount || result.nModified));
+};
+
 module.exports = {
+  isLockable,
+  checkPasswordWithLock,
+  unlock,
   LOCK_THRESHOLD,
   BASE_LOCK_MINUTES,
   MAX_LOCK_MINUTES,

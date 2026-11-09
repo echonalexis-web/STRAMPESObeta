@@ -1,5 +1,6 @@
 const xss = require('xss');
 const User = require('../models/User');
+const { enforce: enforcePasswordPolicy } = require('../utils/passwordPolicy');
 
 // ============ SANITIZATION ============
 const sanitizeInput = (value) => {
@@ -272,7 +273,9 @@ const validatePasswordChange = (req, res, next) => {
     errors.push('New password must be at least 8 characters');
   }
   
-  if (newPassword && !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/.test(newPassword)) {
+  // One special-character set across register and change (the register set is a
+  // superset of the old change set, so nothing valid before is rejected now).
+  if (newPassword && !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])/.test(newPassword)) {
     errors.push('Password must contain uppercase, lowercase, number, and special character');
   }
   
@@ -329,10 +332,26 @@ const validateUserRegistration = (req, res, next) => {
     errors.push('Invalid phone number format');
   }
   
-  if (errors.length > 0) {
-    return res.status(400).json({ errors, message: errors[0] });
+  // Shared password policy (blocklist, not the username or date of birth, and a
+  // 10-character minimum without an email). Inert while the flag is off.
+  let policyCode;
+  if (errors.length === 0 && password) {
+    const verdict = enforcePasswordPolicy({
+      password,
+      username: req.body.username,
+      dateOfBirth: req.body.dateOfBirth,
+      usernameOnly: usernameMode,
+    });
+    if (!verdict.ok) {
+      policyCode = verdict.code;
+      errors.push(verdict.message);
+    }
   }
-  
+
+  if (errors.length > 0) {
+    return res.status(400).json({ ...(policyCode ? { code: policyCode } : {}), errors, message: errors[0] });
+  }
+
   next();
 };
 
