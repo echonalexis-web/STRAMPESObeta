@@ -293,8 +293,9 @@ app.use("/uploads", async (req, res, next) => {
     return res.status(403).json({ message: "Invalid file path" });
   }
 
-  // Profile pictures and news announcement images are public assets
-  const isPublicImage = req.path.includes("/profiles/") || req.path.includes("/news/");
+  // Profile pictures, news announcement images and employer cover images are
+  // public assets (an <img> tag cannot send a Bearer token).
+  const isPublicImage = req.path.includes("/profiles/") || req.path.includes("/news/") || req.path.startsWith("/covers/");
   if (isPublicImage) {
     return next();
   }

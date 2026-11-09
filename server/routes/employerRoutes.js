@@ -32,6 +32,9 @@ const {
 } = require("../middleware/validation");
 const { detectMaliciousPayload } = require("../middleware/security");
 const rateLimit = require("express-rate-limit");
+const { coverUploadBudget } = require("../middleware/budgets");
+const { singleCoverUpload } = require("../middleware/upload");
+const { uploadCoverImage, removeCoverImage } = require("../controllers/coverController");
 
 // Rate limiting for employer routes
 const employerLimiter = rateLimit({
@@ -58,6 +61,11 @@ const jobCreationLimiter = rateLimit({
 // "must be verified to post a job" rule. It's applied per-route instead,
 // only on the actions that rule actually protects.
 router.use(protect, isEmployer, employerLimiter);
+
+// Profile cover image (verified employers; the controller enforces verification
+// itself because it needs the stored status, not the optional-verification toggle).
+router.post("/cover/image", coverUploadBudget, singleCoverUpload, uploadCoverImage);
+router.delete("/cover/image", removeCoverImage);
 
 // Jobs — viewing your own (possibly empty) list never requires verification;
 // creating/editing a posting does.

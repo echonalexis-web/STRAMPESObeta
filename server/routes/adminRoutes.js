@@ -19,6 +19,7 @@ const {
   changeUserDateOfBirth,
 } = require("../controllers/adminController");
 const { adminExportForm1, adminExportForm2 } = require("../controllers/nsrpFormController");
+const { adminRemoveCover, adminRestoreCoverUpload } = require("../controllers/coverController");
 const {
   approveEmployerVerification,
   rejectEmployerVerification,
@@ -72,6 +73,9 @@ router.post(
   validateRequest,
   resetPasswordAtCounter
 );
+// Employer profile cover moderation (admin or superadmin, reason required).
+router.post("/users/:id/cover/remove", validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, validateRequest, adminRemoveCover);
+router.post("/users/:id/cover/restore-upload", validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, validateRequest, adminRestoreCoverUpload);
 router.put("/users/:id/unlock-login", validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, validateRequest, unlockLogin);
 router.get("/users/:id", validateMongoId("id"), sanitizeQueryParams, validateRequest, getUserProfileDetails);
 router.get("/users/:id/nsrp-form-1/export", validateMongoId("id"), validateRequest, adminExportForm1);

@@ -1193,6 +1193,9 @@ exports.deleteUser = async (req, res) => {
       });
     }
 
+    // The stored cover image files go with the account (best effort).
+    const coverImage = user.cover && user.cover.image;
+
     const jobs = await JobVacancy.find({ employer: id }).select("_id");
     const jobIds = jobs.map((job) => job._id);
 
@@ -1212,6 +1215,12 @@ exports.deleteUser = async (req, res) => {
       Conversation.deleteMany({ participants: id }),
       User.findByIdAndDelete(id),
     ]);
+
+    if (coverImage) {
+      await Promise.allSettled(
+        [coverImage.storedValue, coverImage.thumbStoredValue].filter(Boolean).map((value) => require("../services/storageService").remove(value))
+      );
+    }
 
     forceLogout(req.app.get("io"), id, {
       code: "ACCOUNT_DELETED",

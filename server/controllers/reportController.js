@@ -9,6 +9,8 @@ const { logAuditEvent } = require("../services/auditService");
 const { createNotificationForUser, notifyManyUsers } = require("../services/notificationService");
 const { forceLogout } = require("../services/sessionService");
 const { sendError } = require("../utils/sendError");
+const { removeCoverByStaff } = require("./coverController");
+const logger = require("../utils/logger");
 
 const startOfToday = () => {
   const d = new Date();
@@ -33,7 +35,7 @@ const ADMIN_ALLOWED_ACTIONS = ["none", "warning"];
 // on the person (warn / suspend) directly from the report.
 const resolveTargetOwner = async (targetType, targetId) => {
   try {
-    if (targetType === "user" || targetType === "avatar") {
+    if (targetType === "user" || targetType === "avatar" || targetType === "cover") {
       const user = await User.findById(targetId).select("_id");
       return user?._id || null;
     }
@@ -298,6 +300,20 @@ exports.resolveReport = async (req, res) => {
       resolvedAt: ["action_taken", "dismissed"].includes(status) ? new Date() : null,
     };
     await report.save();
+
+    // "content_removed" on a reported cover image actually removes it (same code
+    // as the admin tool: counts a removal, revokes the upload right at two).
+    if (resolutionAction === "content_removed" && report.targetType === "cover") {
+      try {
+        await removeCoverByStaff({
+          req,
+          targetId: report.targetId,
+          reason: report.resolution.note || `Report: ${report.category}`,
+        });
+      } catch (error) {
+        logger.warn("Cover removal from a report failed", { reportId: String(report._id), error: error.message });
+      }
+    }
 
     // Optionally cascade into a suspension so the moderation queue can act in
     // one step. (Deletion of content is left to the existing per-resource

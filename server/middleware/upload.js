@@ -66,6 +66,35 @@ const avatarUpload = multer({
   fileFilter: avatarFileFilter,
 });
 
+// Employer profile cover: one image, 3 MB. The real checks (signature, sharp
+// format, dimensions) run in the controller and services/coverImageService.js.
+const COVER_FILE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const COVER_MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
+const coverUpload = multer({
+  storage: memory,
+  limits: { fileSize: COVER_MAX_FILE_SIZE, files: 1 },
+  fileFilter: (req, file, cb) => {
+    if (COVER_FILE_TYPES.includes(file.mimetype)) return cb(null, true);
+    const error = new Error("Cover must be a JPG, PNG, or WEBP image");
+    error.code = "COVER_IMAGE_TYPE";
+    return cb(error, false);
+  },
+});
+
+// Runs coverUpload for the "cover" field and turns multer errors into the cover
+// error codes the client translates.
+const singleCoverUpload = (req, res, next) =>
+  coverUpload.single("cover")(req, res, (error) => {
+    if (!error) return next();
+    if (error.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ code: "COVER_IMAGE_TOO_LARGE", message: "The cover must be 3 MB or smaller." });
+    }
+    if (error.code === "COVER_IMAGE_TYPE") {
+      return res.status(400).json({ code: "COVER_IMAGE_TYPE", message: "The cover must be a JPG, PNG or WebP image." });
+    }
+    return res.status(400).json({ code: "COVER_IMAGE_REQUIRED", message: "Choose an image to upload." });
+  });
+
 // (fieldName[, legacyPath]) — legacyPath is ignored, kept for call-site compatibility
 const singleFileUpload = (fieldName) => mk(1).single(fieldName);
 
@@ -222,6 +251,9 @@ module.exports = {
   jobAttachmentUpload,
   documentsUpload,
   avatarUpload,
+  coverUpload,
+  singleCoverUpload,
+  COVER_MAX_FILE_SIZE,
   singleFileUpload,
   validateFile,
   matchesDeclaredType,

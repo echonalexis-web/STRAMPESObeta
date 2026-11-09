@@ -48,6 +48,9 @@ const CATEGORY_CONFIG = {
     visibility: "public",
     transformation: [{ width: 512, height: 512, crop: "fill", gravity: "auto", quality: "auto", fetch_format: "auto" }],
   },
+  // Employer profile cover. The buffers are already processed (4:1 WebP), so no
+  // Cloudinary transformation runs over them. Public: an <img> cannot send a token.
+  cover: { dir: "covers", resourceType: "image", visibility: "public" },
   resume: { dir: "resumes", resourceType: "auto", visibility: "private" },
   validId: { dir: "ids", resourceType: "auto", visibility: "private" },
   recoverySelfie: { dir: "recovery-selfies", resourceType: "auto", visibility: "private" },

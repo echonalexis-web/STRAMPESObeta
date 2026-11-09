@@ -10,6 +10,7 @@ const REPORT_TARGET_TYPES = [
   "news_post",
   "message",
   "avatar",
+  "cover",
 ];
 
 const REPORT_CATEGORIES = [

@@ -36,6 +36,19 @@ const uploadBudget = buildAccountBudget(uploadBudgetOptions);
 // place it after multer.
 const uploadBudgetForFiles = buildAccountBudget({ ...uploadBudgetOptions, onlyWithFiles: true });
 
+// Employer cover uploads: COVER_UPLOADS_DAILY_CAP, default 10 per 24 hours per
+// account. Always on (a new feature, nothing older to protect), and shared by
+// upload and replace.
+const coverUploadBudget = buildAccountBudget({
+  name: "cover-uploads",
+  windowMs: DAY_MS,
+  envName: "COVER_UPLOADS_DAILY_CAP",
+  defaultMax: 10,
+  code: "COVER_DAILY_LIMIT",
+  message: "You have reached the daily limit for cover uploads. Try again tomorrow.",
+  alwaysOn: true,
+});
+
 // Backup-code generation: 3 per hour PER ACCOUNT (not per IP, so a job fair
 // network is not blocked). With the flag off the old per-IP limiter still runs.
 const backupCodesBudget = buildAccountBudget({
@@ -57,4 +70,4 @@ const staffResetBudget = buildAccountBudget({
   alwaysOn: true,
 });
 
-module.exports = { conversationBudget, uploadBudget, uploadBudgetForFiles, backupCodesBudget, staffResetBudget };
+module.exports = { conversationBudget, uploadBudget, uploadBudgetForFiles, coverUploadBudget, backupCodesBudget, staffResetBudget };
