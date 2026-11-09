@@ -428,6 +428,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   const { publicRouter: bannerTemplatePublicRoutes, superadminRouter: bannerTemplateSuperadminRoutes } = require("./routes/bannerTemplateRoutes");
   console.log("✅ Banner template routes loaded");
 
+  const profileRoutes = require("./routes/profileRoutes");
+  console.log("✅ Profile view routes loaded");
+
   const mountApiRoutes = (basePath) => {
     console.log(`📁 Mounting routes at ${basePath}...`);
     
@@ -583,6 +586,13 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       console.log(`✅ ${basePath}/banner-templates mounted`);
     } catch (e) {
       logger.error(`Failed to mount ${basePath}/banner-templates`, { error: e.message });
+    }
+
+    try {
+      app.use(`${basePath}/profiles`, profileRoutes);
+      console.log(`✅ ${basePath}/profiles mounted`);
+    } catch (e) {
+      logger.error(`Failed to mount ${basePath}/profiles`, { error: e.message });
     }
 
     try {

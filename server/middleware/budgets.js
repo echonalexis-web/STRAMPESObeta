@@ -49,6 +49,19 @@ const coverUploadBudget = buildAccountBudget({
   alwaysOn: true,
 });
 
+// Viewing profiles (hover cards and profile pages): PROFILE_VIEWS_DAILY_CAP, default
+// 1500 per 24 hours per account. Always on. The client cache and open delay keep
+// normal use far below it; this is the guard against scraping.
+const profileViewBudget = buildAccountBudget({
+  name: "profile-views",
+  windowMs: DAY_MS,
+  envName: "PROFILE_VIEWS_DAILY_CAP",
+  defaultMax: 1500,
+  code: "PROFILE_VIEW_DAILY_LIMIT",
+  message: "You have viewed a lot of profiles today. Try again tomorrow.",
+  alwaysOn: true,
+});
+
 // Backup-code generation: 3 per hour PER ACCOUNT (not per IP, so a job fair
 // network is not blocked). With the flag off the old per-IP limiter still runs.
 const backupCodesBudget = buildAccountBudget({
@@ -70,4 +83,4 @@ const staffResetBudget = buildAccountBudget({
   alwaysOn: true,
 });
 
-module.exports = { conversationBudget, uploadBudget, uploadBudgetForFiles, coverUploadBudget, backupCodesBudget, staffResetBudget };
+module.exports = { conversationBudget, uploadBudget, uploadBudgetForFiles, coverUploadBudget, profileViewBudget, backupCodesBudget, staffResetBudget };
