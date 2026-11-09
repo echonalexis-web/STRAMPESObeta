@@ -18,6 +18,8 @@ import { IdOcrSummary } from "../../components/IdOcrReview";
 import IdEvidence from "../../components/IdEvidence";
 import StateBlock from "../../components/StateBlock";
 import UnlockLoginControl from "../../components/UnlockLoginControl";
+import ResetPasswordControl from "../../components/ResetPasswordControl";
+import { isUsernameSignupEnabled } from "../../utils/usernameSignup";
 import useParallaxLayer from "../../hooks/useParallaxLayer";
 import { downloadBlob } from "../../utils/exportUtils";
 import "../../styles/adminUserProfile.css";
@@ -260,6 +262,12 @@ export default function UserProfileView() {
             </dl>
             {user.loginLock?.lockedUntil && new Date(user.loginLock.lockedUntil) > new Date() ? (
               <UnlockLoginControl userId={user._id || userId} />
+            ) : null}
+            {/* PESO staff reset at the counter, after checking an ID in person. The server
+                allows it for any jobseeker while the feature is on, and for an account with
+                no email at any time. */}
+            {["jobseeker", "employee", "resident"].includes(user.role) && (isUsernameSignupEnabled() || !user.email) ? (
+              <ResetPasswordControl userId={String(user._id || userId)} />
             ) : null}
           </section>
 

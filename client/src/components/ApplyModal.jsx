@@ -4,7 +4,10 @@ import PropTypes from "prop-types";
 import { FaFileAlt, FaEnvelopeOpenText, FaMagic, FaUpload, FaCheckCircle } from "react-icons/fa";
 import AppModal from "./AppModal";
 import SecureFileLink from "./SecureFileLink";
+import { useTranslation } from "react-i18next";
 import { jobAPI, jobseekerDocumentAPI, displayFileName } from "../services/api";
+import ApplyPhoneStep from "./ApplyPhoneStep";
+import { applyErrorKind, formatWait } from "../utils/applyGate";
 import "../styles/apply-modal.css";
 
 const NONE = "__none__";
@@ -120,8 +123,11 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
   const [coverLetterSelection, setCoverLetterSelection] = useState("");
   const [resumeUploadFile, setResumeUploadFile] = useState(null);
   const [coverLetterUploadFile, setCoverLetterUploadFile] = useState(null);
+  const { t } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  // The server asked for a phone number first (a job application needs one on file).
+  const [phoneStep, setPhoneStep] = useState(false);
 
   const effectiveJobId = job?._id || jobId;
 
@@ -191,6 +197,7 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
 
   const handleSubmit = async () => {
     setError("");
+    setPhoneStep(false);
 
     const hasResume = Boolean(resumeUploadFile) || (resumeSelection && resumeSelection !== NONE);
     if (!editMode && !hasResume) {
@@ -225,7 +232,16 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
       onSuccess?.(data);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to submit application.");
+      const kind = applyErrorKind(err);
+      if (kind.kind === "phone") {
+        // Not a dead end: add the phone right here, then the application continues.
+        setPhoneStep(true);
+      } else if (kind.kind === "limit") {
+        const wait = formatWait(kind.retryAfter);
+        setError([t("errors.codes.APPLY_DAILY_LIMIT"), wait ? t("applyStep.limitWait", { time: wait }) : ""].filter(Boolean).join(" "));
+      } else {
+        setError(err.response?.data?.message || "Failed to submit application.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -302,6 +318,16 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
                   : "Need a different version? Open the Resume & Cover Letter Studio"}
               </Link>
             </div>
+
+            {phoneStep && (
+              <ApplyPhoneStep
+                disabled={submitting}
+                onSaved={() => {
+                  setPhoneStep(false);
+                  handleSubmit();
+                }}
+              />
+            )}
 
             {error && <p className="apply-modal-error" role="alert">{error}</p>}
 

@@ -153,7 +153,9 @@
     "spesGroup": "SPES",
     "spesPostings": "SPES Postings",
     "mySpesApplications": "My Applications",
-    "spesMonitoring": "SPES Monitoring"
+    "spesMonitoring": "SPES Monitoring",
+    "reviewReports": "Reports",
+    "findAccount": "Find Account"
   },
   "shell": {
     "identity": {
@@ -566,7 +568,8 @@
       "idTypeDeclared": "ID type",
       "idNumberDeclared": "ID number",
       "governmentIdFile": "Government ID",
-      "selfieFile": "Selfie"
+      "selfieFile": "Selfie",
+      "contactPhone": "Contact phone"
     },
     "filesHint": "Upload your ID and a clear selfie. Maximum 5 MB each. Files are private and removed 90 days after the request is resolved. OCR reads text; staff make the decision.",
     "received": "If this account exists, your request has been received. Check your contact inbox to confirm that address, then wait for PESO staff. You can submit again if a recovery link expires.",
@@ -616,7 +619,13 @@
     "approve": "Approve recovery",
     "preview": "Preview image",
     "previewHint": "Use the document link to open a PDF or retry the image.",
-    "noDocument": "No document on file."
+    "noDocument": "No document on file.",
+    "phoneChip": "Phone contact: complete in person",
+    "completeInPerson": "Complete in person",
+    "inPersonHint": "This request has a phone contact, so it cannot be approved by link. Check the person's ID at the counter, then complete it here.",
+    "idTypeShown": "ID shown",
+    "idChecked": "I checked the person's ID in person",
+    "chooseIdType": "Choose the ID type"
   },
   "profile": {
     "civilStatus": {
@@ -1046,6 +1055,39 @@
       "noEmail": "No email",
       "username": "Username",
       "loadError": "Could not load the summary."
+    },
+    "reset": {
+      "title": "Reset password at the counter",
+      "intro": "Only after checking the person's valid government ID in person. A one-time temporary password is shown once.",
+      "idTypeLabel": "ID shown",
+      "idTypePlaceholder": "Choose the ID type",
+      "idChecked": "I checked the person's ID in person",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "For example: showed a valid Passport at the counter",
+      "staffPasswordLabel": "Your password",
+      "confirm": "Reset password",
+      "working": "Resetting...",
+      "tempTitle": "Temporary password",
+      "tempNote": "Shown only once. Give it to the person now. They must choose a new password when they sign in, and their old backup codes no longer work.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "done": "Done",
+      "error": "Could not reset the password."
+    },
+    "find": {
+      "title": "Find an account",
+      "subtitle": "Search for a jobseeker to reset a password at the counter or unlock sign-in.",
+      "searchLabel": "Name, username or email",
+      "searchPlaceholder": "At least 2 characters",
+      "search": "Search",
+      "searching": "Searching...",
+      "hint": "Only for helping a person who is in front of you with a valid government ID.",
+      "noResults": "No jobseeker found.",
+      "error": "Could not search. Try again.",
+      "colName": "Name",
+      "colContact": "Username or email",
+      "colJoined": "Joined",
+      "open": "Open"
     }
   },
   "superadmin": {
@@ -1102,7 +1144,8 @@
       "emptyReportsTitle": "No reports in this view",
       "emptyReportsDescription": "Try another status filter. New reports from users appear here.",
       "emptyAppealsTitle": "No appeals submitted",
-      "emptyAppealsDescription": "Appeals from suspended or banned accounts appear here."
+      "emptyAppealsDescription": "Appeals from suspended or banned accounts appear here.",
+      "adminOnlyNote": "PESO admins can review reports about jobseeker accounts. Only the superadmin can suspend or ban an account."
     },
     "audit": {
       "subtitle": "Review platform activity, security events, and administrative actions captured by the backend.",
@@ -1331,7 +1374,19 @@
       "PASSWORD_SAME_AS_USERNAME": "Your password cannot be your username or contain it.",
       "PASSWORD_SAME_AS_BIRTHDATE": "Your password cannot be your date of birth.",
       "PASSWORD_TOO_SHORT_USERNAME_MODE": "Accounts without an email need a password of at least 10 characters.",
-      "REASON_REQUIRED": "Give a short reason (at least 5 characters)."
+      "REASON_REQUIRED": "Give a short reason (at least 5 characters).",
+      "APPLY_DAILY_LIMIT": "You have reached the daily limit for job applications.",
+      "CONVERSATION_DAILY_LIMIT": "You have reached the daily limit for starting conversations. Try again later.",
+      "UPLOAD_DAILY_LIMIT": "You have reached the daily limit for uploads. Try again later.",
+      "PHONE_REQUIRED": "Add your phone number to continue.",
+      "PHONE_INVALID": "Enter a valid phone number.",
+      "RESET_REASON_REQUIRED": "Record a reason (10 to 2000 characters).",
+      "ID_CHECK_REQUIRED": "Confirm that you checked the person's ID.",
+      "ID_TYPE_REQUIRED": "Choose the type of ID that was shown.",
+      "STAFF_PASSWORD_INCORRECT": "Your password is incorrect.",
+      "REPORT_ACTION_FORBIDDEN": "Only the superadmin can suspend or ban an account.",
+      "RECOVERY_PENDING": "A PESO recovery is already in progress for this account.",
+      "ACCOUNT_INACTIVE": "This account is suspended or deactivated."
     }
   },
   "spes": {
@@ -1914,7 +1969,9 @@
     "saveBackupCodes": "Save backup codes",
     "applyBlocked": "Add and verify your email to apply for this job.",
     "messageBlocked": "Add and verify your email to send messages.",
-    "uploadBlocked": "Add and verify your email to upload files."
+    "uploadBlocked": "Add and verify your email to upload files.",
+    "messageBenefits": "Add an email to get notifications while you are away and to reset your own password. It is optional.",
+    "dismiss": "Dismiss"
   },
   "login": {
     "rememberUsername": "Remember my username on this device",
@@ -1957,6 +2014,61 @@
     "failedAttemptsTitle": "Failed sign-in attempts",
     "failedAttemptsBody": "There were several incorrect password attempts on your account before you signed in.",
     "accountLockedTitle": "Your account is temporarily locked",
-    "accountLockedBody": "Too many incorrect password attempts. Sign-in is paused for a while. You can reset your password, use a backup code, or ask the PESO office."
+    "accountLockedBody": "Too many incorrect password attempts. Sign-in is paused for a while. You can reset your password, use a backup code, or ask the PESO office.",
+    "passwordResetByStaffTitle": "Your password was reset by PESO staff",
+    "passwordResetByStaffBody": "A PESO staff member reset your password after checking your ID. You will be asked to choose a new one when you sign in. If this was not you, contact the PESO office.",
+    "recoveryRequestedTitle": "A recovery request was filed for your account",
+    "recoveryRequestedBody": "Someone asked PESO to help recover this account. Nothing changes unless staff check an ID in person. If this was not you, tell the PESO office."
+  },
+  "emailPrompt": {
+    "title": "Add an email (optional)",
+    "intro": "An email is optional. You can use everything without one. Adding one helps in two ways:",
+    "benefitOffline": "Get copies of your notifications by email when you are away.",
+    "benefitReset": "Reset your own password if you forget it, without visiting the PESO office.",
+    "addEmail": "Add email",
+    "maybeLater": "Maybe later",
+    "dismiss": "Dismiss",
+    "optionalNote": "You can add it any time in Settings."
+  },
+  "backupSignup": {
+    "title": "Save your backup codes",
+    "body": "You signed up without an email, so there is no reset link if you forget your password. Backup codes get you back in. Save them now: they are shown only once.",
+    "warning": "Anyone with these codes can reset your password. Do not share them.",
+    "generate": "Generate my backup codes",
+    "working": "Creating...",
+    "download": "Download as a file",
+    "print": "Print",
+    "copy": "Copy all",
+    "copied": "Copied",
+    "screenshotHint": "You can also take a screenshot. Keep it somewhere private.",
+    "savedCheck": "I saved my backup codes",
+    "done": "Done",
+    "later": "Later",
+    "printTitle": "STRAM PESO backup codes",
+    "printNote": "Keep this page private. Each code works once.",
+    "generateError": "Could not create backup codes. You can try again from Settings."
+  },
+  "applyStep": {
+    "phoneTitle": "Add your phone number to apply",
+    "phoneBody": "Employers may contact you by phone. We only check that the number looks right. We do not send a text.",
+    "phoneLabel": "Phone number",
+    "phonePlaceholder": "0917 123 4567",
+    "save": "Save and continue",
+    "saving": "Saving...",
+    "saveError": "Could not save your phone number. Try again.",
+    "limitWait": "You can apply again in {{time}}."
+  },
+  "recoveryPhone": {
+    "contactMethodLabel": "How can PESO reach you?",
+    "methodEmail": "By email",
+    "methodPhone": "By phone (I have no email)",
+    "contactPhoneLabel": "Contact phone number",
+    "contactPhoneHint": "We will not text you. Bring a valid government ID to the PESO office. Staff will finish the recovery in person.",
+    "submitted": "Request received. Please bring your valid government ID to the PESO office."
+  },
+  "report": {
+    "applicant": {
+      "button": "Report this applicant"
+    }
   }
 }

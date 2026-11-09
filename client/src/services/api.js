@@ -137,12 +137,6 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // A jobseeker without a verified email hit a gated action. Tell the email
-    // gate to open (components/EmailGate.jsx); the caller still gets the error.
-    if (error.response?.status === 403 && error.response?.data?.code === "EMAIL_REQUIRED") {
-      window.dispatchEvent(new Event("email:required"));
-    }
-
     // Account self-deactivated (in another session/tab), a staff account
     // disabled, or the account deleted outright — all mid-session. None of
     // these get the suspension/appeal wall; just sign out and explain why on
@@ -432,6 +426,9 @@ export const adminAPI = {
   // Username-only accounts: counts only, and unlocking a locked-out jobseeker.
   getAccountSecuritySummary: () => api.get('/admin/accounts/security-summary', getAuthHeader()),
   unlockLogin: (id, reason) => api.put(`/admin/users/${id}/unlock-login`, { reason }, getAuthHeader()),
+  // Staff-assisted reset at the counter (ID checked in person). The temporary
+  // password comes back once in the response.
+  resetUserPassword: (id, payload) => api.post(`/admin/users/${id}/reset-password`, payload, getAuthHeader()),
   getJob: (id) => api.get(`/admin/jobs/${id}`, getAuthHeader()),
   updateJob: (id, payload) => api.put(`/admin/jobs/${id}`, payload, getAuthHeader()),
   getUsers: async (params = {}) => {

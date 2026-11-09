@@ -95,6 +95,10 @@ const getLoggedInMenuItems = (userRole, t) => {
           { label: t("navbar.reportsStatistics"), to: "/admin/reports", icon: <FaChartBar aria-hidden="true" /> },
         ],
       },
+      // PESO admins review reports about jobseeker accounts; suspend and ban stay superadmin.
+      { label: t("navbar.reviewReports"), to: "/admin/users/moderation", icon: <FaExclamationCircle aria-hidden="true" /> },
+      // Find a jobseeker account to reset a password at the counter or unlock sign-in.
+      { label: t("navbar.findAccount"), to: "/admin/find-account", icon: <FaUsersCog aria-hidden="true" /> },
       {
         label: t("navbar.newsManagement"),
         submenu: [

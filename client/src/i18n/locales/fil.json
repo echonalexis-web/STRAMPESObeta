@@ -153,7 +153,9 @@
     "spesGroup": "SPES",
     "spesPostings": "Mga SPES Posting",
     "mySpesApplications": "Aking mga Aplikasyon",
-    "spesMonitoring": "Pagsubaybay sa SPES"
+    "spesMonitoring": "Pagsubaybay sa SPES",
+    "reviewReports": "Mga Report",
+    "findAccount": "Maghanap ng Account"
   },
   "shell": {
     "identity": {
@@ -566,7 +568,8 @@
       "idTypeDeclared": "Uri ng ID",
       "idNumberDeclared": "Numero ng ID",
       "governmentIdFile": "Government ID",
-      "selfieFile": "Selfie"
+      "selfieFile": "Selfie",
+      "contactPhone": "Numero para makontak"
     },
     "filesHint": "I-upload ang ID at malinaw na selfie. Hanggang 5 MB bawat isa. Pribado ang mga file at buburahin 90 araw matapos maresolba ang kahilingan. Teksto lamang ang binabasa ng OCR; kawani ang magpapasya.",
     "received": "Kung umiiral ang account, natanggap ang iyong kahilingan. Kumpirmahin ang iyong contact email gamit ang link sa inbox at hintayin ang PESO. Maaari kang magsumite muli kung nag-expire ang recovery link.",
@@ -616,7 +619,13 @@
     "approve": "Aprubahan ang pagbawi",
     "preview": "Tingnan ang larawan",
     "previewHint": "Gamitin ang link upang buksan ang PDF o subukang muli ang larawan.",
-    "noDocument": "Walang dokumento sa talaan."
+    "noDocument": "Walang dokumento sa talaan.",
+    "phoneChip": "Kontak sa telepono: tapusin nang personal",
+    "completeInPerson": "Tapusin nang personal",
+    "inPersonHint": "Telepono ang kontak ng request na ito, kaya hindi ito maaaring aprubahan sa pamamagitan ng link. Suriin ang ID ng tao sa counter, saka tapusin dito.",
+    "idTypeShown": "ID na ipinakita",
+    "idChecked": "Personal kong sinuri ang ID ng tao",
+    "chooseIdType": "Piliin ang uri ng ID"
   },
   "profile": {
     "civilStatus": {
@@ -1046,6 +1055,39 @@
       "noEmail": "Walang email",
       "username": "Username",
       "loadError": "Hindi ma-load ang buod."
+    },
+    "reset": {
+      "title": "I-reset ang password sa counter",
+      "intro": "Gawin lamang pagkatapos suriin nang personal ang valid na government ID ng tao. Isang beses ipapakita ang pansamantalang password.",
+      "idTypeLabel": "ID na ipinakita",
+      "idTypePlaceholder": "Piliin ang uri ng ID",
+      "idChecked": "Personal kong sinuri ang ID ng tao",
+      "reasonLabel": "Dahilan",
+      "reasonPlaceholder": "Halimbawa: nagpakita ng valid na Passport sa counter",
+      "staffPasswordLabel": "Ang iyong password",
+      "confirm": "I-reset ang password",
+      "working": "Nire-reset...",
+      "tempTitle": "Pansamantalang password",
+      "tempNote": "Isang beses lang ipinapakita. Ibigay ito sa tao ngayon. Kailangan nilang pumili ng bagong password sa pag-sign in, at hindi na gagana ang dati nilang backup codes.",
+      "copy": "Kopyahin",
+      "copied": "Nakopya na",
+      "done": "Tapos na",
+      "error": "Hindi na-reset ang password."
+    },
+    "find": {
+      "title": "Maghanap ng account",
+      "subtitle": "Maghanap ng jobseeker para i-reset ang password sa counter o i-unlock ang pag-sign in.",
+      "searchLabel": "Pangalan, username o email",
+      "searchPlaceholder": "Hindi bababa sa 2 karakter",
+      "search": "Hanapin",
+      "searching": "Naghahanap...",
+      "hint": "Para lamang sa pagtulong sa taong nasa harap mo na may valid na government ID.",
+      "noResults": "Walang nahanap na jobseeker.",
+      "error": "Hindi makapaghanap. Subukan muli.",
+      "colName": "Pangalan",
+      "colContact": "Username o email",
+      "colJoined": "Sumali",
+      "open": "Buksan"
     }
   },
   "superadmin": {
@@ -1102,7 +1144,8 @@
       "emptyReportsTitle": "Walang report sa view na ito",
       "emptyReportsDescription": "Subukan ang ibang status filter. Lalabas dito ang mga bagong report mula sa mga user.",
       "emptyAppealsTitle": "Walang naisumiteng apela",
-      "emptyAppealsDescription": "Lalabas dito ang mga apela mula sa mga suspendido o naka-ban na account."
+      "emptyAppealsDescription": "Lalabas dito ang mga apela mula sa mga suspendido o naka-ban na account.",
+      "adminOnlyNote": "Maaaring suriin ng mga PESO admin ang mga report tungkol sa account ng jobseeker. Ang superadmin lang ang makakapag-suspend o makakapag-ban ng account."
     },
     "audit": {
       "subtitle": "Suriin ang aktibidad sa platform, mga security event, at mga aksyong pang-administratibo na naitala ng system.",
@@ -1331,7 +1374,19 @@
       "PASSWORD_SAME_AS_USERNAME": "Hindi puwedeng maging username ang password o maglaman nito.",
       "PASSWORD_SAME_AS_BIRTHDATE": "Hindi puwedeng maging petsa ng kapanganakan ang password.",
       "PASSWORD_TOO_SHORT_USERNAME_MODE": "Ang account na walang email ay nangangailangan ng password na hindi bababa sa 10 karakter.",
-      "REASON_REQUIRED": "Maglagay ng maikling dahilan (hindi bababa sa 5 karakter)."
+      "REASON_REQUIRED": "Maglagay ng maikling dahilan (hindi bababa sa 5 karakter).",
+      "APPLY_DAILY_LIMIT": "Naabot mo na ang pang-araw-araw na limitasyon ng pag-apply sa trabaho.",
+      "CONVERSATION_DAILY_LIMIT": "Naabot mo na ang pang-araw-araw na limitasyon ng pagsisimula ng usapan. Subukan muli mamaya.",
+      "UPLOAD_DAILY_LIMIT": "Naabot mo na ang pang-araw-araw na limitasyon ng pag-upload. Subukan muli mamaya.",
+      "PHONE_REQUIRED": "Idagdag ang iyong numero ng telepono para magpatuloy.",
+      "PHONE_INVALID": "Maglagay ng wastong numero ng telepono.",
+      "RESET_REASON_REQUIRED": "Maglagay ng dahilan (10 hanggang 2000 karakter).",
+      "ID_CHECK_REQUIRED": "Kumpirmahing sinuri mo ang ID ng tao.",
+      "ID_TYPE_REQUIRED": "Piliin ang uri ng ID na ipinakita.",
+      "STAFF_PASSWORD_INCORRECT": "Mali ang iyong password.",
+      "REPORT_ACTION_FORBIDDEN": "Ang superadmin lang ang makakapag-suspend o makakapag-ban ng account.",
+      "RECOVERY_PENDING": "May kasalukuyang PESO recovery na para sa account na ito.",
+      "ACCOUNT_INACTIVE": "Naka-suspend o na-deactivate ang account na ito."
     }
   },
   "spes": {
@@ -1914,7 +1969,9 @@
     "saveBackupCodes": "I-save ang backup codes",
     "applyBlocked": "Magdagdag at mag-verify ng email para makapag-apply sa trabahong ito.",
     "messageBlocked": "Magdagdag at mag-verify ng email para makapagpadala ng mensahe.",
-    "uploadBlocked": "Magdagdag at mag-verify ng email para makapag-upload ng file."
+    "uploadBlocked": "Magdagdag at mag-verify ng email para makapag-upload ng file.",
+    "messageBenefits": "Magdagdag ng email para makatanggap ng abiso kapag wala ka at para ma-reset mo ang sarili mong password. Opsyonal ito.",
+    "dismiss": "Isara"
   },
   "login": {
     "rememberUsername": "Tandaan ang username ko sa device na ito",
@@ -1957,6 +2014,61 @@
     "failedAttemptsTitle": "Mga bigong pagtatangkang mag-sign in",
     "failedAttemptsBody": "Maraming maling password ang inilagay sa account mo bago ka nakapag-sign in.",
     "accountLockedTitle": "Pansamantalang naka-lock ang iyong account",
-    "accountLockedBody": "Masyadong maraming maling password. Naka-pause muna ang pag-sign in. Maaari mong i-reset ang password, gumamit ng backup code, o magtanong sa PESO office."
+    "accountLockedBody": "Masyadong maraming maling password. Naka-pause muna ang pag-sign in. Maaari mong i-reset ang password, gumamit ng backup code, o magtanong sa PESO office.",
+    "passwordResetByStaffTitle": "Na-reset ng PESO staff ang iyong password",
+    "passwordResetByStaffBody": "Na-reset ng isang PESO staff ang iyong password matapos suriin ang iyong ID. Hihilingin kang pumili ng bago sa pag-sign in. Kung hindi ikaw ito, makipag-ugnayan sa PESO office.",
+    "recoveryRequestedTitle": "May recovery request na inihain para sa iyong account",
+    "recoveryRequestedBody": "May humiling sa PESO na tumulong mabawi ang account na ito. Walang magbabago maliban kung susuriin ng staff ang ID nang personal. Kung hindi ikaw ito, sabihin sa PESO office."
+  },
+  "emailPrompt": {
+    "title": "Magdagdag ng email (opsyonal)",
+    "intro": "Opsyonal ang email. Magagamit mo ang lahat kahit wala nito. Makakatulong ito sa dalawang paraan:",
+    "benefitOffline": "Makatanggap ng kopya ng iyong mga abiso sa email kapag wala ka.",
+    "benefitReset": "I-reset ang sarili mong password kung makalimutan mo ito, nang hindi pumupunta sa PESO office.",
+    "addEmail": "Magdagdag ng email",
+    "maybeLater": "Sa susunod na lang",
+    "dismiss": "Isara",
+    "optionalNote": "Maaari mo itong idagdag anumang oras sa Settings."
+  },
+  "backupSignup": {
+    "title": "I-save ang iyong backup codes",
+    "body": "Nag-sign up ka nang walang email, kaya walang reset link kung makalimutan mo ang password. Ibabalik ka ng backup codes. I-save na ito ngayon: isang beses lang ipinapakita.",
+    "warning": "Sinumang may hawak ng mga code na ito ay makakapag-reset ng password mo. Huwag ibahagi.",
+    "generate": "Gumawa ng aking backup codes",
+    "working": "Ginagawa...",
+    "download": "I-download bilang file",
+    "print": "I-print",
+    "copy": "Kopyahin lahat",
+    "copied": "Nakopya na",
+    "screenshotHint": "Maaari ka ring mag-screenshot. Itago ito sa pribadong lugar.",
+    "savedCheck": "Na-save ko na ang aking backup codes",
+    "done": "Tapos na",
+    "later": "Mamaya na",
+    "printTitle": "Backup codes ng STRAM PESO",
+    "printNote": "Panatilihing pribado ang pahinang ito. Isang beses lang gumagana ang bawat code.",
+    "generateError": "Hindi nakagawa ng backup codes. Subukan muli sa Settings."
+  },
+  "applyStep": {
+    "phoneTitle": "Idagdag ang iyong numero ng telepono para makapag-apply",
+    "phoneBody": "Maaaring tawagan ka ng mga employer. Sinusuri lang namin kung mukhang tama ang numero. Hindi kami nagpapadala ng text.",
+    "phoneLabel": "Numero ng telepono",
+    "phonePlaceholder": "0917 123 4567",
+    "save": "I-save at magpatuloy",
+    "saving": "Sine-save...",
+    "saveError": "Hindi na-save ang numero mo. Subukan muli.",
+    "limitWait": "Maaari kang mag-apply muli sa loob ng {{time}}."
+  },
+  "recoveryPhone": {
+    "contactMethodLabel": "Paano ka makokontak ng PESO?",
+    "methodEmail": "Sa email",
+    "methodPhone": "Sa telepono (wala akong email)",
+    "contactPhoneLabel": "Numero ng telepono para makontak",
+    "contactPhoneHint": "Hindi kami magte-text. Dalhin ang valid na government ID sa PESO office. Tatapusin ng staff ang recovery nang personal.",
+    "submitted": "Natanggap na ang iyong request. Pakidala ang valid na government ID sa PESO office."
+  },
+  "report": {
+    "applicant": {
+      "button": "I-report ang aplikanteng ito"
+    }
   }
 }

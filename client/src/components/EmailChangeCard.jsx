@@ -2,7 +2,7 @@ import { useState } from "react";
 import { FaEnvelope } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
 import { authAPI } from "../services/api";
-import { openEmailGate } from "../utils/emailGateEvents";
+import { openEmailPrompt } from "../utils/emailNudge";
 
 /**
  * Self-contained "change your sign-in email" panel. Lives outside the main
@@ -62,7 +62,7 @@ export default function EmailChangeCard({ currentEmail }) {
               <p>{t("settings.account.emailNotSet")}</p>
             </div>
           </div>
-          <button type="button" className="email-change-card__toggle" onClick={() => openEmailGate()}>
+          <button type="button" className="email-change-card__toggle" onClick={() => openEmailPrompt()}>
             {t("settings.account.addEmail")}
           </button>
         </div>

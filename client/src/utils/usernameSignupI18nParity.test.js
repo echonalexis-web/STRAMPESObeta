@@ -27,6 +27,25 @@ const NAMESPACES = [
   "forgotUsername",
   "alerts",
   "admin.accounts",
+  "admin.reset",
+  "admin.find",
+  "navbar.findAccount",
+  "emailPrompt",
+  "backupSignup",
+  "applyStep",
+  "recoveryPhone",
+  "report.applicant",
+  "emailBanner.messageBenefits",
+  "emailBanner.dismiss",
+  "navbar.reviewReports",
+  "superadmin.moderation.adminOnlyNote",
+  "staffRecovery.phoneChip",
+  "staffRecovery.completeInPerson",
+  "staffRecovery.inPersonHint",
+  "staffRecovery.idTypeShown",
+  "staffRecovery.idChecked",
+  "staffRecovery.chooseIdType",
+  "staffRecovery.fields.contactPhone",
   "settings.account.emailNotSet",
   "settings.account.addEmail",
   "settings.account.emailUnverifiedHint",
@@ -37,7 +56,18 @@ const inScope = (key) => NAMESPACES.some((ns) => key === ns || key.startsWith(`$
 
 // Every error code the server can return from the username sign-up routes.
 const SERVER_CODES = [
-  "EMAIL_REQUIRED",
+  "APPLY_DAILY_LIMIT",
+  "CONVERSATION_DAILY_LIMIT",
+  "UPLOAD_DAILY_LIMIT",
+  "PHONE_REQUIRED",
+  "PHONE_INVALID",
+  "RESET_REASON_REQUIRED",
+  "ID_CHECK_REQUIRED",
+  "ID_TYPE_REQUIRED",
+  "STAFF_PASSWORD_INCORRECT",
+  "REPORT_ACTION_FORBIDDEN",
+  "RECOVERY_PENDING",
+  "ACCOUNT_INACTIVE",
   "EMAIL_CODE_INVALID",
   "EMAIL_CODE_COOLDOWN",
   "EMAIL_CODE_LIMIT",
@@ -91,8 +121,13 @@ test("the three rewritten settings strings no longer assume an email", () => {
 
 // Every literal t("...") key used by the new or changed components must exist.
 const COMPONENT_FILES = [
-  "../components/EmailGate.jsx",
+  "../components/EmailPrompt.jsx",
+  "../pages/admin/FindAccount.jsx",
   "../components/EmailBanner.jsx",
+  "../components/BackupCodesStep.jsx",
+  "../components/ApplyPhoneStep.jsx",
+  "../components/ResetPasswordControl.jsx",
+  "../components/TemporaryPasswordPanel.jsx",
   "../components/CodeInput.jsx",
   "../components/AccountSecuritySummary.jsx",
   "../pages/ForgotUsername.jsx",
@@ -100,7 +135,24 @@ const COMPONENT_FILES = [
   "../pages/Login.jsx",
   "../pages/Register.jsx",
 ];
-const NEW_NAMESPACES = ["register.", "password.", "emailStep.", "emailBanner.", "login.", "forgot.", "forgotUsername.", "alerts.", "admin.accounts."];
+const NEW_NAMESPACES = [
+  "register.",
+  "password.",
+  "emailStep.",
+  "emailBanner.",
+  "login.",
+  "forgot.",
+  "forgotUsername.",
+  "alerts.",
+  "admin.accounts.",
+  "admin.reset.",
+  "admin.find.",
+  "emailPrompt.",
+  "backupSignup.",
+  "applyStep.",
+  "recoveryPhone.",
+  "report.",
+];
 
 test("literal translation keys used by the sign-up components exist in en and fil", () => {
   for (const file of COMPONENT_FILES) {

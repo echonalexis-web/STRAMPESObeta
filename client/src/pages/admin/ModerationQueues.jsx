@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { FaTimes, FaExternalLinkAlt, FaUserShield, FaFileAlt } from "react-icons/fa";
 import { adminAPI } from "../../services/api";
+import { AuthContext } from "../../context/AuthContext";
 import { useToast } from "../../components/feedback/context";
 import StateBlock from "../../components/StateBlock";
 
@@ -293,6 +294,13 @@ function DecisionButtons({ options, selected, onSelect, disabled }) {
 function ReportReviewDrawer({ report, onClose, onResolved }) {
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useTranslation();
+  // PESO admins may review reports about jobseeker accounts (dismiss, or record a
+  // warning). Suspending or banning an account is superadmin-only; the server
+  // enforces it, this just does not offer the buttons.
+  const { user: actor } = useContext(AuthContext);
+  const isSuperadmin = actor?.role === "superadmin";
+  const visibleDecisions = isSuperadmin ? REPORT_DECISIONS : REPORT_DECISIONS.filter((d) => d.action === "none" || d.action === "warning");
   const [decisionKey, setDecisionKey] = useState("");
   const [note, setNote] = useState(report.resolution?.note || "");
   const [saving, setSaving] = useState(false);
@@ -432,8 +440,9 @@ function ReportReviewDrawer({ report, onClose, onResolved }) {
         <div className="mq-drawer-section__title">
           Decision {alreadyResolved ? <span className="mq-muted">(revising a resolved report)</span> : null}
         </div>
+        {!isSuperadmin && <p className="mq-muted">{t("superadmin.moderation.adminOnlyNote")}</p>}
         <DecisionButtons
-          options={REPORT_DECISIONS}
+          options={visibleDecisions}
           selected={decisionKey}
           onSelect={setDecisionKey}
           disabled={saving}

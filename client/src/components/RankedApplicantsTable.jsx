@@ -3,6 +3,7 @@ import { normalizeApplicationStatus, statusClass } from "../utils/helpers";
 import { tierForScore, legacyMatchClassForScore, DIMENSION_LABELS } from "../utils/qualifications";
 import { FaStar, FaCheck, FaTimes, FaClock, FaBan, FaEllipsisH, FaCalendarAlt } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
+import ReportButton from "./ReportButton";
 import StateBlock from "./StateBlock";
 
 const getStatusIcon = (status) => {
@@ -207,6 +208,10 @@ export default function RankedApplicantsTable({
                     {applicant.email || t("common.noEmailOnFile")}
                   </span>
                 </div>
+                {/* Employers can report an applicant account (scam, harassment, fake identity...). */}
+                <span className="rt-report" onClick={(e) => e.stopPropagation()}>
+                  <ReportButton targetType="user" targetId={applicant._id} variant="icon" label={t("report.applicant.button")} />
+                </span>
                 {isDisqualified ? (
                   <span className="rt-dq-badge" title="Outside the job's age requirement">
                     <FaBan /> Age
@@ -412,6 +417,9 @@ export default function RankedApplicantsTable({
                         </strong>
                         <span className="rt-email" title={applicant.email || t("common.noEmailOnFile")}>
                           {applicant.email || t("common.noEmailOnFile")}
+                        </span>
+                        <span className="rt-report" onClick={(e) => e.stopPropagation()}>
+                          <ReportButton targetType="user" targetId={applicant._id} variant="icon" label={t("report.applicant.button")} />
                         </span>
                         {ageUnknown && (
                           <span className="rt-age-unknown">

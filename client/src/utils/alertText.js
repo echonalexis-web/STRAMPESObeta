@@ -2,7 +2,15 @@
 // and a `metadata.alertKey`. This swaps in the user's language when the key is
 // one we know; any other notification is returned untouched.
 
-export const ALERT_KEYS = ["emailAdded", "passwordChanged", "newSignIn", "failedAttempts", "accountLocked"];
+export const ALERT_KEYS = [
+  "emailAdded",
+  "passwordChanged",
+  "newSignIn",
+  "failedAttempts",
+  "accountLocked",
+  "passwordResetByStaff",
+  "recoveryRequested",
+];
 
 export const localizedAlert = (item, t) => {
   const key = item?.metadata?.alertKey;

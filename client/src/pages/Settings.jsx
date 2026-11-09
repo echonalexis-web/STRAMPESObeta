@@ -28,7 +28,7 @@ import IdOcrReview from "../components/IdOcrReview";
 import PesoHelpFloatingToggle from "../chatbot/ui/PesoHelpFloatingToggle";
 import { backupCodesFilename, buildBackupCodesText, downloadTextFile, localDateStamp } from "../utils/backupCodesFile";
 import { needsEmail } from "../utils/usernameSignup";
-import { openEmailGate } from "../utils/emailGateEvents";
+import { openEmailPrompt } from "../utils/emailNudge";
 // GoogleSignInButton's own base layout rules (.google-signin / __divider /
 // __btn) live here rather than in settings.css. Importing it explicitly
 // (instead of relying on it happening to already be loaded by some other
@@ -998,7 +998,7 @@ function AccountSection({ role, user, displayName, toast, confirm, onPasswordAdd
           {needsEmail(user) ? (
             <dd>
               {t("settings.account.emailNotSet")}{" "}
-              <button type="button" className="set-btn set-btn--ghost" onClick={() => openEmailGate()}>
+              <button type="button" className="set-btn set-btn--ghost" onClick={() => openEmailPrompt()}>
                 {t("settings.account.addEmail")}
               </button>
               <span className="set-subrow__hint">{t("settings.account.emailUnverifiedHint")}</span>

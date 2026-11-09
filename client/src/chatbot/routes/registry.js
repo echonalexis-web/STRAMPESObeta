@@ -87,6 +87,7 @@ export const EXCLUDED = [
   '/admin/news/create',
   '/admin/users',
   '/admin/users/moderation',
+  '/admin/find-account',
   '/admin/verification',
   '/admin/job-monitoring',
   '/admin/spes',

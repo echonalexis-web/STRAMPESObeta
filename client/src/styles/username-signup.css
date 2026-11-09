@@ -375,3 +375,206 @@
     transition: none;
   }
 }
+
+/* ---------- rev 3: optional email prompt (a card, not a dialog) ---------- */
+
+.eprompt {
+  position: fixed;
+  right: var(--ds-space-4, 16px);
+  bottom: var(--ds-space-4, 16px);
+  left: var(--ds-space-4, 16px);
+  z-index: var(--ds-z-drawer, 300);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: var(--ds-space-5, 20px);
+  border: 1px solid var(--ds-border, #dfe8e3);
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--ds-surface, #fff);
+  box-shadow: var(--ds-shadow-3, 0 12px 32px rgba(4, 60, 42, 0.16));
+}
+
+.eprompt__title {
+  margin: 0 var(--ds-space-8, 32px) var(--ds-space-2, 8px) 0;
+  font-size: var(--ds-text-lg, 1.125rem);
+  color: var(--ds-text, #10271f);
+}
+
+.eprompt__close {
+  position: absolute;
+  top: var(--ds-space-2, 8px);
+  right: var(--ds-space-2, 8px);
+  width: var(--ds-tap, 44px);
+  height: var(--ds-tap, 44px);
+  border: 0;
+  border-radius: var(--ds-radius-md, 12px);
+  background: transparent;
+  color: var(--ds-muted, #5a6c65);
+  cursor: pointer;
+}
+
+.eprompt__close:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}
+
+.eprompt__benefits {
+  margin: 0;
+  padding-left: var(--ds-space-5, 20px);
+  color: var(--ds-text, #10271f);
+  font-size: var(--ds-text-sm, 0.875rem);
+  line-height: 1.5;
+}
+
+.ebanner__close {
+  width: var(--ds-tap, 44px);
+  height: var(--ds-tap, 44px);
+  border: 0;
+  border-radius: var(--ds-radius-md, 12px);
+  background: transparent;
+  color: var(--ds-text, #10271f);
+  cursor: pointer;
+}
+
+.ebanner__close:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}
+
+/* ---------- rev 3: backup codes card ---------- */
+
+.bcs {
+  display: grid;
+  gap: var(--ds-space-3, 12px);
+  margin: var(--ds-space-4, 16px);
+  padding: var(--ds-space-5, 20px);
+  border: 1px solid var(--ds-gold, #e6b91e);
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--ds-warning-bg, #fdf4d6);
+}
+
+.bcs__codes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-2, 8px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bcs__codes code {
+  display: block;
+  padding: var(--ds-space-2, 8px) var(--ds-space-3, 12px);
+  border-radius: var(--ds-radius-sm, 8px);
+  background: var(--ds-surface, #fff);
+  font-size: var(--ds-text-md, 1rem);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.bcs__tools {
+  display: grid;
+  gap: var(--ds-space-2, 8px);
+}
+
+.bcs__confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2, 8px);
+  min-height: var(--ds-tap, 44px);
+  font-size: var(--ds-text-sm, 0.875rem);
+}
+
+.bcs-print-title,
+.bcs-print-note {
+  display: none;
+}
+
+/* Printing from the backup-codes card prints the codes only: no name, no
+   username, no email, nothing else on the page. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .bcs-printable,
+  .bcs-printable * {
+    visibility: visible;
+  }
+
+  .bcs-printable {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 24px;
+  }
+
+  .bcs-print-title,
+  .bcs-print-note {
+    display: block;
+  }
+
+  .bcs-print-title {
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .bcs__codes code {
+    font-size: 18px;
+    border: 1px solid #000;
+    background: #fff;
+  }
+}
+
+/* ---------- rev 3: inline phone step, temporary password, applicant report ---------- */
+
+.apstep {
+  display: grid;
+  gap: var(--ds-space-3, 12px);
+  margin: var(--ds-space-3, 12px) 0;
+  padding: var(--ds-space-4, 16px);
+  border: 1px solid var(--ds-border, #dfe8e3);
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-mint, #e9f4ed);
+}
+
+.apstep__title {
+  margin: 0;
+  font-size: var(--ds-text-md, 1rem);
+  color: var(--ds-text, #10271f);
+}
+
+.temp-pw {
+  display: block;
+  padding: var(--ds-space-3, 12px);
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-surface, #fff);
+  border: 1px dashed var(--ds-green, #07553a);
+  font-size: var(--ds-text-xl, 1.5rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  user-select: all;
+  word-break: break-all;
+}
+
+.rt-report {
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (min-width: 768px) {
+  .eprompt {
+    left: auto;
+    width: 400px;
+  }
+
+  .bcs__tools {
+    grid-auto-flow: column;
+    justify-content: start;
+  }
+
+  .bcs__codes {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}

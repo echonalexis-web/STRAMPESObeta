@@ -5,8 +5,11 @@ import {
   userContactLabel,
   hasVerifiedEmail,
   needsEmail,
-  shouldShowEmailGate,
+  isUsernameOnly,
+  onboardingDone,
+  shouldShowEmailPrompt,
   shouldShowEmailBanner,
+  shouldShowBackupStep,
   parseCodeInput,
   isCompleteCode,
   formatCountdown,
@@ -73,26 +76,67 @@ test("needsEmail: jobseekers without a verified email only", () => {
   assert.equal(needsEmail(null), false);
 });
 
-test("shouldShowEmailGate: skip hides it, forced reopens it, excluded pages never show it", () => {
-  const user = { role: "jobseeker", hasVerifiedEmail: false };
-  assert.equal(shouldShowEmailGate({ user, pathname: "/dashboard" }), true);
-  assert.equal(shouldShowEmailGate({ user, pathname: "/dashboard", skipped: true }), false);
-  assert.equal(shouldShowEmailGate({ user, pathname: "/dashboard", skipped: true, forced: true }), true);
-  for (const pathname of ["/account-suspended", "/verify-email", "/confirm-email"]) {
-    assert.equal(shouldShowEmailGate({ user, pathname, forced: true }), false, pathname);
-  }
-  assert.equal(shouldShowEmailGate({ user: { role: "jobseeker", email: "a@b.co" }, pathname: "/dashboard" }), false);
+const DAY = 24 * 60 * 60 * 1000;
+const seen = { dismissCount: 0, lastDismissedAt: 0, promptSeen: true, backupStepDismissed: false };
+const NOT_SEEN = { dismissCount: 0, lastDismissedAt: 0, promptSeen: false, backupStepDismissed: false };
+const emailless = { role: "jobseeker", hasVerifiedEmail: false, hasCompletedOnboarding: true };
+
+test("isUsernameOnly and onboardingDone", () => {
+  assert.equal(isUsernameOnly({ role: "jobseeker" }), true);
+  assert.equal(isUsernameOnly({ role: "jobseeker", email: "a@b.co" }), false);
+  assert.equal(isUsernameOnly({ role: "employer" }), false);
+  assert.equal(onboardingDone({ hasCompletedOnboarding: true }), true);
+  assert.equal(onboardingDone({ onboardingComplete: true }), true);
+  assert.equal(onboardingDone({ hasCompletedOnboarding: false }), false);
 });
 
-test("shouldShowEmailBanner: only on the screens where limits are felt", () => {
-  const user = { role: "jobseeker", hasVerifiedEmail: false };
+test("shouldShowEmailPrompt: once, only after onboarding, never on excluded pages, forced by an Add email click", () => {
+  assert.equal(shouldShowEmailPrompt({ user: emailless, pathname: "/dashboard", nudge: NOT_SEEN }), true);
+  assert.equal(shouldShowEmailPrompt({ user: emailless, pathname: "/dashboard", nudge: seen }), false);
+  assert.equal(shouldShowEmailPrompt({ user: { ...emailless, hasCompletedOnboarding: false }, pathname: "/onboarding", nudge: NOT_SEEN }), false);
+  assert.equal(shouldShowEmailPrompt({ user: emailless, pathname: "/dashboard", nudge: seen, forced: true }), true);
+  for (const pathname of ["/account-suspended", "/verify-email", "/confirm-email"]) {
+    assert.equal(shouldShowEmailPrompt({ user: emailless, pathname, nudge: NOT_SEEN, forced: true }), false, pathname);
+  }
+  assert.equal(shouldShowEmailPrompt({ user: { role: "jobseeker", email: "a@b.co" }, pathname: "/dashboard", nudge: NOT_SEEN }), false);
+  assert.equal(shouldShowEmailPrompt({ user: { role: "employer" }, pathname: "/dashboard", nudge: NOT_SEEN }), false);
+});
+
+test("shouldShowEmailBanner: only after the one-time card, only on the listed screens, and only when due", () => {
+  const now = 1_800_000_000_000;
   for (const pathname of ["/dashboard", "/jobs", "/jobs/123", "/spes", "/spes/postings", "/profile"]) {
-    assert.equal(shouldShowEmailBanner({ user, pathname }), true, pathname);
+    assert.equal(shouldShowEmailBanner({ user: emailless, pathname, nudge: seen, now }), true, pathname);
   }
   for (const pathname of ["/settings", "/messages", "/dashboardx"]) {
-    assert.equal(shouldShowEmailBanner({ user, pathname }), false, pathname);
+    assert.equal(shouldShowEmailBanner({ user: emailless, pathname, nudge: seen, now }), false, pathname);
   }
-  assert.equal(shouldShowEmailBanner({ user: { role: "jobseeker", email: "a@b.co" }, pathname: "/dashboard" }), false);
+  // before the card has been shown the banner stays away
+  assert.equal(shouldShowEmailBanner({ user: emailless, pathname: "/dashboard", nudge: NOT_SEEN, now }), false);
+  // an account with an email never sees it
+  assert.equal(shouldShowEmailBanner({ user: { role: "jobseeker", email: "a@b.co" }, pathname: "/dashboard", nudge: seen, now }), false);
+});
+
+test("shouldShowEmailBanner follows the 14, 45, 90 day schedule and then stops", () => {
+  const t0 = 1_800_000_000_000;
+  const dismissed = (count) => ({ ...seen, dismissCount: count, lastDismissedAt: t0 });
+  const show = (count, afterDays) => shouldShowEmailBanner({ user: emailless, pathname: "/dashboard", nudge: dismissed(count), now: t0 + afterDays * DAY });
+  assert.equal(show(1, 13), false);
+  assert.equal(show(1, 14), true);
+  assert.equal(show(2, 44), false);
+  assert.equal(show(2, 45), true);
+  assert.equal(show(3, 89), false);
+  assert.equal(show(3, 90), true);
+  assert.equal(show(4, 100000), false); // after the fourth dismissal it never returns
+});
+
+test("shouldShowBackupStep: username-only accounts on the first onboarding screen, until saved or dismissed", () => {
+  const user = { role: "jobseeker" };
+  assert.equal(shouldShowBackupStep({ user, pathname: "/onboarding", nudge: NOT_SEEN }), true);
+  assert.equal(shouldShowBackupStep({ user, pathname: "/dashboard", nudge: NOT_SEEN }), false);
+  assert.equal(shouldShowBackupStep({ user: { ...user, backupCodesGeneratedAt: "2026-11-10" }, pathname: "/onboarding", nudge: NOT_SEEN }), false);
+  assert.equal(shouldShowBackupStep({ user, pathname: "/onboarding", nudge: { ...NOT_SEEN, backupStepDismissed: true } }), false);
+  assert.equal(shouldShowBackupStep({ user: { role: "jobseeker", email: "a@b.co" }, pathname: "/onboarding", nudge: NOT_SEEN }), false);
+  assert.equal(shouldShowBackupStep({ user: { role: "employer" }, pathname: "/onboarding", nudge: NOT_SEEN }), false);
 });
 
 test("parseCodeInput strips everything but digits and caps at six", () => {

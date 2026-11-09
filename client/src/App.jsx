@@ -13,7 +13,8 @@ import { JobVacancyAgeGate } from "./routes/JobVacancyAgeGate";
 import AccountInactiveModal from "./components/AccountInactiveModal";
 import FloatingMessenger from "./components/FloatingMessenger";
 import DobGate from "./components/DobGate";
-import EmailGate from "./components/EmailGate";
+import EmailPrompt from "./components/EmailPrompt";
+import BackupCodesStep from "./components/BackupCodesStep";
 import EmailBanner from "./components/EmailBanner";
 import ChatWidget from "./chatbot/ui/ChatWidget";
 import DashboardTopBar from "./components/DashboardTopBar";
@@ -57,6 +58,7 @@ import NewsFeedManagement from "./pages/admin/NewsFeedManagement";
 import CreateAnnouncement from "./pages/admin/CreateAnnouncement";
 import UserManagement from "./pages/admin/UserManagement";
 import UserModeration from "./pages/admin/UserModeration";
+import FindAccount from "./pages/admin/FindAccount";
 import UserProfileView from "./pages/admin/UserProfileView";
 import EmployerVerification from "./pages/admin/EmployerVerification";
 import AuditTrail from "./pages/admin/AuditTrail";
@@ -181,6 +183,7 @@ function AppRoutes() {
         <SiteChrome />
         <DashboardTopBar />
         <EmailBanner />
+        <BackupCodesStep />
         <TermsGate />
         <ResultModalHost />
         <CookieConsentBanner />
@@ -190,7 +193,7 @@ function AppRoutes() {
         <FloatingMessenger />
         <ChatWidget />
         <DobGate />
-        <EmailGate />
+        <EmailPrompt />
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/about" element={<About />} />
@@ -242,7 +245,8 @@ function AppRoutes() {
           <Route path="/admin/news/create" element={<ProtectedRoute requiredRole="admin"><CreateAnnouncement /></ProtectedRoute>} />
           <Route path="/admin/news/edit/:id" element={<ProtectedRoute requiredRole="admin"><CreateAnnouncement /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute requiredRole="superadmin"><UserManagement /></ProtectedRoute>} />
-          <Route path="/admin/users/moderation" element={<ProtectedRoute requiredRole="superadmin"><UserModeration /></ProtectedRoute>} />
+          <Route path="/admin/find-account" element={<ProtectedRoute requiredRole={["admin", "superadmin"]}><FindAccount /></ProtectedRoute>} />
+          <Route path="/admin/users/moderation" element={<ProtectedRoute requiredRole={["admin", "superadmin"]}><UserModeration /></ProtectedRoute>} />
           <Route path="/admin/verification" element={<ProtectedRoute requiredRole={["admin", "superadmin"]}><EmployerVerification /></ProtectedRoute>} />
           <Route path="/admin/job-monitoring" element={<ProtectedRoute requiredRole={["admin", "superadmin"]}><JobMonitoring /></ProtectedRoute>} />
           <Route path="/admin/spes" element={<Navigate to="/admin/spes/monitoring" replace />} />

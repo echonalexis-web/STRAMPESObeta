@@ -2,12 +2,14 @@
 // are unit-testable. The server is the authority on every one of these; the
 // client only mirrors them to give early, specific feedback.
 
+import { nudgeIsDue } from "./emailNudge.js";
+
 const JOBSEEKER_ROLES = ["jobseeker", "employee", "resident"];
 
 // Build-time flag mirroring the server's USERNAME_SIGNUP_ENABLED. It hides the
 // sign-up toggle, the remember-username box and the forgot-username link when
-// off. (The email gate and banner are driven by the account itself: only an
-// email-less jobseeker ever sees them.)
+// off. (The email prompt and banner are driven by the account itself: only an
+// email-less jobseeker ever sees them. An email is optional, never required.)
 export const isUsernameSignupEnabled = (env) => {
   const source = env ?? (typeof import.meta !== "undefined" ? import.meta.env : undefined);
   return String(source?.VITE_USERNAME_SIGNUP_ENABLED ?? "").trim().toLowerCase() === "true";
@@ -24,7 +26,7 @@ export const userContactLabel = (user, { emptyLabel = "—" } = {}) => {
   return emptyLabel;
 };
 
-// ---------------------------------------------------------------- email gate
+// ---------------------------------------------------------------- email prompt (optional)
 
 // Server flag wins when present; otherwise derive it the way the server does
 // (an address, and not a literal isEmailVerified === false).
@@ -34,22 +36,45 @@ export const hasVerifiedEmail = (user) => {
   return Boolean(String(user.email ?? "").trim()) && user.isEmailVerified !== false;
 };
 
-// True only for a jobseeker with no verified email.
+// True only for a jobseeker with no verified email. It decides who is OFFERED an
+// email; nothing is blocked for them.
 export const needsEmail = (user) => Boolean(user) && JOBSEEKER_ROLES.includes(user.role) && !hasVerifiedEmail(user);
 
-// Same exclusions TermsGate uses, plus the email-confirmation pages.
-const GATE_EXCLUDED_PREFIXES = ["/account-suspended", "/verify-email", "/confirm-email"];
+// A jobseeker with no email address at all (a username-only account).
+export const isUsernameOnly = (user) =>
+  Boolean(user) && JOBSEEKER_ROLES.includes(user.role) && !String(user.email ?? "").trim();
 
-export const shouldShowEmailGate = ({ user, pathname = "", skipped = false, forced = false }) => {
-  if (!needsEmail(user)) return false;
-  if (GATE_EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return false;
-  return forced || !skipped;
+export const onboardingDone = (user) => user?.hasCompletedOnboarding === true || user?.onboardingComplete === true;
+
+// Never over the email-confirmation or suspension pages.
+const EXCLUDED_PREFIXES = ["/account-suspended", "/verify-email", "/confirm-email"];
+const excluded = (pathname) => EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
+// The one-time card, right after onboarding. It is a card, not a dialog, and
+// never blocks navigation. `forced` is an explicit "Add email" click.
+export const shouldShowEmailPrompt = ({ user, pathname = "", nudge, forced = false }) => {
+  if (!needsEmail(user) || excluded(pathname)) return false;
+  if (forced) return true;
+  return onboardingDone(user) && !(nudge && nudge.promptSeen);
 };
 
-// Banner: same people, on the screens where the limits are felt.
+// The slim banner. After the one-time card it comes back only when the
+// reappearance schedule (14, 45, 90 days, then never) says so.
 const BANNER_PREFIXES = ["/dashboard", "/jobs", "/spes", "/profile"];
-export const shouldShowEmailBanner = ({ user, pathname = "" }) =>
-  needsEmail(user) && BANNER_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+export const shouldShowEmailBanner = ({ user, pathname = "", nudge, now = Date.now() }) =>
+  needsEmail(user) &&
+  !excluded(pathname) &&
+  BANNER_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)) &&
+  Boolean(nudge && nudge.promptSeen) &&
+  nudgeIsDue(nudge, now);
+
+// The default backup-codes card right after a username-only sign-up (on the first
+// onboarding screen) until backup codes exist or the person dismisses it.
+export const shouldShowBackupStep = ({ user, pathname = "", nudge }) =>
+  isUsernameOnly(user) &&
+  !user.backupCodesGeneratedAt &&
+  pathname.startsWith("/onboarding") &&
+  !(nudge && nudge.backupStepDismissed);
 
 // ---------------------------------------------------------------- code input
 

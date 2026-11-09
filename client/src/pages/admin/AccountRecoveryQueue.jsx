@@ -5,6 +5,8 @@ import { staffRecoveryAPI } from "../../services/api";
 import IdEvidence from "../../components/IdEvidence";
 import { IdOcrSummary } from "../../components/IdOcrReview";
 import StateBlock from "../../components/StateBlock";
+import TemporaryPasswordPanel from "../../components/TemporaryPasswordPanel";
+import { GOVERNMENT_ID_TYPES } from "../../constants/governmentIdTypes";
 import AdminHeader from "./AdminHeader";
 import "../../styles/admin.css";
 import "../../styles/idOcr.css";
@@ -21,6 +23,8 @@ export default function AccountRecoveryQueue() {
   const [password, setPassword] = useState("");
   const [reason, setReason] = useState("");
   const [matched, setMatched] = useState(false);
+  const [idType, setIdType] = useState("");
+  const [tempPassword, setTempPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState(false);
   const [notice, setNotice] = useState("");
@@ -31,15 +35,17 @@ export default function AccountRecoveryQueue() {
     return () => { alive = false; };
   }, [status, page, revision, t]);
   const open = async (id) => {
-    setDetail(null); setPassword(""); setReason(""); setMatched(false); setError(""); setNotice("");
+    setDetail(null); setPassword(""); setReason(""); setMatched(false); setIdType(""); setTempPassword(""); setError(""); setNotice("");
     try { const { data } = await staffRecoveryAPI.detail(id); setDetail(data); }
     catch { setError(t("staffRecovery.error")); }
   };
   const decide = async (decision) => {
     setSaving(true); setError(""); setNotice("");
     try {
-      const { data } = await staffRecoveryAPI.review(detail.request._id, { decision, revision: detail.request.revision, currentPassword: password, reason, identityMatched: matched });
+      const { data } = await staffRecoveryAPI.review(detail.request._id, { decision, revision: detail.request.revision, currentPassword: password, reason, identityMatched: matched, ...(decision === "complete_in_person" ? { idChecked: matched, idTypePresented: idType } : {}) });
       setDetail(null); setPassword(""); setRevision((value) => value + 1);
+      // Completed in person: the temporary password is shown once, here, and then gone.
+      if (data?.temporaryPassword) setTempPassword(data.temporaryPassword);
       // The approval is saved even when the email could not be delivered;
       // say so now, because the request moves out of the pending list.
       if (data?.delivery?.status === "failed") setError(t("staffRecovery.delivery.failedHint"));
@@ -63,7 +69,9 @@ export default function AccountRecoveryQueue() {
   };
   const recovery = detail?.request;
   const user = detail?.user;
-  const allowed = user?.role === "jobseeker" && user.isActive !== false && user.validIdFile && recovery?.contactVerifiedAt && matched;
+  const phoneContact = recovery?.contactMethod === "phone";
+  const allowed = !phoneContact && user?.role === "jobseeker" && user.isActive !== false && user.validIdFile && recovery?.contactVerifiedAt && matched;
+  const canCompleteInPerson = phoneContact && user?.role === "jobseeker" && user.isActive !== false && matched && idType && reason.trim().length >= 10;
   return <div className="admin-page-container recovery-queue"><AdminHeader title={t("staffRecovery.queue")} description={t("staffRecovery.policy")} />
     {error && <p className="ds-alert ds-alert--error recovery-queue__alert" role="alert">{error}</p>}
     {notice && <p className="ds-alert ds-alert--success recovery-queue__alert" role="status">{notice}</p>}
@@ -75,9 +83,13 @@ export default function AccountRecoveryQueue() {
             <button type="button" className="recovery-queue__item" onClick={() => open(request._id)}>
               <span className="recovery-queue__name">{request.fullName}</span>{" "}
               <span className="recovery-queue__meta">{request.claimedIdentifier}</span>{" "}
-              <span className={`recovery-queue__chip${request.contactVerifiedAt ? " is-verified" : ""}`}>
-                {t(`staffRecovery.${request.contactVerifiedAt ? "verified" : "unverified"}`)}
-              </span>
+              {request.contactMethod === "phone" ? (
+                <span className="recovery-queue__chip">{t("staffRecovery.phoneChip")}</span>
+              ) : (
+                <span className={`recovery-queue__chip${request.contactVerifiedAt ? " is-verified" : ""}`}>
+                  {t(`staffRecovery.${request.contactVerifiedAt ? "verified" : "unverified"}`)}
+                </span>
+              )}
               {request.status === "approved" && request.delivery?.status === "failed" && (
                 <>{" "}<span className="recovery-queue__chip is-failed">{t("staffRecovery.delivery.failed")}</span></>
               )}
@@ -94,11 +106,12 @@ export default function AccountRecoveryQueue() {
       {actor?.role === "superadmin" && <button onClick={() => loadReport()}>{t("staffRecovery.report")}</button>}
       {report && <div><ul>{report.requests.map((entry) => <li key={entry._id}>{entry.resolvedUser} · {t(`staffRecovery.statuses.${entry.status}`)} · {entry.resolvedAt} · {entry.reviewedBy}</li>)}</ul><button disabled={report.page === 1} onClick={() => loadReport(report.page - 1)}>{t("staffRecovery.previous")}</button><button disabled={!report.hasMore} onClick={() => loadReport(report.page + 1)}>{t("staffRecovery.next")}</button></div>}
     </section>
+    {tempPassword && <section className="admin-panel-card id-ocr"><TemporaryPasswordPanel value={tempPassword} onDone={() => setTempPassword("")} /></section>}
     {recovery && <section className="admin-panel-card id-ocr">
       <h2>{recovery.fullName}</h2>
       <p>{t("staffRecovery.reviewHint")}</p>
       <div className="id-ocr-grid">
-        <div><h3>{t("staffRecovery.submitted")}</h3><p>{recovery.contactEmail} · {recovery.phone}</p><p>{recovery.lastKnownAddress}</p><p>{recovery.idTypeDeclared} · {recovery.idNumberDeclared}</p>
+        <div><h3>{t("staffRecovery.submitted")}</h3><p>{recovery.contactMethod === "phone" ? recovery.contactPhone : recovery.contactEmail} · {recovery.phone}</p><p>{recovery.lastKnownAddress}</p><p>{recovery.idTypeDeclared} · {recovery.idNumberDeclared}</p>
           <IdEvidence key={recovery.governmentIdFile} value={recovery.governmentIdFile} label={t("staffRecovery.fields.governmentIdFile")} /><IdEvidence key={recovery.selfieFile} value={recovery.selfieFile} label={t("staffRecovery.fields.selfieFile")} />
           <IdOcrSummary ocr={recovery.ocr} />
         </div>
@@ -119,11 +132,13 @@ export default function AccountRecoveryQueue() {
           <button type="button" disabled={resending || !password} onClick={resend}>{resending ? t("staffRecovery.delivery.resending") : t("staffRecovery.delivery.resend")}</button>
         </>}
       </div>}
+      {phoneContact && ["pending", "under_review"].includes(recovery.status) && <p>{t("staffRecovery.inPersonHint")}</p>}
       {["pending", "under_review"].includes(recovery.status) && <div className="id-ocr-grid">
+        {phoneContact && <label>{t("staffRecovery.idTypeShown")}<select value={idType} onChange={(e) => setIdType(e.target.value)}><option value="">{t("staffRecovery.chooseIdType")}</option>{GOVERNMENT_ID_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>}
         <label>{t("staffRecovery.reason")}<textarea maxLength={2000} value={reason} onChange={(e) => setReason(e.target.value)} /></label>
         <label>{t("staffRecovery.currentPassword")}<input autoComplete="current-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-        <label><input type="checkbox" checked={matched} onChange={(e) => setMatched(e.target.checked)} />{t("staffRecovery.identityMatched")}</label>
-        <div><button disabled={saving || !password} onClick={() => decide("under_review")}>{t("staffRecovery.review")}</button><button disabled={saving || !password || reason.trim().length < 10} onClick={() => decide("reject")}>{t("staffRecovery.reject")}</button><button disabled={saving || !password || !allowed || reason.trim().length < 10} onClick={() => decide("approve")}>{t("staffRecovery.approve")}</button></div>
+        <label><input type="checkbox" checked={matched} onChange={(e) => setMatched(e.target.checked)} />{t(phoneContact ? "staffRecovery.idChecked" : "staffRecovery.identityMatched")}</label>
+        <div><button disabled={saving || !password} onClick={() => decide("under_review")}>{t("staffRecovery.review")}</button><button disabled={saving || !password || reason.trim().length < 10} onClick={() => decide("reject")}>{t("staffRecovery.reject")}</button>{phoneContact ? <button disabled={saving || !password || !canCompleteInPerson} onClick={() => decide("complete_in_person")}>{t("staffRecovery.completeInPerson")}</button> : <button disabled={saving || !password || !allowed || reason.trim().length < 10} onClick={() => decide("approve")}>{t("staffRecovery.approve")}</button>}</div>
       </div>}
     </section>}
   </div>;

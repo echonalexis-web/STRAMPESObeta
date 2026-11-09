@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FaArrowLeft, FaShieldAlt, FaFlag, FaEnvelopeOpenText } from "react-icons/fa";
 import "../../styles/admin.css";
 import "../../styles/moderation.css";
 import AdminHeader from "./AdminHeader";
+import { AuthContext } from "../../context/AuthContext";
 import { ReportsQueue, AppealsQueue } from "./ModerationQueues";
 
 const TABS = {
@@ -16,8 +17,12 @@ export default function UserModeration() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  // PESO admins see the reports queue only; appeals stay with the superadmin.
+  const { user } = useContext(AuthContext);
+  const isSuperadmin = user?.role === "superadmin";
+  const visibleTabs = isSuperadmin ? TABS : { reports: TABS.reports };
   const requestedTab = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState(TABS[requestedTab] ? requestedTab : "reports");
+  const [activeTab, setActiveTab] = useState(visibleTabs[requestedTab] ? requestedTab : "reports");
   const [reportStats, setReportStats] = useState(null);
   const [appealStats, setAppealStats] = useState(null);
 
@@ -44,7 +49,7 @@ export default function UserModeration() {
       </button>
 
       <div className="ds-tabs mq-tab-bar" role="tablist" aria-label={t("superadmin.moderation.tabsLabel")}>
-        {Object.entries(TABS).map(([key, meta]) => {
+        {Object.entries(visibleTabs).map(([key, meta]) => {
           const badge = tabBadge(key);
           return (
             <button
@@ -67,9 +72,11 @@ export default function UserModeration() {
         <div hidden={activeTab !== "reports"}>
           <ReportsQueue onStats={setReportStats} />
         </div>
-        <div hidden={activeTab !== "appeals"}>
-          <AppealsQueue onStats={setAppealStats} />
-        </div>
+        {isSuperadmin && (
+          <div hidden={activeTab !== "appeals"}>
+            <AppealsQueue onStats={setAppealStats} />
+          </div>
+        )}
       </div>
     </div>
   );
