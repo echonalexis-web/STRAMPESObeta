@@ -1406,7 +1406,15 @@
       "COVER_UPLOAD_FAILED": "Hindi namin ma-save ang cover. Subukang muli.",
       "COVER_DAILY_LIMIT": "Naabot mo na ang daily limit ng pag-upload ng cover. Subukan bukas.",
       "COVER_NO_IMAGE": "Walang na-upload na cover na larawan ang account na ito.",
-      "COVER_UPLOAD_NOT_REVOKED": "Maaari nang mag-upload ng cover ang account na ito."
+      "COVER_UPLOAD_NOT_REVOKED": "Maaari nang mag-upload ng cover ang account na ito.",
+      "CONTACT_SHARE_NOT_ALLOWED": "Hindi available dito ang pagbabahagi ng contact details.",
+      "CONTACT_SHARE_FIELDS_INVALID": "Pumili ng telepono, email o pareho.",
+      "CONTACT_SHARE_NO_CONTACT": "Magdagdag muna ng wastong numero ng telepono o email sa profile mo.",
+      "MESSAGING_MINOR_RESTRICTED": "Hindi maaaring makipag-ugnayan sa jobseeker na ito sa pamamagitan ng portal.",
+      "FOLLOW_LIST_PRIVATE": "Pribado ang listahang ito.",
+      "PROFILE_UNAVAILABLE": "Hindi available ang profile na ito.",
+      "PROFILE_VIEW_DAILY_LIMIT": "Marami ka nang tiningnang profile ngayon. Subukan bukas.",
+      "PROFILE_VIEW_RATE_LIMITED": "Masyadong maraming pagtingin sa profile. Dahan-dahan lang."
     }
   },
   "spes": {
@@ -2241,5 +2249,29 @@
       "resident": "Jobseeker",
       "employer": "Employer"
     }
+  },
+  "contactShare": {
+    "button": "Ibahagi ang contact details ko",
+    "title": "Ibahagi ang contact details ko",
+    "loading": "Naglo-load…",
+    "close": "Isara",
+    "explain": "Ibahagi ang contact details mo kay {{name}} sa usapang ito. Makikita lamang nila ang mga nilagyan mo ng tsek sa ibaba.",
+    "legend": "Mga contact detail na ibabahagi",
+    "phoneLabel": "Telepono",
+    "emailLabel": "Email",
+    "consent": "Ikaw ang pipili nito. Ang pagsagot sa usapan ay hindi nagbabahagi ng anuman. Maaari mong itigil ang pagbabahagi anumang oras.",
+    "share": "Ibahagi",
+    "sharedWith": "Ibinabahagi mo ang mga detalyeng ito kay {{name}}.",
+    "revoke": "Itigil ang pagbabahagi",
+    "revokeNote": "Titigil agad ang kanilang access. Hindi na maaaring bawiin ang mga nakita na nila.",
+    "noContact": "Magdagdag ng wastong numero ng telepono o email sa profile mo upang maibahagi ito.",
+    "notAvailable": "Hindi available ang pagbabahagi ng contact details sa usapang ito.",
+    "sharedToast": "Naibahagi ang contact details.",
+    "revokedToast": "Itinigil ang pagbabahagi.",
+    "error": "May nangyaring mali. Subukang muli."
+  },
+  "applyPhoto": {
+    "label": "Isama ang larawan ko sa aplikasyong ito",
+    "hint": "Nakatago ang profile mo. Makikita ng employer ang pangalan mo at ang isinumite mo, at ang larawan mo lamang kung lalagyan mo ng tsek ito."
   }
 }

@@ -9,6 +9,7 @@ const {
   getUnreadCount,
   searchUsers,
 } = require("../controllers/messageController");
+const { getShareState, createShare, revokeShare } = require("../controllers/contactShareController");
 const { verifyToken: protect } = require("../middleware/auth");
 const { conversationBudget } = require("../middleware/budgets");
 const {
@@ -30,6 +31,11 @@ router.get("/users/search", sanitizeQueryParams, searchUsers);
 router.get("/conversations", sanitizeQueryParams, getConversations);
 router.post("/conversations", conversationBudget, sanitizeRequestBody, detectMaliciousPayload, createConversation);
 router.delete("/conversations/:conversationId", validateMongoId("conversationId"), deleteConversation);
+
+// "Share my contact details": a jobseeker's explicit, revocable share with the employer in this conversation.
+router.get("/conversations/:conversationId/share-contact", validateMongoId("conversationId"), getShareState);
+router.post("/conversations/:conversationId/share-contact", validateMongoId("conversationId"), sanitizeRequestBody, detectMaliciousPayload, createShare);
+router.delete("/conversations/:conversationId/share-contact", validateMongoId("conversationId"), revokeShare);
 
 // Messages
 router.get("/conversations/:conversationId/messages", validateMongoId("conversationId"), sanitizeQueryParams, getMessages);

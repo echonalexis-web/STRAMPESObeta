@@ -522,6 +522,10 @@ export const messageAPI = {
   getConversations: () => api.get('/messages/conversations', getAuthHeader()),
   getMessages: (conversationId) => api.get(`/messages/conversations/${conversationId}/messages`, getAuthHeader()),
   sendMessage: (conversationId, data) => api.post(`/messages/conversations/${conversationId}/messages`, data, getAuthHeader()),
+  // "Share my contact details" for one conversation with an employer.
+  getContactShare: (conversationId) => api.get(`/messages/conversations/${conversationId}/share-contact`, getAuthHeader()),
+  shareContact: (conversationId, fields) => api.post(`/messages/conversations/${conversationId}/share-contact`, { fields }, getAuthHeader()),
+  revokeContactShare: (conversationId) => api.delete(`/messages/conversations/${conversationId}/share-contact`, getAuthHeader()),
   unsendMessage: (messageId) => api.patch(`/messages/${messageId}/unsend`, {}, getAuthHeader()),
   deleteConversation: (conversationId) => api.delete(`/messages/conversations/${conversationId}`, getAuthHeader()),
   getUnreadCount: () => api.get('/messages/unread-count', getAuthHeader()),

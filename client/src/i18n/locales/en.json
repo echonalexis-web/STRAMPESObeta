@@ -1406,7 +1406,15 @@
       "COVER_UPLOAD_FAILED": "We could not store the cover. Please try again.",
       "COVER_DAILY_LIMIT": "You reached the daily limit for cover uploads. Try again tomorrow.",
       "COVER_NO_IMAGE": "This account has no uploaded cover image.",
-      "COVER_UPLOAD_NOT_REVOKED": "This account can already upload a cover."
+      "COVER_UPLOAD_NOT_REVOKED": "This account can already upload a cover.",
+      "CONTACT_SHARE_NOT_ALLOWED": "Sharing contact details is not available here.",
+      "CONTACT_SHARE_FIELDS_INVALID": "Choose phone, email or both.",
+      "CONTACT_SHARE_NO_CONTACT": "Add a valid phone number or email to your profile first.",
+      "MESSAGING_MINOR_RESTRICTED": "This jobseeker cannot be contacted through the portal.",
+      "FOLLOW_LIST_PRIVATE": "This list is private.",
+      "PROFILE_UNAVAILABLE": "This profile is unavailable.",
+      "PROFILE_VIEW_DAILY_LIMIT": "You have viewed a lot of profiles today. Try again tomorrow.",
+      "PROFILE_VIEW_RATE_LIMITED": "Too many profile views. Please slow down."
     }
   },
   "spes": {
@@ -2241,5 +2249,29 @@
       "resident": "Jobseeker",
       "employer": "Employer"
     }
+  },
+  "contactShare": {
+    "button": "Share my contact details",
+    "title": "Share my contact details",
+    "loading": "Loading…",
+    "close": "Close",
+    "explain": "Share your contact details with {{name}} in this conversation. They will see only what you tick below.",
+    "legend": "Contact details to share",
+    "phoneLabel": "Phone",
+    "emailLabel": "Email",
+    "consent": "You choose this. A reply in the conversation does not share anything. You can stop sharing at any time.",
+    "share": "Share",
+    "sharedWith": "You are sharing these details with {{name}}.",
+    "revoke": "Stop sharing",
+    "revokeNote": "Stopping ends their access now. They cannot be made to forget what they already saw.",
+    "noContact": "Add a valid phone number or email to your profile to share it.",
+    "notAvailable": "Sharing contact details is not available in this conversation.",
+    "sharedToast": "Contact details shared.",
+    "revokedToast": "Sharing stopped.",
+    "error": "Something went wrong. Please try again."
+  },
+  "applyPhoto": {
+    "label": "Include my photo in this application",
+    "hint": "Your profile is hidden. The employer sees your name and what you submit, and your photo only if you tick this."
   }
 }

@@ -12,6 +12,7 @@ const { runPostCommit } = require("../utils/postCommit");
 const SystemSettings = require("../models/SystemSettings");
 const { sendError } = require("../utils/sendError");
 const { resolveRelationship, projectJobseeker, projectApplicant } = require("../services/profileProjection");
+const { resolveCover } = require("../services/bannerTemplateService");
 
 // Fields an applicant list may populate. Resume, resume file, ID file and the
 // whole JobseekerProfile are NOT part of an application list: the application
@@ -1342,6 +1343,9 @@ exports.getConnectedJobseekerProfile = async (req, res) => {
       target: targetUser,
       profile,
       relationship,
+      // The person's banner (never included for a hidden-profile applicant: the
+      // projection drops it in that mode).
+      cover: await resolveCover(targetUser.cover),
     });
     if (!projected) {
       return res.status(403).json({ message: "This jobseeker has hidden their profile" });

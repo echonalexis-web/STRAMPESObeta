@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import { FaFileAlt, FaEnvelopeOpenText, FaMagic, FaUpload, FaCheckCircle } from "react-icons/fa";
@@ -7,6 +7,7 @@ import SecureFileLink from "./SecureFileLink";
 import { useTranslation } from "react-i18next";
 import { jobAPI, jobseekerDocumentAPI, displayFileName } from "../services/api";
 import ApplyPhoneStep from "./ApplyPhoneStep";
+import { AuthContext } from "../context/AuthContext";
 import { applyErrorKind, formatWait } from "../utils/applyGate";
 import "../styles/apply-modal.css";
 
@@ -128,6 +129,11 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
   const [error, setError] = useState("");
   // The server asked for a phone number first (a job application needs one on file).
   const [phoneStep, setPhoneStep] = useState(false);
+  // "Include my photo in this application": offered only when the profile is hidden.
+  // With a visible profile the avatar already follows the normal rules.
+  const { user: authUser } = useContext(AuthContext) || {};
+  const profileHidden = authUser?.privacy?.profileVisibility === "hidden";
+  const [includePhoto, setIncludePhoto] = useState(Boolean(existingApplication?.includePhoto));
 
   const effectiveJobId = job?._id || jobId;
 
@@ -223,6 +229,8 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
     } else if (coverLetterSelection && coverLetterSelection !== NONE) {
       formData.append("coverLetterDocumentId", coverLetterSelection);
     }
+
+    if (profileHidden) formData.append("includePhoto", includePhoto ? "true" : "false");
 
     setSubmitting(true);
     try {
@@ -328,6 +336,16 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
                 }}
               />
             )}
+
+            {profileHidden ? (
+              <label className="apply-modal-photo">
+                <input type="checkbox" checked={includePhoto} onChange={(e) => setIncludePhoto(e.target.checked)} disabled={submitting} />
+                <span>
+                  <strong>{t("applyPhoto.label")}</strong>
+                  <small>{t("applyPhoto.hint")}</small>
+                </span>
+              </label>
+            ) : null}
 
             {error && <p className="apply-modal-error" role="alert">{error}</p>}
 

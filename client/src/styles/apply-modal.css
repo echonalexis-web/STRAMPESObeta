@@ -224,3 +224,25 @@
   }
   .app-modal-card .apply-modal-submit { min-width: 200px; }
 }
+
+/* "Include my photo in this application" (shown only for a hidden profile) */
+.apply-modal-photo {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 12px 0;
+  min-height: 44px;
+}
+
+.apply-modal-photo input {
+  margin-top: 4px;
+}
+
+.apply-modal-photo span {
+  display: grid;
+  gap: 2px;
+}
+
+.apply-modal-photo small {
+  color: var(--ds-ink-500);
+}

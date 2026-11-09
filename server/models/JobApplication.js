@@ -41,6 +41,10 @@ const jobApplicationSchema = new mongoose.Schema({
     default: "pending"
   },
   employerNote: { type: String, default: "" },
+  // "Include my photo in this application". Only meaningful when the applicant's
+  // profile is hidden: it lets the employer see the avatar (never the cover) while
+  // this application is active. Read-side rules live in services/profileProjection.js.
+  includePhoto: { type: Boolean, default: false },
   statusUpdatedAt: { type: Date, default: null },
   appliedAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now },

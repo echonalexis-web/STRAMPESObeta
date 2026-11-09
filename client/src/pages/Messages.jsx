@@ -10,6 +10,7 @@ import "../styles/messages.css";
 import { FaSearch, FaPaperPlane, FaUserCircle, FaTrash, FaArrowLeft, FaTimes } from "react-icons/fa";
 import DOMPurify from 'dompurify';
 import ReportButton from "../components/ReportButton";
+import ShareContactButton from "../components/ShareContactButton";
 
 // Mirrors the server's unsend window (server/controllers/messageController.js)
 // so the button hides itself before a click would just bounce off a 400.
@@ -912,6 +913,7 @@ export default function Messages() {
                 </div>
                 {!participantUnavailable && getParticipantId(selectedParticipant) ? (
                   <div className="chat-header-actions">
+                    <ShareContactButton conversationId={selectedConversation?._id} participantRole={selectedParticipant?.role} />
                     <ReportButton
                       targetType="user"
                       targetId={getParticipantId(selectedParticipant)}

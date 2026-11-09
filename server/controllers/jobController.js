@@ -384,6 +384,10 @@ const resolveOwnedDocument = async (documentId, ownerId, kind) => {
 // ---------------------------------------------------------------------
 // Apply to a job (jobseeker)
 // ---------------------------------------------------------------------
+// Optional "Include my photo in this application" (multipart sends strings). Old
+// clients omit it and get false.
+const wantsIncludePhoto = (body) => body && (body.includePhoto === true || body.includePhoto === "true");
+
 exports.applyToJob = async (req, res) => {
   const resumeUpload = Array.isArray(req.files?.resume) ? req.files.resume[0] : req.file;
   const coverLetterUpload = Array.isArray(req.files?.coverLetterFile) ? req.files.coverLetterFile[0] : null;
@@ -482,6 +486,7 @@ exports.applyToJob = async (req, res) => {
         coverLetter: req.body.coverLetter || "",
         coverLetterFile: coverLetterUpload ? coverLetterUpload.storedValue : coverLetterDocument ? coverLetterDocument.storedValue : "",
         coverLetterDocumentId: coverLetterDocument ? coverLetterDocument._id : null,
+        includePhoto: wantsIncludePhoto(req.body),
         appliedAt: new Date(),
         interview: { scheduledAt: null, mode: null, location: "", notes: "", scheduledBy: null },
       });
@@ -507,6 +512,7 @@ exports.applyToJob = async (req, res) => {
         coverLetter: req.body.coverLetter || "",
         coverLetterFile: coverLetterUpload ? coverLetterUpload.storedValue : coverLetterDocument ? coverLetterDocument.storedValue : "",
         coverLetterDocumentId: coverLetterDocument ? coverLetterDocument._id : null,
+        includePhoto: wantsIncludePhoto(req.body),
       }], { session });
     }
 
@@ -852,6 +858,10 @@ exports.updateMyApplication = async (req, res) => {
       }
     }
 
+    // Optional "Include my photo in this application" change (omitted = unchanged).
+    if (req.body && (req.body.includePhoto === true || req.body.includePhoto === "true" || req.body.includePhoto === false || req.body.includePhoto === "false")) {
+      application.includePhoto = wantsIncludePhoto(req.body);
+    }
     await application.save();
 
     const populated = await JobApplication.findById(application._id)
