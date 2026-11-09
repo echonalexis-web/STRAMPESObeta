@@ -11,6 +11,7 @@ const { logAuditEvent } = require("../services/auditService");
 const { runPostCommit } = require("../utils/postCommit");
 const SystemSettings = require("../models/SystemSettings");
 const { sendError } = require("../utils/sendError");
+const { resolveRelationship, projectJobseeker } = require("../services/profileProjection");
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 // How many days before the auto-close cutoff the "about to close" warning
@@ -1292,7 +1293,7 @@ exports.getConnectedJobseekerProfile = async (req, res) => {
     const employerId = String(getUserId(req));
     const { userId } = req.params;
 
-    const targetUser = await User.findById(userId).select("-password");
+    const targetUser = await User.findById(userId);
     if (!targetUser || targetUser.role !== "jobseeker") {
       return res.status(404).json({ message: "Jobseeker not found" });
     }
@@ -1327,14 +1328,24 @@ exports.getConnectedJobseekerProfile = async (req, res) => {
 
     const profile = await JobseekerProfile.findOne({ userId: targetUser._id });
 
-    const safeUser = targetUser.toObject ? targetUser.toObject() : { ...targetUser };
-    delete safeUser.dateOfBirth;
-    delete safeUser.dobLockedAt;
-    delete safeUser.dobSource;
-    delete safeUser.ageReviewRequired;
-    safeUser.ageTier = ageTier;
+    // Every field that leaves this endpoint goes through the projection helper:
+    // government ID number, OCR text, login lock, tokens and other secrets are
+    // absent, and phone and email appear only for an applicant, never a follower.
+    const relationship = await resolveRelationship({
+      viewer: { id: employerId, role: "employer" },
+      target: targetUser,
+    });
+    const projected = projectJobseeker({
+      viewer: { id: employerId, role: "employer" },
+      target: targetUser,
+      profile,
+      relationship,
+    });
+    if (!projected) {
+      return res.status(403).json({ message: "This jobseeker has hidden their profile" });
+    }
 
-    return res.json({ user: safeUser, profile });
+    return res.json({ user: projected.user, profile: projected.profile });
   } catch (error) {
     return sendError(res, error, "Failed to fetch jobseeker profile");
   }

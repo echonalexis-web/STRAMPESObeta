@@ -514,6 +514,14 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
   // meant the header showed a stale "0" until the user visited that tab.
   useEffect(() => {
     const fetchConnections = async () => {
+      // An employer looking at an applicant is not allowed to list that
+      // person's followers or following (owner and staff only), so skip the calls.
+      if (isEmployerView) {
+        setFollowers([]);
+        setFollowing([]);
+        setConnectionsLoading(false);
+        return;
+      }
       try {
         setConnectionsLoading(true);
         // Get the correct user ID - prioritize profile ID first since it's already loaded
@@ -558,7 +566,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
     };
 
     fetchConnections();
-  }, [profile, user, userId, isEmployer]);
+  }, [profile, user, userId, isEmployer, isEmployerView]);
 
   // Scroll-spy: keep the sticky tab bar in sync with the section in view.
   useEffect(() => {
@@ -1309,6 +1317,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
 
             <Section id="sec-more" icon={<FaEllipsisH />} title="More">
               <div className="rd2-accordion">
+                {!isEmployerView ? (
                 <AccItem id="demographics" title="Demographics" open={panels.demographics} onToggle={togglePanel}>
                   <div className="rd2-pairs">
                     <DataItem label="Height" value={profile?.height ? `${profile.height} cm` : null} />
@@ -1323,6 +1332,9 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                   </div>
                 </AccItem>
 
+                ) : null}
+
+                {!isEmployerView ? (
                 <AccItem id="govids" title="Government IDs" open={panels.govids} onToggle={togglePanel}>
                   {hasGovIds ? (
                     <div className="rd2-pairs">
@@ -1335,6 +1347,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                     <EmptyNote>No government ID numbers added yet.</EmptyNote>
                   )}
                 </AccItem>
+                ) : null}
 
                 {hasCredentials ? (
                   <AccItem id="credentials" title="Training & credentials" open={panels.credentials} onToggle={togglePanel}>
@@ -1380,6 +1393,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                   </AccItem>
                 ) : null}
 
+                {!isEmployerView ? (
                 <AccItem id="resume" title="Resume" open={panels.resume} onToggle={togglePanel}>
                   {resumeRef ? (
                     <SecureFileLink className="rd2-doclink" value={resumeRef}><FaDownload aria-hidden="true" /> Download resume</SecureFileLink>
@@ -1387,6 +1401,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                     <EmptyNote>No resume uploaded.</EmptyNote>
                   )}
                 </AccItem>
+                ) : null}
               </div>
             </Section>
 
