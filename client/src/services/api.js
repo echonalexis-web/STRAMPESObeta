@@ -598,6 +598,19 @@ export const systemOptionsAPI = {
   remove: (id) => api.delete(`/system-options/${id}`, getAuthHeader()),
 };
 
+// Profile banner templates. Any signed-in user reads the active list; the
+// superadmin manages them (validated gradient and pattern definitions only).
+export const bannerTemplateAPI = {
+  listActive: () => api.get('/banner-templates', getAuthHeader()),
+  adminList: () => api.get('/superadmin/banner-templates', getAuthHeader()),
+  create: (payload) => api.post('/superadmin/banner-templates', payload, getAuthHeader()),
+  update: (id, payload) => api.put(`/superadmin/banner-templates/${id}`, payload, getAuthHeader()),
+  setActive: (id, isActive) => api.patch(`/superadmin/banner-templates/${id}/active`, { isActive }, getAuthHeader()),
+  setDefault: (id) => api.patch(`/superadmin/banner-templates/${id}/default`, {}, getAuthHeader()),
+  reorder: (ids) => api.put('/superadmin/banner-templates/order', { ids }, getAuthHeader()),
+  remove: (id) => api.delete(`/superadmin/banner-templates/${id}`, getAuthHeader()),
+};
+
 // Employer self-service account endpoints (profile picture + the combined
 // document-upload/submit-for-verification step) — id-scoped, reachable even
 // before the account is verified.

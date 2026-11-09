@@ -1386,7 +1386,15 @@
       "STAFF_PASSWORD_INCORRECT": "Mali ang iyong password.",
       "REPORT_ACTION_FORBIDDEN": "Ang superadmin lang ang makakapag-suspend o makakapag-ban ng account.",
       "RECOVERY_PENDING": "May kasalukuyang PESO recovery na para sa account na ito.",
-      "ACCOUNT_INACTIVE": "Naka-suspend o na-deactivate ang account na ito."
+      "ACCOUNT_INACTIVE": "Naka-suspend o na-deactivate ang account na ito.",
+      "TEMPLATE_DEFINITION_INVALID": "Hindi wasto ang definition ng template. Tingnan ang pangalan, kulay at mga numero.",
+      "TEMPLATE_NAME_TAKEN": "May template na may ganitong pangalan.",
+      "TEMPLATE_IS_DEFAULT": "Hindi maaaring i-archive o burahin ang default na template. Pumili muna ng ibang default.",
+      "TEMPLATE_IN_USE": "May mga account na gumagamit ng template na ito. I-archive na lang.",
+      "TEMPLATE_ORDER_INVALID": "Hindi ma-save ang pagkakasunod-sunod. I-reload at subukang muli.",
+      "COVER_TEMPLATE_NOT_FOUND": "Hindi makita ang banner na iyon.",
+      "COVER_TEMPLATE_INACTIVE": "Hindi na available ang banner na iyon.",
+      "COVER_ONLY_TEMPLATE_ALLOWED": "Isa lamang sa mga banner sa listahan ang maaari mong piliin."
     }
   },
   "spes": {
@@ -2069,6 +2077,89 @@
   "report": {
     "applicant": {
       "button": "I-report ang aplikanteng ito"
+    }
+  },
+  "bannerTemplates": {
+    "title": "Mga template ng banner",
+    "subtitle": "Mga handang banner na mapipili para sa profile. Gradient at pattern lamang ang mga template. Ang mga account na walang pinili ay gagamit ng default.",
+    "new": "Bagong template",
+    "loading": "Naglo-load ng mga template…",
+    "loadError": "Hindi ma-load ang mga template ng banner.",
+    "empty": "Wala pang template. Makikita ng lahat ang built-in na Klasikong berde hanggang makapagdagdag ka.",
+    "saved": "Na-save ang template.",
+    "saveError": "Hindi ma-save ang template.",
+    "actionError": "Hindi gumana ang aksyong iyon.",
+    "archived": "Na-archive ang template.",
+    "activated": "Na-activate ang template.",
+    "defaultSet": "Napalitan ang default na template.",
+    "deleted": "Nabura ang template.",
+    "usedBy_one": "Ginagamit ng {{count}} account",
+    "usedBy_other": "Ginagamit ng {{count}} account",
+    "badge": {
+      "default": "Default",
+      "active": "Aktibo",
+      "archived": "Naka-archive"
+    },
+    "moveUp": "Itaas",
+    "moveDown": "Ibaba",
+    "moveUpFor": "Itaas ang {{name}}",
+    "moveDownFor": "Ibaba ang {{name}}",
+    "edit": "I-edit",
+    "archive": "I-archive",
+    "activate": "I-activate",
+    "setDefault": "Gawing default",
+    "delete": "Burahin",
+    "deleteBlocked": "Ginagamit ng mga account. I-archive na lang.",
+    "confirm": {
+      "ok": "Kumpirmahin",
+      "archiveTitle": "I-archive ang template na ito?",
+      "archiveBody_one": "{{count}} account ang gumagamit ng {{name}} at ipapakita na lang ang default na banner.",
+      "archiveBody_other": "{{count}} account ang gumagamit ng {{name}} at ipapakita na lang ang default na banner.",
+      "defaultTitle": "Palitan ang default na template?",
+      "defaultBody": "Ang mga account na walang napiling banner ay magpapakita ng {{name}}.",
+      "deleteTitle": "Burahin ang template na ito?",
+      "deleteBody": "Permanenteng aalisin ang {{name}}."
+    },
+    "form": {
+      "guide": "Ilagay ang mahahalagang hugis sa pagitan ng mga putol-putol na linya. Ang banner ay pinuputol sa gitna sa phone at desktop.",
+      "name": "Pangalan",
+      "nameFil": "Pangalan (Filipino)",
+      "kind": "Uri",
+      "kindGradient": "Gradient",
+      "kindPattern": "Pattern",
+      "overlay": "Teksto sa ibabaw ng banner",
+      "overlayDark": "Maliwanag na teksto (madilim na banner)",
+      "overlayLight": "Madilim na teksto (maliwanag na banner)",
+      "angle": "Anggulo ng gradient (0 hanggang 360)",
+      "stops": "Mga kulay ng gradient (2 hanggang 4)",
+      "stopColor": "Kulay",
+      "customColor": "Sariling hex",
+      "customColorValue": "Halaga ng hex",
+      "stopAt": "Posisyon (%)",
+      "addStop": "Magdagdag ng kulay",
+      "removeStop": "Alisin",
+      "patternType": "Pattern",
+      "patternColor": "Kulay ng pattern",
+      "patternMix": "Tindi ng kulay (%)",
+      "patternSize": "Laki (8 hanggang 80)",
+      "patternOpacity": "Opacity (0 hanggang 1)",
+      "patternFade": "Paglabo",
+      "types": {
+        "none": "Wala",
+        "dots": "Tuldok",
+        "rings": "Singsing",
+        "grid": "Grid",
+        "stripes": "Guhit"
+      },
+      "fades": {
+        "none": "Wala",
+        "left": "Malabo sa kaliwa",
+        "right": "Malabo sa kanan",
+        "center": "Malabo sa gilid"
+      },
+      "save": "I-save ang template",
+      "saving": "Sine-save…",
+      "cancel": "Kanselahin"
     }
   }
 }

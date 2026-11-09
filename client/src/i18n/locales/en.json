@@ -1386,7 +1386,15 @@
       "STAFF_PASSWORD_INCORRECT": "Your password is incorrect.",
       "REPORT_ACTION_FORBIDDEN": "Only the superadmin can suspend or ban an account.",
       "RECOVERY_PENDING": "A PESO recovery is already in progress for this account.",
-      "ACCOUNT_INACTIVE": "This account is suspended or deactivated."
+      "ACCOUNT_INACTIVE": "This account is suspended or deactivated.",
+      "TEMPLATE_DEFINITION_INVALID": "That template definition is not valid. Check the name, colors and numbers.",
+      "TEMPLATE_NAME_TAKEN": "A template with this name already exists.",
+      "TEMPLATE_IS_DEFAULT": "The default template cannot be archived or deleted. Pick another default first.",
+      "TEMPLATE_IN_USE": "Accounts are using this template. Archive it instead.",
+      "TEMPLATE_ORDER_INVALID": "The order could not be saved. Reload and try again.",
+      "COVER_TEMPLATE_NOT_FOUND": "That banner could not be found.",
+      "COVER_TEMPLATE_INACTIVE": "That banner is no longer available.",
+      "COVER_ONLY_TEMPLATE_ALLOWED": "You can only choose one of the banners in the list."
     }
   },
   "spes": {
@@ -2069,6 +2077,89 @@
   "report": {
     "applicant": {
       "button": "Report this applicant"
+    }
+  },
+  "bannerTemplates": {
+    "title": "Banner templates",
+    "subtitle": "Preset banners people can pick for their profile. Templates are gradients and patterns only. Accounts with no choice show the default.",
+    "new": "New template",
+    "loading": "Loading templates…",
+    "loadError": "Could not load banner templates.",
+    "empty": "No templates yet. Everyone sees the built-in Classic green until you add some.",
+    "saved": "Template saved.",
+    "saveError": "Could not save the template.",
+    "actionError": "That action did not work.",
+    "archived": "Template archived.",
+    "activated": "Template activated.",
+    "defaultSet": "Default template changed.",
+    "deleted": "Template deleted.",
+    "usedBy_one": "Used by {{count}} account",
+    "usedBy_other": "Used by {{count}} accounts",
+    "badge": {
+      "default": "Default",
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "moveUpFor": "Move {{name}} up",
+    "moveDownFor": "Move {{name}} down",
+    "edit": "Edit",
+    "archive": "Archive",
+    "activate": "Activate",
+    "setDefault": "Set as default",
+    "delete": "Delete",
+    "deleteBlocked": "Used by accounts. Archive it instead.",
+    "confirm": {
+      "ok": "Confirm",
+      "archiveTitle": "Archive this template?",
+      "archiveBody_one": "{{count}} account uses {{name}} and will show the default banner instead.",
+      "archiveBody_other": "{{count}} accounts use {{name}} and will show the default banner instead.",
+      "defaultTitle": "Change the default template?",
+      "defaultBody": "Accounts that have not picked a banner will show {{name}}.",
+      "deleteTitle": "Delete this template?",
+      "deleteBody": "{{name}} will be removed for good."
+    },
+    "form": {
+      "guide": "Keep key shapes between the dashed lines. The banner crops to the center on phones and desktops.",
+      "name": "Name",
+      "nameFil": "Name (Filipino)",
+      "kind": "Type",
+      "kindGradient": "Gradient",
+      "kindPattern": "Pattern",
+      "overlay": "Text over the banner",
+      "overlayDark": "Light text (dark banner)",
+      "overlayLight": "Dark text (light banner)",
+      "angle": "Gradient angle (0 to 360)",
+      "stops": "Gradient colors (2 to 4)",
+      "stopColor": "Color",
+      "customColor": "Custom hex",
+      "customColorValue": "Hex value",
+      "stopAt": "Position (%)",
+      "addStop": "Add color",
+      "removeStop": "Remove",
+      "patternType": "Pattern",
+      "patternColor": "Pattern color",
+      "patternMix": "Color strength (%)",
+      "patternSize": "Size (8 to 80)",
+      "patternOpacity": "Opacity (0 to 1)",
+      "patternFade": "Fade",
+      "types": {
+        "none": "None",
+        "dots": "Dots",
+        "rings": "Rings",
+        "grid": "Grid",
+        "stripes": "Stripes"
+      },
+      "fades": {
+        "none": "None",
+        "left": "Fade on the left",
+        "right": "Fade on the right",
+        "center": "Fade at the edges"
+      },
+      "save": "Save template",
+      "saving": "Saving…",
+      "cancel": "Cancel"
     }
   }
 }

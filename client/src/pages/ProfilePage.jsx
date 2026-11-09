@@ -43,7 +43,7 @@ import ImageEditorModal from "../components/ImageEditorModal";
 import JobseekerDocumentsPanel from "../components/JobseekerDocumentsPanel";
 import VerificationTab from "../components/VerificationTab";
 import { downloadBlob } from "../utils/exportUtils";
-import useParallaxLayer from "../hooks/useParallaxLayer";
+import ProfileBanner from "../components/ProfileBanner";
 import StateBlock from "../components/StateBlock";
 import Pagination from "../components/Pagination";
 import usePagination from "../hooks/usePagination";
@@ -234,19 +234,6 @@ const AccItem = ({ id, title, open, onToggle, children }) => (
 );
 
 const EmptyNote = ({ children }) => <p className="rd2-empty">{children}</p>;
-
-// Decorative cover band behind the header: a dotted pattern on its own
-// parallax layer. Its own component so the layer registers when the header
-// actually mounts (ProfilePage returns early while an admin/employer view
-// is still loading).
-const ProfileCover = () => {
-  const dotsRef = useParallaxLayer(0.08, 20);
-  return (
-    <div className="rd2-cover" aria-hidden="true">
-      <span ref={dotsRef} className="rd2-cover-dots mx-parallax" />
-    </div>
-  );
-};
 
 const VerificationBadge = ({ status }) => {
   const map = {
@@ -764,7 +751,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
     <div className={`rd-page${isEmployerView ? " rd-page--with-topbar" : ""}`}>
       <section className="rd-shell">
         <header className="rd2-head ds-card">
-          <ProfileCover />
+          <ProfileBanner cover={profile?.cover} />
           <div className="rd2-head-row">
             <div className={`rd2-avatar-wrap${isEmployer ? " rd2-avatar-wrap--company" : ""}`}>
               <button

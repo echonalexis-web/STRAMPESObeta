@@ -17,6 +17,7 @@ import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
 import MatchWeightBoundsSettings from "../../components/MatchWeightBoundsSettings";
 import SystemOptionsSettings from "../../components/SystemOptionsSettings";
+import BannerTemplatesSettings from "../../components/BannerTemplatesSettings";
 import StateBlock from "../../components/StateBlock";
 import useParallaxLayer from "../../hooks/useParallaxLayer";
 import { superadminAPI } from "../../services/api";
@@ -457,6 +458,7 @@ export default function SuperadminConsole() {
         <NsrpTemplateSettings />
         <MatchWeightBoundsSettings />
         <SystemOptionsSettings />
+        <BannerTemplatesSettings />
       </main>
 
       {/* ── Slide-over: provisioning form ─────────────────────── */}
