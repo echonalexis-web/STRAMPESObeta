@@ -139,6 +139,7 @@ const buildJobParams = (filters, page, limit) => ({
 const USER_COLUMNS = [
   { key: "name", label: "Name", get: (r) => r.name || "—" },
   { key: "email", label: "Email", get: (r) => r.email || "—" },
+  { key: "username", label: "Username", get: (r) => r.username || "—" },
   { key: "status", label: "Status", get: (r) => (r.isActive === false ? "Inactive" : "Active") },
   { key: "joined", label: "Joined", get: (r) => formatDate(r.createdAt) },
 ];

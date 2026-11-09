@@ -98,7 +98,7 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
     
-    if (error.response?.status === 429 && !originalRequest._retry) {
+    if (error.response?.status === 429 && !error.response?.data?.code && !originalRequest._retry) {
       originalRequest._retry = true;
       const retryCount = originalRequest._retryCount || 0;
       originalRequest._retryCount = retryCount + 1;
@@ -135,6 +135,12 @@ api.interceptors.response.use(
         window.location.href = "/account-suspended";
       }
       return Promise.reject(error);
+    }
+
+    // A jobseeker without a verified email hit a gated action. Tell the email
+    // gate to open (components/EmailGate.jsx); the caller still gets the error.
+    if (error.response?.status === 403 && error.response?.data?.code === "EMAIL_REQUIRED") {
+      window.dispatchEvent(new Event("email:required"));
     }
 
     // Account self-deactivated (in another session/tab), a staff account
@@ -258,8 +264,16 @@ export const authAPI = {
   // when the primary inbox is itself unreachable) — silently falls back to
   // primary server-side if no verified recovery email exists, so this is
   // always safe to pass.
-  forgotPassword: (email, useRecoveryEmail = false) =>
-    api.post('/auth/forgot-password', { email, useRecoveryEmail }),
+  forgotPassword: (emailOrUsername, useRecoveryEmail = false) =>
+    api.post('/auth/forgot-password', { email: emailOrUsername, identifier: emailOrUsername, useRecoveryEmail }),
+  // Username sign-up: signed form token (honeypot + minimum submit time).
+  getSignupToken: () => api.get('/auth/signup-token'),
+  // Neutral answer always; the username is mailed only to a verified email.
+  forgotUsername: (email) => api.post('/auth/forgot-username', { email }),
+  // Add a first email to a username-only account. Needs the current password.
+  requestAddEmail: (payload) => api.post('/auth/email/add/request', payload, getAuthHeader()),
+  // Success returns a fresh { token, user }: the old token is no longer valid.
+  verifyAddEmail: (code) => api.post('/auth/email/add/verify', { code }, getAuthHeader()),
   resetPassword: (payload) => api.post('/auth/reset-password', payload),
   // `intent` ("employer" | "jobseeker") is only honoured when the Google account
   // is brand new — it decides which role/profile the account is created with.
@@ -415,6 +429,9 @@ export const jobseekerDocumentAPI = {
 };
 
 export const adminAPI = {
+  // Username-only accounts: counts only, and unlocking a locked-out jobseeker.
+  getAccountSecuritySummary: () => api.get('/admin/accounts/security-summary', getAuthHeader()),
+  unlockLogin: (id, reason) => api.put(`/admin/users/${id}/unlock-login`, { reason }, getAuthHeader()),
   getJob: (id) => api.get(`/admin/jobs/${id}`, getAuthHeader()),
   updateJob: (id, payload) => api.put(`/admin/jobs/${id}`, payload, getAuthHeader()),
   getUsers: async (params = {}) => {

@@ -533,6 +533,8 @@ exports.getAllUsers = async (req, res) => {
       filter.$or = [
         { name: { $regex: escapeRegex(search), $options: "i" } },
         { email: { $regex: escapeRegex(search), $options: "i" } },
+        // Username-only accounts have no email: admins find them by username.
+        { username: { $regex: escapeRegex(search), $options: "i" } },
       ];
     }
 
@@ -540,7 +542,7 @@ exports.getAllUsers = async (req, res) => {
       User.countDocuments(filter),
       User.find(filter)
         .select(
-          "name email role createdAt hasCompletedOnboarding verificationStatus isActive companyName businessPermitUrl registrationDocUrl verificationNote verificationSubmittedAt"
+          "name email username role createdAt hasCompletedOnboarding verificationStatus isActive companyName businessPermitUrl registrationDocUrl verificationNote verificationSubmittedAt"
         )
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)

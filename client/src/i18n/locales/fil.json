@@ -98,7 +98,9 @@
     "employer": "Employer",
     "login": "Mag-login",
     "joinAs": "Sumali bilang:",
-    "close": "Isara"
+    "close": "Isara",
+    "emailNotAdded": "Hindi pa naidagdag",
+    "noEmailOnFile": "Walang email na naka-file"
   },
   "publicNavbar": {
     "navigation": "Pangunahing nabigasyon",
@@ -269,11 +271,11 @@
       },
       "username": {
         "title": "Username",
-        "hint": "Isang paraan pa para mag-sign in, sa halip na i-type ang iyong email. Mga letra, numero, \".\" at \"_\" lamang — 3 hanggang 30 na karakter. Maaari mo itong palitan muli pagkalipas ng 30 araw.",
+        "hint": "Isa pang paraan para mag-sign in, sa halip na i-type ang iyong email. Mga letra, numero, \".\" at \"_\" lamang: 3 hanggang 30 na karakter. Maaari mo itong palitan muli pagkalipas ng 30 araw.",
         "label": "Username",
         "placeholder": "hal. juan_delacruz",
         "currentHint": "Maka-sign in ka gamit ang {{username}}, o ang iyong email.",
-        "noneHint": "Wala ka pang username — maka-sign in ka lang pa rin gamit ang iyong email.",
+        "noneHint": "Wala ka pang username. Pumili ng isa para magamit mo ito sa pag-sign in.",
         "change": "Palitan",
         "setOne": "Magtakda ng username",
         "available": "Available ang username na ito.",
@@ -290,7 +292,7 @@
         "add": "Idagdag",
         "change": "Palitan",
         "needsPasswordHint": "Magtakda muna ng password (Settings → Security → Add a password) bago magdagdag ng recovery email.",
-        "formHint": "Dapat iba ito sa iyong sign-in email. Kumpirmahin ang kasalukuyang password mo para gawin ang pagbabagong ito.",
+        "formHint": "Dapat iba ito sa email ng iyong account, kung mayroon ka. Kumpirmahin ang kasalukuyang password mo para gawin ang pagbabagong ito.",
         "emailLabel": "Recovery email address",
         "emailPlaceholder": "ikaw@example.com",
         "currentPasswordLabel": "Kasalukuyang password",
@@ -366,7 +368,10 @@
         "saveError": "Hindi ma-save. I-refresh at suriin ang pinakabagong ID.",
         "upload": "Government ID (opsyonal)",
         "resume": "Resume (opsyonal)"
-      }
+      },
+      "emailNotSet": "Hindi pa naitakda",
+      "addEmail": "Magdagdag ng email",
+      "emailUnverifiedHint": "Magdagdag at mag-verify ng email para makapag-apply sa trabaho at makapag-message sa employer."
     },
     "language": {
       "title": "Wika at Rehiyon",
@@ -1023,6 +1028,24 @@
       "errorTitle": "Hindi ma-load ang profile na ito",
       "notFound": "Hindi nahanap ang profile ng user",
       "notFoundDescription": "Maaaring natanggal na ang account na ito, o mali ang link."
+    },
+    "accounts": {
+      "title": "Mga account na walang email",
+      "emailLessCount": "Mga account na walang email",
+      "idleNoEmail": "Walang aktibidad nang {{days}} araw o higit pa, walang email",
+      "locksLast24h": "Mga lockout sa nakaraang 24 oras",
+      "locksLast7d": "Mga lockout sa nakaraang 7 araw",
+      "lockedNow": "Naka-lock ngayon",
+      "unlock": "I-unlock ang sign-in",
+      "unlockConfirm": "I-unlock ang account na ito? Sabihin kung bakit (mase-save ito sa audit log).",
+      "unlockReason": "Dahilan",
+      "unlockReasonPlaceholder": "Halimbawa: na-verify nang personal",
+      "unlocked": "Na-unlock na ang sign-in.",
+      "nothingToUnlock": "Hindi naka-lock ang account na ito.",
+      "unlockError": "Hindi ma-unlock ang account na ito.",
+      "noEmail": "Walang email",
+      "username": "Username",
+      "loadError": "Hindi ma-load ang buod."
     }
   },
   "superadmin": {
@@ -1290,7 +1313,25 @@
       "UPLOAD_ONE_FILE": "Magdagdag ng isang file lang sa bawat pagkakataon.",
       "UPLOAD_NETWORK": "Walang koneksyon. Tingnan ang iyong internet at subukan muli.",
       "UPLOAD_TIMEOUT": "Natagalan ang pag-upload. Subukan muli.",
-      "UPLOAD_CANCELED": "Nakansela ang pag-upload."
+      "UPLOAD_CANCELED": "Nakansela ang pag-upload.",
+      "EMAIL_REQUIRED": "Magdagdag at mag-verify ng email para magawa ito.",
+      "EMAIL_CODE_INVALID": "Hindi gumana ang code. Suriin ito, humingi ng bago, o gumamit ng ibang email.",
+      "EMAIL_CODE_COOLDOWN": "Mangyaring maghintay sandali bago humingi ng bagong code.",
+      "EMAIL_CODE_LIMIT": "Masyadong maraming code ang hiniling. Subukan muli mamaya.",
+      "EMAIL_INVALID": "Maglagay ng wastong email address.",
+      "EMAIL_ALREADY_SET": "May email address na ang account na ito.",
+      "USERNAME_TAKEN": "Gamit na ang username na iyon.",
+      "USERNAME_INVALID": "Pumili ng wastong username.",
+      "SIGNUP_DISABLED": "Hindi pa available ang pag-sign up gamit ang username.",
+      "SIGNUP_REJECTED": "Hindi namin nagawa ang account. Paki-reload ang page at subukan muli.",
+      "RATE_LIMITED": "Masyadong maraming sign-up mula sa network na ito. Subukan muli mamaya.",
+      "PASSWORD_INCORRECT": "Hindi gumana ang password na iyon.",
+      "PASSWORD_WEAK": "Gumamit ng hindi bababa sa 8 karakter na may malaki at maliit na letra, numero at special character.",
+      "PASSWORD_TOO_COMMON": "Masyadong karaniwan ang password na iyon. Pumili ng mas mahirap hulaan.",
+      "PASSWORD_SAME_AS_USERNAME": "Hindi puwedeng maging username ang password o maglaman nito.",
+      "PASSWORD_SAME_AS_BIRTHDATE": "Hindi puwedeng maging petsa ng kapanganakan ang password.",
+      "PASSWORD_TOO_SHORT_USERNAME_MODE": "Ang account na walang email ay nangangailangan ng password na hindi bababa sa 10 karakter.",
+      "REASON_REQUIRED": "Maglagay ng maikling dahilan (hindi bababa sa 5 karakter)."
     }
   },
   "spes": {
@@ -1809,5 +1850,113 @@
       "announcements": "anunsyo",
       "jobs": "trabaho"
     }
+  },
+  "register": {
+    "modeLabel": "Paano mo gustong mag-sign up?",
+    "modeEmail": "Gamitin ang email",
+    "modeUsername": "Username lang",
+    "usernameLabel": "Username",
+    "usernameHint": "3 hanggang 30 na karakter: mga letra, numero, tuldok at underscore. Ito ang gagamitin mo sa pag-sign in.",
+    "usernameOnlyNote": "Maaari kang magdagdag ng email sa susunod. Kailangan mo ng verified na email para mag-apply sa trabaho, mag-message sa employer at mag-upload ng dokumento.",
+    "passwordHint": "Hindi bababa sa {{min}} na karakter, may malaki at maliit na letra, numero at special character.",
+    "createAccount": "Gumawa ng account",
+    "creating": "Ginagawa ang account...",
+    "signedInContinue": "Nagawa na ang account. Tapusin natin ang iyong profile.",
+    "formReloading": "Mangyaring maghintay sandali at subukan muli."
+  },
+  "password": {
+    "strengthHint": "Dapat may laman ang password na:",
+    "ok": "Natutugunan ng password ang lahat ng kailangan",
+    "tooShort": "Hindi bababa sa 8 karakter",
+    "tooShortUsernameMode": "Hindi bababa sa 10 karakter (mas mahaba ang kailangan sa account na walang email)",
+    "upper": "Isang malaking letra",
+    "lower": "Isang maliit na letra",
+    "number": "Isang numero",
+    "special": "Isang special character",
+    "sameAsUsername": "Hindi puwedeng maging username o maglaman nito",
+    "sameAsBirthDate": "Hindi puwedeng maging petsa ng kapanganakan",
+    "tooCommon": "Masyadong karaniwan. Pumili ng mas mahirap hulaan"
+  },
+  "emailStep": {
+    "title": "Idagdag ang iyong email",
+    "intro": "Magpapadala kami ng 6-digit na code para makumpirmang sa iyo ito.",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "ikaw@example.com",
+    "passwordLabel": "Kasalukuyang password",
+    "passwordHint": "Hinihingi namin ang password mo para walang ibang makapag-dagdag ng email sa account mo.",
+    "showPassword": "Ipakita ang password",
+    "hidePassword": "Itago ang password",
+    "sendCode": "Ipadala ang code",
+    "sending": "Ipinapadala...",
+    "skip": "Laktawan muna",
+    "codeTitle": "Ilagay ang iyong code",
+    "codeHint": "Ilagay ang 6-digit na code na ipinadala namin sa {{email}}. Mag-e-expire ito sa loob ng 10 minuto.",
+    "codeLabel": "6-digit na code",
+    "verify": "I-verify",
+    "verifying": "Bine-verify...",
+    "resendIn": "Ipadala muli sa {{time}}",
+    "resend": "Magpadala ng bagong code",
+    "useAnother": "Gumamit ng ibang email",
+    "success": "Na-verify na ang iyong email.",
+    "cooldown": "Mangyaring maghintay ng {{time}} bago humingi ng bagong code.",
+    "hourlyLimit": "Masyadong maraming code ang hiniling. Subukan muli sa loob ng {{time}}.",
+    "backupTitle": "I-save ang backup codes",
+    "backupBody": "Kung walang email, hindi ka makakatanggap ng link para i-reset ang password. Sa backup codes, makakabalik ka kung makalimutan mo ang password.",
+    "backupGenerate": "Gumawa at i-download",
+    "backupNotNow": "Huwag muna",
+    "backupDone": "Na-save na ang backup codes. Itago ang file sa ligtas na lugar.",
+    "backupError": "Hindi nakagawa ng backup codes. Subukan muli sa Settings.",
+    "close": "Isara"
+  },
+  "emailBanner": {
+    "message": "Magdagdag at mag-verify ng email para mag-apply sa trabaho, mag-message sa employer at mag-upload ng dokumento.",
+    "addEmail": "Magdagdag ng email",
+    "saveBackupCodes": "I-save ang backup codes",
+    "applyBlocked": "Magdagdag at mag-verify ng email para makapag-apply sa trabahong ito.",
+    "messageBlocked": "Magdagdag at mag-verify ng email para makapagpadala ng mensahe.",
+    "uploadBlocked": "Magdagdag at mag-verify ng email para makapag-upload ng file."
+  },
+  "login": {
+    "rememberUsername": "Tandaan ang username ko sa device na ito",
+    "clearRemembered": "Hindi ikaw? Burahin",
+    "forgotUsername": "Nakalimutan ang username?",
+    "lockedGeneric": "Maling username o password, o pansamantalang naka-lock ang account. Subukan muli mamaya, i-reset ang password, o magtanong sa PESO office."
+  },
+  "forgot": {
+    "identifierLabel": "Email o username",
+    "identifierPlaceholder": "Email o username",
+    "intro": "Ilagay ang email o username ng iyong account. Kung may verified na email ito, magpapadala kami ng reset link doon.",
+    "submit": "Ipadala ang reset link",
+    "sending": "Ipinapadala...",
+    "neutralMessage": "Kung may verified na email ang account na iyon, papunta na ang link para i-reset ang password. Mag-e-expire ang link sa loob ng 30 minuto.",
+    "noEmailTitle": "Walang email ang account mo?",
+    "noEmailBody": "Hindi kami makakapagpadala ng link kung walang verified na email. Gumamit ng backup code kung may na-save ka, o magpatulong sa PESO office para mabawi ang account.",
+    "useBackupCode": "Bawiin gamit ang backup code",
+    "askPeso": "Magtanong sa PESO office",
+    "forgotUsername": "Nakalimutan ang username?",
+    "required": "Pakilagay ang iyong email o username."
+  },
+  "forgotUsername": {
+    "title": "Nakalimutan ang username?",
+    "intro": "Ilagay ang email ng iyong account. Kung verified ito, ipapadala namin ang username doon.",
+    "emailLabel": "Email address",
+    "send": "Ipadala ang username ko",
+    "sending": "Ipinapadala...",
+    "neutralMessage": "Kung may account na gumagamit ng email na iyon, ipinadala na namin ang username nito.",
+    "noEmailNote": "Walang email ang account mo? Hindi namin maipapadala ang username. Pumunta o tumawag sa PESO office.",
+    "required": "Pakilagay ang iyong email.",
+    "back": "Bumalik sa login"
+  },
+  "alerts": {
+    "emailAddedTitle": "May email na naidagdag sa account mo",
+    "emailAddedBody": "May email address na naidagdag at na-verify sa account mo. Kung hindi ikaw ito, palitan agad ang password.",
+    "passwordChangedTitle": "Napalitan ang iyong password",
+    "passwordChangedBody": "Napalitan ang password ng account mo. Kung hindi ikaw ito, i-reset agad at makipag-ugnayan sa PESO office.",
+    "newSignInTitle": "Bagong sign-in",
+    "newSignInBody": "Nag-sign in ang account mo mula sa browser o device na hindi pa namin nakikita. Kung hindi ikaw ito, palitan ang password.",
+    "failedAttemptsTitle": "Mga bigong pagtatangkang mag-sign in",
+    "failedAttemptsBody": "Maraming maling password ang inilagay sa account mo bago ka nakapag-sign in.",
+    "accountLockedTitle": "Pansamantalang naka-lock ang iyong account",
+    "accountLockedBody": "Masyadong maraming maling password. Naka-pause muna ang pag-sign in. Maaari mong i-reset ang password, gumamit ng backup code, o magtanong sa PESO office."
   }
 }

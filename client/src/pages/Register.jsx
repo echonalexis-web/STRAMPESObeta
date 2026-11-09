@@ -1,4 +1,4 @@
-﻿import { useState, useContext } from "react";
+﻿import { useState, useContext, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
@@ -11,6 +11,8 @@ import { useTranslation } from "react-i18next";
 import DobPrompt from "../components/DobPrompt";
 import { checkDobInput, getManilaTodayISO } from "../utils/age";
 import { translateErrorCode } from "../utils/apiErrors";
+import { isUsernameSignupEnabled, passwordProblems, MIN_PASSWORD_LENGTH_USERNAME_ONLY } from "../utils/usernameSignup";
+import "../styles/username-signup.css";
 
 // Honest limit: this only remembers an under-15 attempt for this browser
 // session so the form is not offered again straight away. A determined child can
@@ -121,6 +123,12 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState([]);
+  // Username-only sign-up (jobseekers). Off unless the build enables it.
+  const usernameFeature = isUsernameSignupEnabled();
+  const [mode, setMode] = useState("email");
+  const usernameMode = usernameFeature && mode === "username";
+  const [signupToken, setSignupToken] = useState("");
+  const [honeypot, setHoneypot] = useState("");
   const [touched, setTouched] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
@@ -132,6 +140,19 @@ export default function Register() {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
   const toast = useToast();
+
+  // The signed form token (anti-bot) is fetched when username mode is chosen,
+  // and again after a rejected attempt.
+  const refreshSignupToken = () =>
+    authAPI
+      .getSignupToken()
+      .then(({ data }) => setSignupToken(data?.formToken || ""))
+      .catch(() => setSignupToken(""));
+
+  useEffect(() => {
+    if (!usernameMode) return;
+    refreshSignupToken();
+  }, [usernameMode]);
 
   // On a long form, a plain inline banner can end up far above whatever the
   // user has scrolled down to fill in next — this fires a toast alongside it
@@ -184,7 +205,7 @@ export default function Register() {
     const newTouched = { surname: true, firstName: true, email: true, password: true };
     setTouched(newTouched);
 
-    if (!formData.surname.trim() && !formData.firstName.trim() && !formData.email.trim() && !formData.password) {
+    if (!formData.surname.trim() && !formData.firstName.trim() && (usernameMode || !formData.email.trim()) && !formData.password) {
       showError("Please fill in all required fields.");
       return;
     }
@@ -196,7 +217,7 @@ export default function Register() {
       showError("Please enter your first name.");
       return;
     }
-    if (!formData.email.trim()) {
+    if (!usernameMode && !formData.email.trim()) {
       showError("Please enter your email address.");
       return;
     }
@@ -219,14 +240,21 @@ export default function Register() {
     }
 
     // Validate password
-    const passwordValidationErrors = validatePassword(formData.password);
+    const passwordValidationErrors = usernameMode
+      ? passwordProblems({
+          password: formData.password,
+          username: formData.username,
+          dateOfBirth: formData.dateOfBirth,
+          usernameOnly: true,
+        }).map((key) => t(`password.${key}`))
+      : validatePassword(formData.password);
     if (passwordValidationErrors.length > 0) {
       setPasswordErrors(passwordValidationErrors);
       return;
     }
 
     // Basic email validation
-    if (!formData.email.includes("@") || !formData.email.includes(".")) {
+    if (!usernameMode && (!formData.email.includes("@") || !formData.email.includes("."))) {
       showError("Please enter a valid email address.");
       return;
     }
@@ -241,6 +269,10 @@ export default function Register() {
     // AND the live check already came back negative. The server re-checks
     // regardless (the authority here), this just avoids a pointless round
     // trip when the client already knows the answer.
+    if (usernameMode && formData.username.trim().length < 3) {
+      showError(t("errors.codes.USERNAME_INVALID"));
+      return;
+    }
     if (formData.username.trim() && usernameCheck.status === "unavailable") {
       showError(usernameCheck.message || "That username is already taken.");
       return;
@@ -260,6 +292,28 @@ export default function Register() {
       const middleName = formData.middleName.trim();
       const suffix = formData.suffix.trim();
       const composedName = [firstName, middleName, surname, suffix].filter(Boolean).join(" ");
+
+      if (usernameMode) {
+        const { data } = await authAPI.register({
+          signupMode: "username",
+          name: composedName,
+          surname,
+          firstName,
+          middleName,
+          suffix,
+          dateOfBirth: formData.dateOfBirth,
+          password: formData.password,
+          username: formData.username.trim(),
+          formToken: signupToken,
+          website: honeypot,
+        });
+        if (!data?.token) throw new Error("Invalid response from server");
+        // A username-only account gets its session straight away (nothing to verify).
+        await login(data.token, { ...data.user, role: normalizeRole(data.user?.role) });
+        toast.success(t("register.signedInContinue"));
+        navigate("/onboarding");
+        return;
+      }
 
       const { data: registerResponse } = await authAPI.register({
         name: composedName,
@@ -293,6 +347,8 @@ export default function Register() {
         setAgeBlocked(true);
         return;
       }
+      // The token is single-purpose: ask for a fresh one after any username-mode failure.
+      if (usernameMode) refreshSignupToken();
       showError(translateErrorCode(err?.response?.data?.code) || formatApiError(err, "Registration failed"));
     } finally {
       setLoading(false);
@@ -376,8 +432,16 @@ export default function Register() {
     }
   };
 
-  const showPasswordRequirements = touched.password && passwordErrors.length > 0 && isPasswordFocused;
-  const showPasswordSuccess = touched.password && passwordErrors.length === 0 && formData.password.length > 0;
+  const displayedPasswordErrors = usernameMode
+    ? passwordProblems({
+        password: formData.password,
+        username: formData.username,
+        dateOfBirth: formData.dateOfBirth,
+        usernameOnly: true,
+      }).map((key) => t(`password.${key}`))
+    : passwordErrors;
+  const showPasswordRequirements = touched.password && displayedPasswordErrors.length > 0 && isPasswordFocused;
+  const showPasswordSuccess = touched.password && displayedPasswordErrors.length === 0 && formData.password.length > 0;
 
   return (
     <RegistrationLayout>
@@ -404,6 +468,35 @@ export default function Register() {
         </div>
       ) : (
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
+        {usernameFeature && (
+          <fieldset className="su-mode" style={{ border: 0, margin: 0 }}>
+            <legend className="su-mode__legend">{t("register.modeLabel")}</legend>
+            <button
+              type="button"
+              className="su-mode__btn"
+              aria-pressed={!usernameMode}
+              onClick={() => {
+                setMode("email");
+                showError("");
+              }}
+              disabled={loading}
+            >
+              {t("register.modeEmail")}
+            </button>
+            <button
+              type="button"
+              className="su-mode__btn"
+              aria-pressed={usernameMode}
+              onClick={() => {
+                setMode("username");
+                showError("");
+              }}
+              disabled={loading}
+            >
+              {t("register.modeUsername")}
+            </button>
+          </fieldset>
+        )}
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="surname">Surname</label>
@@ -470,6 +563,7 @@ export default function Register() {
           </div>
         </div>
 
+        {!usernameMode && (
         <div className="form-group">
           <label htmlFor="email">Email Address</label>
           <div className="auth-input-wrap">
@@ -490,6 +584,7 @@ export default function Register() {
             />
           </div>
         </div>
+        )}
 
         <div className="form-group">
           <label htmlFor="dateOfBirth">{t("ageGate.dobLabel")}</label>
@@ -510,14 +605,17 @@ export default function Register() {
         </div>
 
         <div className="form-group">
-          <label htmlFor="username">Username <span className="optional-label">(optional)</span></label>
+          <label htmlFor="username">
+            {usernameMode ? t("register.usernameLabel") : <>Username <span className="optional-label">(optional)</span></>}
+          </label>
           <div className="auth-input-wrap">
             <FaAt className="auth-input-icon" aria-hidden="true" />
             <input
               id="username"
               type="text"
               name="username"
-              placeholder="A second way to sign in"
+              placeholder={usernameMode ? t("register.usernameLabel") : "A second way to sign in"}
+              required={usernameMode}
               value={formData.username}
               onChange={handleChange}
               disabled={loading}
@@ -534,6 +632,7 @@ export default function Register() {
           {usernameCheck.status === "unavailable" && (
             <span className="password-error">{usernameCheck.message}</span>
           )}
+          {usernameMode && <span className="su-hint">{t("register.usernameHint")}</span>}
         </div>
 
         <div className="form-group">
@@ -568,17 +667,41 @@ export default function Register() {
 
           {showPasswordRequirements && (
             <div className="password-requirements">
-              <span className="password-requirements-title">Password must contain:</span>
-              {passwordErrors.map((err, index) => (
+              <span className="password-requirements-title">
+                {usernameMode ? t("password.strengthHint") : "Password must contain:"}
+              </span>
+              {displayedPasswordErrors.map((err, index) => (
                 <span key={index} className="password-error">• {err}</span>
               ))}
             </div>
           )}
 
           {showPasswordSuccess && (
-            <span className="password-valid">✓ Password meets all requirements</span>
+            <span className="password-valid">✓ {usernameMode ? t("password.ok") : "Password meets all requirements"}</span>
+          )}
+          {usernameMode && (
+            <span className="su-hint">{t("register.passwordHint", { min: MIN_PASSWORD_LENGTH_USERNAME_ONLY })}</span>
           )}
         </div>
+
+        {usernameMode && (
+          <>
+            {/* Honeypot: hidden from people and assistive tech; bots that fill every field give themselves away. */}
+            <div className="su-honeypot" aria-hidden="true">
+              <label htmlFor="website">Website</label>
+              <input
+                id="website"
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+              />
+            </div>
+            <p className="su-note">{t("register.usernameOnlyNote")}</p>
+          </>
+        )}
 
         <label className="auth-checkbox-row">
           <input
@@ -597,7 +720,13 @@ export default function Register() {
 
         <button type="submit" className="auth-button" disabled={loading || !agreedToTerms}>
           <FaUserPlus aria-hidden="true" />
-          {loading ? "Creating Account..." : "Create Account"}
+          {loading
+            ? usernameMode
+              ? t("register.creating")
+              : "Creating Account..."
+            : usernameMode
+              ? t("register.createAccount")
+              : "Create Account"}
         </button>
       </form>
       )}

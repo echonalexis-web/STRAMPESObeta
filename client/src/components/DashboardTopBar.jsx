@@ -5,6 +5,8 @@ import { AuthContext } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { messageAPI, resolveAssetUrl } from "../services/api";
 import { useNotifications } from "../hooks/useNotifications";
+import { localizedAlert } from "../utils/alertText";
+import { userContactLabel } from "../utils/usernameSignup";
 import { OPEN_FLOATING_MESSENGER_EVENT } from "./FloatingMessenger";
 import "../styles/dashboard-topbar.css";
 import { FaBell, FaCommentDots, FaCheck, FaUserShield } from "react-icons/fa";
@@ -402,9 +404,9 @@ export default function DashboardTopBar() {
                     >
                       <span className="dtb-dropdown-item-title-row">
                         {!item.isRead && <span className="dtb-unread-dot" aria-hidden="true" />}
-                        <span className="dtb-dropdown-item-title">{item.title}</span>
+                        <span className="dtb-dropdown-item-title">{localizedAlert(item, t).title}</span>
                       </span>
-                      <span className="dtb-dropdown-item-message">{item.message}</span>
+                      <span className="dtb-dropdown-item-message">{localizedAlert(item, t).message}</span>
                       <span className="dtb-dropdown-item-time">{formatRelativeTime(item.createdAt)}</span>
                     </button>
                   ))
@@ -490,7 +492,7 @@ export default function DashboardTopBar() {
           )}
           <span className="dtb-user-text">
             <span className="dtb-user-name">{user?.name}</span>
-            <span className="dtb-user-email">{user?.email}</span>
+            <span className="dtb-user-email">{userContactLabel(user, { emptyLabel: "" })}</span>
           </span>
         </button>
       </div>

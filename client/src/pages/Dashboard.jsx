@@ -4,6 +4,7 @@ import { AuthContext } from "../context/AuthContext";
 import { jobAPI, newsAPI, resolveAssetUrl } from "../services/api";
 import VacancyCard from "../components/VacancyCard";
 import { isJobVacancyEligibleAge } from "../utils/age";
+import { userContactLabel } from "../utils/usernameSignup";
 import ApplyModal from "../components/ApplyModal";
 import PageHero from "../components/PageHero";
 import MetricCard from "../components/MetricCard";
@@ -344,7 +345,7 @@ export default function Dashboard() {
                   </div>
                   <div className="jsd-profile__details">
                     <h2>{user.name}</h2>
-                    <p className="jsd-profile__email">{user.email}</p>
+                    <p className="jsd-profile__email">{userContactLabel(user, { emptyLabel: "" })}</p>
                     <span className="ds-badge">{t("dashboard.jobSeeker")}</span>
                   </div>
                 </div>

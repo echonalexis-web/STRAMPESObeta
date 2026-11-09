@@ -19,6 +19,7 @@ import { useNotifications } from "../hooks/useNotifications";
 import { useToast } from "../components/feedback/context";
 import StateBlock from "../components/StateBlock";
 import Pagination from "../components/Pagination";
+import { localizedAlert } from "../utils/alertText";
 import usePagination from "../hooks/usePagination";
 import "../styles/notifications.css";
 
@@ -213,10 +214,10 @@ export default function Notifications() {
 
                   <div className="notification-card__content">
                     <div className="notification-card__topline">
-                      <h2>{item.title || "Notification"}</h2>
+                      <h2>{localizedAlert(item, t).title || "Notification"}</h2>
                       <time dateTime={item.createdAt}>{formatDateTime(item.createdAt)}</time>
                     </div>
-                    <p>{item.message}</p>
+                    <p>{localizedAlert(item, t).message}</p>
                   </div>
                 </button>
 

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { FaEnvelope } from "react-icons/fa";
+import { useTranslation } from "react-i18next";
 import { authAPI } from "../services/api";
+import { openEmailGate } from "../utils/emailGateEvents";
 
 /**
  * Self-contained "change your sign-in email" panel. Lives outside the main
@@ -9,6 +11,7 @@ import { authAPI } from "../services/api";
  * address (handled by /verify-email).
  */
 export default function EmailChangeCard({ currentEmail }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,6 +48,27 @@ export default function EmailChangeCard({ currentEmail }) {
       setLoading(false);
     }
   };
+
+  // A username-only account has no email to change: offer to add one with the
+  // code flow (components/EmailGate.jsx) instead of the change-by-link form.
+  if (!currentEmail) {
+    return (
+      <section className="email-change-card">
+        <div className="email-change-card__head">
+          <div className="email-change-card__title">
+            <FaEnvelope />
+            <div>
+              <h2>Email address</h2>
+              <p>{t("settings.account.emailNotSet")}</p>
+            </div>
+          </div>
+          <button type="button" className="email-change-card__toggle" onClick={() => openEmailGate()}>
+            {t("settings.account.addEmail")}
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="email-change-card">

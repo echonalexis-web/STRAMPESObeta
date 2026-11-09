@@ -130,7 +130,8 @@ const completionForRole = (profile, role) => {
   const checksByRole = {
     jobseeker: [
       Boolean(profile?.name),
-      Boolean(profile?.email),
+      // A username-only account has no email until it adds one.
+      Boolean(profile?.email || profile?.username),
       Boolean(profile?.phone),
       Boolean(profile?.about),
       Boolean(profile?.address),
@@ -1058,7 +1059,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
           <main className="rd2-body">
             <Section id="sec-account" icon={<FaUser />} title="Account">
               <div className="rd2-rows">
-                <DataItem label="Email" value={profile?.email} />
+                <DataItem label="Email" value={profile?.email || t("common.emailNotAdded")} />
                 <DataItem label="Phone" value={profile?.phone} />
                 <DataItem label="Role" value={isSuperadmin ? "System Superadmin" : "Administrator"} />
                 <DataItem label="Account status" value={profile?.isActive === false ? "Inactive" : "Active"} />
@@ -1171,7 +1172,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
             <div className="rd2-side">
               <Section id="sec-contact" icon={<FaIdCard />} title="Contact & identity">
                 <div className="rd2-rows">
-                  <DataItem label="Email" value={profile?.email} />
+                  <DataItem label="Email" value={profile?.email || t("common.emailNotAdded")} />
                   <DataItem label="Phone" value={profile?.phone} />
                   <DataItem label="Landline" value={profile?.landline} />
                   <DataItem label="Secondary mobile" value={profile?.mobileSecondary} />

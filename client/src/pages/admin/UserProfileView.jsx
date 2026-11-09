@@ -17,6 +17,7 @@ import SecureFileLink from "../../components/SecureFileLink";
 import { IdOcrSummary } from "../../components/IdOcrReview";
 import IdEvidence from "../../components/IdEvidence";
 import StateBlock from "../../components/StateBlock";
+import UnlockLoginControl from "../../components/UnlockLoginControl";
 import useParallaxLayer from "../../hooks/useParallaxLayer";
 import { downloadBlob } from "../../utils/exportUtils";
 import "../../styles/adminUserProfile.css";
@@ -232,6 +233,8 @@ export default function UserProfileView() {
           <div className="aup-quickfacts">
             {user.email ? (
               <span className="aup-quickfact"><FaEnvelope aria-hidden="true" /> {user.email}</span>
+            ) : user.username ? (
+              <span className="aup-quickfact"><FaUser aria-hidden="true" /> @{user.username}</span>
             ) : null}
             {joined ? (
               <span className="aup-quickfact"><FaCalendarAlt aria-hidden="true" /> Joined {joined}</span>
@@ -248,12 +251,16 @@ export default function UserProfileView() {
             </div>
             <dl className="aup-dl">
               <Field label="Email" value={user.email} />
+              <Field label="Username" value={user.username} />
               <Field label="Phone" value={user.phone} />
               <Field label="Role" value={user.role} />
               <Field label="Account status" value={isActive ? "Active" : "Inactive"} />
               <Field label="Joined" value={joined} />
               <Field label="Last updated" value={updated} />
             </dl>
+            {user.loginLock?.lockedUntil && new Date(user.loginLock.lockedUntil) > new Date() ? (
+              <UnlockLoginControl userId={user._id || userId} />
+            ) : null}
           </section>
 
           <section className="aup-card">

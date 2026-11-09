@@ -76,6 +76,8 @@ export const EXCLUDED = [
   '/verify-email',
   '/verify-recovery-email',
   '/reset-password',
+  // Only exists while username sign-up is on.
+  '/forgot-username',
   '/staff-account-recovery',
   // Phase 3 (admin/superadmin bot)
   '/admin',

@@ -13,6 +13,8 @@ import { JobVacancyAgeGate } from "./routes/JobVacancyAgeGate";
 import AccountInactiveModal from "./components/AccountInactiveModal";
 import FloatingMessenger from "./components/FloatingMessenger";
 import DobGate from "./components/DobGate";
+import EmailGate from "./components/EmailGate";
+import EmailBanner from "./components/EmailBanner";
 import ChatWidget from "./chatbot/ui/ChatWidget";
 import DashboardTopBar from "./components/DashboardTopBar";
 import { claimAccountInactiveHandling } from "./services/api";
@@ -26,6 +28,7 @@ import Login from "./pages/Login";
 import LegalCenter from "./pages/LegalCenter";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
+import ForgotUsername from "./pages/ForgotUsername";
 import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
 import SuperadminConsole from "./pages/superadmin/SuperadminConsole";
@@ -177,6 +180,7 @@ function AppRoutes() {
       <BrowserRouter>
         <SiteChrome />
         <DashboardTopBar />
+        <EmailBanner />
         <TermsGate />
         <ResultModalHost />
         <CookieConsentBanner />
@@ -186,6 +190,7 @@ function AppRoutes() {
         <FloatingMessenger />
         <ChatWidget />
         <DobGate />
+        <EmailGate />
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/about" element={<About />} />
@@ -197,6 +202,7 @@ function AppRoutes() {
           <Route path="/cookies" element={<LegalCenter />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/forgot-username" element={<ForgotUsername />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/confirm-email" element={<ConfirmEmail />} />

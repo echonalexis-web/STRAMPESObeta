@@ -203,8 +203,8 @@ export default function RankedApplicantsTable({
                   <strong className="rt-name" title={applicant.name || "Unknown"}>
                     {applicant.name || "Unknown"}
                   </strong>
-                  <span className="rt-email" title={applicant.email || "No email"}>
-                    {applicant.email || "No email"}
+                  <span className="rt-email" title={applicant.email || t("common.noEmailOnFile")}>
+                    {applicant.email || t("common.noEmailOnFile")}
                   </span>
                 </div>
                 {isDisqualified ? (
@@ -410,8 +410,8 @@ export default function RankedApplicantsTable({
                         <strong className="rt-name" title={applicant.name || "Unknown"}>
                           {applicant.name || "Unknown"}
                         </strong>
-                        <span className="rt-email" title={applicant.email || "No email"}>
-                          {applicant.email || "No email"}
+                        <span className="rt-email" title={applicant.email || t("common.noEmailOnFile")}>
+                          {applicant.email || t("common.noEmailOnFile")}
                         </span>
                         {ageUnknown && (
                           <span className="rt-age-unknown">

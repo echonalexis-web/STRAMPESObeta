@@ -1,0 +1,377 @@
+/* Username sign-up: register mode toggle, email gate, code input, limited-access
+   banner, forgot-username and the admin summary card. Hand-written; uses the
+   shared --ds-* tokens. Mobile-first: base rules are the narrow layout. */
+
+/* ---------- Register: mode toggle ---------- */
+
+.su-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-1, 4px);
+  padding: var(--ds-space-1, 4px);
+  margin: 0 0 var(--ds-space-4, 16px);
+  border: 1px solid var(--ds-border, #dfe8e3);
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-mint, #e9f4ed);
+}
+
+.su-mode__legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.su-mode__btn {
+  min-height: var(--ds-tap, 44px);
+  padding: 0 var(--ds-space-3, 12px);
+  border: 0;
+  border-radius: var(--ds-radius-sm, 8px);
+  background: transparent;
+  color: var(--ds-text, #10271f);
+  font: inherit;
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--ds-dur-fast, 120ms) var(--ds-ease, ease), color var(--ds-dur-fast, 120ms) var(--ds-ease, ease);
+}
+
+.su-mode__btn[aria-pressed="true"] {
+  background: var(--ds-green, #07553a);
+  color: #fff;
+}
+
+.su-mode__btn:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}
+
+.su-note {
+  margin: 0;
+  padding: var(--ds-space-3, 12px);
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-mint, #e9f4ed);
+  color: var(--ds-text, #10271f);
+  font-size: var(--ds-text-sm, 0.875rem);
+  line-height: 1.5;
+}
+
+.su-hint {
+  display: block;
+  margin-top: var(--ds-space-1, 4px);
+  color: var(--ds-muted, #5a6c65);
+  font-size: var(--ds-text-xs, 0.75rem);
+}
+
+/* Honeypot: real people never see or reach it; bots that fill every field do. */
+.su-honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* Visually hidden but still read by screen readers. */
+.su-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Email gate (modal body) ---------- */
+
+.egate {
+  display: grid;
+  gap: var(--ds-space-3, 12px);
+}
+
+.egate__text {
+  margin: 0;
+  color: var(--ds-muted, #5a6c65);
+  font-size: var(--ds-text-sm, 0.875rem);
+  line-height: 1.5;
+}
+
+.egate__field {
+  display: grid;
+  gap: var(--ds-space-1, 4px);
+}
+
+.egate__label {
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--ds-text, #10271f);
+}
+
+.egate__input {
+  width: 100%;
+  min-height: var(--ds-tap, 44px);
+  padding: 0 var(--ds-space-3, 12px);
+  border: 1px solid var(--ds-border, #dfe8e3);
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-surface, #fff);
+  color: var(--ds-text, #10271f);
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.egate__input:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}
+
+.egate__input[aria-invalid="true"] {
+  border-color: var(--ds-danger, #b42318);
+}
+
+.egate__pw {
+  position: relative;
+}
+
+.egate__pw .egate__input {
+  padding-right: 52px;
+}
+
+.egate__pw-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--ds-tap, 44px);
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ds-muted, #5a6c65);
+  cursor: pointer;
+}
+
+.egate__pw-toggle:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: -3px;
+  border-radius: var(--ds-radius-md, 12px);
+}
+
+.egate__error {
+  margin: 0;
+  padding: var(--ds-space-3, 12px);
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-danger-bg, #fdecea);
+  color: var(--ds-danger, #b42318);
+  font-size: var(--ds-text-sm, 0.875rem);
+}
+
+.egate__ok {
+  margin: 0;
+  padding: var(--ds-space-3, 12px);
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-mint, #e9f4ed);
+  color: var(--ds-green, #07553a);
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 600;
+}
+
+.egate__actions {
+  display: grid;
+  gap: var(--ds-space-2, 8px);
+}
+
+.egate__btn {
+  min-height: var(--ds-tap, 44px);
+  padding: 0 var(--ds-space-5, 20px);
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md, 12px);
+  font: inherit;
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.egate__btn--primary {
+  background: var(--ds-green, #07553a);
+  color: #fff;
+}
+
+.egate__btn--primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.egate__btn--ghost {
+  background: transparent;
+  border-color: var(--ds-border, #dfe8e3);
+  color: var(--ds-text, #10271f);
+}
+
+.egate__btn:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}
+
+.egate__link {
+  justify-self: start;
+  min-height: var(--ds-tap, 44px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ds-green-secondary, #0b704b);
+  font: inherit;
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.egate__link:disabled {
+  color: var(--ds-muted, #5a6c65);
+  text-decoration: none;
+  cursor: default;
+}
+
+.egate__link:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}
+
+/* ---------- One-time code input ---------- */
+
+.codeinput {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 var(--ds-space-3, 12px);
+  border: 1px solid var(--ds-border, #dfe8e3);
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-surface, #fff);
+  color: var(--ds-text, #10271f);
+  font-family: var(--ds-font-display, system-ui, sans-serif);
+  font-size: var(--ds-text-xl, 1.5rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0.5em;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.codeinput::placeholder {
+  color: var(--ds-border, #dfe8e3);
+}
+
+.codeinput:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}
+
+.codeinput[aria-invalid="true"] {
+  border-color: var(--ds-danger, #b42318);
+}
+
+/* ---------- Limited-access banner ---------- */
+
+.ebanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2, 8px) var(--ds-space-3, 12px);
+  padding: var(--ds-space-3, 12px) var(--ds-space-4, 16px);
+  background: var(--ds-warning-bg, #fdf4d6);
+  border-bottom: 1px solid var(--ds-gold, #e6b91e);
+  color: var(--ds-text, #10271f);
+  font-size: var(--ds-text-sm, 0.875rem);
+  line-height: 1.4;
+}
+
+.ebanner__text {
+  flex: 1 1 220px;
+  margin: 0;
+}
+
+.ebanner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2, 8px);
+}
+
+.ebanner__btn {
+  min-height: var(--ds-tap, 44px);
+  padding: 0 var(--ds-space-4, 16px);
+  border: 1px solid var(--ds-green, #07553a);
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-green, #07553a);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ebanner__btn--ghost {
+  background: transparent;
+  color: var(--ds-green, #07553a);
+}
+
+.ebanner__btn:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}
+
+/* ---------- Admin: security summary ---------- */
+
+.asum {
+  margin: 0 0 var(--ds-space-4, 16px);
+  padding: var(--ds-space-4, 16px);
+  border: 1px solid var(--ds-border, #dfe8e3);
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--ds-surface, #fff);
+}
+
+.asum__title {
+  margin: 0 0 var(--ds-space-3, 12px);
+  font-size: var(--ds-text-md, 1rem);
+}
+
+.asum__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-3, 12px);
+  margin: 0;
+}
+
+.asum__cell dt {
+  color: var(--ds-muted, #5a6c65);
+  font-size: var(--ds-text-xs, 0.75rem);
+}
+
+.asum__cell dd {
+  margin: 0;
+  font-size: var(--ds-text-xl, 1.5rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.asum__unlock {
+  margin-top: var(--ds-space-4, 16px);
+  padding-top: var(--ds-space-4, 16px);
+  border-top: 1px solid var(--ds-border, #dfe8e3);
+}
+
+/* ---------- Wider screens ---------- */
+
+@media (min-width: 768px) {
+  .egate__actions {
+    grid-auto-flow: column;
+    justify-content: end;
+  }
+
+  .asum__grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .su-mode__btn {
+    transition: none;
+  }
+}

@@ -98,7 +98,9 @@
     "employer": "Employer",
     "login": "Login",
     "joinAs": "Join as:",
-    "close": "Close"
+    "close": "Close",
+    "emailNotAdded": "Not added",
+    "noEmailOnFile": "No email on file"
   },
   "publicNavbar": {
     "navigation": "Main navigation",
@@ -269,11 +271,11 @@
       },
       "username": {
         "title": "Username",
-        "hint": "A second way to sign in, instead of typing your email. Letters, numbers, \".\" and \"_\" only — 3 to 30 characters. You can change it again after 30 days.",
+        "hint": "Another way to sign in, instead of typing your email. Letters, numbers, \".\" and \"_\" only: 3 to 30 characters. You can change it again after 30 days.",
         "label": "Username",
         "placeholder": "e.g. juan_delacruz",
         "currentHint": "You sign in with {{username}}, or your email.",
-        "noneHint": "You don't have one yet — you can still only sign in with your email.",
+        "noneHint": "You don't have one yet. Choose one to sign in with it.",
         "change": "Change",
         "setOne": "Set a username",
         "available": "That username is available.",
@@ -290,7 +292,7 @@
         "add": "Add",
         "change": "Change",
         "needsPasswordHint": "Set a password first (Settings → Security → Add a password) before adding a recovery email.",
-        "formHint": "Must be different from your sign-in email. Confirm your current password to make this change.",
+        "formHint": "Must be different from your account email, if you have one. Confirm your current password to make this change.",
         "emailLabel": "Recovery email address",
         "emailPlaceholder": "you@example.com",
         "currentPasswordLabel": "Current password",
@@ -366,7 +368,10 @@
         "saveError": "Unable to save. Refresh and review the latest ID upload.",
         "upload": "Government ID (optional)",
         "resume": "Resume (optional)"
-      }
+      },
+      "emailNotSet": "Not set",
+      "addEmail": "Add email",
+      "emailUnverifiedHint": "Add and verify an email to apply for jobs and message employers."
     },
     "language": {
       "title": "Language & Region",
@@ -1023,6 +1028,24 @@
       "errorTitle": "Couldn't load this profile",
       "notFound": "User profile not found",
       "notFoundDescription": "This account may have been removed, or the link is incorrect."
+    },
+    "accounts": {
+      "title": "Accounts without an email",
+      "emailLessCount": "Accounts with no email",
+      "idleNoEmail": "Idle {{days}} days or more, no email",
+      "locksLast24h": "Lockouts in the last 24 hours",
+      "locksLast7d": "Lockouts in the last 7 days",
+      "lockedNow": "Locked right now",
+      "unlock": "Unlock sign-in",
+      "unlockConfirm": "Unlock this account? Say why (it is saved in the audit log).",
+      "unlockReason": "Reason",
+      "unlockReasonPlaceholder": "For example: verified in person",
+      "unlocked": "Sign-in unlocked.",
+      "nothingToUnlock": "This account was not locked.",
+      "unlockError": "Could not unlock this account.",
+      "noEmail": "No email",
+      "username": "Username",
+      "loadError": "Could not load the summary."
     }
   },
   "superadmin": {
@@ -1290,7 +1313,25 @@
       "UPLOAD_ONE_FILE": "Add one file at a time.",
       "UPLOAD_NETWORK": "No connection. Check your internet and try again.",
       "UPLOAD_TIMEOUT": "The upload took too long. Please try again.",
-      "UPLOAD_CANCELED": "The upload was canceled."
+      "UPLOAD_CANCELED": "The upload was canceled.",
+      "EMAIL_REQUIRED": "Add and verify your email to do this.",
+      "EMAIL_CODE_INVALID": "That code did not work. Check it, request a new one, or use a different email.",
+      "EMAIL_CODE_COOLDOWN": "Please wait a moment before asking for another code.",
+      "EMAIL_CODE_LIMIT": "Too many codes were requested. Try again later.",
+      "EMAIL_INVALID": "Enter a valid email address.",
+      "EMAIL_ALREADY_SET": "This account already has an email address.",
+      "USERNAME_TAKEN": "That username is already taken.",
+      "USERNAME_INVALID": "Choose a valid username.",
+      "SIGNUP_DISABLED": "Sign-up with a username is not available right now.",
+      "SIGNUP_REJECTED": "We could not create the account. Please reload the page and try again.",
+      "RATE_LIMITED": "Too many sign-ups from this network. Please try again later.",
+      "PASSWORD_INCORRECT": "That password did not work.",
+      "PASSWORD_WEAK": "Use at least 8 characters with upper and lower case letters, a number and a special character.",
+      "PASSWORD_TOO_COMMON": "That password is too common. Choose something harder to guess.",
+      "PASSWORD_SAME_AS_USERNAME": "Your password cannot be your username or contain it.",
+      "PASSWORD_SAME_AS_BIRTHDATE": "Your password cannot be your date of birth.",
+      "PASSWORD_TOO_SHORT_USERNAME_MODE": "Accounts without an email need a password of at least 10 characters.",
+      "REASON_REQUIRED": "Give a short reason (at least 5 characters)."
     }
   },
   "spes": {
@@ -1809,5 +1850,113 @@
       "announcements": "announcements",
       "jobs": "jobs"
     }
+  },
+  "register": {
+    "modeLabel": "How do you want to sign up?",
+    "modeEmail": "Use email",
+    "modeUsername": "Use username only",
+    "usernameLabel": "Username",
+    "usernameHint": "3 to 30 characters: letters, numbers, dots and underscores. You will use it to sign in.",
+    "usernameOnlyNote": "You can add an email next. You need a verified email to apply for jobs, message employers and upload documents.",
+    "passwordHint": "At least {{min}} characters, with upper and lower case letters, a number and a special character.",
+    "createAccount": "Create account",
+    "creating": "Creating account...",
+    "signedInContinue": "Account created. Let's finish setting up your profile.",
+    "formReloading": "Please wait a moment and try again."
+  },
+  "password": {
+    "strengthHint": "Password must contain:",
+    "ok": "Password meets all requirements",
+    "tooShort": "At least 8 characters",
+    "tooShortUsernameMode": "At least 10 characters (accounts without an email need a longer password)",
+    "upper": "One uppercase letter",
+    "lower": "One lowercase letter",
+    "number": "One number",
+    "special": "One special character",
+    "sameAsUsername": "Cannot be or contain your username",
+    "sameAsBirthDate": "Cannot be your date of birth",
+    "tooCommon": "Too common. Choose something harder to guess"
+  },
+  "emailStep": {
+    "title": "Add your email",
+    "intro": "We will send a 6-digit code to confirm it is yours.",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "you@example.com",
+    "passwordLabel": "Current password",
+    "passwordHint": "We ask for your password so nobody else can attach an email to your account.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "sendCode": "Send code",
+    "sending": "Sending...",
+    "skip": "Skip for now",
+    "codeTitle": "Enter your code",
+    "codeHint": "Enter the 6-digit code we sent to {{email}}. It expires in 10 minutes.",
+    "codeLabel": "6-digit code",
+    "verify": "Verify",
+    "verifying": "Verifying...",
+    "resendIn": "Resend in {{time}}",
+    "resend": "Send a new code",
+    "useAnother": "Use a different email",
+    "success": "Your email is verified.",
+    "cooldown": "Please wait {{time}} before asking for another code.",
+    "hourlyLimit": "Too many codes were requested. Try again in {{time}}.",
+    "backupTitle": "Save backup codes",
+    "backupBody": "Without an email you cannot get a password reset link. Backup codes let you get back in if you forget your password.",
+    "backupGenerate": "Generate and download",
+    "backupNotNow": "Not now",
+    "backupDone": "Backup codes saved. Keep the file somewhere safe.",
+    "backupError": "Could not create backup codes. You can try again from Settings.",
+    "close": "Close"
+  },
+  "emailBanner": {
+    "message": "Add and verify your email to apply for jobs, message employers and upload documents.",
+    "addEmail": "Add email",
+    "saveBackupCodes": "Save backup codes",
+    "applyBlocked": "Add and verify your email to apply for this job.",
+    "messageBlocked": "Add and verify your email to send messages.",
+    "uploadBlocked": "Add and verify your email to upload files."
+  },
+  "login": {
+    "rememberUsername": "Remember my username on this device",
+    "clearRemembered": "Not you? Clear",
+    "forgotUsername": "Forgot username?",
+    "lockedGeneric": "Incorrect username or password, or the account is temporarily locked. Try again later, reset your password, or ask the PESO office."
+  },
+  "forgot": {
+    "identifierLabel": "Email or username",
+    "identifierPlaceholder": "Email or username",
+    "intro": "Enter the email or username for your account. If it has a verified email, we will send a reset link there.",
+    "submit": "Send reset link",
+    "sending": "Sending...",
+    "neutralMessage": "If that account has a verified email, a password reset link is on its way. The link expires in 30 minutes.",
+    "noEmailTitle": "No email on your account?",
+    "noEmailBody": "We cannot send a link without a verified email. Use a backup code if you saved some, or ask the PESO office to help you recover your account.",
+    "useBackupCode": "Recover with a backup code",
+    "askPeso": "Ask the PESO office",
+    "forgotUsername": "Forgot your username?",
+    "required": "Please enter your email or username."
+  },
+  "forgotUsername": {
+    "title": "Forgot your username?",
+    "intro": "Enter the email on your account. If it has a verified email, we will send your username to it.",
+    "emailLabel": "Email address",
+    "send": "Send my username",
+    "sending": "Sending...",
+    "neutralMessage": "If that email belongs to an account, we have sent its username to it.",
+    "noEmailNote": "No email on your account? We cannot send your username. Visit or call the PESO office.",
+    "required": "Please enter your email.",
+    "back": "Back to login"
+  },
+  "alerts": {
+    "emailAddedTitle": "Email added to your account",
+    "emailAddedBody": "An email address was added and verified on your account. If this was not you, change your password now.",
+    "passwordChangedTitle": "Your password was changed",
+    "passwordChangedBody": "The password on your account was changed. If this was not you, reset it now and contact the PESO office.",
+    "newSignInTitle": "New sign-in",
+    "newSignInBody": "Your account was signed in from a browser or device we have not seen before. If this was not you, change your password.",
+    "failedAttemptsTitle": "Failed sign-in attempts",
+    "failedAttemptsBody": "There were several incorrect password attempts on your account before you signed in.",
+    "accountLockedTitle": "Your account is temporarily locked",
+    "accountLockedBody": "Too many incorrect password attempts. Sign-in is paused for a while. You can reset your password, use a backup code, or ask the PESO office."
   }
 }

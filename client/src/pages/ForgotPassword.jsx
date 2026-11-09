@@ -3,11 +3,16 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { authAPI } from "../services/api";
 import "../styles/auth.css";
+import "../styles/username-signup.css";
+import { isUsernameSignupEnabled } from "../utils/usernameSignup";
 import pesoLogo from "../assets/images/peso-logo.png";
 import provincialSeal from "../assets/images/provincial-seal.png";
 
 export default function ForgotPassword() {
   const { t } = useTranslation();
+  // With username sign-up on, the page takes an email OR a username and gives
+  // the same neutral answer either way.
+  const usernameFeature = isUsernameSignupEnabled();
   const [email, setEmail] = useState("");
   const [useRecoveryEmail, setUseRecoveryEmail] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,7 +24,7 @@ export default function ForgotPassword() {
     event.preventDefault();
     const trimmed = email.trim();
     if (!trimmed) {
-      setError("Please enter your email address.");
+      setError(usernameFeature ? t("forgot.required") : "Please enter your email address.");
       return;
     }
     setError("");
@@ -62,7 +67,9 @@ export default function ForgotPassword() {
         <div className="auth-card">
           <h2>Forgot your password?</h2>
           <p className="auth-subtitle">
-            Enter the email address for your account and we&rsquo;ll send you a link to reset your password.
+            {usernameFeature
+              ? t("forgot.intro")
+              : "Enter the email address for your account and we\u2019ll send you a link to reset your password."}
           </p>
 
           {error && (
@@ -73,10 +80,14 @@ export default function ForgotPassword() {
 
           {sent ? (
             <div className="auth-notice" role="status" aria-live="polite">
-              <p>
-                If <strong>{email.trim()}</strong> is registered, a password reset link is on its way.
-                The link expires in 30 minutes.
-              </p>
+              {usernameFeature ? (
+                <p>{t("forgot.neutralMessage")}</p>
+              ) : (
+                <p>
+                  If <strong>{email.trim()}</strong> is registered, a password reset link is on its way.
+                  The link expires in 30 minutes.
+                </p>
+              )}
               <p>
                 Signed in with &ldquo;Continue with Google&rdquo; before? This link still works —
                 opening it lets you set a password for this account, which you can use from now on
@@ -93,15 +104,15 @@ export default function ForgotPassword() {
             <>
               <form className="auth-form" onSubmit={handleSubmit} noValidate>
                 <div className="form-group">
-                  <label htmlFor="email">Email Address</label>
+                  <label htmlFor="email">{usernameFeature ? t("forgot.identifierLabel") : "Email Address"}</label>
                   <input
                     id="email"
-                    type="email"
+                    type={usernameFeature ? "text" : "email"}
                     name="email"
-                    placeholder="Enter your email"
+                    placeholder={usernameFeature ? t("forgot.identifierPlaceholder") : "Enter your email"}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="email"
+                    autoComplete={usernameFeature ? "username" : "email"}
                     required
                     disabled={loading}
                   />
@@ -139,6 +150,19 @@ export default function ForgotPassword() {
                 visit or call the <Link to="/about">PESO office</Link> for help.
               </p>
             </>
+          )}
+
+          {usernameFeature && (
+            <div className="su-note" role="note">
+              <strong>{t("forgot.noEmailTitle")}</strong>
+              <br />
+              {t("forgot.noEmailBody")}{" "}
+              <Link to="/account-recovery">{t("forgot.useBackupCode")}</Link>
+              {" · "}
+              <Link to="/about">{t("forgot.askPeso")}</Link>
+              {" · "}
+              <Link to="/forgot-username">{t("forgot.forgotUsername")}</Link>
+            </div>
           )}
 
           <p className="auth-link"><Link to="/staff-account-recovery">{t("staffRecovery.requestLink")}</Link></p>

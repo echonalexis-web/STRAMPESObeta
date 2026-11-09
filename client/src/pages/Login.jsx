@@ -10,6 +10,14 @@ import { useToast } from "../components/feedback/context";
 import "../styles/auth.css";
 import "@fontsource/plus-jakarta-sans/800.css";
 import "../styles/login.css";
+import "../styles/username-signup.css";
+import {
+  isUsernameSignupEnabled,
+  identifierKind,
+  readRememberedUsername,
+  writeRememberedUsername,
+  clearRememberedUsername,
+} from "../utils/usernameSignup";
 import {
   FaEye,
   FaEyeSlash,
@@ -51,7 +59,16 @@ export default function Login() {
   const { t } = useTranslation();
   // First-time Google jobseeker: nothing is created until a date of birth passes the age check.
   const [pendingGoogleToken, setPendingGoogleToken] = useState("");
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  // Username sign-up feature: "remember my username" (default OFF, shared PESO
+  // and school computers). Only a username is ever stored; never a password or email.
+  const usernameFeature = isUsernameSignupEnabled();
+  const [rememberUsername, setRememberUsername] = useState(
+    () => usernameFeature && Boolean(readRememberedUsername(localStorage))
+  );
+  const [formData, setFormData] = useState(() => ({
+    email: usernameFeature ? readRememberedUsername(localStorage) : "",
+    password: "",
+  }));
   const [showPassword, setShowPassword] = useState(false);
   const [keepSignedIn, setKeepSignedIn] = useState(false);
   const [error, setError] = useState("");
@@ -191,6 +208,14 @@ export default function Login() {
       // here ourselves and calling login() a second time with that.
       const mergedUser = await login(token, normalizedUser);
 
+      if (usernameFeature) {
+        if (rememberUsername && identifierKind(formData.email) === "username") {
+          writeRememberedUsername(localStorage, formData.email);
+        } else {
+          clearRememberedUsername(localStorage);
+        }
+      }
+
       if (data.reactivated) {
         toast.success("Welcome back — your account has been reactivated.");
       }
@@ -244,8 +269,18 @@ export default function Login() {
       // Credentials were valid, but the account's email hasn't been
       // confirmed yet — offer to resend the link instead of a dead-end error.
       if (err?.response?.status === 403 && data?.code === "EMAIL_NOT_VERIFIED") {
-        setUnverifiedEmail(formData.email.trim().toLowerCase());
+        // The resend link needs an email; a typed username cannot be resent to.
+        setUnverifiedEmail(identifierKind(formData.email) === "email" ? formData.email.trim().toLowerCase() : "");
         showError(data.message || "Please verify your email address before signing in.");
+        setLoading(false);
+        return;
+      }
+
+      // With the username feature on, a wrong password and a temporary lock
+      // look identical on purpose (the server says the same thing for both),
+      // so one message explains both and the way out.
+      if (usernameFeature && err?.response?.status === 400 && !data?.code) {
+        showError(t("login.lockedGeneric"));
         setLoading(false);
         return;
       }
@@ -385,7 +420,12 @@ export default function Login() {
 
             <form className="auth-form" onSubmit={handleSubmit} noValidate>
               <div className="form-group">
-                <label htmlFor="email">Email or Username</label>
+                <div className="auth-field-header">
+                  <label htmlFor="email">Email or Username</label>
+                  {usernameFeature && (
+                    <Link to="/forgot-username" className="auth-forgot-link">{t("login.forgotUsername")}</Link>
+                  )}
+                </div>
                 <div className="auth-input-wrap">
                   <FaEnvelope className="auth-input-icon" aria-hidden="true" />
                   <input
@@ -440,6 +480,37 @@ export default function Login() {
                   </button>
                 </div>
               </div>
+
+              {usernameFeature && (
+                <>
+                  <label className="auth-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={rememberUsername}
+                      onChange={(e) => {
+                        setRememberUsername(e.target.checked);
+                        if (!e.target.checked) clearRememberedUsername(localStorage);
+                      }}
+                      disabled={loading || isRedirecting}
+                    />
+                    {t("login.rememberUsername")}
+                  </label>
+                  {readRememberedUsername(localStorage) && (
+                    <p className="auth-link">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearRememberedUsername(localStorage);
+                          setRememberUsername(false);
+                          setFormData((prev) => ({ ...prev, email: "" }));
+                        }}
+                      >
+                        {t("login.clearRemembered")}
+                      </button>
+                    </p>
+                  )}
+                </>
+              )}
 
               <label className="auth-checkbox-row">
                 <input

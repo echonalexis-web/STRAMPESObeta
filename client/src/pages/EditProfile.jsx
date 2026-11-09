@@ -771,7 +771,8 @@ export default function EditProfile() {
       // whatever is in Company Name rather than a separately-typed value (the
       // server does this same sync independently; see authController.updateProfile).
       data.append("name", isEmployer ? formData.companyName : (!isAdmin && composedName) ? composedName : formData.name);
-      data.append("email", formData.email);
+      // An email-less (username-only) account has none to send; email is read-only here anyway.
+      if (formData.email) data.append("email", formData.email);
       data.append("phone", formData.phone);
 
       if (isAdmin) {
@@ -986,7 +987,7 @@ export default function EditProfile() {
       case "profile":
         if (isAdmin) return Boolean(formData.name && formData.email);
         if (isEmployer) return Boolean(formData.name && formData.email && formData.companyName && formData.businessAddress);
-        return Boolean(formData.surname && formData.firstName && formData.email && formData.dateOfBirth && formData.address);
+        return Boolean(formData.surname && formData.firstName && formData.dateOfBirth && formData.address);
       case "career":
         return formData.preferredOccupations.length > 0 && Boolean(formData.workExperience) && Boolean(formData.educationalAttainment);
       case "training":

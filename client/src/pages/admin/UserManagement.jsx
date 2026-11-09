@@ -7,6 +7,8 @@ import MetricCard from "../../components/MetricCard";
 import StateBlock from "../../components/StateBlock";
 import "../../styles/admin.css";
 import AdminHeader from "./AdminHeader";
+import AccountSecuritySummary from "../../components/AccountSecuritySummary";
+import { userContactLabel } from "../../utils/usernameSignup";
 
 const tabMeta = {
   employers: {
@@ -76,7 +78,7 @@ function UserDirectoryCards({ title, role, data, onToggleStatus, onViewProfile }
             <div className="admin-mobile-user-card__meta">
               <div>
                 <label>Email</label>
-                <p>{user.email}</p>
+                <p>{userContactLabel(user)}</p>
               </div>
               <div>
                 <label>Joined</label>
@@ -125,7 +127,7 @@ function EmployersDirectory({ data, onToggleStatus, onViewProfile }) {
               data.map((user) => (
                 <tr key={user._id}>
                   <td>{user.name}</td>
-                  <td>{user.email}</td>
+                  <td>{userContactLabel(user)}</td>
                   <td>
                     <span className={`admin-status-badge ${user.isActive === false ? "inactive" : "active"}`}>
                       {user.isActive === false ? "Inactive" : "Active"}
@@ -179,7 +181,7 @@ function JobseekersDirectory({ data, onToggleStatus, onViewProfile }) {
               data.map((user) => (
                 <tr key={user._id}>
                   <td>{user.name}</td>
-                  <td>{user.email}</td>
+                  <td>{userContactLabel(user)}</td>
                   <td>
                     <span className={`admin-status-badge ${user.isActive === false ? "inactive" : "active"}`}>
                       {user.isActive === false ? "Inactive" : "Active"}
@@ -412,6 +414,8 @@ export default function UserManagement() {
           </button>
         ))}
       </div>
+
+      {activeTab === "jobseekers" && <AccountSecuritySummary />}
 
       <div className="tab-content">{renderTabContent()}</div>
 
