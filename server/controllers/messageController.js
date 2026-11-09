@@ -142,7 +142,7 @@ exports.createConversation = async (req, res) => {
 
     const [currentUser, targetUser] = await Promise.all([
       User.findById(userId).select("role isActive dateOfBirth ageReviewRequired"),
-      User.findById(participantId).select("role isActive name privacy"),
+      User.findById(participantId).select("role isActive name privacy dateOfBirth"),
     ]);
 
     if (!currentUser || currentUser.isActive === false) {
@@ -164,6 +164,19 @@ exports.createConversation = async (req, res) => {
         return res.status(403).json({
           code: "MESSAGING_AGE_RESTRICTED",
           message: "Accounts under 18 can reply to messages but cannot start new conversations.",
+        });
+      }
+    }
+
+    // An employer cannot start a conversation with a 15 to 17 year old (or any
+    // account whose age is not confirmed as 18+): PESO staff handle SPES
+    // placements for them. Final rule is an open question for PESO.
+    if (normalizeRole(currentUser.role) === "employer" && normalizeRole(targetUser.role) === "jobseeker") {
+      const targetTier = getAgeTier(targetUser.dateOfBirth);
+      if (targetTier !== TIERS.ADULT && targetTier !== TIERS.SENIOR) {
+        return res.status(403).json({
+          code: "MESSAGING_MINOR_RESTRICTED",
+          message: "This jobseeker cannot be contacted through the portal.",
         });
       }
     }
@@ -218,24 +231,43 @@ exports.searchUsers = async (req, res) => {
       return res.json([]);
     }
 
+    const isStaff = ["admin", "superadmin"].includes(normalizeRole(role));
+    const isEmployer = normalizeRole(role) === "employer";
+
+    // Only PESO staff may search by email. Everyone else matches on name or
+    // company name, and never gets an email back.
     const queryRegex = escapeRegex(query);
-    const candidates = await User.find({
-      _id: { $ne: userId },
-      isActive: ACTIVE_USER_FILTER,
-      $or: [
-        { name: { $regex: queryRegex, $options: "i" } },
-        { email: { $regex: queryRegex, $options: "i" } },
-        { companyName: { $regex: queryRegex, $options: "i" } },
-      ],
-    })
-      .select("name email role desiredJobTitle companyName profileImage")
+    const orClauses = [
+      { name: { $regex: queryRegex, $options: "i" } },
+      { companyName: { $regex: queryRegex, $options: "i" } },
+    ];
+    if (isStaff) orClauses.push({ email: { $regex: queryRegex, $options: "i" } });
+
+    const filter = { _id: { $ne: userId }, isActive: ACTIVE_USER_FILTER, $or: orClauses };
+    // A jobseeker who hid their profile is excluded from every search by employers.
+    if (isEmployer) filter["privacy.profileVisibility"] = { $ne: "hidden" };
+
+    const candidates = await User.find(filter)
+      .select(isStaff ? "name email role desiredJobTitle companyName profileImage" : "name role desiredJobTitle companyName profileImage dateOfBirth")
       .sort({ name: 1 })
       .limit(60);
 
     const users = candidates
       .filter((candidate) => allowedRoles.includes(String(candidate.role || "").toLowerCase()))
       .filter((candidate) => canMessageTarget(role, candidate.role))
-      .slice(0, 20);
+      // Employers never find 15 to 17 year olds (or accounts with no confirmed
+      // age) in search.
+      .filter((candidate) => {
+        if (!isEmployer) return true;
+        const tier = getAgeTier(candidate.dateOfBirth);
+        return tier === TIERS.ADULT || tier === TIERS.SENIOR;
+      })
+      .slice(0, 20)
+      .map((candidate) => {
+        const plain = typeof candidate.toObject === "function" ? candidate.toObject() : { ...candidate };
+        delete plain.dateOfBirth;
+        return plain;
+      });
 
     return res.json(users);
   } catch (error) {
