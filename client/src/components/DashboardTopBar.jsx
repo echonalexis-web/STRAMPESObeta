@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import Avatar from "./Avatar";
 import { AuthContext } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { messageAPI, resolveAssetUrl } from "../services/api";
@@ -114,6 +115,7 @@ const PAGE_TITLE_EXACT = {
   "/superadmin/matching-bounds": "superadminConsole",
   "/superadmin/catalogs": "superadminConsole",
   "/superadmin/banner-templates": "superadminConsole",
+  "/superadmin/banner-avatar-templates": "superadminConsole",
 };
 
 const PAGE_TITLE_PREFIXES = [
@@ -342,8 +344,6 @@ export default function DashboardTopBar() {
     window.dispatchEvent(new CustomEvent(OPEN_FLOATING_MESSENGER_EVENT));
   };
 
-  const avatarUrl = user?.profileImage ? resolveAssetUrl(user.profileImage) : "";
-
   if (hidden) return null;
 
   const { title, badge, icon, description } = getPortalContent(user, t);
@@ -490,11 +490,9 @@ export default function DashboardTopBar() {
         </div>
 
         <button type="button" className="dtb-user" onClick={() => navigate("/profile")}>
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="" className="dtb-user-avatar" />
-          ) : (
-            <span className="dtb-user-avatar dtb-user-avatar--fallback">{getInitials(user?.name)}</span>
-          )}
+          <span className="dtb-user-avatar dtb-user-avatar--fallback">
+            <Avatar size="fill" name={user?.name} initial={getInitials(user?.name)} photo={user?.profileImage} preset={user?.avatarPreset} />
+          </span>
           <span className="dtb-user-text">
             <span className="dtb-user-name">{user?.name}</span>
             <span className="dtb-user-email">{userContactLabel(user, { emptyLabel: "" })}</span>

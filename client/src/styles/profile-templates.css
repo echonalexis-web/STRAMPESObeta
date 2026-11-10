@@ -885,3 +885,207 @@
     flex: 1 1 0;
   }
 }
+
+/* ---------- Tabs: Banners | Avatars ---------- */
+.bt__tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--ds-border);
+  overflow-x: auto;
+}
+
+.bt__tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--ds-tap, 44px);
+  padding: 0 18px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--ds-ink-700);
+  font: inherit;
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.bt__tab-btn:hover {
+  color: var(--ds-green-deep);
+}
+
+.bt__tab-btn[aria-selected="true"] {
+  border-bottom-color: var(--ds-green);
+  color: var(--ds-green-deep);
+}
+
+.bt__tab-btn:focus-visible,
+.bt__panel:focus-visible {
+  outline: 3px solid var(--ds-gold);
+  outline-offset: -3px;
+}
+
+.bt__tab-count {
+  min-width: 24px;
+  padding: 1px 8px;
+  border-radius: var(--ds-radius-pill, 999px);
+  background: var(--ds-ink-100);
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-xs, 0.75rem);
+  text-align: center;
+}
+
+.bt__tab-btn[aria-selected="true"] .bt__tab-count {
+  background: var(--ds-mint);
+  color: var(--ds-green-deep);
+}
+
+/* ---------- Built-in install bar ---------- */
+.bt__builtins {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--ds-ink-50);
+}
+
+.bt__builtins.is-missing {
+  border-color: var(--ds-green);
+  background: var(--ds-mint);
+}
+
+.bt__builtins-text {
+  margin: 0;
+  font-size: var(--ds-text-sm, 0.875rem);
+  color: var(--ds-ink-900);
+}
+
+.bt__state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bt__badge--builtin {
+  background: var(--ds-mint);
+  color: var(--ds-green-deep);
+}
+
+/* ---------- Avatars: round thumbnails in a denser grid ---------- */
+.bt__grid--avatars {
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 640px) {
+  .bt__grid--avatars {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) {
+  .bt__grid--avatars {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .bt__grid--avatars {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1500px) {
+  .bt__grid--avatars {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.bt__card--avatar {
+  align-items: center;
+  text-align: center;
+}
+
+.bt__card--avatar .bt__info,
+.bt__card--avatar .bt__badges {
+  justify-items: center;
+  justify-content: center;
+}
+
+.bt__card--avatar .bt__actions {
+  justify-content: center;
+}
+
+.bt__avatar-img {
+  display: block;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--ds-ink-100);
+}
+
+.bt__card.is-archived .bt__avatar-img {
+  opacity: 0.6;
+}
+
+.bt__order--inline {
+  position: static;
+  justify-content: center;
+}
+
+.bt__order--inline .bt__icon-btn {
+  border-color: var(--ds-ink-300);
+  background: var(--ds-surface);
+  color: var(--ds-ink-900);
+}
+
+.bt__skeleton--round {
+  width: 96px;
+  height: 96px;
+  margin-inline: auto;
+  border-radius: 50%;
+  aspect-ratio: auto;
+}
+
+/* ---------- Avatar preview in the modal ---------- */
+.btm__avatar-preview {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--ds-surface);
+}
+
+.btm__avatar-big {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--ds-green-deep);
+}
+
+.btm__avatar-sizes {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.btm__avatar-small {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--ds-green-deep);
+}

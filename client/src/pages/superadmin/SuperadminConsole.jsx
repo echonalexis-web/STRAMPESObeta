@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FaArrowRight, FaFilePdf, FaImages, FaListCheck, FaMagnifyingGlass, FaScaleBalanced, FaUserShield, FaXmark } from "react-icons/fa6";
-import { bannerTemplateAPI, superadminAPI } from "../../services/api";
+import { avatarPresetAPI, bannerTemplateAPI, superadminAPI } from "../../services/api";
 import { ConsoleHero } from "./ConsoleShell";
 import {
   CONSOLE_FUNCTIONS,
@@ -32,7 +32,14 @@ const useCardSummaries = () => {
     const run = (id, load) => load().then((data) => put(id, buildSummary(id, data))).catch(() => put(id, []));
 
     run("admin-accounts", async () => (await superadminAPI.listAdmins()).data?.admins);
-    run("banner-templates", async () => (await bannerTemplateAPI.adminList()).data?.templates);
+    // Both lists, each optional: one that fails is simply left out of the summary.
+    run("banner-avatar-templates", async () => {
+      const [banners, avatars] = await Promise.allSettled([bannerTemplateAPI.adminList(), avatarPresetAPI.adminList()]);
+      return {
+        banners: banners.status === "fulfilled" ? banners.value.data?.templates : null,
+        avatars: avatars.status === "fulfilled" ? avatars.value.data?.presets : null,
+      };
+    });
     run("nsrp-forms", async () => {
       const results = await Promise.all(NSRP_FORMS.map((form) => superadminAPI.getNsrpTemplateMeta(form)));
       return results.map((res) => res.data);
@@ -69,7 +76,7 @@ export default function SuperadminConsole() {
   const summaryText = (parts) =>
     parts
       .map((part) => t(`superadmin.launcher.summary.${part.key}`, { count: part.count, total: part.total }))
-      .join(" · ");
+      .join(", ");
 
   return (
     <div className="sac">
@@ -122,7 +129,7 @@ export default function SuperadminConsole() {
             const descId = `scl-${entry.id}-desc`;
             const parts = summaries[entry.id];
             const hasSummary = Array.isArray(parts) && parts.length > 0;
-            const loading = entry.id in summaries ? false : ["admin-accounts", "banner-templates", "nsrp-forms"].includes(entry.id);
+            const loading = entry.id in summaries ? false : ["admin-accounts", "banner-avatar-templates", "nsrp-forms"].includes(entry.id);
             return (
               <li key={entry.id}>
                 <Link to={entry.path} className="scl__card" aria-labelledby={titleId} aria-describedby={descId}>

@@ -26,7 +26,7 @@ import {
   FaClipboardList,
 } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
-import { messageAPI, notificationAPI, resolveAssetUrl } from "../services/api";
+import { messageAPI, notificationAPI } from "../services/api";
 import { useSocket } from "../context/SocketContext";
 import { useNavbarStylePreference } from "../hooks/useNavbarStylePreference";
 import { canViewJobs as canViewJobsAge, isJobVacancyEligibleAge } from "../utils/age";
@@ -35,6 +35,7 @@ import pesoLogo from "../assets/images/peso-logo.png";
 import PublicNavbar from "./PublicNavbar";
 import NavCollapsibleGroup from "./NavCollapsibleGroup";
 import EmployerAvatar from "./EmployerAvatar";
+import Avatar from "./Avatar";
 
 const normalizeRole = (role) => (role === "employee" || role === "resident" ? "jobseeker" : role);
 
@@ -221,14 +222,11 @@ const getInitials = (name) => {
     .toUpperCase();
 };
 
-const UserAvatar = ({ user }) => {
-  const src = user?.profileImage ? resolveAssetUrl(user.profileImage) : "";
-  return (
-    <span className="user-avatar-circle">
-      {src ? <img src={src} alt="" /> : getInitials(user?.name)}
-    </span>
-  );
-};
+const UserAvatar = ({ user }) => (
+  <span className="user-avatar-circle">
+    <Avatar size="fill" name={user?.name} initial={getInitials(user?.name)} photo={user?.profileImage} preset={user?.avatarPreset} />
+  </span>
+);
 
 // Status line under the name on the sidebar identity card. The employer
 // branch mirrors DashboardTopBar.jsx's getPortalContent: "verified" and

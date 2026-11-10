@@ -77,7 +77,8 @@ test("legacy anchors redirect to the matching function page", () => {
   assert.equal(legacyHashTarget("#nsrp-templates-title"), "/superadmin/nsrp-forms");
   assert.equal(legacyHashTarget("#match-weight-bounds-title"), "/superadmin/matching-bounds");
   assert.equal(legacyHashTarget("#system-options-title"), "/superadmin/catalogs");
-  assert.equal(legacyHashTarget("#banner-templates-title"), "/superadmin/banner-templates");
+  assert.equal(legacyHashTarget("#banner-templates-title"), "/superadmin/banner-avatar-templates");
+  assert.equal(legacyHashTarget("#banner-templates"), "/superadmin/banner-avatar-templates");
   assert.equal(legacyHashTarget("#sac-admins"), "/superadmin/admin-accounts");
   assert.equal(legacyHashTarget("#Catalogs"), "/superadmin/catalogs");
   assert.equal(legacyHashTarget("#unknown"), null);
@@ -108,8 +109,9 @@ test("buildSummary uses only loaded data and drops empty parts", async () => {
   ]);
   assert.deepEqual(buildSummary("admin-accounts", [{ isActive: true }]), [{ key: "admins", count: 1 }]);
   assert.deepEqual(buildSummary("nsrp-forms", [{ updatedAt: "2026-01-01" }, { filename: "x" }]), [{ key: "nsrp", count: 1, total: 2 }]);
-  assert.deepEqual(buildSummary("banner-templates", [{ isActive: true }, { isActive: false }]), [{ key: "banners", count: 2 }, { key: "bannersActive", count: 1 }]);
-  assert.deepEqual(buildSummary("banner-templates", []), [{ key: "banners", count: 0 }]);
+  assert.deepEqual(buildSummary("banner-avatar-templates", { banners: [{}, {}], avatars: [{}] }), [{ key: "banners", count: 2 }, { key: "avatars", count: 1 }]);
+  assert.deepEqual(buildSummary("banner-avatar-templates", { banners: [], avatars: null }), [{ key: "banners", count: 0 }]);
+  assert.deepEqual(buildSummary("banner-avatar-templates", null), []);
   assert.deepEqual(buildSummary("catalogs", []), []);
   assert.deepEqual(buildSummary("admin-accounts", null), []);
 });

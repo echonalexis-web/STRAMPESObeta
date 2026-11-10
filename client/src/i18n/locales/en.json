@@ -1099,9 +1099,10 @@
         "admins_other": "{{count}} admin accounts",
         "pending": "{{count}} pending",
         "nsrp": "{{count}} of {{total}} forms use an uploaded template",
-        "banners_one": "{{count}} banner template",
-        "banners_other": "{{count}} banner templates",
-        "bannersActive": "{{count}} active"
+        "banners_one": "{{count}} banner",
+        "banners_other": "{{count}} banners",
+        "avatars_one": "{{count}} avatar",
+        "avatars_other": "{{count}} avatars"
       },
       "breadcrumb": "Console navigation",
       "back": "Back to console",
@@ -1132,9 +1133,9 @@
           "title": "Dropdown catalogs",
           "description": "Add or retire the options in the industry, job type and government ID dropdowns."
         },
-        "banner-templates": {
-          "title": "Banner templates",
-          "description": "Manage the preset profile banners people can pick."
+        "banner-avatar-templates": {
+          "title": "Banner templates & avatars",
+          "description": "Manage the preset profile banners and avatars people can pick."
         }
       }
     },
@@ -1439,6 +1440,24 @@
       "TEMPLATE_IS_DEFAULT": "The default template cannot be archived or deleted. Pick another default first.",
       "TEMPLATE_IN_USE": "Accounts are using this template. Archive it instead.",
       "TEMPLATE_ORDER_INVALID": "The order could not be saved. Reload and try again.",
+      "AVATAR_IMAGE_REQUIRED": "Choose an SVG or PNG image to upload.",
+      "AVATAR_IMAGE_TYPE": "The file must be a real SVG or PNG image. Check that the file type matches its name.",
+      "AVATAR_IMAGE_TOO_LARGE": "That file is too large. See the size limit above.",
+      "AVATAR_IMAGE_DIMENSIONS": "The image size is not allowed. Use a square image of about 512 × 512 px.",
+      "AVATAR_IMAGE_RATIO": "The avatar must be square (about 1:1).",
+      "AVATAR_IMAGE_UNSAFE": "The SVG contains content that is not allowed, such as scripts, external links or embedded HTML.",
+      "AVATAR_IMAGE_PROCESSING_FAILED": "We could not read that image. Try another file.",
+      "AVATAR_UPLOAD_FAILED": "We could not store the image. Please try again.",
+      "TEMPLATE_BUILTIN_PROTECTED": "Built-in templates cannot be deleted. Archive it instead.",
+      "TEMPLATE_BUILTIN_IMAGE_LOCKED": "The image of a built-in template cannot be replaced.",
+      "AVATAR_BUILTIN_PROTECTED": "Built-in avatars cannot be deleted. Archive it instead.",
+      "AVATAR_BUILTIN_IMAGE_LOCKED": "The image of a built-in avatar cannot be replaced.",
+      "TEMPLATE_MANIFEST_INVALID": "The built-in install request was not valid. Reload and try again.",
+      "AVATAR_MANIFEST_INVALID": "The built-in install request was not valid. Reload and try again.",
+      "AVATAR_PRESET_NOT_FOUND": "That avatar could not be found.",
+      "AVATAR_PRESET_INACTIVE": "That avatar is no longer available.",
+      "AVATAR_ONLY_PRESET_ALLOWED": "You can only choose one of the avatars in the list.",
+      "AVATAR_NOT_ALLOWED": "This account type cannot choose a preset avatar.",
       "TEMPLATE_IMAGE_REQUIRED": "Choose an SVG or PNG image to upload.",
       "TEMPLATE_IMAGE_TYPE": "The file must be a real SVG or PNG image. Check that the file type matches its name.",
       "TEMPLATE_IMAGE_TOO_LARGE": "That file is too large. See the size limit above.",
@@ -2156,13 +2175,9 @@
     }
   },
   "bannerTemplates": {
-    "title": "Banner templates",
-    "subtitle": "Upload preset banners that jobseekers and employers can pick for their profile cover. Users with no choice see the default.",
-    "upload": "Upload template",
     "loading": "Loading templates…",
     "loadError": "Could not load banner templates.",
     "retry": "Try again",
-    "empty": "No templates yet. Upload your first banner.",
     "noMatches": "No templates match.",
     "created": "Template uploaded.",
     "updated": "Template saved.",
@@ -2175,7 +2190,6 @@
     "moved": "{{name}} moved to position {{position}} of {{total}}.",
     "usage_one": "{{count}} profile",
     "usage_other": "{{count}} profiles",
-    "list": "Banner templates",
     "filter": {
       "label": "Show",
       "all": "All",
@@ -2192,7 +2206,6 @@
       "archived": "Archived",
       "legacy": "Legacy"
     },
-    "legacyHint": "Legacy gradient or pattern banner. Upload an image to replace it.",
     "reorderHint": "Clear the filter and search to change the order.",
     "moveUp": "Move up",
     "moveDown": "Move down",
@@ -2217,13 +2230,9 @@
       "deleteBody": "{{name}} and its image will be removed for good. No profile uses it."
     },
     "form": {
-      "createTitle": "Upload template",
-      "editTitle": "Edit template",
-      "imageLabel": "Banner image",
       "dropTitle": "Drag a file here, or",
       "choose": "Choose file",
       "change": "Choose another file",
-      "dropHint": "SVG or PNG. Up to {{png}} MB (SVG up to {{svg}} KB). Recommended size: {{width}} × {{height}} px (4:1).",
       "dropActive": "Drop the file to select it",
       "selectedFile": "Selected file: {{name}} ({{size}})",
       "currentImage": "Current image. Choose a file to replace it.",
@@ -2234,14 +2243,11 @@
       "activeHint": "Active templates can be picked for a profile.",
       "activeLocked": "The default template must stay active. Set another default first.",
       "previewTitle": "Preview",
-      "guide": "Keep key shapes between the dashed lines; the bottom-left is covered by the avatar.",
       "desktop": "On a computer",
       "phone": "On a phone",
       "noImage": "No image chosen yet",
-      "legacyNote": "This is a legacy gradient or pattern banner. You can rename it, or upload an image to replace it.",
       "uploading": "Uploading… {{percent}}%",
       "processing": "Processing the image…",
-      "save": "Upload template",
       "saveChanges": "Save changes",
       "saving": "Saving…",
       "cancel": "Cancel",
@@ -2250,6 +2256,80 @@
       "discard": "Discard",
       "close": "Close"
     }
+  },
+  "profileTemplates": {
+    "title": "Banner templates & avatars",
+    "description": "Manage the preset banners and avatars that people can pick for their profile. Built-in ones come with the app; you can add and remove your own.",
+    "tablist": "Template types",
+    "tabs": {
+      "banners": "Banners",
+      "avatars": "Avatars"
+    },
+    "badge": {
+      "builtIn": "Built-in",
+      "custom": "Custom"
+    },
+    "banners": {
+      "imageLabel": "Banner image",
+      "upload": "Upload banner",
+      "list": "Banners",
+      "empty": "No banners yet. Install the built-in banners or upload your own.",
+      "builtinsNone": "{{total}} built-in banners are available to install.",
+      "createTitle": "Upload banner",
+      "editTitle": "Edit banner",
+      "dropHint": "SVG or PNG. Up to {{png}} MB (SVG up to {{svg}} KB). Recommended size: {{width}} × {{height}} px (4:1).",
+      "guide": "Keep key shapes between the dashed lines; the bottom-left is covered by the avatar.",
+      "legacyHint": "Legacy gradient or pattern banner. Upload an image to replace it.",
+      "legacyNote": "This is a legacy gradient or pattern banner. You can rename it, or upload an image to replace it."
+    },
+    "avatars": {
+      "imageLabel": "Avatar image",
+      "upload": "Upload avatar",
+      "list": "Avatars",
+      "empty": "No avatars yet. Install the built-in avatars or upload your own.",
+      "builtinsNone": "{{total}} built-in avatars are available to install.",
+      "createTitle": "Upload avatar",
+      "editTitle": "Edit avatar",
+      "dropHint": "SVG or PNG, square. Up to {{png}} MB (SVG up to {{svg}} KB). Recommended size: {{width}} × {{height}} px (1:1).",
+      "guide": "Shown as a circle. Keep the main shape in the middle; the corners are cropped."
+    },
+    "builtins": {
+      "install": "Install built-in templates",
+      "restore": "Restore built-ins",
+      "installing": "Installing…",
+      "someMissing": "{{present}} of {{total}} built-in templates are installed. Restore adds the missing ones and never changes your edits.",
+      "allInstalled": "All {{total}} built-in templates are installed. Restore only adds missing ones and never changes your edits.",
+      "done_one": "Installed {{count}} built-in template.",
+      "done_other": "Installed {{count}} built-in templates.",
+      "upToDate": "Built-in templates are already up to date.",
+      "failed_one": "{{count}} built-in template could not be installed.",
+      "failed_other": "{{count}} built-in templates could not be installed.",
+      "error": "Could not install the built-in templates.",
+      "imageLocked": "This is a built-in template. You can rename it, archive it or reorder it; its image stays as shipped."
+    },
+    "confirm": {
+      "deleteInUseTitle": "Delete a template that is in use?",
+      "deleteInUseBody_one": "{{count}} profile uses {{name}}. It will show the default instead. This cannot be undone.",
+      "deleteInUseBody_other": "{{count}} profiles use {{name}}. They will show the default instead. This cannot be undone."
+    }
+  },
+  "avatarPreset": {
+    "choose": "Choose avatar",
+    "title": "Choose your avatar",
+    "groupLabel": "Avatars",
+    "loading": "Loading avatars",
+    "loadError": "Could not load the avatars.",
+    "retry": "Try again",
+    "empty": "No avatars are available right now.",
+    "selected": "Selected",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Avatar updated.",
+    "saveError": "Could not save your avatar. Please try again.",
+    "clear": "Stop using an avatar",
+    "cancel": "Cancel",
+    "close": "Close",
+    "note": "A chosen avatar is shown instead of your uploaded photo. Uploading a new photo replaces it."
   },
   "cover": {
     "edit": "Edit cover",

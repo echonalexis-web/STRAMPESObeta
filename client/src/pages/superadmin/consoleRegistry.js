@@ -14,7 +14,7 @@ export const CONSOLE_FUNCTIONS = Object.freeze([
   { id: "nsrp-forms", path: "/superadmin/nsrp-forms", group: "forms", icon: "pdf" },
   { id: "matching-bounds", path: "/superadmin/matching-bounds", group: "matching", icon: "scale" },
   { id: "catalogs", path: "/superadmin/catalogs", group: "matching", icon: "list" },
-  { id: "banner-templates", path: "/superadmin/banner-templates", group: "appearance", icon: "images" },
+  { id: "banner-avatar-templates", path: "/superadmin/banner-avatar-templates", group: "appearance", icon: "images" },
 ]);
 
 export const titleKey = (entry) => `superadmin.launcher.functions.${entry.id}.title`;
@@ -52,9 +52,13 @@ export const buildSummary = (id, data) => {
   if (id === "nsrp-forms" && Array.isArray(data)) {
     return [{ key: "nsrp", count: data.filter((meta) => meta && meta.updatedAt).length, total: data.length }];
   }
-  if (id === "banner-templates" && Array.isArray(data)) {
-    const active = data.filter((tpl) => tpl && tpl.isActive).length;
-    return [{ key: "banners", count: data.length }, ...(data.length > 0 ? [{ key: "bannersActive", count: active }] : [])];
+  // data: { banners: [], avatars: [] } (the lists the screen itself loads). A list that
+  // failed to load is null and is left out.
+  if (id === "banner-avatar-templates" && data && typeof data === "object") {
+    const parts = [];
+    if (Array.isArray(data.banners)) parts.push({ key: "banners", count: data.banners.length });
+    if (Array.isArray(data.avatars)) parts.push({ key: "avatars", count: data.avatars.length });
+    return parts;
   }
   return [];
 };
@@ -70,13 +74,19 @@ const LEGACY_HASHES = Object.freeze({
   "nsrp-templates-title": "nsrp-forms",
   "match-weight-bounds-title": "matching-bounds",
   "system-options-title": "catalogs",
-  "banner-templates-title": "banner-templates",
+  "banner-templates-title": "banner-avatar-templates",
   "sac-admins": "admin-accounts",
 });
+
+// The function used to be called "Banner templates" (/superadmin/banner-templates).
+const LEGACY_IDS = Object.freeze({ "banner-templates": "banner-avatar-templates" });
+
+// Old console routes that now live elsewhere, with the page they moved to.
+export const LEGACY_PATHS = Object.freeze({ "/superadmin/banner-templates": "/superadmin/banner-avatar-templates" });
 
 export const legacyHashTarget = (hash) => {
   const key = String(hash || "").replace(/^#/, "").trim().toLowerCase();
   if (!key) return null;
-  const id = LEGACY_HASHES[key] || (findFunction(key) ? key : null);
+  const id = LEGACY_HASHES[key] || LEGACY_IDS[key] || (findFunction(key) ? key : null);
   return id ? findFunction(id).path : null;
 };

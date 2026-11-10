@@ -85,6 +85,7 @@ export const EXCLUDED = [
   '/superadmin/matching-bounds',
   '/superadmin/catalogs',
   '/superadmin/banner-templates',
+  '/superadmin/banner-avatar-templates',
   // Phase 3 (admin/superadmin bot)
   '/admin',
   '/admin/account-recovery',

@@ -1,8 +1,11 @@
-// Pure helpers for the banner template upload form. They MIRROR the server's rules
+// Pure helpers for the banner and avatar upload forms. They MIRROR the server's rules
 // (server/services/bannerTemplateImageService.js) so the form can tell the
-// superadmin early; the server is the only real gate and answers the same codes.
+// superadmin early; the server is the only real gate and answers the same codes
+// (TEMPLATE_IMAGE_* for banners, AVATAR_IMAGE_* for avatars).
 
 export const TEMPLATE_LIMITS = Object.freeze({
+  kind: "banner",
+  codePrefix: "TEMPLATE_IMAGE_",
   maxBytes: 2 * 1024 * 1024,
   maxSvgBytes: 512 * 1024,
   minWidth: 1200,
@@ -13,6 +16,22 @@ export const TEMPLATE_LIMITS = Object.freeze({
   ratioTolerance: 0.03,
   recommended: Object.freeze({ width: 1600, height: 400 }),
 });
+
+export const AVATAR_LIMITS = Object.freeze({
+  kind: "avatar",
+  codePrefix: "AVATAR_IMAGE_",
+  maxBytes: 1 * 1024 * 1024,
+  maxSvgBytes: 256 * 1024,
+  minWidth: 128,
+  minHeight: 128,
+  maxWidth: 4000,
+  maxHeight: 4000,
+  ratio: 1,
+  ratioTolerance: 0.03,
+  recommended: Object.freeze({ width: 512, height: 512 }),
+});
+
+export const limitsFor = (kind) => (kind === "avatar" ? AVATAR_LIMITS : TEMPLATE_LIMITS);
 
 // How much of the file the type sniff needs.
 export const SNIFF_BYTES = 4096;
@@ -48,19 +67,19 @@ export const declaredType = ({ name = "", type = "" } = {}) => {
 
 // Returns a server error code, or null when the file looks acceptable. `sniffed` is
 // the result of sniffImageType for the file's first bytes.
-export const checkTemplateFile = ({ name, type, size }, sniffed) => {
-  if (!sniffed) return "TEMPLATE_IMAGE_TYPE";
+export const checkTemplateFile = ({ name, type, size }, sniffed, limits = TEMPLATE_LIMITS) => {
+  if (!sniffed) return `${limits.codePrefix}TYPE`;
   const { byExt, byMime } = declaredType({ name, type });
-  if (byExt !== sniffed || byMime !== sniffed) return "TEMPLATE_IMAGE_TYPE";
-  const max = sniffed === "svg" ? TEMPLATE_LIMITS.maxSvgBytes : TEMPLATE_LIMITS.maxBytes;
-  if (!size || size > max) return "TEMPLATE_IMAGE_TOO_LARGE";
+  if (byExt !== sniffed || byMime !== sniffed) return `${limits.codePrefix}TYPE`;
+  const max = sniffed === "svg" ? limits.maxSvgBytes : limits.maxBytes;
+  if (!size || size > max) return `${limits.codePrefix}TOO_LARGE`;
   return null;
 };
 
-// width / height within the tolerance of 4:1.
-export const isNearTargetRatio = (width, height) => {
+// width / height within the tolerance of the target ratio (4:1 banner, 1:1 avatar).
+export const isNearTargetRatio = (width, height, limits = TEMPLATE_LIMITS) => {
   if (!(width > 0) || !(height > 0)) return false;
-  return Math.abs(width / height - TEMPLATE_LIMITS.ratio) / TEMPLATE_LIMITS.ratio <= TEMPLATE_LIMITS.ratioTolerance;
+  return Math.abs(width / height - limits.ratio) / limits.ratio <= limits.ratioTolerance;
 };
 
 const lengthOf = (value) => {
@@ -93,21 +112,21 @@ export const svgDimensions = (text) => {
 
 // Dimension check for a decoded image. Returns a server error code or null.
 // `dims` is null when the size is unknown (an SVG with no declared size).
-export const checkTemplateDimensions = (sniffed, dims) => {
+export const checkTemplateDimensions = (sniffed, dims, limits = TEMPLATE_LIMITS) => {
   if (!dims) return null;
   const { width, height } = dims;
   if (sniffed === "png") {
-    if (width < TEMPLATE_LIMITS.minWidth || height < TEMPLATE_LIMITS.minHeight || width > TEMPLATE_LIMITS.maxWidth || height > TEMPLATE_LIMITS.maxHeight) {
-      return "TEMPLATE_IMAGE_DIMENSIONS";
+    if (width < limits.minWidth || height < limits.minHeight || width > limits.maxWidth || height > limits.maxHeight) {
+      return `${limits.codePrefix}DIMENSIONS`;
     }
   }
-  return isNearTargetRatio(width, height) ? null : "TEMPLATE_IMAGE_RATIO";
+  return isNearTargetRatio(width, height, limits) ? null : `${limits.codePrefix}RATIO`;
 };
 
 // Which form field a server error code belongs to.
 export const errorField = (code) => {
   if (!code) return "form";
-  if (code.startsWith("TEMPLATE_IMAGE_") || code === "TEMPLATE_UPLOAD_FAILED") return "image";
+  if (code.startsWith("TEMPLATE_IMAGE_") || code.startsWith("AVATAR_IMAGE_") || code === "TEMPLATE_UPLOAD_FAILED" || code === "AVATAR_UPLOAD_FAILED") return "image";
   if (code === "TEMPLATE_DEFINITION_INVALID" || code === "TEMPLATE_NAME_TAKEN") return "name";
   if (code === "TEMPLATE_IS_DEFAULT") return "active";
   return "form";

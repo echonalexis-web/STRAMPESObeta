@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FaCheckCircle } from "react-icons/fa";
+import Avatar from "./Avatar";
 import BannerPreview from "./BannerPreview";
 import useProfileSummary from "../hooks/useProfileSummary";
 import { resolveAssetUrl } from "../services/api";
@@ -98,7 +99,7 @@ export default function ProfileHoverCard({ userId, anchorRef, to, titleId, onPoi
           <CoverThumb cover={data.cover} />
           <div className="pcard__body">
             <span className={`pcard__avatar${data.role === "employer" ? " pcard__avatar--company" : ""}`} aria-hidden="true">
-              {data.avatar ? <img src={resolveAssetUrl(data.avatar)} alt="" /> : initialOf(data.name)}
+              <Avatar size="fill" name={data.name} initial={initialOf(data.name)} photo={data.avatar} preset={data.avatarPreset} />
             </span>
             <div className="pcard__head">
               <strong id={titleId} className="pcard__name">

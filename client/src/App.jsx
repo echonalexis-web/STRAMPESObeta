@@ -34,7 +34,7 @@ import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
 import SuperadminConsole from "./pages/superadmin/SuperadminConsole";
 import SuperadminAdminAccounts from "./pages/superadmin/SuperadminAdminAccounts";
-import { BannerTemplatesPage, CatalogsPage, MatchingBoundsPage, NsrpFormsPage } from "./pages/superadmin/ConsoleFunctionPages";
+import { CatalogsPage, LegacyBannerTemplatesRedirect, MatchingBoundsPage, NsrpFormsPage, ProfileTemplatesPage } from "./pages/superadmin/ConsoleFunctionPages";
 import VerifyEmail from "./pages/VerifyEmail";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import VerifyRecoveryEmail from "./pages/VerifyRecoveryEmail";
@@ -223,7 +223,8 @@ function AppRoutes() {
           <Route path="/superadmin/nsrp-forms" element={<ProtectedRoute requiredRole="superadmin"><NsrpFormsPage /></ProtectedRoute>} />
           <Route path="/superadmin/matching-bounds" element={<ProtectedRoute requiredRole="superadmin"><MatchingBoundsPage /></ProtectedRoute>} />
           <Route path="/superadmin/catalogs" element={<ProtectedRoute requiredRole="superadmin"><CatalogsPage /></ProtectedRoute>} />
-          <Route path="/superadmin/banner-templates" element={<ProtectedRoute requiredRole="superadmin"><BannerTemplatesPage /></ProtectedRoute>} />
+          <Route path="/superadmin/banner-avatar-templates" element={<ProtectedRoute requiredRole="superadmin"><ProfileTemplatesPage /></ProtectedRoute>} />
+          <Route path="/superadmin/banner-templates" element={<ProtectedRoute requiredRole="superadmin"><LegacyBannerTemplatesRedirect /></ProtectedRoute>} />
           <Route path="/register-employer" element={<EmployeeRegister />} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />

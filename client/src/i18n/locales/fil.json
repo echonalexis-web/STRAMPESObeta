@@ -1099,9 +1099,10 @@
         "admins_other": "{{count}} admin account",
         "pending": "{{count}} nakabinbin",
         "nsrp": "{{count}} sa {{total}} form ang gumagamit ng na-upload na template",
-        "banners_one": "{{count}} template ng banner",
-        "banners_other": "{{count}} template ng banner",
-        "bannersActive": "{{count}} aktibo"
+        "banners_one": "{{count}} banner",
+        "banners_other": "{{count}} banner",
+        "avatars_one": "{{count}} avatar",
+        "avatars_other": "{{count}} avatar"
       },
       "breadcrumb": "Nabigasyon ng console",
       "back": "Bumalik sa console",
@@ -1132,9 +1133,9 @@
           "title": "Mga catalog ng dropdown",
           "description": "Magdagdag o mag-retiro ng mga opsyon sa mga dropdown ng industriya, uri ng trabaho at government ID."
         },
-        "banner-templates": {
-          "title": "Mga template ng banner",
-          "description": "Pamahalaan ang mga handang banner ng profile na mapipili ng mga tao."
+        "banner-avatar-templates": {
+          "title": "Mga template ng banner at avatar",
+          "description": "Pamahalaan ang mga handang banner at avatar ng profile na mapipili ng mga tao."
         }
       }
     },
@@ -1439,6 +1440,24 @@
       "TEMPLATE_IS_DEFAULT": "Hindi maaaring i-archive o burahin ang default na template. Pumili muna ng ibang default.",
       "TEMPLATE_IN_USE": "May mga account na gumagamit ng template na ito. I-archive na lang.",
       "TEMPLATE_ORDER_INVALID": "Hindi ma-save ang pagkakasunod-sunod. I-reload at subukang muli.",
+      "AVATAR_IMAGE_REQUIRED": "Pumili ng larawang SVG o PNG na ia-upload.",
+      "AVATAR_IMAGE_TYPE": "Dapat tunay na larawang SVG o PNG ang file. Tiyaking tugma ang uri ng file sa pangalan nito.",
+      "AVATAR_IMAGE_TOO_LARGE": "Masyadong malaki ang file. Tingnan ang limitasyon sa itaas.",
+      "AVATAR_IMAGE_DIMENSIONS": "Hindi pinapayagan ang sukat ng larawan. Gumamit ng parisukat na larawan na mga 512 × 512 px.",
+      "AVATAR_IMAGE_RATIO": "Dapat parisukat (mga 1:1) ang avatar.",
+      "AVATAR_IMAGE_UNSAFE": "May nilalaman ang SVG na hindi pinapayagan, gaya ng script, panlabas na link o naka-embed na HTML.",
+      "AVATAR_IMAGE_PROCESSING_FAILED": "Hindi namin mabasa ang larawang iyon. Subukan ang ibang file.",
+      "AVATAR_UPLOAD_FAILED": "Hindi namin ma-store ang larawan. Pakisubukan muli.",
+      "TEMPLATE_BUILTIN_PROTECTED": "Hindi mabubura ang mga built-in na template. I-archive na lang ito.",
+      "TEMPLATE_BUILTIN_IMAGE_LOCKED": "Hindi mapapalitan ang larawan ng built-in na template.",
+      "AVATAR_BUILTIN_PROTECTED": "Hindi mabubura ang mga built-in na avatar. I-archive na lang ito.",
+      "AVATAR_BUILTIN_IMAGE_LOCKED": "Hindi mapapalitan ang larawan ng built-in na avatar.",
+      "TEMPLATE_MANIFEST_INVALID": "Hindi wasto ang kahilingan sa pag-install ng built-in. I-reload at subukan muli.",
+      "AVATAR_MANIFEST_INVALID": "Hindi wasto ang kahilingan sa pag-install ng built-in. I-reload at subukan muli.",
+      "AVATAR_PRESET_NOT_FOUND": "Hindi mahanap ang avatar na iyon.",
+      "AVATAR_PRESET_INACTIVE": "Hindi na available ang avatar na iyon.",
+      "AVATAR_ONLY_PRESET_ALLOWED": "Maaari ka lamang pumili ng isa sa mga avatar sa listahan.",
+      "AVATAR_NOT_ALLOWED": "Hindi makakapili ng preset na avatar ang ganitong uri ng account.",
       "TEMPLATE_IMAGE_REQUIRED": "Pumili ng larawang SVG o PNG na ia-upload.",
       "TEMPLATE_IMAGE_TYPE": "Dapat tunay na larawang SVG o PNG ang file. Tiyaking tugma ang uri ng file sa pangalan nito.",
       "TEMPLATE_IMAGE_TOO_LARGE": "Masyadong malaki ang file. Tingnan ang limitasyon sa itaas.",
@@ -2156,13 +2175,9 @@
     }
   },
   "bannerTemplates": {
-    "title": "Mga template ng banner",
-    "subtitle": "Mag-upload ng mga handang banner na mapipili ng mga jobseeker at employer para sa cover ng kanilang profile. Ang mga walang pinili ay makikita ang default.",
-    "upload": "Mag-upload ng template",
     "loading": "Naglo-load ng mga template…",
     "loadError": "Hindi ma-load ang mga template ng banner.",
     "retry": "Subukan muli",
-    "empty": "Wala pang template. I-upload ang una mong banner.",
     "noMatches": "Walang tumugmang template.",
     "created": "Na-upload ang template.",
     "updated": "Na-save ang template.",
@@ -2175,7 +2190,6 @@
     "moved": "Inilipat ang {{name}} sa posisyon {{position}} ng {{total}}.",
     "usage_one": "{{count}} profile",
     "usage_other": "{{count}} profile",
-    "list": "Mga template ng banner",
     "filter": {
       "label": "Ipakita",
       "all": "Lahat",
@@ -2192,7 +2206,6 @@
       "archived": "Naka-archive",
       "legacy": "Luma"
     },
-    "legacyHint": "Lumang banner na gradient o pattern. Mag-upload ng larawan para palitan ito.",
     "reorderHint": "I-clear ang filter at paghahanap para mabago ang pagkakasunod-sunod.",
     "moveUp": "Ilipat pataas",
     "moveDown": "Ilipat pababa",
@@ -2217,13 +2230,9 @@
       "deleteBody": "Permanenteng buburahin ang {{name}} at ang larawan nito. Walang profile na gumagamit nito."
     },
     "form": {
-      "createTitle": "Mag-upload ng template",
-      "editTitle": "I-edit ang template",
-      "imageLabel": "Larawan ng banner",
       "dropTitle": "I-drag ang file dito, o",
       "choose": "Pumili ng file",
       "change": "Pumili ng ibang file",
-      "dropHint": "SVG o PNG. Hanggang {{png}} MB (SVG hanggang {{svg}} KB). Inirerekomendang sukat: {{width}} × {{height}} px (4:1).",
       "dropActive": "I-drop ang file para mapili ito",
       "selectedFile": "Napiling file: {{name}} ({{size}})",
       "currentImage": "Kasalukuyang larawan. Pumili ng file para palitan ito.",
@@ -2234,14 +2243,11 @@
       "activeHint": "Ang mga aktibong template ay mapipili para sa profile.",
       "activeLocked": "Dapat manatiling aktibo ang default na template. Magtakda muna ng ibang default.",
       "previewTitle": "Preview",
-      "guide": "Panatilihin ang mahahalagang hugis sa pagitan ng mga putol-putol na linya; natatakpan ng avatar ang kaliwang-ibaba.",
       "desktop": "Sa computer",
       "phone": "Sa telepono",
       "noImage": "Wala pang napiling larawan",
-      "legacyNote": "Lumang banner ito na gradient o pattern. Maaari mo itong palitan ng pangalan, o mag-upload ng larawan para palitan ito.",
       "uploading": "Nag-a-upload… {{percent}}%",
       "processing": "Pinoproseso ang larawan…",
-      "save": "Mag-upload ng template",
       "saveChanges": "I-save ang mga pagbabago",
       "saving": "Sine-save…",
       "cancel": "Kanselahin",
@@ -2250,6 +2256,80 @@
       "discard": "Itapon",
       "close": "Isara"
     }
+  },
+  "profileTemplates": {
+    "title": "Mga template ng banner at avatar",
+    "description": "Pamahalaan ang mga handang banner at avatar na mapipili ng mga tao para sa kanilang profile. May kasamang built-in ang app; maaari kang magdagdag at magtanggal ng sarili mo.",
+    "tablist": "Mga uri ng template",
+    "tabs": {
+      "banners": "Mga banner",
+      "avatars": "Mga avatar"
+    },
+    "badge": {
+      "builtIn": "Built-in",
+      "custom": "Custom"
+    },
+    "banners": {
+      "imageLabel": "Larawan ng banner",
+      "upload": "Mag-upload ng banner",
+      "list": "Mga banner",
+      "empty": "Wala pang banner. I-install ang mga built-in na banner o mag-upload ng sarili mo.",
+      "builtinsNone": "May {{total}} built-in na banner na maaaring i-install.",
+      "createTitle": "Mag-upload ng banner",
+      "editTitle": "I-edit ang banner",
+      "dropHint": "SVG o PNG. Hanggang {{png}} MB (SVG hanggang {{svg}} KB). Inirerekomendang sukat: {{width}} × {{height}} px (4:1).",
+      "guide": "Panatilihin ang mahahalagang hugis sa pagitan ng mga putol-putol na linya; natatakpan ng avatar ang kaliwang-ibaba.",
+      "legacyHint": "Lumang banner na gradient o pattern. Mag-upload ng larawan para palitan ito.",
+      "legacyNote": "Lumang banner ito na gradient o pattern. Maaari mo itong palitan ng pangalan, o mag-upload ng larawan para palitan ito."
+    },
+    "avatars": {
+      "imageLabel": "Larawan ng avatar",
+      "upload": "Mag-upload ng avatar",
+      "list": "Mga avatar",
+      "empty": "Wala pang avatar. I-install ang mga built-in na avatar o mag-upload ng sarili mo.",
+      "builtinsNone": "May {{total}} built-in na avatar na maaaring i-install.",
+      "createTitle": "Mag-upload ng avatar",
+      "editTitle": "I-edit ang avatar",
+      "dropHint": "SVG o PNG, parisukat. Hanggang {{png}} MB (SVG hanggang {{svg}} KB). Inirerekomendang sukat: {{width}} × {{height}} px (1:1).",
+      "guide": "Ipinapakita bilang bilog. Panatilihin ang pangunahing hugis sa gitna; ang mga sulok ay pinuputol."
+    },
+    "builtins": {
+      "install": "I-install ang mga built-in na template",
+      "restore": "Ibalik ang mga built-in",
+      "installing": "Ini-install…",
+      "someMissing": "{{present}} sa {{total}} built-in na template ang naka-install. Idinadagdag ng pagbabalik ang mga kulang at hindi binabago ang mga edit mo.",
+      "allInstalled": "Naka-install ang lahat ng {{total}} built-in na template. Mga kulang lang ang idinadagdag ng pagbabalik at hindi binabago ang mga edit mo.",
+      "done_one": "Na-install ang {{count}} built-in na template.",
+      "done_other": "Na-install ang {{count}} built-in na template.",
+      "upToDate": "Napapanahon na ang mga built-in na template.",
+      "failed_one": "Hindi ma-install ang {{count}} built-in na template.",
+      "failed_other": "Hindi ma-install ang {{count}} built-in na template.",
+      "error": "Hindi ma-install ang mga built-in na template.",
+      "imageLocked": "Built-in na template ito. Maaari mo itong palitan ng pangalan, i-archive o ilipat; mananatili ang larawan nito."
+    },
+    "confirm": {
+      "deleteInUseTitle": "Burahin ang template na ginagamit?",
+      "deleteInUseBody_one": "{{count}} profile ang gumagamit ng {{name}}. Ang default na ang ipapakita. Hindi na ito maibabalik.",
+      "deleteInUseBody_other": "{{count}} profile ang gumagamit ng {{name}}. Ang default na ang ipapakita. Hindi na ito maibabalik."
+    }
+  },
+  "avatarPreset": {
+    "choose": "Pumili ng avatar",
+    "title": "Piliin ang iyong avatar",
+    "groupLabel": "Mga avatar",
+    "loading": "Naglo-load ng mga avatar",
+    "loadError": "Hindi ma-load ang mga avatar.",
+    "retry": "Subukan muli",
+    "empty": "Walang available na avatar ngayon.",
+    "selected": "Napili",
+    "save": "I-save",
+    "saving": "Sine-save…",
+    "saved": "Na-update ang avatar.",
+    "saveError": "Hindi ma-save ang iyong avatar. Pakisubukan muli.",
+    "clear": "Huwag nang gumamit ng avatar",
+    "cancel": "Kanselahin",
+    "close": "Isara",
+    "note": "Ang napiling avatar ang ipapakita sa halip na ang na-upload mong larawan. Pinapalitan ito ng pag-upload ng bagong larawan."
   },
   "cover": {
     "edit": "I-edit ang cover",

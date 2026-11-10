@@ -295,6 +295,8 @@ export const authAPI = {
   },
   // Profile banner: a preset template id, or null to reset to the default.
   setCover: (templateId) => api.put('/auth/profile/cover', { templateId }, getAuthHeader()),
+  // Pick a preset avatar by id (jobseekers), or null to clear the choice.
+  setAvatarPreset: (presetId) => api.put('/auth/profile/avatar/preset', { presetId }, getAuthHeader()),
   registerEmployer: (data) => api.post('/auth/register/employer', data),
   acceptTerms: (version) => api.post('/auth/accept-terms', { version }, getAuthHeader()),
   changePassword: (payload) => api.post('/auth/change-password', payload, getAuthHeader()),
@@ -652,7 +654,37 @@ export const bannerTemplateAPI = {
   setActive: (id, isActive) => api.patch(`/superadmin/banner-templates/${id}/active`, { isActive }, getAuthHeader()),
   setDefault: (id) => api.patch(`/superadmin/banner-templates/${id}/default`, {}, getAuthHeader()),
   reorder: (ids) => api.put('/superadmin/banner-templates/order', { ids }, getAuthHeader()),
-  remove: (id) => api.delete(`/superadmin/banner-templates/${id}`, getAuthHeader()),
+  // A template people use is deleted only with confirmUsage (the superadmin saw the count).
+  remove: (id, { confirmUsage = false } = {}) =>
+    api.delete(`/superadmin/banner-templates/${id}`, { ...getAuthHeader(), ...(confirmUsage ? { params: { confirmUsage: 'true' } } : {}) }),
+  // Install the bundled banners: FormData with a "manifest" JSON field and the "images" files.
+  installBuiltins: (formData) => api.post('/superadmin/banner-templates/builtins', formData, getAuthFormHeader()),
+};
+
+// Profile avatar presets: signed-in users read the active list, the superadmin manages
+// them (uploaded SVG or PNG, rasterized by the server), a jobseeker picks one by id.
+export const avatarPresetAPI = {
+  listActive: () => api.get('/avatar-presets', getAuthHeader()),
+  adminList: () => api.get('/superadmin/avatar-presets', getAuthHeader()),
+  create: (formData, onProgress) =>
+    api.post('/superadmin/avatar-presets', formData, {
+      ...getAuthFormHeader(),
+      onUploadProgress: (event) => {
+        if (onProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    }),
+  update: (id, formData, onProgress) =>
+    api.put(`/superadmin/avatar-presets/${id}`, formData, {
+      ...getAuthFormHeader(),
+      onUploadProgress: (event) => {
+        if (onProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    }),
+  setActive: (id, isActive) => api.patch(`/superadmin/avatar-presets/${id}/active`, { isActive }, getAuthHeader()),
+  reorder: (ids) => api.put('/superadmin/avatar-presets/order', { ids }, getAuthHeader()),
+  remove: (id, { confirmUsage = false } = {}) =>
+    api.delete(`/superadmin/avatar-presets/${id}`, { ...getAuthHeader(), ...(confirmUsage ? { params: { confirmUsage: 'true' } } : {}) }),
+  installBuiltins: (formData) => api.post('/superadmin/avatar-presets/builtins', formData, getAuthFormHeader()),
 };
 
 // Employer self-service account endpoints (profile picture + the combined

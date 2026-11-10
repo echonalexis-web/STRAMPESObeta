@@ -45,6 +45,8 @@ import VerificationTab from "../components/VerificationTab";
 import { downloadBlob } from "../utils/exportUtils";
 import ProfileBanner from "../components/ProfileBanner";
 import CoverPicker, { CoverEditButton } from "../components/CoverPicker";
+import Avatar from "../components/Avatar";
+import AvatarPresetPicker from "../components/AvatarPresetPicker";
 import StateBlock from "../components/StateBlock";
 import Pagination from "../components/Pagination";
 import usePagination from "../hooks/usePagination";
@@ -296,6 +298,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
   const avatarFileInputRef = useRef(null);
   const avatarEditUrlRef = useRef("");
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [coverPickerOpen, setCoverPickerOpen] = useState(false);
   const [avatarEditSrc, setAvatarEditSrc] = useState("");
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -341,6 +344,12 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
     const url = URL.createObjectURL(file);
     avatarEditUrlRef.current = url;
     setAvatarEditSrc(url);
+  };
+
+  // A preset avatar was chosen (or cleared): show it now, on this page and in the shell.
+  const handleAvatarPresetSaved = (avatarPreset) => {
+    setProfile((prev) => ({ ...(prev || {}), avatarPreset }));
+    setUser((prev) => (prev ? { ...prev, avatarPreset } : prev));
   };
 
   const handleAvatarCropped = async (file) => {
@@ -718,7 +727,9 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
   const avatarInitial = isEmployer
     ? (profile?.companyName || profile?.name || "C").trim().charAt(0).toUpperCase()
     : (profile?.name ? profile.name.trim().charAt(0).toUpperCase() : "U");
-  const avatarUrl = profile?.profileImage ? resolveAssetUrl(profile.profileImage) : "";
+  // A chosen preset avatar is shown instead of the uploaded photo.
+  const avatarPresetUrl = profile?.avatarPreset?.image?.url ? resolveAssetUrl(profile.avatarPreset.image.url) : "";
+  const avatarUrl = avatarPresetUrl || (profile?.profileImage ? resolveAssetUrl(profile.profileImage) : "");
   const getUserAvatarUrl = (person) => {
     if (!person) return "";
     const source = person.profileImage || person.avatar || person.image || person.photo || person.companyLogo || person.logo;
@@ -772,7 +783,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                 }}
                 aria-label={avatarUrl ? "View profile photo" : "Add a profile photo"}
               >
-                {avatarUrl ? <img src={avatarUrl} alt="" /> : avatarInitial}
+                <Avatar size="fill" name={displayName} initial={avatarInitial} photo={profile?.profileImage} preset={profile?.avatarPreset} />
               </button>
               {!isReadOnly ? (
                 <>
@@ -800,6 +811,11 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
             </div>
             <div className="rd2-head-main">
               <h1 className="rd2-name">{displayName}</h1>
+              {!isReadOnly && !isAdmin && !isEmployer ? (
+                <button type="button" className="av-choose-link" onClick={() => setAvatarPickerOpen(true)}>
+                  {t("avatarPreset.choose")}
+                </button>
+              ) : null}
               {avatarError ? <p className="rd2-avatar-error">{avatarError}</p> : null}
               {isEmployer && profile?.companyName && profile?.name ? (
                 <p className="rd2-repby"><FaUserTie aria-hidden="true" /> Represented by {profile.name}</p>
@@ -1405,6 +1421,15 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
           </main>
         )}
       </section>
+
+      {!isReadOnly && !isAdmin && !isEmployer ? (
+        <AvatarPresetPicker
+          isOpen={avatarPickerOpen}
+          onClose={() => setAvatarPickerOpen(false)}
+          current={profile?.avatarPreset}
+          onSaved={handleAvatarPresetSaved}
+        />
+      ) : null}
 
       {!isReadOnly && !isAdmin ? (
         <CoverPicker

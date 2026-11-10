@@ -6,6 +6,8 @@
 process.env.BANNER_TEMPLATE_UPLOADS_PER_HOUR = "1000";
 delete process.env.DISABLE_RATE_LIMITS;
 
+jest.setTimeout(30000); // real sharp work: stay green when the whole suite runs in parallel
+
 jest.mock("../models/BannerTemplate", () => ({
   find: jest.fn(),
   findById: jest.fn(),

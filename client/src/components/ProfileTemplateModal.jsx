@@ -2,23 +2,23 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import AppModal from "./AppModal";
 import BannerPreview from "./BannerPreview";
-import { bannerTemplateAPI, resolveAssetUrl } from "../services/api";
+import { avatarPresetAPI, bannerTemplateAPI, resolveAssetUrl } from "../services/api";
 import { translateErrorCode } from "../utils/apiErrors";
 import {
   SNIFF_BYTES,
-  TEMPLATE_LIMITS,
   checkTemplateDimensions,
   checkTemplateFile,
   errorField,
   formatBytes,
+  limitsFor,
   sniffImageType,
   svgDimensions,
 } from "../utils/bannerTemplateFile";
-import "../styles/banner-templates.css";
+import "../styles/profile-templates.css";
 
-// Create or edit one banner template. A template is an uploaded image (SVG or PNG)
+// Create or edit one banner template or avatar. It is an uploaded image (SVG or PNG)
 // with a name in English and Filipino and an active flag; nothing here designs a
-// banner. The checks mirror the server's (utils/bannerTemplateFile.js) and the
+// banner. `kind` is "banner" or "avatar" (different size, ratio, preview and API). The checks mirror the server's (utils/bannerTemplateFile.js) and the
 // server answers the same error codes, which are shown next to the field they
 // belong to. Mount it only while open: its state starts from `template`.
 
@@ -35,16 +35,22 @@ const loadDimensions = (url) =>
 // What a template card, the crop previews and the mockup show when no new file is chosen.
 function PreviewSurface({ previewSrc, template, emptyLabel }) {
   if (previewSrc) return <img className="btm__img" src={previewSrc} alt="" draggable={false} />;
-  if (template?.kind === "image" && template.image?.url) {
+  if (template?.image?.url) {
     return <img className="btm__img" src={resolveAssetUrl(template.image.url)} alt="" draggable={false} />;
   }
   if (template?.definition) return <BannerPreview template={template} definition={template.definition} height="100%" className="btm__legacy" />;
   return <span className="btm__empty">{emptyLabel}</span>;
 }
 
-export default function BannerTemplateModal({ template, onClose, onSaved }) {
+export default function ProfileTemplateModal({ kind = "banner", template, onClose, onSaved }) {
   const { t } = useTranslation();
   const editing = Boolean(template);
+  const limits = limitsFor(kind);
+  const isAvatar = kind === "avatar";
+  const group = isAvatar ? "avatars" : "banners";
+  const api = isAvatar ? avatarPresetAPI : bannerTemplateAPI;
+  // A built-in keeps the artwork it shipped with: it can be renamed, not re-imaged.
+  const imageLocked = Boolean(template?.isBuiltIn);
   const ids = useId();
   const id = (name) => `${ids}-${name}`;
 
@@ -94,10 +100,10 @@ export default function BannerTemplateModal({ template, onClose, onSaved }) {
       try {
         sniffed = sniffImageType(await readHead(chosen));
       } catch {
-        setError("image", translateErrorCode("TEMPLATE_IMAGE_PROCESSING_FAILED"));
+        setError("image", translateErrorCode(`${limits.codePrefix}PROCESSING_FAILED`));
         return;
       }
-      const fileCode = checkTemplateFile(chosen, sniffed);
+      const fileCode = checkTemplateFile(chosen, sniffed, limits);
       if (fileCode) {
         setError("image", codeMessage(fileCode));
         return;
@@ -110,10 +116,10 @@ export default function BannerTemplateModal({ template, onClose, onSaved }) {
         else dims = svgDimensions(await chosen.text());
       } catch {
         URL.revokeObjectURL(url);
-        setError("image", codeMessage("TEMPLATE_IMAGE_PROCESSING_FAILED"));
+        setError("image", codeMessage(`${limits.codePrefix}PROCESSING_FAILED`));
         return;
       }
-      const dimCode = checkTemplateDimensions(sniffed, dims);
+      const dimCode = checkTemplateDimensions(sniffed, dims, limits);
       if (dimCode) {
         URL.revokeObjectURL(url);
         setError("image", codeMessage(dimCode));
@@ -126,7 +132,7 @@ export default function BannerTemplateModal({ template, onClose, onSaved }) {
       setFile({ file: chosen, sniffed });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t]
+    [t, limits]
   );
 
   const onPick = (event) => {
@@ -152,7 +158,7 @@ export default function BannerTemplateModal({ template, onClose, onSaved }) {
     if (saving) return;
     const next = {};
     if (!name.trim()) next.name = t("bannerTemplates.form.nameRequired");
-    if (!editing && !file) next.image = translateErrorCode("TEMPLATE_IMAGE_REQUIRED");
+    if (!editing && !file) next.image = translateErrorCode(`${limits.codePrefix}REQUIRED`);
     if (Object.keys(next).length) {
       setErrors(next);
       focusField(next.name ? "name" : "image");
@@ -170,8 +176,8 @@ export default function BannerTemplateModal({ template, onClose, onSaved }) {
     setProgress(0);
     try {
       const { data } = editing
-        ? await bannerTemplateAPI.update(template.id, body, setProgress)
-        : await bannerTemplateAPI.create(body, setProgress);
+        ? await api.update(template.id, body, setProgress)
+        : await api.create(body, setProgress);
       onSaved(data, editing ? (file ? "imageReplaced" : "updated") : "created");
     } catch (err) {
       const code = err?.response?.data?.code;
@@ -185,9 +191,9 @@ export default function BannerTemplateModal({ template, onClose, onSaved }) {
     }
   };
 
-  const title = editing ? t("bannerTemplates.form.editTitle") : t("bannerTemplates.form.createTitle");
+  const title = editing ? t(`profileTemplates.${group}.editTitle`) : t(`profileTemplates.${group}.createTitle`);
   const lockedActive = Boolean(template?.isDefault);
-  const hasImage = Boolean(file) || (template?.kind === "image" && template.image?.url);
+  const hasImage = Boolean(file) || Boolean(template?.image?.url);
   const uploading = saving && file;
 
   return (
@@ -208,9 +214,12 @@ export default function BannerTemplateModal({ template, onClose, onSaved }) {
 
           <div className="btm__layout">
             <div className="btm__col">
+              {imageLocked ? (
+                <p className="btm__note">{t("profileTemplates.builtins.imageLocked")}</p>
+              ) : (
               <div className="btm__field" role="group" aria-labelledby={id("image-label")}>
                 <span className="btm__label" id={id("image-label")}>
-                  {t("bannerTemplates.form.imageLabel")}
+                  {t(`profileTemplates.${group}.imageLabel`)}
                 </span>
                 <div
                   className={`btm__drop${dragging ? " is-dragging" : ""}${errors.image ? " has-error" : ""}`}
@@ -239,18 +248,18 @@ export default function BannerTemplateModal({ template, onClose, onSaved }) {
                     <span className="btm__choose-ui">{hasImage ? t("bannerTemplates.form.change") : t("bannerTemplates.form.choose")}</span>
                   </label>
                   <p className="btm__hint" id={id("hint")}>
-                    {t("bannerTemplates.form.dropHint", {
-                      png: TEMPLATE_LIMITS.maxBytes / (1024 * 1024),
-                      svg: TEMPLATE_LIMITS.maxSvgBytes / 1024,
-                      width: TEMPLATE_LIMITS.recommended.width,
-                      height: TEMPLATE_LIMITS.recommended.height,
+                    {t(`profileTemplates.${group}.dropHint`, {
+                      png: limits.maxBytes / (1024 * 1024),
+                      svg: limits.maxSvgBytes / 1024,
+                      width: limits.recommended.width,
+                      height: limits.recommended.height,
                     })}
                   </p>
                   {file ? (
                     <p className="btm__picked" role="status">
                       {t("bannerTemplates.form.selectedFile", { name: file.file.name, size: formatBytes(file.file.size) })}
                     </p>
-                  ) : editing && template.kind === "image" ? (
+                  ) : editing && template.image?.url ? (
                     <p className="btm__picked">{t("bannerTemplates.form.currentImage")}</p>
                   ) : null}
                 </div>
@@ -258,8 +267,9 @@ export default function BannerTemplateModal({ template, onClose, onSaved }) {
                   {errors.image}
                 </p>
               </div>
+              )}
 
-              {editing && template.legacy && !file ? <p className="btm__note">{t("bannerTemplates.form.legacyNote")}</p> : null}
+              {editing && template.legacy && !file ? <p className="btm__note">{t("profileTemplates.banners.legacyNote")}</p> : null}
 
               <div className="btm__field">
                 <label className="btm__label" htmlFor={id("name")}>
@@ -333,35 +343,52 @@ export default function BannerTemplateModal({ template, onClose, onSaved }) {
 
             <div className="btm__col btm__col--preview">
               <h4 className="btm__label btm__label--heading">{t("bannerTemplates.form.previewTitle")}</h4>
-              <div className="btm__mock">
-                <div className="btm__mock-head">
-                  <div className="btm__mock-banner">
+              {isAvatar ? (
+                <div className="btm__avatar-preview">
+                  <div className="btm__avatar-big">
                     <PreviewSurface previewSrc={previewUrl} template={template} emptyLabel={t("bannerTemplates.form.noImage")} />
-                    <span className="btm__guide" aria-hidden="true" />
                   </div>
-                  <span className="btm__avatar" aria-hidden="true" />
+                  <div className="btm__avatar-sizes">
+                    {[64, 40, 28].map((size) => (
+                      <span key={size} className="btm__avatar-small" style={{ width: size, height: size }}>
+                        <PreviewSurface previewSrc={previewUrl} template={template} emptyLabel="" />
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="btm__mock-body" aria-hidden="true">
-                  <span className="btm__mock-line btm__mock-line--name" />
-                  <span className="btm__mock-line" />
+              ) : (
+                <div className="btm__mock">
+                  <div className="btm__mock-head">
+                    <div className="btm__mock-banner">
+                      <PreviewSurface previewSrc={previewUrl} template={template} emptyLabel={t("bannerTemplates.form.noImage")} />
+                      <span className="btm__guide" aria-hidden="true" />
+                    </div>
+                    <span className="btm__avatar" aria-hidden="true" />
+                  </div>
+                  <div className="btm__mock-body" aria-hidden="true">
+                    <span className="btm__mock-line btm__mock-line--name" />
+                    <span className="btm__mock-line" />
+                  </div>
                 </div>
-              </div>
-              <p className="btm__hint">{t("bannerTemplates.form.guide")}</p>
+              )}
+              <p className="btm__hint">{t(`profileTemplates.${group}.guide`)}</p>
 
-              <div className="btm__crops">
-                <figure className="btm__crop">
-                  <div className="btm__crop-box btm__crop-box--desktop">
-                    <PreviewSurface previewSrc={previewUrl} template={template} emptyLabel="" />
-                  </div>
-                  <figcaption>{t("bannerTemplates.form.desktop")}</figcaption>
-                </figure>
-                <figure className="btm__crop">
-                  <div className="btm__crop-box btm__crop-box--phone">
-                    <PreviewSurface previewSrc={previewUrl} template={template} emptyLabel="" />
-                  </div>
-                  <figcaption>{t("bannerTemplates.form.phone")}</figcaption>
-                </figure>
-              </div>
+              {isAvatar ? null : (
+                <div className="btm__crops">
+                  <figure className="btm__crop">
+                    <div className="btm__crop-box btm__crop-box--desktop">
+                      <PreviewSurface previewSrc={previewUrl} template={template} emptyLabel="" />
+                    </div>
+                    <figcaption>{t("bannerTemplates.form.desktop")}</figcaption>
+                  </figure>
+                  <figure className="btm__crop">
+                    <div className="btm__crop-box btm__crop-box--phone">
+                      <PreviewSurface previewSrc={previewUrl} template={template} emptyLabel="" />
+                    </div>
+                    <figcaption>{t("bannerTemplates.form.phone")}</figcaption>
+                  </figure>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -393,7 +420,7 @@ export default function BannerTemplateModal({ template, onClose, onSaved }) {
                 {t("bannerTemplates.form.cancel")}
               </button>
               <button type="submit" className="btm__btn btm__btn--primary" disabled={saving}>
-                {saving ? t("bannerTemplates.form.saving") : editing ? t("bannerTemplates.form.saveChanges") : t("bannerTemplates.form.save")}
+                {saving ? t("bannerTemplates.form.saving") : editing ? t("bannerTemplates.form.saveChanges") : t(`profileTemplates.${group}.upload`)}
               </button>
             </div>
           )}
