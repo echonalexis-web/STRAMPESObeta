@@ -569,7 +569,10 @@
       "idNumberDeclared": "Numero ng ID",
       "governmentIdFile": "Government ID",
       "selfieFile": "Selfie",
-      "contactPhone": "Numero para makontak"
+      "contactPhone": "Numero para makontak",
+      "contact": "Kontak",
+      "idLabel": "ID",
+      "account": "Account"
     },
     "filesHint": "I-upload ang ID at malinaw na selfie. Hanggang 5 MB bawat isa. Pribado ang mga file at buburahin 90 araw matapos maresolba ang kahilingan. Teksto lamang ang binabasa ng OCR; kawani ang magpapasya.",
     "received": "Kung umiiral ang account, natanggap ang iyong kahilingan. Kumpirmahin ang iyong contact email gamit ang link sa inbox at hintayin ang PESO. Maaari kang magsumite muli kung nag-expire ang recovery link.",

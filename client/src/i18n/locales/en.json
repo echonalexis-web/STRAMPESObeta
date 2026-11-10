@@ -569,7 +569,10 @@
       "idNumberDeclared": "ID number",
       "governmentIdFile": "Government ID",
       "selfieFile": "Selfie",
-      "contactPhone": "Contact phone"
+      "contactPhone": "Contact phone",
+      "contact": "Contact",
+      "idLabel": "ID",
+      "account": "Account"
     },
     "filesHint": "Upload your ID and a clear selfie. Maximum 5 MB each. Files are private and removed 90 days after the request is resolved. OCR reads text; staff make the decision.",
     "received": "If this account exists, your request has been received. Check your contact inbox to confirm that address, then wait for PESO staff. You can submit again if a recovery link expires.",

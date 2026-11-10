@@ -11,6 +11,18 @@ import AdminHeader from "./AdminHeader";
 import "../../styles/admin.css";
 import "../../styles/idOcr.css";
 
+// One labelled fact (label above its value); renders nothing when there is no value.
+const Fact = ({ label, children }) => (children ? <div className="recovery-queue__fact"><dt>{label}</dt><dd>{children}</dd></div> : null);
+
+// "2026-11-09T15:37:28.687Z" -> "Nov 9, 2026, 11:37 PM" in the viewer's locale.
+const formatWhen = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+};
+
+const joinParts = (...parts) => parts.filter(Boolean).join(" · ");
+
 export default function AccountRecoveryQueue() {
   const { t } = useTranslation();
   const { user: actor } = useContext(AuthContext);
@@ -108,19 +120,50 @@ export default function AccountRecoveryQueue() {
     </section>
     {tempPassword && <section className="admin-panel-card id-ocr"><TemporaryPasswordPanel value={tempPassword} onDone={() => setTempPassword("")} /></section>}
     {recovery && <section className="admin-panel-card id-ocr">
-      <h2>{recovery.fullName}</h2>
-      <p>{t("staffRecovery.reviewHint")}</p>
-      <div className="id-ocr-grid">
-        <div><h3>{t("staffRecovery.submitted")}</h3><p>{recovery.contactMethod === "phone" ? recovery.contactPhone : recovery.contactEmail} · {recovery.phone}</p><p>{recovery.lastKnownAddress}</p><p>{recovery.idTypeDeclared} · {recovery.idNumberDeclared}</p>
-          <IdEvidence key={recovery.governmentIdFile} value={recovery.governmentIdFile} label={t("staffRecovery.fields.governmentIdFile")} /><IdEvidence key={recovery.selfieFile} value={recovery.selfieFile} label={t("staffRecovery.fields.selfieFile")} />
+      <header className="recovery-queue__head">
+        <h2>{recovery.fullName}</h2>
+        <span className={`recovery-queue__chip${recovery.contactVerifiedAt ? " is-verified" : ""}`}>{t(recovery.contactVerifiedAt ? "staffRecovery.verified" : "staffRecovery.unverified")}</span>
+        <span className="recovery-queue__chip is-neutral">{t(`staffRecovery.statuses.${recovery.status}`)}</span>
+      </header>
+      <p className="recovery-queue__hint">{t("staffRecovery.reviewHint")}</p>
+      <div className="recovery-queue__cols">
+        <section className="recovery-queue__panel" aria-labelledby="rq-submitted">
+          <h3 id="rq-submitted">{t("staffRecovery.submitted")}</h3>
+          <dl className="recovery-queue__facts">
+            <Fact label={t("staffRecovery.fields.contact")}>{joinParts(recovery.contactMethod === "phone" ? recovery.contactPhone : recovery.contactEmail, recovery.phone)}</Fact>
+            <Fact label={t("staffRecovery.fields.lastKnownAddress")}>{recovery.lastKnownAddress}</Fact>
+            <Fact label={t("staffRecovery.fields.idLabel")}>{joinParts(recovery.idTypeDeclared, recovery.idNumberDeclared)}</Fact>
+          </dl>
+          <div className="recovery-queue__evidence">
+            <IdEvidence key={recovery.governmentIdFile} value={recovery.governmentIdFile} label={t("staffRecovery.fields.governmentIdFile")} />
+            <IdEvidence key={recovery.selfieFile} value={recovery.selfieFile} label={t("staffRecovery.fields.selfieFile")} />
+          </div>
           <IdOcrSummary ocr={recovery.ocr} />
-        </div>
-        <div><h3>{t("staffRecovery.onFile")}</h3>{user ? <>
-          <p>{user.name} · {user.role} · {user.authProvider}</p><p>{t("staffRecovery.created")}: {user.createdAt}</p><p>{t("staffRecovery.lastLogin")}: {user.lastLoginAt || t("staffRecovery.unknown")}</p><p>{t("staffRecovery.applications")}: {detail.totalApplications}</p>
-          <p>{user.governmentIdType} · {user.governmentIdNumber}</p><IdEvidence key={user.validIdFile} value={user.validIdFile} label={t("staffRecovery.fields.governmentIdFile")} /><IdOcrSummary ocr={user.governmentIdOcr} />
-        </> : <p>{t("staffRecovery.noAccount")}</p>}</div>
+        </section>
+        <section className="recovery-queue__panel" aria-labelledby="rq-onfile">
+          <h3 id="rq-onfile">{t("staffRecovery.onFile")}</h3>
+          {user ? <>
+            <dl className="recovery-queue__facts">
+              <Fact label={t("staffRecovery.fields.fullName")}>{user.name}</Fact>
+              <Fact label={t("staffRecovery.fields.account")}>{joinParts(user.role, user.authProvider)}</Fact>
+              <Fact label={t("staffRecovery.created")}>{formatWhen(user.createdAt)}</Fact>
+              <Fact label={t("staffRecovery.lastLogin")}>{user.lastLoginAt ? formatWhen(user.lastLoginAt) : t("staffRecovery.unknown")}</Fact>
+              <Fact label={t("staffRecovery.applications")}>{String(detail.totalApplications ?? 0)}</Fact>
+              <Fact label={t("staffRecovery.fields.idLabel")}>{joinParts(user.governmentIdType, user.governmentIdNumber)}</Fact>
+            </dl>
+            <div className="recovery-queue__evidence">
+              <IdEvidence key={user.validIdFile} value={user.validIdFile} label={t("staffRecovery.fields.governmentIdFile")} />
+            </div>
+            <IdOcrSummary ocr={user.governmentIdOcr} />
+          </> : <p className="recovery-queue__nomatch">{t("staffRecovery.noAccount")}</p>}
+        </section>
       </div>
-      <table className="admin-table"><thead><tr><th>{t("staffRecovery.field")}</th><th>{t("staffRecovery.submitted")}</th><th>{t("staffRecovery.onFile")}</th><th>{t("staffRecovery.match")}</th></tr></thead><tbody>{[["fullName", recovery.fullName, user?.name], ["dateOfBirth", recovery.dateOfBirth?.slice(0, 10), user?.dateOfBirth?.slice(0, 10)], ["idNumberDeclared", recovery.idNumberDeclared, user?.governmentIdNumber]].map(([key, submitted, onFile]) => <tr key={key}><th>{t(`staffRecovery.fields.${key}`)}</th><td>{submitted || "—"}</td><td>{onFile || "—"}</td><td>{t(`staffRecovery.${submitted && onFile ? submitted.toLowerCase() === onFile.toLowerCase() ? "yes" : "no" : "unknown"}`)}</td></tr>)}</tbody></table>
+      <div className="recovery-queue__table-wrap">
+        <table className="admin-table"><thead><tr><th scope="col">{t("staffRecovery.field")}</th><th scope="col">{t("staffRecovery.submitted")}</th><th scope="col">{t("staffRecovery.onFile")}</th><th scope="col">{t("staffRecovery.match")}</th></tr></thead><tbody>{[["fullName", recovery.fullName, user?.name], ["dateOfBirth", recovery.dateOfBirth?.slice(0, 10), user?.dateOfBirth?.slice(0, 10)], ["idNumberDeclared", recovery.idNumberDeclared, user?.governmentIdNumber]].map(([key, submitted, onFile]) => {
+          const state = submitted && onFile ? (submitted.toLowerCase() === onFile.toLowerCase() ? "yes" : "no") : "unknown";
+          return <tr key={key}><th scope="row">{t(`staffRecovery.fields.${key}`)}</th><td>{submitted || "—"}</td><td>{onFile || "—"}</td><td><span className={`recovery-queue__match is-${state}`}>{t(`staffRecovery.${state}`)}</span></td></tr>;
+        })}</tbody></table>
+      </div>
       {recovery.status === "approved" && recovery.delivery?.status && <div className="recovery-queue__delivery">
         <p>
           <span className={`recovery-queue__chip${recovery.delivery.status === "failed" ? " is-failed" : " is-verified"}`}>{t(`staffRecovery.delivery.${recovery.delivery.status}`)}</span>{" "}
@@ -133,12 +176,18 @@ export default function AccountRecoveryQueue() {
         </>}
       </div>}
       {phoneContact && ["pending", "under_review"].includes(recovery.status) && <p>{t("staffRecovery.inPersonHint")}</p>}
-      {["pending", "under_review"].includes(recovery.status) && <div className="id-ocr-grid">
-        {phoneContact && <label>{t("staffRecovery.idTypeShown")}<select value={idType} onChange={(e) => setIdType(e.target.value)}><option value="">{t("staffRecovery.chooseIdType")}</option>{GOVERNMENT_ID_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>}
-        <label>{t("staffRecovery.reason")}<textarea maxLength={2000} value={reason} onChange={(e) => setReason(e.target.value)} /></label>
-        <label>{t("staffRecovery.currentPassword")}<input autoComplete="current-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-        <label><input type="checkbox" checked={matched} onChange={(e) => setMatched(e.target.checked)} />{t(phoneContact ? "staffRecovery.idChecked" : "staffRecovery.identityMatched")}</label>
-        <div><button disabled={saving || !password} onClick={() => decide("under_review")}>{t("staffRecovery.review")}</button><button disabled={saving || !password || reason.trim().length < 10} onClick={() => decide("reject")}>{t("staffRecovery.reject")}</button>{phoneContact ? <button disabled={saving || !password || !canCompleteInPerson} onClick={() => decide("complete_in_person")}>{t("staffRecovery.completeInPerson")}</button> : <button disabled={saving || !password || !allowed || reason.trim().length < 10} onClick={() => decide("approve")}>{t("staffRecovery.approve")}</button>}</div>
+      {["pending", "under_review"].includes(recovery.status) && <div className="recovery-queue__decision">
+        <label className="recovery-queue__field recovery-queue__field--reason">{t("staffRecovery.reason")}<textarea maxLength={2000} value={reason} onChange={(e) => setReason(e.target.value)} /></label>
+        <div className="recovery-queue__side">
+          {phoneContact && <label className="recovery-queue__field">{t("staffRecovery.idTypeShown")}<select value={idType} onChange={(e) => setIdType(e.target.value)}><option value="">{t("staffRecovery.chooseIdType")}</option>{GOVERNMENT_ID_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>}
+          <label className="recovery-queue__field">{t("staffRecovery.currentPassword")}<input autoComplete="current-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+          <label className="recovery-queue__check"><input type="checkbox" checked={matched} onChange={(e) => setMatched(e.target.checked)} /><span>{t(phoneContact ? "staffRecovery.idChecked" : "staffRecovery.identityMatched")}</span></label>
+        </div>
+        <div className="recovery-queue__actions">
+          <button type="button" disabled={saving || !password} onClick={() => decide("under_review")}>{t("staffRecovery.review")}</button>
+          <button type="button" className="is-danger" disabled={saving || !password || reason.trim().length < 10} onClick={() => decide("reject")}>{t("staffRecovery.reject")}</button>
+          {phoneContact ? <button type="button" className="is-primary" disabled={saving || !password || !canCompleteInPerson} onClick={() => decide("complete_in_person")}>{t("staffRecovery.completeInPerson")}</button> : <button type="button" className="is-primary" disabled={saving || !password || !allowed || reason.trim().length < 10} onClick={() => decide("approve")}>{t("staffRecovery.approve")}</button>}
+        </div>
       </div>}
     </section>}
   </div>;
