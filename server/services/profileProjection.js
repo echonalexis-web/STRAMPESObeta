@@ -97,14 +97,46 @@ const JOBSEEKER_HIRING_USER = [
   "industryPreferenceLevel",
 ];
 
-// What another jobseeker (a peer) sees of an ADULT public profile: a short, friendly
-// card, not the hiring view. No contact, no salary, no preferences, no languages,
-// no training or licences, no dates of birth. A 15 to 17 year old stays name, photo,
-// headline and municipality only.
-const JOBSEEKER_PEER_USER = ["_id", "name", "role", "profileImage", "desiredJobTitle", "about", "skills", "educationalAttainment"];
-const JOBSEEKER_PEER_PROFILE = ["skills", "schoolAttended", "schoolAttendedOther", "course", "yearGraduated"];
-// Work history for a peer: the role, the company and the dates, nothing else.
-const PEER_WORK_FIELDS = ["position", "companyName", "dateFrom", "dateTo"];
+// What ANY other signed-in person (another jobseeker or an employer) sees of a public
+// jobseeker profile: the header plus three sections (About, Work experience, Skills),
+// nothing else. No contact, no street or barangay, no education, preferences,
+// languages, employment status, IDs, documents or age information. A 15 to 17 year
+// old stays name, photo, headline and municipality only.
+const JOBSEEKER_CARD_USER = ["_id", "name", "role", "profileImage", "desiredJobTitle", "about", "skills"];
+// Work history for another viewer: the role, the company and the dates, nothing else.
+const CARD_WORK_FIELDS = ["position", "companyName", "dateFrom", "dateTo"];
+
+// municipality and province only (never the barangay or a street).
+const placeOnly = (prof) => {
+  const address = prof?.presentAddress;
+  const municipality = address?.municipality ? String(address.municipality) : "";
+  const province = address?.province ? String(address.province) : "";
+  return municipality || province ? { presentAddress: { municipality, province } } : {};
+};
+
+// The one shape for a viewer who is neither the owner nor staff.
+const jobseekerCard = ({ user, prof, cover, tier }) => {
+  const minor = tier === TIERS.MINOR || tier === TIERS.UNDER_15;
+  if (minor) {
+    return {
+      user: { ...pick(user, ["_id", "name", "role", "profileImage", "desiredJobTitle"]), ...(cover ? { cover } : {}) },
+      profile: placeOnly(prof),
+    };
+  }
+  const outUser = { ...pick(user, JOBSEEKER_CARD_USER), ...(cover ? { cover } : {}) };
+  // An empty section is simply absent: nothing hints that it exists.
+  if (!Array.isArray(outUser.skills) || outUser.skills.length === 0) delete outUser.skills;
+  if (typeof outUser.about !== "string" || !outUser.about.trim()) delete outUser.about;
+  // The "Actively looking" status shows only while the person shares their status.
+  if (user.availabilityStatus && user.privacy?.showActiveStatus !== false) outUser.availabilityStatus = user.availabilityStatus;
+  const workHistory = (Array.isArray(prof?.workHistory) ? prof.workHistory : [])
+    .map((job) => pick(job, CARD_WORK_FIELDS))
+    .filter((job) => job.position || job.companyName);
+  return {
+    user: outUser,
+    profile: { ...(Array.isArray(prof?.skills) && prof.skills.length ? { skills: prof.skills } : {}), ...placeOnly(prof), ...(workHistory.length ? { workHistory } : {}) },
+  };
+};
 
 const JOBSEEKER_HIRING_PROFILE = [
   "skills",
@@ -261,24 +293,9 @@ const projectJobseeker = ({ viewer, target, profile, relationship, cover }) => {
     };
   }
 
-  if (mode === "peer") {
-    const place = municipalityOf(prof) ? { presentAddress: { municipality: prof.presentAddress.municipality || "" } } : {};
-    if (tier === TIERS.MINOR || tier === TIERS.UNDER_15) {
-      return {
-        mode,
-        user: { ...pick(user, ["_id", "name", "role", "profileImage", "desiredJobTitle"]), ...(cover ? { cover } : {}) },
-        profile: place,
-      };
-    }
-    const workHistory = (Array.isArray(prof?.workHistory) ? prof.workHistory : [])
-      .map((job) => pick(job, PEER_WORK_FIELDS))
-      .filter((job) => job.position || job.companyName);
-    return {
-      mode,
-      user: { ...pick(user, JOBSEEKER_PEER_USER), ...(cover ? { cover } : {}) },
-      profile: { ...pick(prof, JOBSEEKER_PEER_PROFILE), ...place, ...(workHistory.length ? { workHistory } : {}) },
-    };
-  }
+  // Another jobseeker or an employer: the same short card (header, About, Work
+  // experience, Skills). A jobseeker viewing a jobseeker never gets contact.
+  if (mode === "peer") return { mode, ...jobseekerCard({ user, prof, cover, tier }) };
 
   const contact = allowedContact(relationship);
 
@@ -292,19 +309,13 @@ const projectJobseeker = ({ viewer, target, profile, relationship, cover }) => {
     return { mode, user: out, profile: {} };
   }
 
-  // "hiring"
-  const outUser = { ...pick(user, JOBSEEKER_HIRING_USER), ageTier: tier };
-  if (cover) outUser.cover = cover;
-  const location = municipalityOf(prof);
-  if (location) outUser.address = location;
-  if (contact.phone && user.phone !== undefined) outUser.phone = user.phone;
-  if (contact.email && user.email !== undefined) outUser.email = user.email;
-
-  const outProfile = pick(prof, JOBSEEKER_HIRING_PROFILE);
-  if (prof?.presentAddress) {
-    outProfile.presentAddress = { municipality: prof.presentAddress.municipality || "", province: prof.presentAddress.province || "" };
-  }
-  return { mode, user: outUser, profile: outProfile };
+  // "hiring": the same card. Phone and email appear ONLY while the jobseeker's
+  // application to this employer is active or they explicitly shared them (the
+  // contact-sharing rule); with no relationship the keys are absent.
+  const card = jobseekerCard({ user, prof, cover, tier });
+  if (contact.phone && user.phone !== undefined) card.user.phone = user.phone;
+  if (contact.email && user.email !== undefined) card.user.email = user.email;
+  return { mode, ...card };
 };
 
 // An applicant as shown inside an application list (the employer owns the job and

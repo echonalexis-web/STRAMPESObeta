@@ -185,7 +185,7 @@
   margin-top: 16px;
 }
 
-/* Two columns (who they are, what they have done) when both have content. */
+/* One column, as wide as the header card: About, Work experience, Skills. */
 .person-col {
   display: grid;
   align-content: start;
@@ -193,11 +193,19 @@
   min-width: 0;
 }
 
-@media (min-width: 900px) {
-  .person-main--two {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
-    align-items: start;
-  }
+.person-about {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.person-empty {
+  margin: 0;
+  padding: 20px;
+  border: 1px dashed var(--ds-ink-300);
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--ds-ink-50);
+  color: var(--ds-ink-700);
 }
 
 .rd-page .person-backbtn {

@@ -2376,6 +2376,7 @@
     "editorTitle": "Ayusin ang cover mo"
   },
   "person": {
+    "empty": "Wala pang idinagdag na detalye ang taong ito.",
     "unavailableTitle": "Hindi available ang profile na ito",
     "unavailableBody": "Maaaring wala ito, o hindi mo ito maaaring tingnan.",
     "errorTitle": "Hindi ma-load ang profile na ito",

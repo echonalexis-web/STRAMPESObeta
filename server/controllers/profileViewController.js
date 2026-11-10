@@ -102,6 +102,11 @@ exports.getProfile = async (req, res) => {
     if (!projected) return unavailable(res);
 
     const body = { mode: projected.mode, role: ctx.role, user: projected.user, profile: projected.profile || {} };
+    // A chosen preset avatar is part of the picture, shown wherever the projection allows the person's photo.
+    if (ctx.role === "jobseeker" && body.user && body.user.profileImage !== undefined) {
+      const avatarPreset = await resolveAvatarPreset(ctx.target.avatar);
+      if (avatarPreset) body.user.avatarPreset = avatarPreset;
+    }
     if (ctx.role === "jobseeker" && projected.mode === "hiring") {
       // Lets the page say "contact is shown after the jobseeker applies" without sending numbers.
       const contact = allowedContact(projected.relationship);

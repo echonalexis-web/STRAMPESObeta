@@ -98,7 +98,7 @@ describe("projectJobseeker for an employer", () => {
     FORBIDDEN_USER.forEach((k) => expect(k in out.user).toBe(false));
     FORBIDDEN_PROFILE.forEach((k) => expect(k in out.profile).toBe(false));
     expect(JSON.stringify(out)).not.toMatch(/SECRET OCR|1234-5678|Rizal|secret street/);
-    expect(out.user.address).toBe("Marilao, Bulacan");
+    expect("address" in out.user).toBe(false);
     expect(out.profile.presentAddress).toEqual({ municipality: "Marilao", province: "Bulacan" });
   });
 
@@ -179,8 +179,8 @@ describe("projectJobseeker for owner, staff and peers", () => {
   test("peer sees only a public profile, with a short card for an adult", () => {
     const viewer = { id: "other", role: "jobseeker" };
     const out = projection.projectJobseeker({ viewer, target: seeker({ about: "Hello", educationalAttainment: "College" }), profile: profile(), relationship: {} });
-    expect(Object.keys(out.user).sort()).toEqual(["_id", "about", "desiredJobTitle", "educationalAttainment", "name", "profileImage", "role", "skills"]);
-    ["email", "phone", "dateOfBirth", "governmentIdNumber", "workExperience", "preferredIndustries"].forEach((k) => expect(k in out.user).toBe(false));
+    expect(Object.keys(out.user).sort()).toEqual(["_id", "about", "desiredJobTitle", "name", "profileImage", "role", "skills"]);
+    ["email", "phone", "dateOfBirth", "governmentIdNumber", "workExperience", "preferredIndustries", "educationalAttainment", "ageTier"].forEach((k) => expect(k in out.user).toBe(false));
     const hidden = projection.projectJobseeker({ viewer, target: seeker({ privacy: { profileVisibility: "employers" } }), profile: profile(), relationship: {} });
     expect(hidden).toBeNull();
   });
@@ -204,7 +204,7 @@ describe("projectJobseeker peer view: work history and minors", () => {
   test("an adult peer sees the role, company and dates of each job, and nothing else about it", () => {
     const out = projection.projectJobseeker({ viewer, target: seeker(), profile: withWork(), relationship: {} });
     expect(out.profile.workHistory).toEqual([{ position: "Cashier", companyName: "Mart", dateFrom: "2019-01", dateTo: "2021-06" }]);
-    expect(out.profile.course).toBe("BS Commerce");
+    ["course", "schoolAttended", "yearGraduated"].forEach((k) => expect(k in out.profile).toBe(false));
     ["expectedSalaryMin", "languageProficiency", "vocationalTrainings", "eligibilities", "tin", "sssGsisNo"].forEach((k) => expect(k in out.profile).toBe(false));
   });
 

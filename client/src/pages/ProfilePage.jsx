@@ -46,6 +46,7 @@ import ProfileBanner from "../components/ProfileBanner";
 import CoverPicker, { CoverEditButton } from "../components/CoverPicker";
 import Avatar from "../components/Avatar";
 import AvatarPresetPicker from "../components/AvatarPresetPicker";
+import PersonProfileView from "../components/PersonProfileView";
 import StateBlock from "../components/StateBlock";
 import Pagination from "../components/Pagination";
 import usePagination from "../hooks/usePagination";
@@ -760,6 +761,19 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
               <button type="button" className="rd2-btn rd2-btn--ghost" onClick={() => navigate(-1)}>{t("profile.goBack")}</button>
             }
           />
+        </section>
+      </div>
+    );
+  }
+
+  // An employer opening an applicant's profile sees the same short view as any other
+  // viewer (header, About, Work experience, Skills); the full tabbed page is for the
+  // owner and for staff.
+  if (isEmployerView && profile) {
+    return (
+      <div className="rd-page rd-page--with-topbar">
+        <section className="rd-shell">
+          <PersonProfileView data={{ role: "jobseeker", user: profile, profile }} onBack={() => navigate(-1)} />
         </section>
       </div>
     );

@@ -153,7 +153,8 @@ describe("jobseeker target", () => {
     const json = JSON.stringify(res.body);
     ["email", "phone", "governmentIdNumber", "SECRET-ID", "loginLock", "dateOfBirth", "\"tin\"", "Rizal"].forEach((k) => expect(json).not.toContain(k));
     expect(res.body.user.skills).toEqual(["welding"]);
-    expect(res.body.user.address).toBe("Boac, Marinduque");
+    expect(res.body.profile.presentAddress).toEqual({ municipality: "Boac", province: "Marinduque" });
+    expect("address" in res.body.user).toBe(false);
     expect(res.body.contactShared).toBe(false);
   });
 
