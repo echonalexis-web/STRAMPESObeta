@@ -2316,7 +2316,9 @@
     }
   },
   "avatarPreset": {
-    "choose": "Choose avatar",
+    "uploadPhoto": "Upload photo",
+    "changePhoto": "Change photo",
+    "usePhoto": "Use my photo",
     "title": "Choose your avatar",
     "groupLabel": "Avatars",
     "loading": "Loading avatars",

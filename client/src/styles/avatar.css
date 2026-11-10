@@ -38,27 +38,6 @@
   text-transform: uppercase;
 }
 
-/* ---------- "Choose avatar" link on the owner's profile ---------- */
-.av-choose-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--ds-tap, 44px);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ds-green);
-  font: inherit;
-  font-size: var(--ds-text-sm, 0.875rem);
-  font-weight: 700;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.av-choose-link:focus-visible {
-  outline: 3px solid var(--ds-gold);
-  outline-offset: 2px;
-}
-
 /* ---------- Preset avatar picker (inside AppModal) ---------- */
 .avp__title {
   margin: 0 0 12px;
@@ -209,4 +188,54 @@
 .avp__btn:focus-visible {
   outline: 3px solid var(--ds-gold);
   outline-offset: 2px;
+}
+
+/* ---------- First tile: your own picture (opens the file chooser) ---------- */
+.avp__tile--upload {
+  font: inherit;
+  color: inherit;
+}
+
+.avp__tile--upload:hover:not(:disabled) {
+  border-color: var(--ds-green);
+}
+
+.avp__tile--upload:focus-visible {
+  outline: 3px solid var(--ds-gold);
+  outline-offset: 2px;
+}
+
+.avp__tile--upload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.avp__upload-art {
+  position: relative;
+  display: inline-flex;
+}
+
+.avp__upload-circle {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border: 2px dashed var(--ds-ink-300);
+  border-radius: 50%;
+  background: var(--ds-ink-50);
+}
+
+.avp__upload-plus {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--ds-surface);
+  border-radius: 50%;
+  background: var(--ds-green);
+  color: #fff;
+  font-size: 0.7rem;
 }

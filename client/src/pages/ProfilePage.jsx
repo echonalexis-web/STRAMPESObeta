@@ -30,7 +30,6 @@ import {
   FaChevronUp,
   FaPlus,
   FaCheck,
-  FaCamera,
   FaArrowLeft,
   FaSpinner,
 } from "react-icons/fa";
@@ -790,13 +789,13 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                   <button
                     type="button"
                     className="rd2-avatar-cam"
-                    onClick={() => avatarFileInputRef.current?.click()}
+                    onClick={() => (isEmployer ? avatarFileInputRef.current?.click() : setAvatarPickerOpen(true))}
                     disabled={avatarUploading}
                     aria-label={avatarUrl ? "Change profile photo" : "Add a profile photo"}
                   >
                     {avatarUploading
                       ? <FaSpinner className="rd2-avatar-cam-spin" aria-hidden="true" />
-                      : <FaCamera aria-hidden="true" />}
+                      : <FaPlus aria-hidden="true" />}
                   </button>
                   <input
                     ref={avatarFileInputRef}
@@ -811,11 +810,6 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
             </div>
             <div className="rd2-head-main">
               <h1 className="rd2-name">{displayName}</h1>
-              {!isReadOnly && !isAdmin && !isEmployer ? (
-                <button type="button" className="av-choose-link" onClick={() => setAvatarPickerOpen(true)}>
-                  {t("avatarPreset.choose")}
-                </button>
-              ) : null}
               {avatarError ? <p className="rd2-avatar-error">{avatarError}</p> : null}
               {isEmployer && profile?.companyName && profile?.name ? (
                 <p className="rd2-repby"><FaUserTie aria-hidden="true" /> Represented by {profile.name}</p>
@@ -1427,6 +1421,11 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
           isOpen={avatarPickerOpen}
           onClose={() => setAvatarPickerOpen(false)}
           current={profile?.avatarPreset}
+          photo={profile?.profileImage}
+          onUploadPhoto={() => {
+            setAvatarPickerOpen(false);
+            avatarFileInputRef.current?.click();
+          }}
           onSaved={handleAvatarPresetSaved}
         />
       ) : null}

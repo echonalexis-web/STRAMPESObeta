@@ -2316,7 +2316,9 @@
     }
   },
   "avatarPreset": {
-    "choose": "Pumili ng avatar",
+    "uploadPhoto": "Mag-upload ng larawan",
+    "changePhoto": "Palitan ang larawan",
+    "usePhoto": "Gamitin ang aking larawan",
     "title": "Piliin ang iyong avatar",
     "groupLabel": "Mga avatar",
     "loading": "Naglo-load ng mga avatar",

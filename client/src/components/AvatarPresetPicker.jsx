@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FaCheck } from "react-icons/fa";
+import { FaCheck, FaPlus } from "react-icons/fa";
 import AppModal from "./AppModal";
 import Avatar from "./Avatar";
 import { useToast } from "./feedback/context";
@@ -14,7 +14,7 @@ const presetName = (preset, language) => (language?.startsWith("fil") && preset.
 // the preset's id is sent; the server accepts nothing else. A chosen preset is shown
 // instead of the uploaded photo; "Stop using an avatar" brings the photo (or the
 // initial) back. `onSaved(preset | null)` reports the result so the page can update.
-export default function AvatarPresetPicker({ isOpen, onClose, current, onSaved }) {
+export default function AvatarPresetPicker({ isOpen, onClose, current, photo, onUploadPhoto, onSaved }) {
   const { t, i18n } = useTranslation();
   const toast = useToast();
   const groupName = useId();
@@ -78,8 +78,20 @@ export default function AvatarPresetPicker({ isOpen, onClose, current, onSaved }
 
       {status === "ready" && presets.length === 0 ? <p className="avp__state">{t("avatarPreset.empty")}</p> : null}
 
-      {status === "ready" && presets.length > 0 ? (
-        <div className="avp__grid" role="radiogroup" aria-label={t("avatarPreset.groupLabel")}>
+      {status === "ready" ? (
+        <div className="avp__grid" role="group" aria-label={t("avatarPreset.groupLabel")}>
+          {/* First: your own picture. It opens the file chooser (then the crop step). */}
+          {onUploadPhoto ? (
+            <button type="button" className="avp__tile avp__tile--upload" onClick={onUploadPhoto} disabled={saving}>
+              <span className="avp__upload-art">
+                {photo ? <Avatar size={64} name="" photo={photo} /> : <span className="avp__upload-circle" />}
+                <span className="avp__upload-plus" aria-hidden="true">
+                  <FaPlus />
+                </span>
+              </span>
+              <span className="avp__name">{photo ? t("avatarPreset.changePhoto") : t("avatarPreset.uploadPhoto")}</span>
+            </button>
+          ) : null}
           {presets.map((preset) => {
             const checked = preset.id === selectedId;
             const name = presetName(preset, i18n.language);
@@ -106,7 +118,7 @@ export default function AvatarPresetPicker({ isOpen, onClose, current, onSaved }
       <div className="avp__actions">
         {current ? (
           <button type="button" className="avp__btn" disabled={saving} onClick={() => save(null)}>
-            {t("avatarPreset.clear")}
+            {photo ? t("avatarPreset.usePhoto") : t("avatarPreset.clear")}
           </button>
         ) : null}
         <button type="button" className="avp__btn" disabled={saving} onClick={onClose}>
