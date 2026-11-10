@@ -1091,6 +1091,42 @@
     }
   },
   "superadmin": {
+    "launcher": {
+      "breadcrumb": "Nabigasyon ng console",
+      "back": "Bumalik sa console",
+      "searchLabel": "Maghanap ng function ng console",
+      "searchPlaceholder": "Maghanap ng function…",
+      "clearSearch": "I-clear ang paghahanap",
+      "empty": "Walang tumugmang function.",
+      "groups": {
+        "accounts": "Mga account",
+        "forms": "Mga template at form",
+        "matching": "Pagtutugma at mga catalog",
+        "appearance": "Hitsura"
+      },
+      "functions": {
+        "admin-accounts": {
+          "title": "Mga Pinamamahalaang Admin Account",
+          "description": "Gumawa, i-disable at i-reset ang mga admin account ng staff ng LMDPESO."
+        },
+        "nsrp-forms": {
+          "title": "Mga naka-print na form ng NSRP",
+          "description": "Mag-upload at i-align ang mga naka-print na PDF template ng NSRP."
+        },
+        "matching-bounds": {
+          "title": "Mga limitasyon ng bigat ng pagtutugma",
+          "description": "Itakda ang pinakamababa at pinakamataas na bigat na maibibigay ng mga employer sa bawat pamantayan ng pagtutugma."
+        },
+        "catalogs": {
+          "title": "Mga catalog ng dropdown",
+          "description": "Magdagdag o mag-retiro ng mga opsyon sa mga dropdown ng industriya, uri ng trabaho at government ID."
+        },
+        "banner-templates": {
+          "title": "Mga template ng banner",
+          "description": "Pamahalaan ang mga handang banner ng profile na mapipili ng mga tao."
+        }
+      }
+    },
     "console": {
       "subtitle": "Gumawa ng admin account para sa staff ng LMDPESO at pamahalaan ang mga setting ng buong platform.",
       "rosterTitle": "Mga Pinamamahalaang Admin Account",

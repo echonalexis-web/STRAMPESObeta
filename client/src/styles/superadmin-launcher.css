@@ -1,0 +1,232 @@
+/* Superadmin Console launcher: the card grid on the console home and the frame
+   (back link) shared by every function page. Hand-written, --ds-* tokens only.
+   One column on phones, two from 640px, three from 1024px. */
+
+.scl__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Room under the last row so the floating chatbot and help buttons never cover a
+   card or a function's action buttons. */
+.sac__main.scl-main {
+  padding-bottom: calc(112px + env(safe-area-inset-bottom));
+}
+
+/* ---------- Back link ---------- */
+.scl__crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.scl__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--ds-tap, 44px);
+  padding: 0 12px 0 0;
+  color: var(--ds-green);
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.scl__back:hover {
+  color: var(--ds-green-deep);
+  text-decoration: underline;
+}
+
+.scl__back:focus-visible,
+.scl__card:focus-visible,
+.scl__search-box input:focus-visible,
+.scl__search-box button:focus-visible {
+  outline: 3px solid var(--ds-gold);
+  outline-offset: 2px;
+}
+
+.scl__crumbs-sep {
+  display: none;
+}
+
+/* ---------- Search ---------- */
+.scl__search {
+  display: grid;
+  gap: 6px;
+  max-width: 420px;
+  margin: 20px 0 8px;
+}
+
+.scl__search-label {
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--ds-ink-900);
+}
+
+.scl__search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--ds-tap, 44px);
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--ds-ink-300);
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-surface);
+  color: var(--ds-muted);
+}
+
+.scl__search-box input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--ds-ink-900);
+}
+
+.scl__search-box input:focus-visible {
+  outline-offset: 6px;
+}
+
+.scl__search-box button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--ds-radius-sm, 8px);
+  background: transparent;
+  color: var(--ds-ink-700);
+  cursor: pointer;
+}
+
+/* ---------- Groups and cards ---------- */
+.scl__group {
+  margin-top: 24px;
+}
+
+.scl__group-title {
+  margin: 0 0 12px;
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ds-muted);
+}
+
+.scl__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 640px) {
+  .scl__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .scl__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.scl__card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  height: 100%;
+  min-height: var(--ds-tap, 44px);
+  padding: 16px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--ds-surface);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--ds-dur-fast, 120ms) var(--ds-ease, ease), box-shadow var(--ds-dur-fast, 120ms) var(--ds-ease, ease);
+}
+
+.scl__card:hover {
+  border-color: var(--ds-green);
+  box-shadow: var(--ds-shadow-2, 0 2px 8px rgb(0 0 0 / 0.08));
+}
+
+.scl__icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-mint);
+  color: var(--ds-green-deep);
+  font-size: 1.15rem;
+}
+
+.scl__body {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 4px;
+  min-width: 0;
+}
+
+.scl__title {
+  font-size: var(--ds-text-md, 1rem);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ds-ink-900);
+  overflow-wrap: anywhere;
+}
+
+.scl__desc {
+  font-size: var(--ds-text-sm, 0.875rem);
+  line-height: 1.45;
+  color: var(--ds-ink-700);
+  overflow-wrap: anywhere;
+}
+
+.scl__arrow {
+  flex: none;
+  align-self: center;
+  color: var(--ds-green);
+  transition: transform var(--ds-dur-fast, 120ms) var(--ds-ease, ease);
+}
+
+.scl__card:hover .scl__arrow {
+  transform: translateX(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scl__card,
+  .scl__arrow {
+    transition: none;
+  }
+
+  .scl__card:hover .scl__arrow {
+    transform: none;
+  }
+}
+
+.scl__empty {
+  margin: 24px 0 0;
+  padding: 20px;
+  border: 1px dashed var(--ds-ink-300);
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--ds-ink-50);
+  color: var(--ds-ink-700);
+}

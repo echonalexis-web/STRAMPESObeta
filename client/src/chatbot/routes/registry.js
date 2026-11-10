@@ -79,6 +79,12 @@ export const EXCLUDED = [
   // Only exists while username sign-up is on.
   '/forgot-username',
   '/staff-account-recovery',
+  // Superadmin Console function pages (the console home, /superadmin, is in ROUTES).
+  '/superadmin/admin-accounts',
+  '/superadmin/nsrp-forms',
+  '/superadmin/matching-bounds',
+  '/superadmin/catalogs',
+  '/superadmin/banner-templates',
   // Phase 3 (admin/superadmin bot)
   '/admin',
   '/admin/account-recovery',

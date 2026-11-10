@@ -1091,6 +1091,42 @@
     }
   },
   "superadmin": {
+    "launcher": {
+      "breadcrumb": "Console navigation",
+      "back": "Back to console",
+      "searchLabel": "Search console functions",
+      "searchPlaceholder": "Search functions…",
+      "clearSearch": "Clear search",
+      "empty": "No matching function.",
+      "groups": {
+        "accounts": "Accounts",
+        "forms": "Templates and forms",
+        "matching": "Matching and catalogs",
+        "appearance": "Appearance"
+      },
+      "functions": {
+        "admin-accounts": {
+          "title": "Managed Admin Accounts",
+          "description": "Provision, disable and reset LMDPESO staff admin accounts."
+        },
+        "nsrp-forms": {
+          "title": "Printed NSRP forms",
+          "description": "Upload and align the printed NSRP PDF templates."
+        },
+        "matching-bounds": {
+          "title": "Matching weight bounds",
+          "description": "Set the minimum and maximum weight employers can give each matching criterion."
+        },
+        "catalogs": {
+          "title": "Dropdown catalogs",
+          "description": "Add or retire the options in the industry, job type and government ID dropdowns."
+        },
+        "banner-templates": {
+          "title": "Banner templates",
+          "description": "Manage the preset profile banners people can pick."
+        }
+      }
+    },
     "console": {
       "subtitle": "Provision LMDPESO staff admin accounts and manage platform-wide settings.",
       "rosterTitle": "Managed Admin Accounts",

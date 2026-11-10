@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "chatbot:export": "node scripts/chatbot-export.mjs",
-    "test": "node --test \"src/chatbot/**/*.test.js\" \"src/data/**/*.test.js\" \"src/utils/**/*.test.js\"",
+    "test": "node --test \"src/chatbot/**/*.test.js\" \"src/data/**/*.test.js\" \"src/utils/**/*.test.js\" \"src/pages/superadmin/**/*.test.js\"",
     "preview": "vite preview"
   },
   "dependencies": {

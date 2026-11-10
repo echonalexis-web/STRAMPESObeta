@@ -109,6 +109,11 @@ const PAGE_TITLE_EXACT = {
   "/admin/spes/monitoring": "spesMonitoring",
   "/admin/audit-logs": "auditTrail",
   "/superadmin": "superadminConsole",
+  "/superadmin/admin-accounts": "superadminConsole",
+  "/superadmin/nsrp-forms": "superadminConsole",
+  "/superadmin/matching-bounds": "superadminConsole",
+  "/superadmin/catalogs": "superadminConsole",
+  "/superadmin/banner-templates": "superadminConsole",
 };
 
 const PAGE_TITLE_PREFIXES = [

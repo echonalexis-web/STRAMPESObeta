@@ -443,6 +443,8 @@ export default function Navbar() {
     const path = to.split("#")[0];
 
     if (to === "/profile") return location.pathname.startsWith("/profile");
+    // The Superadmin Console item stays active on every console function page.
+    if (to === "/superadmin") return location.pathname === "/superadmin" || location.pathname.startsWith("/superadmin/");
     if (to === "/news") return location.pathname === "/news" || location.pathname.startsWith("/news/");
     if (to === "/employer") return location.pathname === "/employer" || location.pathname === "/employer-dashboard";
     if (to === "/dashboard") return location.pathname === "/dashboard";
