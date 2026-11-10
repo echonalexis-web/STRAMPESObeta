@@ -5,10 +5,12 @@ const { logAuditEvent } = require("../services/auditService");
 const { listActiveTemplates, invalidateCache, publicImage } = require("../services/bannerTemplateService");
 const { processTemplateImage, TemplateImageError } = require("../services/bannerTemplateImageService");
 const storageService = require("../services/storageService");
+const { PROFILES } = require("../services/bannerTemplateImageService");
+const { parseManifest, installBuiltIns, summarize } = require("../services/builtInTemplateService");
 const { sendError } = require("../utils/sendError");
 const logger = require("../utils/logger");
 
-const fail = (res, status, code, message) => res.status(status).json({ code, message });
+const fail = (res, status, code, message, extra) => res.status(status).json({ code, message, ...(extra || {}) });
 
 // Messages are a fallback: the client translates `code` through errors.codes.*.
 const MESSAGES = {
@@ -20,6 +22,9 @@ const MESSAGES = {
   TEMPLATE_IMAGE_UNSAFE: "The SVG contains content that is not allowed (scripts, external links or embedded HTML).",
   TEMPLATE_IMAGE_PROCESSING_FAILED: "We could not read that image. Try another file.",
   TEMPLATE_UPLOAD_FAILED: "We could not store the image. Please try again.",
+  TEMPLATE_BUILTIN_PROTECTED: "Built-in templates cannot be deleted. Archive it instead.",
+  TEMPLATE_BUILTIN_IMAGE_LOCKED: "The image of a built-in template cannot be replaced. Restore the built-ins to reinstall the original.",
+  TEMPLATE_MANIFEST_INVALID: "The built-in install request is not valid.",
 };
 
 const removeStored = async (...values) => {
@@ -65,6 +70,8 @@ const adminShape = (t, usage) => ({
   // Legacy gradient and pattern templates: still listed and rendered, never editable
   // with a builder. Uploading an image converts one to an image template.
   legacy: t.kind !== "image",
+  isBuiltIn: Boolean(t.isBuiltIn),
+  builtInKey: t.builtInKey || null,
   image: publicImage(t.image),
   ...(t.definition ? { definition: t.definition } : {}),
   overlay: t.overlay,
@@ -208,6 +215,7 @@ exports.update = async (req, res) => {
     const body = readBody(req.body || {});
     if (!validNames(body)) return fail(res, 400, "TEMPLATE_DEFINITION_INVALID", "A name of 1 to 60 characters is required.");
     if (body.isActive === false && template.isDefault) return fail(res, 409, "TEMPLATE_IS_DEFAULT", "The default template cannot be archived.");
+    if (req.file && template.isBuiltIn) return fail(res, 409, "TEMPLATE_BUILTIN_IMAGE_LOCKED", MESSAGES.TEMPLATE_BUILTIN_IMAGE_LOCKED);
 
     let replaced = null;
     if (req.file) {
@@ -315,16 +323,73 @@ exports.remove = async (req, res) => {
   try {
     const template = await BannerTemplate.findById(req.params.id);
     if (!template) return fail(res, 404, "COVER_TEMPLATE_NOT_FOUND", "Template not found.");
+    if (template.isBuiltIn) return fail(res, 409, "TEMPLATE_BUILTIN_PROTECTED", MESSAGES.TEMPLATE_BUILTIN_PROTECTED);
     if (template.isDefault) return fail(res, 409, "TEMPLATE_IS_DEFAULT", "The default template cannot be deleted.");
     const usage = await usageCounts([template._id]);
     const used = usage.get(String(template._id)) || 0;
-    if (used > 0) return fail(res, 409, "TEMPLATE_IN_USE", `${used} accounts use this template. Archive it instead.`);
+    // A template people use is deleted only after the superadmin confirmed the count;
+    // those profiles then show the default banner (their stored choice is untouched).
+    if (used > 0 && req.query?.confirmUsage !== "true") {
+      return fail(res, 409, "TEMPLATE_IN_USE", `${used} accounts use this template. Archive it instead.`, { usage: used });
+    }
     await BannerTemplate.deleteOne({ _id: template._id });
     await removeStored(template.image?.storedValue, template.image?.thumbStoredValue);
     invalidateCache();
-    await audit(req, "deleted", template);
+    await audit(req, "deleted", template, { usage: used });
     return res.json({ ok: true });
   } catch (error) {
     return sendError(res, error, "Failed to delete banner template");
+  }
+};
+
+// POST /superadmin/banner-templates/builtins  (multipart: manifest JSON + images[])
+// Installs the bundled banners. Idempotent by key: existing built-ins are skipped.
+exports.installBuiltIns = async (req, res) => {
+  try {
+    const parsed = parseManifest(req.body?.manifest, "banner");
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (!parsed.ok || files.length !== parsed.entries.length) {
+      return fail(res, 400, "TEMPLATE_MANIFEST_INVALID", MESSAGES.TEMPLATE_MANIFEST_INVALID);
+    }
+    const hasDefault = Boolean(await BannerTemplate.exists({ isDefault: true }));
+    const results = await installBuiltIns({
+      Model: BannerTemplate,
+      profile: PROFILES.banner,
+      category: "bannerTemplate",
+      entries: parsed.entries,
+      files,
+      hasDefault,
+      makeDoc: (entry, ctx) => ({
+        slug: entry.key,
+        name: entry.name,
+        nameFil: entry.nameFil,
+        kind: "image",
+        image: ctx.image,
+        overlay: ctx.overlay,
+        isBuiltIn: true,
+        builtInKey: entry.key,
+        isActive: true,
+        isDefault: ctx.isDefault,
+        sortOrder: ctx.sortOrder,
+        createdBy: req.user.id,
+        updatedBy: req.user.id,
+      }),
+    });
+    const counts = summarize(results);
+    invalidateCache();
+    await logAuditEvent({
+      req,
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: "superadmin.banner_template.builtins_installed",
+      targetType: "banner_template",
+      targetId: "builtins",
+      severity: "info",
+      // Counts and keys only.
+      metadata: { created: counts.created, existing: counts.existing, failed: counts.failed, keys: counts.createdKeys },
+    });
+    return res.json({ created: counts.created, existing: counts.existing, failed: counts.failed, results });
+  } catch (error) {
+    return sendError(res, error, "Failed to install the built-in templates");
   }
 };

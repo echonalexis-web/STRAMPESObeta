@@ -53,6 +53,8 @@ const CATEGORY_CONFIG = {
   cover: { dir: "covers", resourceType: "image", visibility: "public" },
   // Superadmin banner templates: already-processed WebP, public like covers.
   bannerTemplate: { dir: "banner-templates", resourceType: "image", visibility: "public" },
+  // Superadmin avatar presets: already-processed WebP, public like covers.
+  avatarPreset: { dir: "avatar-presets", resourceType: "image", visibility: "public" },
   resume: { dir: "resumes", resourceType: "auto", visibility: "private" },
   validId: { dir: "ids", resourceType: "auto", visibility: "private" },
   recoverySelfie: { dir: "recovery-selfies", resourceType: "auto", visibility: "private" },

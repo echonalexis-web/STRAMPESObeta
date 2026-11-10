@@ -2,7 +2,8 @@ const multer = require("multer");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
 const storageService = require("../services/storageService");
-const { LIMITS: templateImageLimits } = require("../services/bannerTemplateImageService");
+const { LIMITS: templateImageLimits, PROFILES: imageProfiles } = require("../services/bannerTemplateImageService");
+const avatarImageLimits = imageProfiles.avatar;
 
 // Allowed upload MIME types -> canonical extension
 const ALLOWED_FILE_TYPES = {
@@ -96,32 +97,46 @@ const singleCoverUpload = (req, res, next) =>
     return res.status(400).json({ code: "COVER_IMAGE_REQUIRED", message: "Choose an image to upload." });
   });
 
-// Superadmin banner template: one SVG or PNG in the field "image". The real checks
+// Superadmin banner template and avatar preset uploads: SVG or PNG. The real checks
 // (content sniffing, SVG safety, dimensions, ratio) run in
-// services/bannerTemplateImageService.js; this only bounds the request.
+// services/bannerTemplateImageService.js; this only bounds the request. `prefix` is
+// the error-code prefix of the kind (TEMPLATE_IMAGE_ or AVATAR_IMAGE_).
 const TEMPLATE_IMAGE_MIMES = ["image/png", "image/svg+xml"];
-const templateUpload = multer({
-  storage: memory,
-  limits: { fileSize: templateImageLimits.maxBytes, files: 1, fields: 8, fieldSize: 2048, parts: 12 },
-  fileFilter: (req, file, cb) => {
-    if (TEMPLATE_IMAGE_MIMES.includes(String(file.mimetype).toLowerCase())) return cb(null, true);
-    const error = new Error("Template must be an SVG or PNG image");
-    error.code = "TEMPLATE_IMAGE_TYPE";
-    return cb(error, false);
-  },
-});
 
-const singleTemplateImageUpload = (req, res, next) =>
-  templateUpload.single("image")(req, res, (error) => {
-    if (!error) return next();
-    if (error.code === "LIMIT_FILE_SIZE") {
-      return res.status(413).json({ code: "TEMPLATE_IMAGE_TOO_LARGE", message: "The image is too large." });
-    }
-    if (error.code === "TEMPLATE_IMAGE_TYPE") {
-      return res.status(400).json({ code: "TEMPLATE_IMAGE_TYPE", message: "The template must be an SVG or PNG image." });
-    }
-    return res.status(400).json({ code: "TEMPLATE_IMAGE_REQUIRED", message: "Choose an SVG or PNG image to upload." });
+const templateUploadErrors = (prefix, next, res) => (error) => {
+  if (!error) return next();
+  if (error.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({ code: `${prefix}TOO_LARGE`, message: "The image is too large." });
+  }
+  if (error.code === `${prefix}TYPE`) {
+    return res.status(400).json({ code: `${prefix}TYPE`, message: "The image must be an SVG or PNG." });
+  }
+  return res.status(400).json({ code: `${prefix}REQUIRED`, message: "Choose an SVG or PNG image to upload." });
+};
+
+const buildTemplateUpload = ({ prefix, maxBytes, files, fieldSize }) =>
+  multer({
+    storage: memory,
+    limits: { fileSize: maxBytes, files, fields: 8, fieldSize, parts: files + 12 },
+    fileFilter: (req, file, cb) => {
+      if (TEMPLATE_IMAGE_MIMES.includes(String(file.mimetype).toLowerCase())) return cb(null, true);
+      const error = new Error("The image must be an SVG or PNG");
+      error.code = `${prefix}TYPE`;
+      return cb(error, false);
+    },
   });
+
+const bannerUpload = buildTemplateUpload({ prefix: "TEMPLATE_IMAGE_", maxBytes: templateImageLimits.maxBytes, files: 1, fieldSize: 2048 });
+const avatarPresetUpload = buildTemplateUpload({ prefix: "AVATAR_IMAGE_", maxBytes: avatarImageLimits.maxBytes, files: 1, fieldSize: 2048 });
+// The built-in install sends a small manifest (JSON in a field) and up to 40 files.
+const BUILTIN_MAX_FILES = 40;
+const bannerBuiltInUpload = buildTemplateUpload({ prefix: "TEMPLATE_IMAGE_", maxBytes: templateImageLimits.maxBytes, files: BUILTIN_MAX_FILES, fieldSize: 128 * 1024 });
+const avatarBuiltInUpload = buildTemplateUpload({ prefix: "AVATAR_IMAGE_", maxBytes: avatarImageLimits.maxBytes, files: BUILTIN_MAX_FILES, fieldSize: 128 * 1024 });
+
+const singleTemplateImageUpload = (req, res, next) => bannerUpload.single("image")(req, res, templateUploadErrors("TEMPLATE_IMAGE_", next, res));
+const singleAvatarPresetImageUpload = (req, res, next) => avatarPresetUpload.single("image")(req, res, templateUploadErrors("AVATAR_IMAGE_", next, res));
+const bannerBuiltInImagesUpload = (req, res, next) => bannerBuiltInUpload.array("images", BUILTIN_MAX_FILES)(req, res, templateUploadErrors("TEMPLATE_IMAGE_", next, res));
+const avatarBuiltInImagesUpload = (req, res, next) => avatarBuiltInUpload.array("images", BUILTIN_MAX_FILES)(req, res, templateUploadErrors("AVATAR_IMAGE_", next, res));
 
 // (fieldName[, legacyPath]) — legacyPath is ignored, kept for call-site compatibility
 const singleFileUpload = (fieldName) => mk(1).single(fieldName);
@@ -283,6 +298,9 @@ module.exports = {
   singleCoverUpload,
   COVER_MAX_FILE_SIZE,
   singleTemplateImageUpload,
+  singleAvatarPresetImageUpload,
+  bannerBuiltInImagesUpload,
+  avatarBuiltInImagesUpload,
   singleFileUpload,
   validateFile,
   matchesDeclaredType,

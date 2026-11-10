@@ -9,6 +9,7 @@ const User = require("../models/User");
 const JobseekerProfile = require("../models/JobseekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
 const { resolveCover } = require("../services/bannerTemplateService");
+const { resolveAvatarPreset } = require("../services/avatarPresetService");
 const { normalizeRole, projectJobseeker, projectEmployer, resolveRelationship, allowedContact, municipalityOf } = require("../services/profileProjection");
 const { sendError } = require("../utils/sendError");
 
@@ -64,6 +65,7 @@ exports.getSummary = async (req, res) => {
     if (!projected) return unavailable(res);
 
     const { user } = projected;
+    const avatarPreset = user.profileImage !== undefined ? await resolveAvatarPreset(ctx.target.avatar) : null;
     const isOwner = String(ctx.target._id) === ctx.viewer.id;
     const employer = ctx.role === "employer";
     const summary = {
@@ -71,6 +73,8 @@ exports.getSummary = async (req, res) => {
       role: ctx.role,
       name: user.name,
       ...(user.profileImage ? { avatar: user.profileImage } : {}),
+      // A chosen preset avatar is shown wherever the projection allows the person's photo.
+      ...(avatarPreset ? { avatarPreset } : {}),
       ...(user.cover ? { cover: user.cover } : {}),
       ...(employer
         ? { headline: user.industry || undefined, location: placeOf(ctx.profile?.businessAddress) || undefined, verified: Boolean(user.verified) }

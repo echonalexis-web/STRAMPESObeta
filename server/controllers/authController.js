@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { getActiveValues } = require("../services/systemOptionService");
 const { resolveCover } = require("../services/bannerTemplateService");
+const { resolveAvatarPreset } = require("../services/avatarPresetService");
 const { GOVERNMENT_ID_TYPE_OTHER } = require("../data/governmentIdTypes");
 const { computeProfileCompleteness } = require("../utils/profileCompleteness");
 const storageService = require("../services/storageService");
@@ -1905,6 +1906,7 @@ exports.getMe = async (req, res) => {
     res.json({
       ...user.toObject(),
       cover: await resolveCover(user.cover),
+      avatarPreset: await resolveAvatarPreset(user.avatar),
       hasPassword,
       ageTier: getAgeTier(user.dateOfBirth),
       hasVerifiedEmail: hasVerifiedEmail(user),
@@ -1937,6 +1939,7 @@ exports.getProfile = async (req, res) => {
       user: {
         ...user.toObject(),
         cover: await resolveCover(user.cover),
+        avatarPreset: await resolveAvatarPreset(user.avatar),
         hasPassword,
         ageTier: getAgeTier(user.dateOfBirth),
         hasVerifiedEmail: hasVerifiedEmail(user),
@@ -2393,11 +2396,13 @@ exports.updateAvatar = async (req, res) => {
     const storedValue = req.file?.storedValue;
     if (!storedValue) return res.status(400).json({ message: "No image uploaded" });
 
-    const user = await User.findById(userId).select("profileImage");
+    const user = await User.findById(userId).select("profileImage avatar");
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const previous = user.profileImage;
     user.profileImage = storedValue;
+    // A newly uploaded photo replaces a chosen preset avatar (the preset is shown instead of the photo).
+    user.avatar = undefined;
     await user.save({ validateModifiedOnly: true });
 
     // Best-effort cleanup of the replaced image (never throws).

@@ -182,6 +182,12 @@ const userSchema = new mongoose.Schema(
     },
     // Moderation removals of an uploaded cover; the second one ends the upload
     // right until an admin restores it with a reason.
+    // The preset avatar a jobseeker picked (AvatarPreset id). Absent on every account
+    // until one is chosen; the uploaded photo (profileImage) is left as it is.
+    avatar: {
+      presetId: { type: mongoose.Schema.Types.ObjectId, ref: "AvatarPreset", default: undefined },
+      updatedAt: Date,
+    },
     coverRemovalCount: { type: Number, default: 0 },
     coverUploadRevoked: { type: Boolean, default: false },
 

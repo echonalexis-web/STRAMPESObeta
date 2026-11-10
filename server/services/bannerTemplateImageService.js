@@ -1,7 +1,8 @@
-// Processing for a superadmin banner template upload (SVG or PNG).
+// Processing for a superadmin banner or avatar preset upload (SVG or PNG).
 //
-// Every upload is rasterized with sharp to one normalized WebP (1600x400) plus a
-// thumbnail (800x200), with all metadata dropped. Only that output is stored and
+// Every upload is rasterized with sharp to one normalized WebP plus a thumbnail
+// (banner: 1600x400 and 800x200; avatar: 512x512 and 128x128, center-cropped, never
+// stretched), with all metadata dropped. Only that output is stored and
 // served, so script content in an SVG can never reach a browser. The file type is
 // decided from the bytes, never from the MIME type or the extension.
 
@@ -28,6 +29,35 @@ const LIMITS = Object.freeze({
   processTimeoutMs: 15_000,
 });
 const TARGET_RATIO = LARGE.width / LARGE.height;
+
+// What each kind of upload is checked against and rendered to. `prefix` makes the
+// error codes: TEMPLATE_IMAGE_* for banners, AVATAR_IMAGE_* for avatars.
+const PROFILES = Object.freeze({
+  banner: Object.freeze({
+    prefix: "TEMPLATE_IMAGE_",
+    large: LARGE,
+    small: SMALL,
+    ratio: TARGET_RATIO,
+    minWidth: LIMITS.minWidth,
+    minHeight: LIMITS.minHeight,
+    maxWidth: LIMITS.maxWidth,
+    maxHeight: LIMITS.maxHeight,
+    maxBytes: LIMITS.maxBytes,
+    maxSvgBytes: LIMITS.maxSvgBytes,
+  }),
+  avatar: Object.freeze({
+    prefix: "AVATAR_IMAGE_",
+    large: Object.freeze({ width: 512, height: 512 }),
+    small: Object.freeze({ width: 128, height: 128 }),
+    ratio: 1,
+    minWidth: 128,
+    minHeight: 128,
+    maxWidth: 4000,
+    maxHeight: 4000,
+    maxBytes: Math.round(num(process.env.AVATAR_PRESET_MAX_MB, 1) * 1024 * 1024),
+    maxSvgBytes: Math.round(num(process.env.AVATAR_PRESET_MAX_SVG_KB, 256) * 1024),
+  }),
+});
 const WEBP_QUALITY = 82;
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
@@ -58,10 +88,12 @@ const release = () => {
   else active -= 1;
 };
 
-const withTimeout = (promise, ms) => {
+const failWith = (profile, suffix, status) => new TemplateImageError(`${profile.prefix}${suffix}`, status);
+
+const withTimeout = (promise, ms, profile = PROFILES.banner) => {
   let timer;
   const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new TemplateImageError("TEMPLATE_IMAGE_PROCESSING_FAILED", 422)), ms);
+    timer = setTimeout(() => reject(failWith(profile, "PROCESSING_FAILED", 422)), ms);
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 };
@@ -110,14 +142,14 @@ const REF_ATTR = /(?:xlink:)?href\s*=\s*(["'])(.*?)\1/gi;
 const URL_REF = /url\s*\(\s*(["']?)(.*?)\1\s*\)/gi;
 const SAFE_REF = /^(#|data:image\/(png|jpe?g|webp);base64,)/i;
 
-const assertSafeSvg = (buffer) => {
+const assertSafeSvg = (buffer, profile = PROFILES.banner) => {
   const text = buffer.toString("utf8");
-  if (UNSAFE_SVG.some((rule) => rule.test(text))) throw new TemplateImageError("TEMPLATE_IMAGE_UNSAFE", 400);
+  if (UNSAFE_SVG.some((rule) => rule.test(text))) throw failWith(profile, "UNSAFE", 400);
   for (const match of text.matchAll(REF_ATTR)) {
-    if (!SAFE_REF.test(match[2].trim())) throw new TemplateImageError("TEMPLATE_IMAGE_UNSAFE", 400);
+    if (!SAFE_REF.test(match[2].trim())) throw failWith(profile, "UNSAFE", 400);
   }
   for (const match of text.matchAll(URL_REF)) {
-    if (!SAFE_REF.test(match[2].trim())) throw new TemplateImageError("TEMPLATE_IMAGE_UNSAFE", 400);
+    if (!SAFE_REF.test(match[2].trim())) throw failWith(profile, "UNSAFE", 400);
   }
 };
 
@@ -137,29 +169,29 @@ const overlayFromLuminance = (luminance) => (luminance > 0.5 ? "light" : "dark")
 
 // Validates the upload and returns { large, small, placeholderColor, luminance, overlay,
 // sourceType }. `file` is the multer memory file. Throws TemplateImageError.
-const processTemplateImage = async (file) => {
+const processTemplateImage = async (file, profile = PROFILES.banner) => {
   const buffer = file?.buffer;
-  if (!Buffer.isBuffer(buffer) || buffer.length === 0) throw new TemplateImageError("TEMPLATE_IMAGE_REQUIRED", 400);
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) throw failWith(profile, "REQUIRED", 400);
 
   const type = detectType(buffer);
-  if (!type) throw new TemplateImageError("TEMPLATE_IMAGE_TYPE", 400);
+  if (!type) throw failWith(profile, "TYPE", 400);
   const { byExt, byMime } = declaredTypes(file);
-  if (byExt !== type || byMime !== type) throw new TemplateImageError("TEMPLATE_IMAGE_TYPE", 400);
+  if (byExt !== type || byMime !== type) throw failWith(profile, "TYPE", 400);
 
-  if (buffer.length > (type === "svg" ? LIMITS.maxSvgBytes : LIMITS.maxBytes)) {
-    throw new TemplateImageError("TEMPLATE_IMAGE_TOO_LARGE", 413);
+  if (buffer.length > (type === "svg" ? profile.maxSvgBytes : profile.maxBytes)) {
+    throw failWith(profile, "TOO_LARGE", 413);
   }
-  if (type === "svg") assertSafeSvg(buffer);
+  if (type === "svg") assertSafeSvg(buffer, profile);
 
   await acquire();
   try {
-    return await withTimeout(rasterize(buffer, type), LIMITS.processTimeoutMs);
+    return await withTimeout(rasterize(buffer, type, profile), LIMITS.processTimeoutMs, profile);
   } finally {
     release();
   }
 };
 
-const rasterize = async (buffer, type) => {
+const rasterize = async (buffer, type, profile) => {
   const base = { limitInputPixels: LIMITS.maxPixels, failOn: "error" };
 
   let meta;
@@ -167,37 +199,38 @@ const rasterize = async (buffer, type) => {
     meta = await sharp(buffer, type === "svg" ? { ...base, density: 72 } : base).metadata();
   } catch (error) {
     // sharp refuses an image over limitInputPixels while reading its header.
-    if (/pixel limit/i.test(String(error?.message))) throw new TemplateImageError("TEMPLATE_IMAGE_DIMENSIONS", 400);
-    throw new TemplateImageError("TEMPLATE_IMAGE_PROCESSING_FAILED", 422);
+    if (/pixel limit/i.test(String(error?.message))) throw failWith(profile, "DIMENSIONS", 400);
+    throw failWith(profile, "PROCESSING_FAILED", 422);
   }
   // sharp has the final say on what the bytes are.
-  if (meta.format !== type) throw new TemplateImageError("TEMPLATE_IMAGE_TYPE", 400);
-  if ((meta.pages || 1) > 1) throw new TemplateImageError("TEMPLATE_IMAGE_TYPE", 400);
+  if (meta.format !== type) throw failWith(profile, "TYPE", 400);
+  if ((meta.pages || 1) > 1) throw failWith(profile, "TYPE", 400);
 
   const { width, height } = meta;
-  if (!width || !height) throw new TemplateImageError("TEMPLATE_IMAGE_PROCESSING_FAILED", 422);
+  if (!width || !height) throw failWith(profile, "PROCESSING_FAILED", 422);
 
   if (type === "png") {
-    if (width < LIMITS.minWidth || height < LIMITS.minHeight || width > LIMITS.maxWidth || height > LIMITS.maxHeight || width * height > LIMITS.maxPixels) {
-      throw new TemplateImageError("TEMPLATE_IMAGE_DIMENSIONS", 400);
+    if (width < profile.minWidth || height < profile.minHeight || width > profile.maxWidth || height > profile.maxHeight || width * height > LIMITS.maxPixels) {
+      throw failWith(profile, "DIMENSIONS", 400);
     }
-  } else if (width < 4 || height < 1 || width > LIMITS.maxWidth * 4 || height > LIMITS.maxHeight * 4) {
+  } else if (width < 4 || height < 1 || width > profile.maxWidth * 4 || height > profile.maxHeight * 4) {
     // An SVG scales to any size: only absurd declared sizes are refused here.
-    throw new TemplateImageError("TEMPLATE_IMAGE_DIMENSIONS", 400);
+    throw failWith(profile, "DIMENSIONS", 400);
   }
 
   const ratio = width / height;
-  if (Math.abs(ratio - TARGET_RATIO) / TARGET_RATIO > LIMITS.ratioTolerance) throw new TemplateImageError("TEMPLATE_IMAGE_RATIO", 400);
+  if (Math.abs(ratio - profile.ratio) / profile.ratio > LIMITS.ratioTolerance) throw failWith(profile, "RATIO", 400);
 
   // An SVG is drawn at the density that gives about the output width, so vector
   // artwork stays sharp. Capped so a huge viewBox can not request a huge canvas.
-  const density = type === "svg" ? Math.min(1200, Math.max(36, Math.round((72 * LARGE.width) / width))) : undefined;
+  const density = type === "svg" ? Math.min(1200, Math.max(36, Math.round((72 * profile.large.width) / width))) : undefined;
   const source = type === "svg" ? { ...base, density } : base;
 
   const render = async (size) => {
     // No .withMetadata(): EXIF, ICC and text chunks are dropped. Alpha is kept.
     const data = await sharp(buffer, source)
-      .resize(size.width, size.height, { fit: "fill" })
+      // Center-crop to cover: within the ratio tolerance this trims a sliver, it never stretches.
+      .resize(size.width, size.height, { fit: "cover", position: "centre" })
       .webp({ quality: WEBP_QUALITY })
       .toBuffer();
     return { buffer: data, width: size.width, height: size.height, bytes: data.length };
@@ -206,9 +239,9 @@ const rasterize = async (buffer, type) => {
   let large;
   let small;
   try {
-    [large, small] = await Promise.all([render(LARGE), render(SMALL)]);
+    [large, small] = await Promise.all([render(profile.large), render(profile.small)]);
   } catch {
-    throw new TemplateImageError("TEMPLATE_IMAGE_PROCESSING_FAILED", 422);
+    throw failWith(profile, "PROCESSING_FAILED", 422);
   }
 
   let placeholderColor = null;
@@ -239,6 +272,7 @@ const rasterize = async (buffer, type) => {
 
 module.exports = {
   LIMITS,
+  PROFILES,
   TARGET_RATIO,
   TemplateImageError,
   detectType,

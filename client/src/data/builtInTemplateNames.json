@@ -1,0 +1,103 @@
+{
+  "_note": "Names of the built-in banners and avatars, by the number in the file name (Banner_01_*.svg, Avatar_01_*.svg). nameFil is a draft for native review.",
+  "banner": {
+    "10": {
+      "name": "Island Silhouette",
+      "nameFil": "Silweta ng Isla"
+    },
+    "11": {
+      "name": "Paper Cut",
+      "nameFil": "Gupit na Papel"
+    },
+    "12": {
+      "name": "Night Stars",
+      "nameFil": "Mga Bituin sa Gabi"
+    },
+    "01": {
+      "name": "Forest Dots",
+      "nameFil": "Gubat na may Tuldok"
+    },
+    "02": {
+      "name": "Sunrise Hills",
+      "nameFil": "Burol sa Pagsikat ng Araw"
+    },
+    "03": {
+      "name": "Sea Waves",
+      "nameFil": "Alon ng Dagat"
+    },
+    "04": {
+      "name": "Gold Arcs",
+      "nameFil": "Gintong Arko"
+    },
+    "05": {
+      "name": "Topo Lines",
+      "nameFil": "Mga Linya ng Topograpiya"
+    },
+    "06": {
+      "name": "Leaf Pattern",
+      "nameFil": "Disenyong Dahon"
+    },
+    "07": {
+      "name": "Ink Geometric",
+      "nameFil": "Heometrikong Tinta"
+    },
+    "08": {
+      "name": "Soft Blobs",
+      "nameFil": "Malalambot na Hugis"
+    },
+    "09": {
+      "name": "Rice Terraces",
+      "nameFil": "Hagdan-hagdang Palayan"
+    }
+  },
+  "avatar": {
+    "10": {
+      "name": "Sky Horizon",
+      "nameFil": "Abot-tanaw ng Langit"
+    },
+    "11": {
+      "name": "Mint Origami",
+      "nameFil": "Mint na Origami"
+    },
+    "12": {
+      "name": "Crescent Star",
+      "nameFil": "Gasuklay at Bituin"
+    },
+    "01": {
+      "name": "Initials Forest",
+      "nameFil": "Inisyal sa Kagubatan"
+    },
+    "02": {
+      "name": "Minimal Leaf",
+      "nameFil": "Payak na Dahon"
+    },
+    "03": {
+      "name": "Gold Sunburst",
+      "nameFil": "Gintong Sinag ng Araw"
+    },
+    "04": {
+      "name": "Abstract Waves",
+      "nameFil": "Abstraktong Alon"
+    },
+    "05": {
+      "name": "Geo Triangles",
+      "nameFil": "Mga Heometrikong Tatsulok"
+    },
+    "06": {
+      "name": "Concentric Rings",
+      "nameFil": "Magkasentrong Singsing"
+    },
+    "07": {
+      "name": "Cream Sprout",
+      "nameFil": "Krem na Usbong"
+    },
+    "08": {
+      "name": "Deep Topo",
+      "nameFil": "Malalim na Topograpiya"
+    },
+    "09": {
+      "name": "Terrace Layers",
+      "nameFil": "Patong ng Hagdan-hagdang Lupa"
+    }
+  }
+}

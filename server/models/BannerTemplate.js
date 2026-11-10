@@ -34,6 +34,10 @@ const bannerTemplateSchema = new mongoose.Schema(
     },
     // Text-contrast hint. Image templates get it from the image's average brightness.
     overlay: { type: String, enum: ["light", "dark"], default: "dark" },
+    // Shipped with the app (installed from the bundled SVGs). Built-ins can be renamed,
+    // archived, reordered or made the default, but never deleted. The key is stable.
+    isBuiltIn: { type: Boolean, default: false },
+    builtInKey: { type: String, trim: true, maxlength: 60 },
     sortOrder: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     isDefault: { type: Boolean, default: false },
@@ -45,6 +49,8 @@ const bannerTemplateSchema = new mongoose.Schema(
 );
 
 bannerTemplateSchema.index({ isActive: 1, sortOrder: 1 });
+// One document per built-in key (documents without a key are not indexed).
+bannerTemplateSchema.index({ builtInKey: 1 }, { unique: true, partialFilterExpression: { builtInKey: { $type: "string" } } });
 // Exactly one default.
 bannerTemplateSchema.index({ isDefault: 1 }, { unique: true, partialFilterExpression: { isDefault: true } });
 

@@ -40,6 +40,7 @@ const {
 const { verifyToken: protect, verifyRecoveryToken, isAdmin, isJobseeker } = require("../middleware/auth");
 const { exportOwnForm1, exportOwnForm2 } = require("../controllers/nsrpFormController");
 const { setTemplateCover } = require("../controllers/coverController");
+const { chooseOwnPreset } = require("../controllers/avatarPresetController");
 const {
   sanitizeRequestBody,
   sanitizeQueryParams,
@@ -382,6 +383,9 @@ router.patch(
 // Profile banner: pick a preset template (or reset). Template id only; the body is
 // refused if it carries anything else. Employer image uploads have their own route.
 router.put("/profile/cover", protect, setTemplateCover);
+
+// Profile avatar: pick a preset avatar (or clear the choice). Preset id only.
+router.put("/profile/avatar/preset", protect, chooseOwnPreset);
 
 // Settings → Notifications + Privacy
 router.get("/settings", protect, getSettings);

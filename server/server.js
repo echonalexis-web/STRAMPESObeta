@@ -295,7 +295,7 @@ app.use("/uploads", async (req, res, next) => {
 
   // Profile pictures, news announcement images and employer cover images are
   // public assets (an <img> tag cannot send a Bearer token).
-  const isPublicImage = req.path.includes("/profiles/") || req.path.includes("/news/") || req.path.startsWith("/covers/") || req.path.startsWith("/banner-templates/");
+  const isPublicImage = req.path.includes("/profiles/") || req.path.includes("/news/") || req.path.startsWith("/covers/") || req.path.startsWith("/banner-templates/") || req.path.startsWith("/avatar-presets/");
   if (isPublicImage) {
     return next();
   }
@@ -426,6 +426,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   console.log("✅ System option routes loaded");
 
   const { publicRouter: bannerTemplatePublicRoutes, superadminRouter: bannerTemplateSuperadminRoutes } = require("./routes/bannerTemplateRoutes");
+  const { publicRouter: avatarPresetPublicRoutes, superadminRouter: avatarPresetSuperadminRoutes } = require("./routes/avatarPresetRoutes");
   console.log("✅ Banner template routes loaded");
 
   const profileRoutes = require("./routes/profileRoutes");
@@ -586,6 +587,14 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
       console.log(`✅ ${basePath}/banner-templates mounted`);
     } catch (e) {
       logger.error(`Failed to mount ${basePath}/banner-templates`, { error: e.message });
+    }
+
+    try {
+      app.use(`${basePath}/avatar-presets`, avatarPresetPublicRoutes);
+      app.use(`${basePath}/superadmin/avatar-presets`, avatarPresetSuperadminRoutes);
+      console.log(`✅ ${basePath}/avatar-presets mounted`);
+    } catch (e) {
+      logger.error(`Failed to mount ${basePath}/avatar-presets`, { error: e.message });
     }
 
     try {
