@@ -91,3 +91,25 @@ test("every redirect target is a registered page", () => {
     assert.ok(paths.has(legacyHashTarget(hash)), hash);
   }
 });
+
+test("filterByGroup keeps all entries for all, else one group", async () => {
+  const { filterByGroup } = await import("./consoleRegistry.js");
+  assert.equal(filterByGroup(CONSOLE_FUNCTIONS, "all").length, CONSOLE_FUNCTIONS.length);
+  assert.equal(filterByGroup(CONSOLE_FUNCTIONS, undefined).length, CONSOLE_FUNCTIONS.length);
+  assert.deepEqual(filterByGroup(CONSOLE_FUNCTIONS, "matching").map((f) => f.id), ["matching-bounds", "catalogs"]);
+  assert.deepEqual(filterByGroup(CONSOLE_FUNCTIONS, "nope"), []);
+});
+
+test("buildSummary uses only loaded data and drops empty parts", async () => {
+  const { buildSummary } = await import("./consoleRegistry.js");
+  assert.deepEqual(buildSummary("admin-accounts", [{ isActive: true, mustChangePassword: true }, { isActive: true }, { isActive: false, mustChangePassword: true }]), [
+    { key: "admins", count: 3 },
+    { key: "pending", count: 1 },
+  ]);
+  assert.deepEqual(buildSummary("admin-accounts", [{ isActive: true }]), [{ key: "admins", count: 1 }]);
+  assert.deepEqual(buildSummary("nsrp-forms", [{ updatedAt: "2026-01-01" }, { filename: "x" }]), [{ key: "nsrp", count: 1, total: 2 }]);
+  assert.deepEqual(buildSummary("banner-templates", [{ isActive: true }, { isActive: false }]), [{ key: "banners", count: 2 }, { key: "bannersActive", count: 1 }]);
+  assert.deepEqual(buildSummary("banner-templates", []), [{ key: "banners", count: 0 }]);
+  assert.deepEqual(buildSummary("catalogs", []), []);
+  assert.deepEqual(buildSummary("admin-accounts", null), []);
+});

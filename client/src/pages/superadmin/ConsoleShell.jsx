@@ -14,9 +14,9 @@ const PageHeadArt = () => {
 };
 
 // The green hero. It holds the page's only <h1>.
-export function ConsoleHero({ title, subtitle }) {
+export function ConsoleHero({ title, subtitle, compact = false }) {
   return (
-    <header className="sac__pagehead-band ds-pagehead">
+    <header className={`sac__pagehead-band ds-pagehead${compact ? " scl-hero--compact" : ""}`}>
       <PageHeadArt />
       <div className="ds-pagehead__text">
         <h1 className="ds-pagehead__title">{title}</h1>

@@ -1092,6 +1092,17 @@
   },
   "superadmin": {
     "launcher": {
+      "all": "All",
+      "filterLabel": "Filter by group",
+      "summary": {
+        "admins_one": "{{count}} admin account",
+        "admins_other": "{{count}} admin accounts",
+        "pending": "{{count}} pending",
+        "nsrp": "{{count}} of {{total}} forms use an uploaded template",
+        "banners_one": "{{count}} banner template",
+        "banners_other": "{{count}} banner templates",
+        "bannersActive": "{{count}} active"
+      },
       "breadcrumb": "Console navigation",
       "back": "Back to console",
       "searchLabel": "Search console functions",

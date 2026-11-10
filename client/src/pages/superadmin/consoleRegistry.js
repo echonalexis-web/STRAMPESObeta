@@ -38,6 +38,27 @@ export const filterFunctions = (entries, query, text) => {
   });
 };
 
+// "all" (or nothing) keeps every entry; otherwise only the entries of that group.
+export const filterByGroup = (entries, group) => (!group || group === "all" ? entries : entries.filter((entry) => entry.group === group));
+
+// What a card shows under its description, as [{ key, count }] parts that the launcher
+// turns into translated text (superadmin.launcher.summary.<key>). Built only from
+// data the functions already load. Returns [] when there is nothing to say.
+export const buildSummary = (id, data) => {
+  if (id === "admin-accounts" && Array.isArray(data)) {
+    const pending = data.filter((admin) => admin && admin.isActive && admin.mustChangePassword).length;
+    return [{ key: "admins", count: data.length }, ...(pending > 0 ? [{ key: "pending", count: pending }] : [])];
+  }
+  if (id === "nsrp-forms" && Array.isArray(data)) {
+    return [{ key: "nsrp", count: data.filter((meta) => meta && meta.updatedAt).length, total: data.length }];
+  }
+  if (id === "banner-templates" && Array.isArray(data)) {
+    const active = data.filter((tpl) => tpl && tpl.isActive).length;
+    return [{ key: "banners", count: data.length }, ...(data.length > 0 ? [{ key: "bannersActive", count: active }] : [])];
+  }
+  return [];
+};
+
 // [{ group, entries }] in CONSOLE_GROUPS order, skipping empty groups.
 export const groupFunctions = (entries) =>
   CONSOLE_GROUPS.map((group) => ({ group, entries: entries.filter((entry) => entry.group === group) })).filter((g) => g.entries.length > 0);
