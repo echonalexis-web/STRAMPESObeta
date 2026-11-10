@@ -658,7 +658,13 @@ export const bannerTemplateAPI = {
   remove: (id, { confirmUsage = false } = {}) =>
     api.delete(`/superadmin/banner-templates/${id}`, { ...getAuthHeader(), ...(confirmUsage ? { params: { confirmUsage: 'true' } } : {}) }),
   // Install the bundled banners: FormData with a "manifest" JSON field and the "images" files.
-  installBuiltins: (formData) => api.post('/superadmin/banner-templates/builtins', formData, getAuthFormHeader()),
+  installBuiltins: (formData, onProgress) =>
+    api.post('/superadmin/banner-templates/builtins', formData, {
+      ...getAuthFormHeader(),
+      onUploadProgress: (event) => {
+        if (onProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    }),
 };
 
 // Profile avatar presets: signed-in users read the active list, the superadmin manages
@@ -684,7 +690,13 @@ export const avatarPresetAPI = {
   reorder: (ids) => api.put('/superadmin/avatar-presets/order', { ids }, getAuthHeader()),
   remove: (id, { confirmUsage = false } = {}) =>
     api.delete(`/superadmin/avatar-presets/${id}`, { ...getAuthHeader(), ...(confirmUsage ? { params: { confirmUsage: 'true' } } : {}) }),
-  installBuiltins: (formData) => api.post('/superadmin/avatar-presets/builtins', formData, getAuthFormHeader()),
+  installBuiltins: (formData, onProgress) =>
+    api.post('/superadmin/avatar-presets/builtins', formData, {
+      ...getAuthFormHeader(),
+      onUploadProgress: (event) => {
+        if (onProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    }),
 };
 
 // Employer self-service account endpoints (profile picture + the combined

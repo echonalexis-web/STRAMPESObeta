@@ -1089,3 +1089,23 @@
   border-radius: 50%;
   background: var(--ds-green-deep);
 }
+
+/* ---------- Install progress (replaces the button while installing) ---------- */
+.bt__progress {
+  display: grid;
+  flex: 1 1 260px;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bt__progress-text {
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--ds-green-deep);
+}
+
+.bt__progress-bar {
+  width: 100%;
+  height: 10px;
+  accent-color: var(--ds-green);
+}

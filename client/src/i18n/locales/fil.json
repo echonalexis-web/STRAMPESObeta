@@ -2296,7 +2296,9 @@
     "builtins": {
       "install": "I-install ang mga built-in na template",
       "restore": "Ibalik ang mga built-in",
-      "installing": "Ini-install…",
+      "reading": "Inihahanda ang mga built-in na file…",
+      "uploading": "Ina-upload ang mga built-in na file… {{percent}}%",
+      "processing": "Kino-convert ang mga larawan sa server…",
       "someMissing": "{{present}} sa {{total}} built-in na template ang naka-install. Idinadagdag ng pagbabalik ang mga kulang at hindi binabago ang mga edit mo.",
       "allInstalled": "Naka-install ang lahat ng {{total}} built-in na template. Mga kulang lang ang idinadagdag ng pagbabalik at hindi binabago ang mga edit mo.",
       "done_one": "Na-install ang {{count}} built-in na template.",

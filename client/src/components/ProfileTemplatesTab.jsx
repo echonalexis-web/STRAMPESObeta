@@ -36,6 +36,9 @@ export default function ProfileTemplatesTab({ kind, items, status, onChange, onR
   const [confirm, setConfirm] = useState(null); // { action, item }
   const [busyId, setBusyId] = useState(null);
   const [installing, setInstalling] = useState(false);
+  // 0 to 100 while the files upload; the server then validates and converts them.
+  const [installProgress, setInstallProgress] = useState(0);
+  const [installPhase, setInstallPhase] = useState("reading"); // reading | uploading | processing
   const [announce, setAnnounce] = useState("");
 
   const showSearch = items.length > SEARCH_MIN_ITEMS;
@@ -96,10 +99,16 @@ export default function ProfileTemplatesTab({ kind, items, status, onChange, onR
   // every built-in that already exists, so this is safe to run again.
   const installBuiltIns = async () => {
     setInstalling(true);
+    setInstallProgress(0);
+    setInstallPhase("reading");
     try {
       const { buildBuiltInUpload } = await import("./builtInLoaders");
       const { formData } = await buildBuiltInUpload(kind);
-      const { data } = await config.api.installBuiltins(formData);
+      setInstallPhase("uploading");
+      const { data } = await config.api.installBuiltins(formData, (percent) => {
+        setInstallProgress(percent);
+        if (percent >= 100) setInstallPhase("processing");
+      });
       if (data.created > 0) say("profileTemplates.builtins.done", { count: data.created });
       else if (data.failed === 0) say("profileTemplates.builtins.upToDate");
       if (data.failed > 0) toast.error(t("profileTemplates.builtins.failed", { count: data.failed }));
@@ -113,9 +122,20 @@ export default function ProfileTemplatesTab({ kind, items, status, onChange, onR
 
   const builtInButton = (
     <button type="button" className={`bt__btn${builtIns.none ? " bt__btn--primary" : ""}`} disabled={installing || status !== "ready"} onClick={installBuiltIns}>
-      {installing ? t("profileTemplates.builtins.installing") : builtIns.none ? t("profileTemplates.builtins.install") : t("profileTemplates.builtins.restore")}
+      {builtIns.none ? t("profileTemplates.builtins.install") : t("profileTemplates.builtins.restore")}
     </button>
   );
+
+  // A progress bar replaces the button's "Installing…" word: the files upload (a real
+  // percentage), then the server validates and converts them (an indeterminate bar).
+  const installBar = installing ? (
+    <div className="bt__progress" role="status" aria-live="polite">
+      <span className="bt__progress-text">
+        {installPhase === "uploading" ? t("profileTemplates.builtins.uploading", { percent: installProgress }) : installPhase === "processing" ? t("profileTemplates.builtins.processing") : t("profileTemplates.builtins.reading")}
+      </span>
+      <progress className="bt__progress-bar" max={100} {...(installPhase === "uploading" ? { value: installProgress } : {})} aria-label={t("profileTemplates.builtins.install")} />
+    </div>
+  ) : null;
 
   return (
     <div className="bt__tab">
@@ -132,7 +152,7 @@ export default function ProfileTemplatesTab({ kind, items, status, onChange, onR
                 ? t("profileTemplates.builtins.someMissing", { present: builtIns.present, total: builtIns.total })
                 : t("profileTemplates.builtins.allInstalled", { total: builtIns.total })}
           </p>
-          {builtInButton}
+          {installing ? installBar : builtInButton}
         </div>
       ) : null}
 

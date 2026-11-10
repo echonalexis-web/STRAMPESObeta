@@ -2296,7 +2296,9 @@
     "builtins": {
       "install": "Install built-in templates",
       "restore": "Restore built-ins",
-      "installing": "Installing…",
+      "reading": "Preparing the built-in files…",
+      "uploading": "Uploading built-in files… {{percent}}%",
+      "processing": "Converting the images on the server…",
       "someMissing": "{{present}} of {{total}} built-in templates are installed. Restore adds the missing ones and never changes your edits.",
       "allInstalled": "All {{total}} built-in templates are installed. Restore only adds missing ones and never changes your edits.",
       "done_one": "Installed {{count}} built-in template.",
