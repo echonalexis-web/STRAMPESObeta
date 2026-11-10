@@ -176,12 +176,48 @@ describe("projectJobseeker for owner, staff and peers", () => {
     }
   });
 
-  test("peer sees only a public profile, with a tiny field set", () => {
+  test("peer sees only a public profile, with a short card for an adult", () => {
     const viewer = { id: "other", role: "jobseeker" };
-    const out = projection.projectJobseeker({ viewer, target: seeker(), profile: profile(), relationship: {} });
-    expect(Object.keys(out.user).sort()).toEqual(["_id", "desiredJobTitle", "name", "profileImage", "role"]);
+    const out = projection.projectJobseeker({ viewer, target: seeker({ about: "Hello", educationalAttainment: "College" }), profile: profile(), relationship: {} });
+    expect(Object.keys(out.user).sort()).toEqual(["_id", "about", "desiredJobTitle", "educationalAttainment", "name", "profileImage", "role", "skills"]);
+    ["email", "phone", "dateOfBirth", "governmentIdNumber", "workExperience", "preferredIndustries"].forEach((k) => expect(k in out.user).toBe(false));
     const hidden = projection.projectJobseeker({ viewer, target: seeker({ privacy: { profileVisibility: "employers" } }), profile: profile(), relationship: {} });
     expect(hidden).toBeNull();
+  });
+});
+
+describe("projectJobseeker peer view: work history and minors", () => {
+  const viewer = { id: "other", role: "jobseeker" };
+  const withWork = () => ({
+    ...profile(),
+    course: "BS Commerce",
+    workHistory: [
+      { position: "Cashier", companyName: "Mart", dateFrom: "2019-01", dateTo: "2021-06", address: "Somewhere", reasonForLeaving: "private", monthlySalary: 15000 },
+      { position: "", companyName: "" },
+    ],
+    expectedSalaryMin: 20000,
+    languageProficiency: { English: { read: true } },
+    vocationalTrainings: [{ course: "TESDA" }],
+    eligibilities: [{ name: "CSE" }],
+  });
+
+  test("an adult peer sees the role, company and dates of each job, and nothing else about it", () => {
+    const out = projection.projectJobseeker({ viewer, target: seeker(), profile: withWork(), relationship: {} });
+    expect(out.profile.workHistory).toEqual([{ position: "Cashier", companyName: "Mart", dateFrom: "2019-01", dateTo: "2021-06" }]);
+    expect(out.profile.course).toBe("BS Commerce");
+    ["expectedSalaryMin", "languageProficiency", "vocationalTrainings", "eligibilities", "tin", "sssGsisNo"].forEach((k) => expect(k in out.profile).toBe(false));
+  });
+
+  test("a 15 to 17 year old stays name, photo, headline and municipality for a peer", () => {
+    const out = projection.projectJobseeker({ viewer, target: seeker({ dateOfBirth: minorDob, about: "private", skills: ["x"] }), profile: withWork(), relationship: {} });
+    expect(Object.keys(out.user).sort()).toEqual(["_id", "desiredJobTitle", "name", "profileImage", "role"]);
+    expect("workHistory" in out.profile).toBe(false);
+    expect("course" in out.profile).toBe(false);
+  });
+
+  test("with no jobs the key is absent", () => {
+    const out = projection.projectJobseeker({ viewer, target: seeker(), profile: { ...profile(), workHistory: [] }, relationship: {} });
+    expect("workHistory" in out.profile).toBe(false);
   });
 });
 

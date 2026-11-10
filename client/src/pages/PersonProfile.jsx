@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { FaCheckCircle } from "react-icons/fa";
+import { FaArrowLeft, FaCheckCircle } from "react-icons/fa";
 import ProfileBanner from "../components/ProfileBanner";
 import StateBlock from "../components/StateBlock";
 import { profileViewAPI, resolveAssetUrl } from "../services/api";
@@ -122,9 +122,92 @@ export default function PersonProfile() {
   const training = list(profile.vocationalTrainings);
   const credentials = [...list(profile.eligibilities), ...list(profile.professionalLicenses)];
 
+  // Left column: who they are. Right column: what they have done.
+  const side = [];
+  const body = [];
+  if (employer && user.companyDescription) {
+    side.push(<Section key="about" title={t("person.about")}><p>{user.companyDescription}</p></Section>);
+  }
+  if (employer && user.website) {
+    side.push(
+      <Section key="website" title={t("person.website")}>
+        <a href={user.website} target="_blank" rel="noreferrer">{user.website}</a>
+      </Section>
+    );
+  }
+  if (!employer && user.about) side.push(<Section key="about" title={t("person.about")}><p>{user.about}</p></Section>);
+  if (!employer && skills.length > 0) side.push(<Section key="skills" title={t("person.skills")}><Chips items={skills} /></Section>);
+  if (!employer && education.length > 0) {
+    side.push(
+      <Section key="education" title={t("person.education")}>
+        <ul className="person-list">
+          {education.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </Section>
+    );
+  }
+  if (!employer && (work.length > 0 || user.workExperience)) {
+    body.push(
+      <Section key="work" title={t("person.work")}>
+        {user.workExperience ? <p>{user.workExperience}</p> : null}
+        {work.length > 0 ? (
+          <ul className="person-timeline">
+            {work.map((job, index) => (
+              <li key={`${job.companyName}-${index}`}>
+                <span className="person-timeline__title">{job.position || job.companyName}</span>
+                {job.position && job.companyName ? <span className="person-timeline__org">{job.companyName}</span> : null}
+                {job.dateFrom || job.dateTo ? <span className="person-muted">{[job.dateFrom, job.dateTo].filter(Boolean).join(" to ")}</span> : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Section>
+    );
+  }
+  if (!employer && (training.length > 0 || credentials.length > 0)) {
+    body.push(
+      <Section key="credentials" title={t("person.credentials")}>
+        <ul className="person-list">
+          {training.map((row, index) => (
+            <li key={`t-${index}`}>{[row.course, row.institution].filter(Boolean).join(" · ")}</li>
+          ))}
+          {credentials.map((row, index) => (
+            <li key={`c-${index}`}>{row.name}</li>
+          ))}
+        </ul>
+      </Section>
+    );
+  }
+  if (!employer && (preferences.length > 0 || salary)) {
+    body.push(
+      <Section key="preferences" title={t("person.preferences")}>
+        {preferences.length > 0 ? <Chips items={preferences} /> : null}
+        {salary ? <p className="person-line">{t("person.salary")}: {salary}</p> : null}
+      </Section>
+    );
+  }
+  if (!employer && languages.length > 0) {
+    body.push(
+      <Section key="languages" title={t("person.languages")}>
+        <ul className="person-list">
+          {languages.map((row) => (
+            <li key={row.language}>
+              <strong>{row.language}</strong> <span className="person-muted">({row.skills.join(", ")})</span>
+            </li>
+          ))}
+        </ul>
+      </Section>
+    );
+  }
+
   return (
     <div className="rd-page">
       <section className="rd-shell">
+        <button type="button" className="person-backbtn" onClick={() => navigate(-1)}>
+          <FaArrowLeft aria-hidden="true" /> {t("person.back")}
+        </button>
         <header className="rd2-head ds-card">
           <ProfileBanner cover={user.cover} />
           <div className="rd2-head-row">
@@ -157,91 +240,10 @@ export default function PersonProfile() {
           </div>
         </header>
 
-        <main className="person-main">
-          {employer && user.companyDescription ? (
-            <Section title={t("person.about")}>
-              <p>{user.companyDescription}</p>
-            </Section>
-          ) : null}
-          {employer && user.website ? (
-            <Section title={t("person.website")}>
-              <a href={user.website} target="_blank" rel="noreferrer">
-                {user.website}
-              </a>
-            </Section>
-          ) : null}
-
-          {!employer && user.about ? (
-            <Section title={t("person.about")}>
-              <p>{user.about}</p>
-            </Section>
-          ) : null}
-          {!employer && skills.length > 0 ? (
-            <Section title={t("person.skills")}>
-              <Chips items={skills} />
-            </Section>
-          ) : null}
-          {!employer && education.length > 0 ? (
-            <Section title={t("person.education")}>
-              <ul className="person-list">
-                {education.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </Section>
-          ) : null}
-          {!employer && (work.length > 0 || user.workExperience) ? (
-            <Section title={t("person.work")}>
-              {user.workExperience ? <p>{user.workExperience}</p> : null}
-              {work.length > 0 ? (
-                <ul className="person-list">
-                  {work.map((job, index) => (
-                    <li key={`${job.companyName}-${index}`}>
-                      <strong>{job.position || job.companyName}</strong>
-                      {job.position && job.companyName ? <span> · {job.companyName}</span> : null}
-                      {job.dateFrom || job.dateTo ? <span className="person-muted"> ({[job.dateFrom, job.dateTo].filter(Boolean).join(" to ")})</span> : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </Section>
-          ) : null}
-          {!employer && (training.length > 0 || credentials.length > 0) ? (
-            <Section title={t("person.credentials")}>
-              <ul className="person-list">
-                {training.map((row, index) => (
-                  <li key={`t-${index}`}>{[row.course, row.institution].filter(Boolean).join(" · ")}</li>
-                ))}
-                {credentials.map((row, index) => (
-                  <li key={`c-${index}`}>{row.name}</li>
-                ))}
-              </ul>
-            </Section>
-          ) : null}
-          {!employer && (preferences.length > 0 || salary) ? (
-            <Section title={t("person.preferences")}>
-              {preferences.length > 0 ? <Chips items={preferences} /> : null}
-              {salary ? <p className="person-line">{t("person.salary")}: {salary}</p> : null}
-            </Section>
-          ) : null}
-          {!employer && languages.length > 0 ? (
-            <Section title={t("person.languages")}>
-              <ul className="person-list">
-                {languages.map((row) => (
-                  <li key={row.language}>
-                    <strong>{row.language}</strong> <span className="person-muted">({row.skills.join(", ")})</span>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          ) : null}
+        <main className={`person-main${side.length && body.length ? " person-main--two" : ""}`}>
+          {side.length ? <div className="person-col">{side}</div> : null}
+          {body.length ? <div className="person-col">{body}</div> : null}
         </main>
-
-        <p className="person-back">
-          <Link to="/dashboard" onClick={(event) => { event.preventDefault(); navigate(-1); }}>
-            {t("person.back")}
-          </Link>
-        </p>
       </section>
     </div>
   );

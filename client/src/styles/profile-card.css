@@ -185,6 +185,89 @@
   margin-top: 16px;
 }
 
+/* Two columns (who they are, what they have done) when both have content. */
+.person-col {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .person-main--two {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+    align-items: start;
+  }
+}
+
+.rd-page .person-backbtn {
+  display: inline-flex;
+  justify-self: start;
+  align-self: flex-start;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  height: auto;
+  min-height: var(--ds-tap, 44px);
+  margin: 0 0 12px;
+  padding: 0 16px;
+  border: 1px solid var(--ds-ink-300);
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-surface);
+  color: var(--ds-green-deep);
+  font: inherit;
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rd-page .person-backbtn:hover {
+  background: var(--ds-mint);
+  border-color: var(--ds-green);
+}
+
+.rd-page .person-backbtn:focus-visible {
+  outline: 3px solid var(--ds-gold);
+  outline-offset: 2px;
+}
+
+/* Work history as a timeline: role, company, dates. */
+.person-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 18px;
+  border-left: 2px solid var(--ds-mint);
+  display: grid;
+  gap: 16px;
+}
+
+.person-timeline li {
+  position: relative;
+  display: grid;
+  gap: 2px;
+}
+
+.person-timeline li::before {
+  content: "";
+  position: absolute;
+  left: -25px;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--ds-surface);
+  border-radius: 50%;
+  background: var(--ds-green);
+}
+
+.person-timeline__title {
+  font-weight: 700;
+  color: var(--ds-ink-900);
+}
+
+.person-timeline__org {
+  color: var(--ds-ink-700);
+}
+
 .person-line {
   margin: 4px 0 0;
   color: var(--ds-ink-700);
@@ -226,6 +309,4 @@
   gap: 8px;
 }
 
-.person-back {
-  margin: 16px 0 0;
-}
+

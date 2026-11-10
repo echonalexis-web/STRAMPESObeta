@@ -172,11 +172,14 @@ describe("jobseeker target", () => {
     expect(Object.keys(res.body.user).sort()).toEqual(["_id", "email", "name", "phone", "role"]);
   });
 
-  test("another jobseeker sees only the tiny public set", async () => {
+  test("another jobseeker sees a short card: no contact, no hiring details", async () => {
     wire({ target: seeker(), profile: seekerProfile() });
     const res = await request(appFor(SEEKER2)).get(`/${ID}`);
-    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "cover", "desiredJobTitle", "name", "profileImage", "role"]);
-    expect(JSON.stringify(res.body)).not.toContain("welding");
+    const allowed = ["_id", "about", "cover", "desiredJobTitle", "educationalAttainment", "name", "profileImage", "role", "skills"];
+    Object.keys(res.body.user).forEach((key) => expect(allowed).toContain(key));
+    ["email", "phone", "workExperience", "preferredIndustries", "availabilityStatus"].forEach((key) => expect(key in res.body.user).toBe(false));
+    expect(res.body.profile.expectedSalaryMin).toBeUndefined();
+    expect(res.body.profile.preferredOccupations).toBeUndefined();
   });
 
   test("the summary has the hover card fields only", async () => {

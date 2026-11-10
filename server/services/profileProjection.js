@@ -97,6 +97,15 @@ const JOBSEEKER_HIRING_USER = [
   "industryPreferenceLevel",
 ];
 
+// What another jobseeker (a peer) sees of an ADULT public profile: a short, friendly
+// card, not the hiring view. No contact, no salary, no preferences, no languages,
+// no training or licences, no dates of birth. A 15 to 17 year old stays name, photo,
+// headline and municipality only.
+const JOBSEEKER_PEER_USER = ["_id", "name", "role", "profileImage", "desiredJobTitle", "about", "skills", "educationalAttainment"];
+const JOBSEEKER_PEER_PROFILE = ["skills", "schoolAttended", "schoolAttendedOther", "course", "yearGraduated"];
+// Work history for a peer: the role, the company and the dates, nothing else.
+const PEER_WORK_FIELDS = ["position", "companyName", "dateFrom", "dateTo"];
+
 const JOBSEEKER_HIRING_PROFILE = [
   "skills",
   "preferredIndustries",
@@ -253,10 +262,21 @@ const projectJobseeker = ({ viewer, target, profile, relationship, cover }) => {
   }
 
   if (mode === "peer") {
+    const place = municipalityOf(prof) ? { presentAddress: { municipality: prof.presentAddress.municipality || "" } } : {};
+    if (tier === TIERS.MINOR || tier === TIERS.UNDER_15) {
+      return {
+        mode,
+        user: { ...pick(user, ["_id", "name", "role", "profileImage", "desiredJobTitle"]), ...(cover ? { cover } : {}) },
+        profile: place,
+      };
+    }
+    const workHistory = (Array.isArray(prof?.workHistory) ? prof.workHistory : [])
+      .map((job) => pick(job, PEER_WORK_FIELDS))
+      .filter((job) => job.position || job.companyName);
     return {
       mode,
-      user: { ...pick(user, ["_id", "name", "role", "profileImage", "desiredJobTitle"]), ...(cover ? { cover } : {}) },
-      profile: municipalityOf(prof) ? { presentAddress: { municipality: prof.presentAddress.municipality || "" } } : {},
+      user: { ...pick(user, JOBSEEKER_PEER_USER), ...(cover ? { cover } : {}) },
+      profile: { ...pick(prof, JOBSEEKER_PEER_PROFILE), ...place, ...(workHistory.length ? { workHistory } : {}) },
     };
   }
 
