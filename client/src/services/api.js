@@ -633,8 +633,22 @@ export const employerCoverAPI = {
 export const bannerTemplateAPI = {
   listActive: () => api.get('/banner-templates', getAuthHeader()),
   adminList: () => api.get('/superadmin/banner-templates', getAuthHeader()),
-  create: (payload) => api.post('/superadmin/banner-templates', payload, getAuthHeader()),
-  update: (id, payload) => api.put(`/superadmin/banner-templates/${id}`, payload, getAuthHeader()),
+  // Create and update are multipart: FormData with name, nameFil, isActive and (create
+  // always, update optionally) the image file in the field "image".
+  create: (formData, onProgress) =>
+    api.post('/superadmin/banner-templates', formData, {
+      ...getAuthFormHeader(),
+      onUploadProgress: (event) => {
+        if (onProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    }),
+  update: (id, formData, onProgress) =>
+    api.put(`/superadmin/banner-templates/${id}`, formData, {
+      ...getAuthFormHeader(),
+      onUploadProgress: (event) => {
+        if (onProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    }),
   setActive: (id, isActive) => api.patch(`/superadmin/banner-templates/${id}/active`, { isActive }, getAuthHeader()),
   setDefault: (id) => api.patch(`/superadmin/banner-templates/${id}/default`, {}, getAuthHeader()),
   reorder: (ids) => api.put('/superadmin/banner-templates/order', { ids }, getAuthHeader()),

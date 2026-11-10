@@ -70,134 +70,18 @@
   pointer-events: none;
 }
 
-/* ---------- Superadmin Banner templates screen ---------- */
-.bt__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 10px;
+/* An uploaded template image inside a BannerPreview thumbnail. */
+.bp-img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
-.bt__item {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 12px;
-  align-items: center;
-  padding: 10px;
-  border: 1px solid var(--ds-ink-100);
-  border-radius: 12px;
-  background: var(--ds-surface);
-}
-
-.bt__item.is-archived {
-  opacity: 0.7;
-}
-
-.bt__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  min-width: 0;
-}
-
-.bt__name {
-  font-weight: 600;
-  color: var(--ds-ink-900);
-}
-
-.bt__badge {
-  font-size: 0.75rem;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--ds-ink-50);
-  color: var(--ds-ink-700);
-}
-
-.bt__badge.is-default {
-  background: var(--ds-mint);
-  color: var(--ds-green);
-}
-
-.bt__usage {
-  font-size: 0.8125rem;
-  color: var(--ds-ink-500);
-}
-
-.bt__actions {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.bt__actions button {
-  min-height: 36px;
-}
-
-.bt__form {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 14px;
-  border: 1px solid var(--ds-ink-100);
-  border-radius: 12px;
-  background: var(--ds-ink-50);
-}
-
-.bt__grid {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-}
-
-.bt__field {
-  display: grid;
-  gap: 4px;
-  font-size: 0.8125rem;
-  color: var(--ds-ink-700);
-}
-
-.bt__field input,
-.bt__field select {
-  min-height: 40px;
-  padding: 6px 10px;
-  border: 1px solid var(--ds-ink-300);
-  border-radius: 8px;
-  background: var(--ds-surface);
-  font: inherit;
-  color: var(--ds-ink-900);
-}
-
-.bt__stops {
-  display: grid;
-  gap: 8px;
-}
-
-.bt__stop {
-  display: grid;
-  grid-template-columns: 1fr 1fr 90px auto;
-  gap: 8px;
-  align-items: end;
-}
-
-@media (min-width: 768px) {
-  .bt__item {
-    grid-template-columns: 160px 1fr auto;
-  }
-
-  .bt__actions {
-    grid-column: auto;
-    justify-content: flex-end;
-  }
-}
-
-@media (max-width: 520px) {
-  .bt__stop {
-    grid-template-columns: 1fr 1fr;
-  }
-}
+/* The superadmin Banner templates screen lives in banner-templates.css. */
 
 /* ---------- Edit cover button on the owner's banner ---------- */
 .rd-page .rd2-head > .rd2-cover-edit {

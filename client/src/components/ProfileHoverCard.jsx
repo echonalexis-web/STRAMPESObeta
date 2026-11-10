@@ -20,6 +20,9 @@ function CoverThumb({ cover }) {
       </div>
     );
   }
+  if (cover?.kind === "template" && cover.template?.kind === "image") {
+    return <BannerPreview template={cover.template} definition={CLASSIC_DEFINITION} height={56} className="pcard__cover" />;
+  }
   const definition = cover?.kind === "template" && cover.template?.definition ? cover.template.definition : CLASSIC_DEFINITION;
   return <BannerPreview definition={definition} height={56} className="pcard__cover" />;
 }

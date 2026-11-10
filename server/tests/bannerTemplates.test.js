@@ -113,9 +113,7 @@ describe("superadmin controller", () => {
       req.user = { id: "sa", role: "superadmin" };
       next();
     });
-    app.post("/", controller.create);
-    app.put("/order", controller.reorder);
-    app.put("/:id", controller.update);
+        app.put("/order", controller.reorder);
     app.patch("/:id/active", controller.setActive);
     app.patch("/:id/default", controller.setDefault);
     app.delete("/:id", controller.remove);
@@ -132,29 +130,7 @@ describe("superadmin controller", () => {
     User.aggregate.mockResolvedValue([]);
   });
 
-  test("create rejects an invalid definition with TEMPLATE_DEFINITION_INVALID", async () => {
-    const res = await request(appFor()).post("/").send({ name: "Bad", kind: "gradient", definition: { gradient: { angle: 0, stops: [{ color: "url(x)", at: 0 }, { color: "ds-green", at: 1 }] } } });
-    expect(res.status).toBe(400);
-    expect(res.body.code).toBe("TEMPLATE_DEFINITION_INVALID");
-    expect(BannerTemplate.create).not.toHaveBeenCalled();
-  });
-  test("create with a taken name gives TEMPLATE_NAME_TAKEN", async () => {
-    BannerTemplate.exists.mockResolvedValue({ _id: "x" });
-    const res = await request(appFor()).post("/").send({ name: "Gold dots", kind: "pattern", definition: good() });
-    expect(res.status).toBe(409);
-    expect(res.body.code).toBe("TEMPLATE_NAME_TAKEN");
-  });
-  test("create stores only the validated definition", async () => {
-    BannerTemplate.exists.mockResolvedValue(null);
-    BannerTemplate.findOne.mockReturnValue({ sort: () => ({ select: () => ({ lean: () => Promise.resolve({ sortOrder: 3 }) }) }) });
-    BannerTemplate.create.mockImplementation(async (d) => ({ ...d, _id: "n1", toObject() { return { ...d, _id: "n1" }; } }));
-    const res = await request(appFor()).post("/").send({ name: "Fresh", kind: "pattern", definition: { ...good(), evil: "url(x)" } });
-    expect(res.status).toBe(400); // unknown key rejected
-    const ok = await request(appFor()).post("/").send({ name: "Fresh", kind: "pattern", definition: good() });
-    expect(ok.status).toBe(201);
-    expect(BannerTemplate.create.mock.calls[0][0].sortOrder).toBe(4);
-    expect(BannerTemplate.create.mock.calls[0][0].slug).toBe("fresh");
-  });
+  // Create and update are multipart uploads now: see bannerTemplateUpload.test.js.
   test("the default cannot be archived or deleted", async () => {
     BannerTemplate.findById.mockResolvedValue(doc({ isDefault: true }));
     const a = await request(appFor()).patch("/507f1f77bcf86cd799439011/active").send({ isActive: false });

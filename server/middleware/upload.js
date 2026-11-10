@@ -2,6 +2,7 @@ const multer = require("multer");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
 const storageService = require("../services/storageService");
+const { LIMITS: templateImageLimits } = require("../services/bannerTemplateImageService");
 
 // Allowed upload MIME types -> canonical extension
 const ALLOWED_FILE_TYPES = {
@@ -93,6 +94,33 @@ const singleCoverUpload = (req, res, next) =>
       return res.status(400).json({ code: "COVER_IMAGE_TYPE", message: "The cover must be a JPG, PNG or WebP image." });
     }
     return res.status(400).json({ code: "COVER_IMAGE_REQUIRED", message: "Choose an image to upload." });
+  });
+
+// Superadmin banner template: one SVG or PNG in the field "image". The real checks
+// (content sniffing, SVG safety, dimensions, ratio) run in
+// services/bannerTemplateImageService.js; this only bounds the request.
+const TEMPLATE_IMAGE_MIMES = ["image/png", "image/svg+xml"];
+const templateUpload = multer({
+  storage: memory,
+  limits: { fileSize: templateImageLimits.maxBytes, files: 1, fields: 8, fieldSize: 2048, parts: 12 },
+  fileFilter: (req, file, cb) => {
+    if (TEMPLATE_IMAGE_MIMES.includes(String(file.mimetype).toLowerCase())) return cb(null, true);
+    const error = new Error("Template must be an SVG or PNG image");
+    error.code = "TEMPLATE_IMAGE_TYPE";
+    return cb(error, false);
+  },
+});
+
+const singleTemplateImageUpload = (req, res, next) =>
+  templateUpload.single("image")(req, res, (error) => {
+    if (!error) return next();
+    if (error.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ code: "TEMPLATE_IMAGE_TOO_LARGE", message: "The image is too large." });
+    }
+    if (error.code === "TEMPLATE_IMAGE_TYPE") {
+      return res.status(400).json({ code: "TEMPLATE_IMAGE_TYPE", message: "The template must be an SVG or PNG image." });
+    }
+    return res.status(400).json({ code: "TEMPLATE_IMAGE_REQUIRED", message: "Choose an SVG or PNG image to upload." });
   });
 
 // (fieldName[, legacyPath]) — legacyPath is ignored, kept for call-site compatibility
@@ -254,6 +282,7 @@ module.exports = {
   coverUpload,
   singleCoverUpload,
   COVER_MAX_FILE_SIZE,
+  singleTemplateImageUpload,
   singleFileUpload,
   validateFile,
   matchesDeclaredType,

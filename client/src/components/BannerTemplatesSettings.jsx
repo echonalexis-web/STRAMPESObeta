@@ -1,427 +1,277 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FaArrowDown, FaArrowUp } from "react-icons/fa";
 import { bannerTemplateAPI } from "../services/api";
 import { apiErrorMessage } from "../utils/apiErrors";
-import { CLASSIC_DEFINITION } from "../utils/bannerStyle";
+import { matchesFilter, matchesQuery } from "../utils/bannerTemplateFile";
 import AppModal from "./AppModal";
 import BannerPreview from "./BannerPreview";
-import "../styles/cover.css";
+import BannerTemplateModal from "./BannerTemplateModal";
+import { useToast } from "./feedback/context";
+import "../styles/banner-templates.css";
 
 // Superadmin screen for the profile banner templates (COVER_PHOTO_PLAN.md 7.5).
-// Modeled on SystemOptionsSettings. Templates are gradient and pattern settings
-// only: the server validates every definition, so there is no free CSS here.
+// A template is an image the superadmin uploads (SVG or PNG, rasterized by the
+// server); there is no banner builder. Templates made before that (gradient or
+// pattern) stay in the list with a Legacy badge and keep rendering for the people
+// who chose them. The server validates everything; this screen only mirrors it.
 
-const TOKENS = [
-  "ds-green-deep",
-  "ds-green",
-  "ds-green-secondary",
-  "ds-mint",
-  "ds-gold",
-  "ds-gold-deep",
-  "ds-ink-900",
-  "ds-ink-700",
-  "ds-ink-500",
-  "ds-ink-300",
-  "ds-ink-100",
-  "ds-ink-50",
-  "ds-bg",
-  "ds-surface",
-];
-const PATTERN_TYPES = ["none", "dots", "rings", "grid", "stripes"];
-const FADES = ["none", "left", "right", "center"];
-const CUSTOM = "custom";
+const FILTERS = ["all", "active", "archived"];
+const SEARCH_MIN_TEMPLATES = 12;
+const SKELETONS = [0, 1, 2, 3, 4, 5];
 
-const emptyDraft = () => ({
-  id: null,
-  name: "",
-  nameFil: "",
-  kind: "pattern",
-  overlay: "dark",
-  angle: CLASSIC_DEFINITION.gradient.angle,
-  stops: CLASSIC_DEFINITION.gradient.stops.map((s) => ({ ...s, custom: "" })),
-  pattern: { ...CLASSIC_DEFINITION.pattern },
-});
-
-const draftFromTemplate = (tpl) => {
-  const stops = (tpl.definition?.gradient?.stops || []).map((s) =>
-    TOKENS.includes(s.color) ? { color: s.color, at: s.at, custom: "" } : { color: CUSTOM, at: s.at, custom: s.color }
-  );
-  const pattern = tpl.definition?.pattern;
-  const patternIsCustom = pattern && pattern.type !== "none" && !TOKENS.includes(pattern.color);
-  return {
-    id: tpl.id,
-    name: tpl.name,
-    nameFil: tpl.nameFil || "",
-    kind: tpl.kind,
-    overlay: tpl.overlay || "dark",
-    angle: tpl.definition?.gradient?.angle ?? 160,
-    stops,
-    pattern: pattern ? { ...pattern, ...(patternIsCustom ? { colorCustom: pattern.color, color: CUSTOM } : {}) } : { type: "none" },
-  };
-};
-
-const stopColor = (s) => (s.color === CUSTOM ? s.custom : s.color);
-
-// Draft -> the definition the server validates.
-const definitionFromDraft = (draft) => {
-  const definition = {
-    gradient: {
-      angle: Number(draft.angle),
-      stops: draft.stops.map((s) => ({ color: stopColor(s), at: Number(s.at) })),
-    },
-  };
-  const p = draft.pattern;
-  if (draft.kind === "pattern" && p && p.type !== "none") {
-    definition.pattern = {
-      type: p.type,
-      color: p.color === CUSTOM ? p.colorCustom : p.color,
-      mixPercent: Number(p.mixPercent),
-      size: Number(p.size),
-      opacity: Number(p.opacity),
-      fade: p.fade || "none",
-    };
-  } else if (draft.kind === "pattern") {
-    definition.pattern = { type: "none" };
-  }
-  return definition;
-};
+const primaryName = (tpl) => tpl.name;
 
 export default function BannerTemplatesSettings() {
   const { t } = useTranslation();
+  const toast = useToast();
   const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState({ text: "", error: false });
-  const [draft, setDraft] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [busyId, setBusyId] = useState(null);
+  const [status, setStatus] = useState("loading"); // loading | error | ready
+  const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
+  const [modal, setModal] = useState(null); // { template } (template null = create)
   const [confirm, setConfirm] = useState(null); // { kind, template }
+  const [busyId, setBusyId] = useState(null);
+  const [announce, setAnnounce] = useState("");
 
   const load = useCallback(() => {
-    setLoading(true);
-    bannerTemplateAPI
+    setStatus((current) => (current === "ready" ? current : "loading"));
+    return bannerTemplateAPI
       .adminList()
-      .then((res) => setTemplates(Array.isArray(res.data?.templates) ? res.data.templates : []))
-      .catch((err) => {
-        setTemplates([]);
-        setMessage({ text: apiErrorMessage(err, t("bannerTemplates.loadError")), error: true });
+      .then((res) => {
+        setTemplates(Array.isArray(res.data?.templates) ? res.data.templates : []);
+        setStatus("ready");
       })
-      .finally(() => setLoading(false));
-  }, [t]);
+      .catch(() => setStatus("error"));
+  }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const fail = (err, fallbackKey) => setMessage({ text: apiErrorMessage(err, t(fallbackKey)), error: true });
-  const ok = (key) => setMessage({ text: t(key), error: false });
+  const showSearch = templates.length > SEARCH_MIN_TEMPLATES;
+  const filtering = filter !== "all" || (showSearch && query.trim() !== "");
+  const visible = useMemo(
+    () => templates.filter((tpl) => matchesFilter(tpl, filter) && (!showSearch || matchesQuery(tpl, query))),
+    [templates, filter, query, showSearch]
+  );
 
-  const setField = (field, value) => setDraft((d) => ({ ...d, [field]: value }));
-  const setPattern = (field, value) => setDraft((d) => ({ ...d, pattern: { ...d.pattern, [field]: value } }));
-  const setStop = (index, field, value) =>
-    setDraft((d) => ({ ...d, stops: d.stops.map((s, i) => (i === index ? { ...s, [field]: value } : s)) }));
-
-  const startNew = () => {
-    setMessage({ text: "", error: false });
-    setDraft(emptyDraft());
-  };
-
-  const save = async (event) => {
-    event.preventDefault();
-    setSaving(true);
-    setMessage({ text: "", error: false });
-    const payload = {
-      name: draft.name.trim(),
-      nameFil: draft.nameFil.trim(),
-      kind: draft.kind,
-      overlay: draft.overlay,
-      definition: definitionFromDraft(draft),
-    };
-    try {
-      if (draft.id) await bannerTemplateAPI.update(draft.id, payload);
-      else await bannerTemplateAPI.create(payload);
-      setDraft(null);
-      ok("bannerTemplates.saved");
-      load();
-    } catch (err) {
-      fail(err, "bannerTemplates.saveError");
-    } finally {
-      setSaving(false);
-    }
-  };
+  const fail = (err) => toast.error(apiErrorMessage(err, t("bannerTemplates.actionError")));
 
   const run = async (template, action, successKey) => {
     setBusyId(template.id);
-    setMessage({ text: "", error: false });
     try {
       await action();
-      ok(successKey);
-      load();
+      toast.success(t(successKey));
+      setAnnounce(t(successKey));
+      await load();
     } catch (err) {
-      fail(err, "bannerTemplates.actionError");
+      fail(err);
     } finally {
       setBusyId(null);
     }
   };
 
-  const move = async (index, delta) => {
-    const next = [...templates];
-    const target = index + delta;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target], next[index]];
-    setTemplates(next);
-    try {
-      await bannerTemplateAPI.reorder(next.map((x) => x.id));
-    } catch (err) {
-      fail(err, "bannerTemplates.actionError");
-      load();
-    }
-  };
+  const archive = (tpl) => bannerTemplateAPI.setActive(tpl.id, false);
 
   const confirmAction = async () => {
     const { kind, template } = confirm;
     setConfirm(null);
-    if (kind === "archive") await run(template, () => bannerTemplateAPI.setActive(template.id, false), "bannerTemplates.archived");
+    if (kind === "archive") await run(template, () => archive(template), "bannerTemplates.archived");
     if (kind === "default") await run(template, () => bannerTemplateAPI.setDefault(template.id), "bannerTemplates.defaultSet");
     if (kind === "delete") await run(template, () => bannerTemplateAPI.remove(template.id), "bannerTemplates.deleted");
   };
 
-  const previewDefinition = draft ? definitionFromDraft(draft) : null;
+  const move = async (index, delta) => {
+    const target = index + delta;
+    if (target < 0 || target >= templates.length) return;
+    const next = [...templates];
+    [next[index], next[target]] = [next[target], next[index]];
+    setTemplates(next);
+    setAnnounce(t("bannerTemplates.moved", { name: primaryName(templates[index]), position: target + 1, total: next.length }));
+    try {
+      await bannerTemplateAPI.reorder(next.map((tpl) => tpl.id));
+    } catch (err) {
+      fail(err);
+      load();
+    }
+  };
+
+  const onSaved = (_saved, outcome) => {
+    setModal(null);
+    toast.success(t(`bannerTemplates.${outcome}`));
+    setAnnounce(t(`bannerTemplates.${outcome}`));
+    load();
+  };
 
   return (
     <section className="sac__card bt" aria-labelledby="banner-templates-title">
-      <header className="mwb__head">
-        <h2 id="banner-templates-title">{t("bannerTemplates.title")}</h2>
-        <p className="mwb__subtitle">{t("bannerTemplates.subtitle")}</p>
-        <button type="button" className="sac__primary" onClick={startNew} disabled={Boolean(draft)}>
-          {t("bannerTemplates.new")}
+      <header className="bt__head">
+        <div className="bt__head-text">
+          <h2 id="banner-templates-title">{t("bannerTemplates.title")}</h2>
+          <p className="bt__subtitle">{t("bannerTemplates.subtitle")}</p>
+        </div>
+        <button type="button" className="bt__btn bt__btn--primary bt__upload" onClick={() => setModal({ template: null })}>
+          {t("bannerTemplates.upload")}
         </button>
       </header>
 
-      {message.text ? (
-        <p className={`mwb__message ${message.error ? "is-error" : "is-ok"}`} role={message.error ? "alert" : "status"}>
-          {message.text}
-        </p>
-      ) : null}
+      <p className="bt__sr" role="status" aria-live="polite">
+        {announce}
+      </p>
 
-      {draft ? (
-        <form className="bt__form" onSubmit={save}>
-          <BannerPreview definition={previewDefinition} height={120} guide />
-          <p className="bt__usage">{t("bannerTemplates.form.guide")}</p>
-
-          <div className="bt__grid">
-            <label className="bt__field">
-              {t("bannerTemplates.form.name")}
-              <input value={draft.name} maxLength={60} required onChange={(e) => setField("name", e.target.value)} />
-            </label>
-            <label className="bt__field">
-              {t("bannerTemplates.form.nameFil")}
-              <input value={draft.nameFil} maxLength={60} onChange={(e) => setField("nameFil", e.target.value)} />
-            </label>
-            <label className="bt__field">
-              {t("bannerTemplates.form.kind")}
-              <select value={draft.kind} onChange={(e) => setField("kind", e.target.value)}>
-                <option value="gradient">{t("bannerTemplates.form.kindGradient")}</option>
-                <option value="pattern">{t("bannerTemplates.form.kindPattern")}</option>
-              </select>
-            </label>
-            <label className="bt__field">
-              {t("bannerTemplates.form.overlay")}
-              <select value={draft.overlay} onChange={(e) => setField("overlay", e.target.value)}>
-                <option value="dark">{t("bannerTemplates.form.overlayDark")}</option>
-                <option value="light">{t("bannerTemplates.form.overlayLight")}</option>
-              </select>
-            </label>
-            <label className="bt__field">
-              {t("bannerTemplates.form.angle")}
-              <input type="number" min={0} max={360} value={draft.angle} onChange={(e) => setField("angle", e.target.value)} />
-            </label>
-          </div>
-
-          <fieldset className="bt__stops">
-            <legend>{t("bannerTemplates.form.stops")}</legend>
-            {draft.stops.map((stop, index) => (
-              <div className="bt__stop" key={index}>
-                <label className="bt__field">
-                  {t("bannerTemplates.form.stopColor")}
-                  <select value={stop.color} onChange={(e) => setStop(index, "color", e.target.value)}>
-                    {TOKENS.map((token) => (
-                      <option key={token} value={token}>
-                        {token}
-                      </option>
-                    ))}
-                    <option value={CUSTOM}>{t("bannerTemplates.form.customColor")}</option>
-                  </select>
-                </label>
-                <label className="bt__field">
-                  {t("bannerTemplates.form.customColorValue")}
-                  <input
-                    value={stop.custom}
-                    placeholder="#0b704b"
-                    pattern="#[0-9a-fA-F]{6}"
-                    disabled={stop.color !== CUSTOM}
-                    onChange={(e) => setStop(index, "custom", e.target.value)}
-                  />
-                </label>
-                <label className="bt__field">
-                  {t("bannerTemplates.form.stopAt")}
-                  <input type="number" min={0} max={100} value={stop.at} onChange={(e) => setStop(index, "at", e.target.value)} />
-                </label>
-                <button
-                  type="button"
-                  className="sac__ghost"
-                  disabled={draft.stops.length <= 2}
-                  onClick={() => setDraft((d) => ({ ...d, stops: d.stops.filter((_, i) => i !== index) }))}
-                >
-                  {t("bannerTemplates.form.removeStop")}
-                </button>
-              </div>
+      {status === "ready" && templates.length > 0 ? (
+        <div className="bt__toolbar">
+          <div className="bt__filters" role="group" aria-label={t("bannerTemplates.filter.label")}>
+            {FILTERS.map((value) => (
+              <button key={value} type="button" className="bt__chip" aria-pressed={filter === value} onClick={() => setFilter(value)}>
+                {t(`bannerTemplates.filter.${value}`)}
+              </button>
             ))}
-            <button
-              type="button"
-              className="sac__ghost"
-              disabled={draft.stops.length >= 4}
-              onClick={() => setDraft((d) => ({ ...d, stops: [...d.stops, { color: "ds-green", at: 100, custom: "" }] }))}
-            >
-              {t("bannerTemplates.form.addStop")}
-            </button>
-          </fieldset>
-
-          {draft.kind === "pattern" ? (
-            <div className="bt__grid">
-              <label className="bt__field">
-                {t("bannerTemplates.form.patternType")}
-                <select
-                  value={draft.pattern.type}
-                  onChange={(e) => {
-                    const type = e.target.value;
-                    setDraft((d) => ({ ...d, pattern: { ...CLASSIC_DEFINITION.pattern, ...d.pattern, type } }));
-                  }}
-                >
-                  {PATTERN_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {t(`bannerTemplates.form.types.${type}`)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {draft.pattern.type !== "none" ? (
-                <>
-                  <label className="bt__field">
-                    {t("bannerTemplates.form.patternColor")}
-                    <select value={draft.pattern.color} onChange={(e) => setPattern("color", e.target.value)}>
-                      {TOKENS.map((token) => (
-                        <option key={token} value={token}>
-                          {token}
-                        </option>
-                      ))}
-                      <option value={CUSTOM}>{t("bannerTemplates.form.customColor")}</option>
-                    </select>
-                  </label>
-                  <label className="bt__field">
-                    {t("bannerTemplates.form.customColorValue")}
-                    <input
-                      value={draft.pattern.colorCustom || ""}
-                      placeholder="#e6b91e"
-                      disabled={draft.pattern.color !== CUSTOM}
-                      onChange={(e) => setPattern("colorCustom", e.target.value)}
-                    />
-                  </label>
-                  <label className="bt__field">
-                    {t("bannerTemplates.form.patternMix")}
-                    <input type="number" min={0} max={100} value={draft.pattern.mixPercent} onChange={(e) => setPattern("mixPercent", e.target.value)} />
-                  </label>
-                  <label className="bt__field">
-                    {t("bannerTemplates.form.patternSize")}
-                    <input type="number" min={8} max={80} value={draft.pattern.size} onChange={(e) => setPattern("size", e.target.value)} />
-                  </label>
-                  <label className="bt__field">
-                    {t("bannerTemplates.form.patternOpacity")}
-                    <input type="number" min={0} max={1} step={0.05} value={draft.pattern.opacity} onChange={(e) => setPattern("opacity", e.target.value)} />
-                  </label>
-                  <label className="bt__field">
-                    {t("bannerTemplates.form.patternFade")}
-                    <select value={draft.pattern.fade || "none"} onChange={(e) => setPattern("fade", e.target.value)}>
-                      {FADES.map((fade) => (
-                        <option key={fade} value={fade}>
-                          {t(`bannerTemplates.form.fades.${fade}`)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </>
-              ) : null}
-            </div>
-          ) : null}
-
-          <div className="bt__actions">
-            <button type="submit" className="sac__primary" disabled={saving || !draft.name.trim()}>
-              {saving ? t("bannerTemplates.form.saving") : t("bannerTemplates.form.save")}
-            </button>
-            <button type="button" className="sac__ghost" disabled={saving} onClick={() => setDraft(null)}>
-              {t("bannerTemplates.form.cancel")}
-            </button>
           </div>
-        </form>
+          {showSearch ? (
+            <label className="bt__search">
+              <span className="bt__sr">{t("bannerTemplates.search.label")}</span>
+              <input
+                type="search"
+                name="templateSearch"
+                value={query}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={t("bannerTemplates.search.placeholder")}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
+          ) : null}
+        </div>
       ) : null}
 
-      {loading ? (
-        <p className="loading">{t("bannerTemplates.loading")}</p>
-      ) : templates.length === 0 ? (
-        <p className="so__empty">{t("bannerTemplates.empty")}</p>
-      ) : (
-        <ul className="bt__list">
-          {templates.map((tpl, index) => (
-            <li key={tpl.id} className={`bt__item${tpl.isActive ? "" : " is-archived"}`}>
-              <BannerPreview definition={tpl.definition} height={64} />
-              <div className="bt__meta">
-                <span className="bt__name">{tpl.name}</span>
-                {tpl.isDefault ? <span className="bt__badge is-default">{t("bannerTemplates.badge.default")}</span> : null}
-                <span className="bt__badge">{tpl.isActive ? t("bannerTemplates.badge.active") : t("bannerTemplates.badge.archived")}</span>
-                <span className="bt__usage">{t("bannerTemplates.usedBy", { count: tpl.usage })}</span>
-              </div>
-              <div className="bt__actions">
-                <button type="button" className="sac__ghost" disabled={index === 0} onClick={() => move(index, -1)} aria-label={t("bannerTemplates.moveUpFor", { name: tpl.name })}>
-                  {t("bannerTemplates.moveUp")}
-                </button>
-                <button type="button" className="sac__ghost" disabled={index === templates.length - 1} onClick={() => move(index, 1)} aria-label={t("bannerTemplates.moveDownFor", { name: tpl.name })}>
-                  {t("bannerTemplates.moveDown")}
-                </button>
-                <button type="button" className="sac__ghost" disabled={busyId === tpl.id || Boolean(draft)} onClick={() => setDraft(draftFromTemplate(tpl))}>
-                  {t("bannerTemplates.edit")}
-                </button>
-                {tpl.isActive ? (
-                  <button
-                    type="button"
-                    className="sac__ghost"
-                    disabled={busyId === tpl.id || tpl.isDefault}
-                    onClick={() => (tpl.usage > 0 ? setConfirm({ kind: "archive", template: tpl }) : run(tpl, () => bannerTemplateAPI.setActive(tpl.id, false), "bannerTemplates.archived"))}
-                  >
-                    {t("bannerTemplates.archive")}
-                  </button>
-                ) : (
-                  <button type="button" className="sac__ghost" disabled={busyId === tpl.id} onClick={() => run(tpl, () => bannerTemplateAPI.setActive(tpl.id, true), "bannerTemplates.activated")}>
-                    {t("bannerTemplates.activate")}
-                  </button>
-                )}
-                {tpl.isActive && !tpl.isDefault ? (
-                  <button type="button" className="sac__ghost" disabled={busyId === tpl.id} onClick={() => setConfirm({ kind: "default", template: tpl })}>
-                    {t("bannerTemplates.setDefault")}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="sac__ghost so__delete"
-                  disabled={busyId === tpl.id || tpl.isDefault || tpl.usage > 0}
-                  title={tpl.usage > 0 ? t("bannerTemplates.deleteBlocked") : undefined}
-                  onClick={() => setConfirm({ kind: "delete", template: tpl })}
-                >
-                  {t("bannerTemplates.delete")}
-                </button>
-              </div>
+      {status === "loading" ? (
+        <ul className="bt__grid" aria-busy="true" aria-label={t("bannerTemplates.loading")}>
+          {SKELETONS.map((n) => (
+            <li key={n} className="bt__card bt__card--skeleton" aria-hidden="true">
+              <span className="bt__skeleton bt__skeleton--thumb" />
+              <span className="bt__skeleton bt__skeleton--line" />
+              <span className="bt__skeleton bt__skeleton--line bt__skeleton--short" />
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
+
+      {status === "error" ? (
+        <div className="bt__state" role="alert">
+          <p>{t("bannerTemplates.loadError")}</p>
+          <button type="button" className="bt__btn" onClick={load}>
+            {t("bannerTemplates.retry")}
+          </button>
+        </div>
+      ) : null}
+
+      {status === "ready" && templates.length === 0 ? (
+        <div className="bt__state">
+          <p>{t("bannerTemplates.empty")}</p>
+          <button type="button" className="bt__btn bt__btn--primary" onClick={() => setModal({ template: null })}>
+            {t("bannerTemplates.upload")}
+          </button>
+        </div>
+      ) : null}
+
+      {status === "ready" && templates.length > 0 && visible.length === 0 ? <p className="bt__state">{t("bannerTemplates.noMatches")}</p> : null}
+
+      {status === "ready" && visible.length > 0 ? (
+        <>
+          {filtering ? <p className="bt__hint">{t("bannerTemplates.reorderHint")}</p> : null}
+          <ul className="bt__grid" aria-label={t("bannerTemplates.list")}>
+            {visible.map((tpl) => {
+              const index = templates.findIndex((x) => x.id === tpl.id);
+              const busy = busyId === tpl.id;
+              const secondary = tpl.nameFil && tpl.nameFil !== tpl.name ? tpl.nameFil : "";
+              return (
+                <li key={tpl.id} className={`bt__card${tpl.isActive ? "" : " is-archived"}`} aria-busy={busy || undefined}>
+                  <div className="bt__thumb-wrap">
+                    <BannerPreview template={tpl} definition={tpl.definition} height="auto" alt={tpl.name} className="bt__thumb" />
+                    {!filtering ? (
+                      <div className="bt__order">
+                        <button
+                          type="button"
+                          className="bt__icon-btn"
+                          disabled={index === 0 || busy}
+                          onClick={() => move(index, -1)}
+                          aria-label={t("bannerTemplates.moveUpFor", { name: tpl.name })}
+                        >
+                          <FaArrowUp aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="bt__icon-btn"
+                          disabled={index === templates.length - 1 || busy}
+                          onClick={() => move(index, 1)}
+                          aria-label={t("bannerTemplates.moveDownFor", { name: tpl.name })}
+                        >
+                          <FaArrowDown aria-hidden="true" />
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="bt__info">
+                    <h3 className="bt__name">{tpl.name}</h3>
+                    {secondary ? (
+                      <p className="bt__name-fil" lang="fil">
+                        {secondary}
+                      </p>
+                    ) : null}
+                    <div className="bt__badges">
+                      {tpl.isDefault ? <span className="bt__badge bt__badge--default">{t("bannerTemplates.badge.default")}</span> : null}
+                      <span className={`bt__badge ${tpl.isActive ? "bt__badge--active" : "bt__badge--archived"}`}>
+                        {tpl.isActive ? t("bannerTemplates.badge.active") : t("bannerTemplates.badge.archived")}
+                      </span>
+                      {tpl.legacy ? <span className="bt__badge bt__badge--legacy">{t("bannerTemplates.badge.legacy")}</span> : null}
+                    </div>
+                    <p className="bt__usage">{t("bannerTemplates.usage", { count: tpl.usage })}</p>
+                    {tpl.legacy ? <p className="bt__hint">{t("bannerTemplates.legacyHint")}</p> : null}
+                  </div>
+
+                  <div className="bt__actions">
+                    <button type="button" className="bt__btn" disabled={busy} onClick={() => setModal({ template: tpl })} aria-label={t("bannerTemplates.editFor", { name: tpl.name })}>
+                      {t("bannerTemplates.edit")}
+                    </button>
+                    <button type="button" className="bt__btn" disabled={busy} onClick={() => setModal({ template: tpl })} aria-label={t("bannerTemplates.replaceImageFor", { name: tpl.name })}>
+                      {t("bannerTemplates.replaceImage")}
+                    </button>
+                    {tpl.isActive && !tpl.isDefault ? (
+                      <button type="button" className="bt__btn" disabled={busy} onClick={() => setConfirm({ kind: "default", template: tpl })}>
+                        {t("bannerTemplates.setDefault")}
+                      </button>
+                    ) : null}
+                    {tpl.isActive ? (
+                      <button
+                        type="button"
+                        className="bt__btn"
+                        disabled={busy || tpl.isDefault}
+                        onClick={() => (tpl.usage > 0 ? setConfirm({ kind: "archive", template: tpl }) : run(tpl, () => archive(tpl), "bannerTemplates.archived"))}
+                      >
+                        {t("bannerTemplates.archive")}
+                      </button>
+                    ) : (
+                      <button type="button" className="bt__btn" disabled={busy} onClick={() => run(tpl, () => bannerTemplateAPI.setActive(tpl.id, true), "bannerTemplates.activated")}>
+                        {t("bannerTemplates.restore")}
+                      </button>
+                    )}
+                    {tpl.usage === 0 && !tpl.isDefault ? (
+                      <button type="button" className="bt__btn bt__btn--danger" disabled={busy} onClick={() => setConfirm({ kind: "delete", template: tpl })}>
+                        {t("bannerTemplates.delete")}
+                      </button>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      ) : null}
+
+      {modal ? <BannerTemplateModal key={modal.template?.id || "new"} template={modal.template} onClose={() => setModal(null)} onSaved={onSaved} /> : null}
 
       <AppModal
         isOpen={Boolean(confirm)}
@@ -432,11 +282,11 @@ export default function BannerTemplatesSettings() {
         {confirm ? (
           <div className="bt__confirm">
             <p>{t(`bannerTemplates.confirm.${confirm.kind}Body`, { name: confirm.template.name, count: confirm.template.usage })}</p>
-            <div className="bt__actions">
-              <button type="button" className="sac__ghost" onClick={() => setConfirm(null)}>
+            <div className="bt__confirm-actions">
+              <button type="button" className="bt__btn" onClick={() => setConfirm(null)}>
                 {t("bannerTemplates.form.cancel")}
               </button>
-              <button type="button" className="sac__primary" onClick={confirmAction}>
+              <button type="button" className={`bt__btn ${confirm.kind === "delete" ? "bt__btn--danger-solid" : "bt__btn--primary"}`} onClick={confirmAction}>
                 {t("bannerTemplates.confirm.ok")}
               </button>
             </div>

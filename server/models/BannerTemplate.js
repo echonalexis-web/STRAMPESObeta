@@ -10,8 +10,29 @@ const bannerTemplateSchema = new mongoose.Schema(
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true, maxlength: 60 },
     name: { type: String, required: true, trim: true, maxlength: 60 },
     nameFil: { type: String, default: "", trim: true, maxlength: 60 },
-    kind: { type: String, enum: ["gradient", "pattern"], required: true },
-    definition: { type: mongoose.Schema.Types.Mixed, required: true },
+    // "gradient" and "pattern" are legacy (no longer creatable); new templates are "image".
+    kind: { type: String, enum: ["gradient", "pattern", "image"], required: true },
+    // Legacy templates only. Kept untouched when a legacy template gets an image.
+    definition: {
+      type: mongoose.Schema.Types.Mixed,
+      required: function requiredForLegacy() {
+        return this.kind !== "image";
+      },
+    },
+    // The processed banner (1600x400 WebP) and its thumbnail (800x200 WebP).
+    // The upload itself is never stored: only this normalized output.
+    image: {
+      url: { type: String },
+      thumbUrl: { type: String },
+      storedValue: { type: String },
+      thumbStoredValue: { type: String },
+      width: { type: Number },
+      height: { type: Number },
+      bytes: { type: Number },
+      placeholderColor: { type: String },
+      luminance: { type: Number },
+    },
+    // Text-contrast hint. Image templates get it from the image's average brightness.
     overlay: { type: String, enum: ["light", "dark"], default: "dark" },
     sortOrder: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },

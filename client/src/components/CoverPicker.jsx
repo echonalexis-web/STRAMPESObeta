@@ -221,7 +221,7 @@ export default function CoverPicker({ isOpen, onClose, cover, onSaved, isEmploye
 
         {tab === "templates" ? (
           <>
-            <BannerPreview definition={previewDefinition} height={120} className="cover-picker__preview" />
+            <BannerPreview template={selected || defaultTemplate} definition={previewDefinition} height={120} className="cover-picker__preview" />
 
             {status === "loading" ? (
               <div className="cover-picker__grid" aria-busy="true" aria-label={t("cover.loading")}>
@@ -255,7 +255,7 @@ export default function CoverPicker({ isOpen, onClose, cover, onSaved, isEmploye
                         checked={checked}
                         onChange={() => setSelectedId(tpl.id === state.defaultId ? null : tpl.id)}
                       />
-                      <BannerPreview definition={tpl.definition} height={56} />
+                      <BannerPreview template={tpl} definition={tpl.definition} height={56} />
                       <span className="cover-picker__name">
                         {templateName(tpl, i18n.language)}
                         {checked ? <FaCheck className="cover-picker__check" aria-label={t("cover.selected")} /> : null}

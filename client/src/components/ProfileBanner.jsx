@@ -1,5 +1,6 @@
 import { useState } from "react";
 import useParallaxLayer from "../hooks/useParallaxLayer";
+import { resolveAssetUrl } from "../services/api";
 import { bannerStyle } from "../utils/bannerStyle";
 import "../styles/cover.css";
 
@@ -18,6 +19,33 @@ const PatternLayer = ({ style }) => {
 // `.rd2-head` as an absolutely positioned layer, height from --rd-cover-h.
 export default function ProfileBanner({ cover, saving = false }) {
   const [failedUrl, setFailedUrl] = useState(null);
+
+  // A template the superadmin uploaded as an image: drawn like an uploaded cover, with
+  // the template's own text-contrast hint.
+  const templateImage = cover?.kind === "template" && cover.template?.kind === "image" ? cover.template.image : null;
+  if (templateImage?.url && failedUrl !== templateImage.url) {
+    const { url, width, height, placeholderColor } = templateImage;
+    return (
+      <div
+        className="rd2-cover rd2-cover--image"
+        style={placeholderColor ? { background: placeholderColor } : undefined}
+        data-overlay={cover.template.overlay || "dark"}
+        data-saving={saving || undefined}
+        aria-hidden="true"
+      >
+        <img
+          className="rd2-cover-img"
+          src={resolveAssetUrl(url)}
+          alt=""
+          width={width || 1600}
+          height={height || 400}
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailedUrl(url)}
+        />
+      </div>
+    );
+  }
 
   if (cover?.kind === "template" && cover.template?.definition) {
     const { background, pattern } = bannerStyle(cover.template.definition);

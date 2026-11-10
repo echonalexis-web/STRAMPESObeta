@@ -82,15 +82,34 @@ const validateDefinition = (input) => {
 
 let cache = null; // { templates: [...], defaultId, byId: Map, expiresAt }
 
-const toPublic = (t) => ({
-  id: String(t._id),
-  slug: t.slug,
-  name: t.name,
-  nameFil: t.nameFil || "",
-  kind: t.kind,
-  definition: t.definition,
-  overlay: t.overlay || "dark",
-});
+// The public view of a stored image: never the stored values or other internals.
+const publicImage = (image) => {
+  if (!image || !image.url) return null;
+  return {
+    url: image.url,
+    thumbUrl: image.thumbUrl || image.url,
+    width: image.width,
+    height: image.height,
+    placeholderColor: image.placeholderColor || null,
+  };
+};
+
+// Image templates carry `image` (and no definition unless they were converted from a
+// legacy one). Legacy gradient and pattern templates keep `definition` exactly as
+// before, so every client that reads it keeps working.
+const toPublic = (t) => {
+  const image = t.kind === "image" ? publicImage(t.image) : null;
+  return {
+    id: String(t._id),
+    slug: t.slug,
+    name: t.name,
+    nameFil: t.nameFil || "",
+    kind: t.kind,
+    ...(image ? { image } : {}),
+    ...(t.definition ? { definition: t.definition } : {}),
+    overlay: t.overlay || "dark",
+  };
+};
 
 const loadActive = async () => {
   if (cache && cache.expiresAt > Date.now()) return cache;
@@ -140,4 +159,5 @@ module.exports = {
   resolveCover,
   invalidateCache,
   toPublic,
+  publicImage,
 };

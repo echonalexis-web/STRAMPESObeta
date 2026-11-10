@@ -295,7 +295,7 @@ app.use("/uploads", async (req, res, next) => {
 
   // Profile pictures, news announcement images and employer cover images are
   // public assets (an <img> tag cannot send a Bearer token).
-  const isPublicImage = req.path.includes("/profiles/") || req.path.includes("/news/") || req.path.startsWith("/covers/");
+  const isPublicImage = req.path.includes("/profiles/") || req.path.includes("/news/") || req.path.startsWith("/covers/") || req.path.startsWith("/banner-templates/");
   if (isPublicImage) {
     return next();
   }
