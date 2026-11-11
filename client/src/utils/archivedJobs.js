@@ -9,9 +9,9 @@ const STATUS_TONES = { filled: "success", closed_manually: "neutral", expired: "
 export const statusTone = (status) => STATUS_TONES[status] || "neutral";
 export const statusKey = (status) => (STATUS_TONES[status] ? status : "closed");
 
-// A posting nobody applied to is a compact, muted, non-expandable row.
+// Every row has the same "View report" button; a posting nobody applied to just has a
+// shorter report (outcome and timeline) and says "No applicants" in place of the funnel.
 export const hasApplicants = (item) => Number(item?.funnel?.applicants) > 0;
-export const canExpand = hasApplicants;
 
 // Duration text parts: under a day, a count of days, or nothing when unknown.
 export const durationParts = (days) => {

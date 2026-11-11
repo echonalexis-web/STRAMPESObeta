@@ -3,12 +3,12 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Archive, ChevronDown, MapPin } from "lucide-react";
 import Avatar from "./Avatar";
-import { candidateLink, canExpand, durationParts, percentOf, showFunnelBars, statusKey, statusTone } from "../utils/archivedJobs";
+import { candidateLink, durationParts, hasApplicants, percentOf, showFunnelBars, statusKey, statusTone } from "../utils/archivedJobs";
 
 // One archived posting. Everything shown comes from the server (status, close reason,
 // funnel, duration, hired people); nothing here decides a rule.
-//   - a posting nobody applied to is a compact, muted, non-expandable row
-//   - any other is a row with a "View report" button that opens the report below it
+// Every row has the same "View report" button that opens the report below it. A posting
+// nobody applied to has a shorter report (outcome and timeline).
 
 const FUNNEL = ["applicants", "qualified", "shortlisted", "hired"];
 
@@ -48,7 +48,7 @@ function Facts({ item }) {
           </>
         ) : null}
       </span>
-      {item.vacancies > 0 && canExpand(item) ? (
+      {item.vacancies > 0 && hasApplicants(item) ? (
         <span className="ed-arch-fact">{t("employerDashboard.archived.filledOf", { filled: item.filled, vacancies: item.vacancies })}</span>
       ) : null}
     </>
@@ -59,6 +59,7 @@ function Report({ item, id, onViewApplicants }) {
   const { t } = useTranslation();
   const fmt = useDateFormat();
   const total = item.funnel.applicants;
+  const applied = hasApplicants(item);
   const bars = showFunnelBars(item.funnel);
   return (
     <div id={id} className="ed-arch-report">
@@ -80,6 +81,7 @@ function Report({ item, id, onViewApplicants }) {
         </dl>
       </section>
 
+      {applied ? (
       <section className="ed-arch-report__block" aria-labelledby={`${id}-funnel`}>
         <h4 id={`${id}-funnel`}>{t("employerDashboard.archived.funnelTitle")}</h4>
         <ul className="ed-arch-funnel">
@@ -101,7 +103,9 @@ function Report({ item, id, onViewApplicants }) {
           })}
         </ul>
       </section>
+      ) : null}
 
+      {applied ? (
       <section className="ed-arch-report__block" aria-labelledby={`${id}-hired`}>
         <h4 id={`${id}-hired`}>{t("employerDashboard.archived.hiredCandidates")}</h4>
         {item.hiredCandidates.length === 0 ? (
@@ -124,6 +128,7 @@ function Report({ item, id, onViewApplicants }) {
           </ul>
         )}
       </section>
+      ) : null}
 
       <section className="ed-arch-report__block" aria-labelledby={`${id}-timeline`}>
         <h4 id={`${id}-timeline`}>{t("employerDashboard.archived.timelineTitle")}</h4>
@@ -134,7 +139,7 @@ function Report({ item, id, onViewApplicants }) {
         </ol>
       </section>
 
-      {onViewApplicants ? (
+      {onViewApplicants && applied ? (
         <div className="ed-arch-report__actions">
           <button type="button" className="ds-btn ds-btn--secondary" onClick={() => onViewApplicants(item._id)}>
             {t("employerDashboard.archived.viewApplicants")}
@@ -147,37 +152,8 @@ function Report({ item, id, onViewApplicants }) {
 
 export default function ArchivedJobRow({ item, onViewApplicants }) {
   const { t } = useTranslation();
-  const fmt = useDateFormat();
   const [open, setOpen] = useState(false);
   const reportId = useId();
-  const expandable = canExpand(item);
-
-  if (!expandable) {
-    return (
-      <li className="ed-arch-item ed-arch-item--quiet">
-        <div className="ed-arch-row">
-          <span className="ed-arch-tile" aria-hidden="true"><Archive size={16} /></span>
-          <div className="ed-arch-main">
-            <span className="ed-arch-title">{item.title}</span>
-            <span className="ed-arch-sub">
-              <MapPin size={13} aria-hidden="true" /> {item.location}
-              <span aria-hidden="true"> · </span>
-              {t("employerDashboard.archived.closedOn", { date: fmt(item.closedAt) })}
-              {durationParts(item.durationDays) ? (
-                <>
-                  <span aria-hidden="true"> · </span>
-                  <Duration days={item.durationDays} />
-                </>
-              ) : null}
-            </span>
-          </div>
-          <StatusChip status={item.status} />
-          <span className="ed-arch-none">{t("employerDashboard.archived.noApplicants")}</span>
-        </div>
-      </li>
-    );
-  }
-
   return (
     <li className={`ed-arch-item ${open ? "is-open" : ""}`}>
       <div className="ed-arch-row">
@@ -191,12 +167,16 @@ export default function ArchivedJobRow({ item, onViewApplicants }) {
             <Facts item={item} />
           </span>
           <span className="ed-arch-funnel-line">
-            {FUNNEL.map((key, i) => (
-              <span key={key}>
-                {i > 0 ? <span aria-hidden="true"> · </span> : null}
-                {t(`employerDashboard.archived.funnel.${key}`)} <strong>{item.funnel[key]}</strong>
-              </span>
-            ))}
+            {hasApplicants(item) ? (
+              FUNNEL.map((key, i) => (
+                <span key={key}>
+                  {i > 0 ? <span aria-hidden="true"> · </span> : null}
+                  {t(`employerDashboard.archived.funnel.${key}`)} <strong>{item.funnel[key]}</strong>
+                </span>
+              ))
+            ) : (
+              <span className="ed-arch-none">{t("employerDashboard.archived.noApplicants")}</span>
+            )}
           </span>
         </div>
         <StatusChip status={item.status} />

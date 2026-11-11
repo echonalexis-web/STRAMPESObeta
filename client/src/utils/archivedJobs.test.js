@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildArchivedQuery,
-  canExpand,
   candidateLink,
   durationParts,
   emptyKind,
@@ -23,11 +22,10 @@ test("status chip text key and tone per status", () => {
   assert.equal(statusTone("closed"), "neutral");
 });
 
-test("zero-applicant rows are not expandable", () => {
+test("which rows have applicants (a shorter report for the others)", () => {
   assert.equal(hasApplicants({ funnel: { applicants: 0 } }), false);
-  assert.equal(canExpand({ funnel: { applicants: 0 } }), false);
-  assert.equal(canExpand({ funnel: { applicants: 3 } }), true);
-  assert.equal(canExpand({}), false);
+  assert.equal(hasApplicants({ funnel: { applicants: 3 } }), true);
+  assert.equal(hasApplicants({}), false);
 });
 
 test("duration: under a day, days, unknown", () => {
