@@ -77,9 +77,6 @@ export default function QualificationsEditor({
   // A personal skill is always Preferred: an old posting, draft or template opens with its
   // skills shown as Preferred and saves them that way on the next change.
   const safeValue = useMemo(() => withPersonalSkillsPreferred(normalizeQualifications(incomingValue)), [incomingValue]);
-  const stepId = STEP_IDS[step];
-  const stepCounts = countsByStep(safeValue);
-  const showRequiredToggle = canChooseRequired(stepId);
 
   const resolvedTemplates = useMemo(() => {
     if (Array.isArray(templates) && templates.length) return templates;
@@ -96,6 +93,9 @@ export default function QualificationsEditor({
   const headingRef = useRef(null);
   const movedByUser = useRef(false);
   const [showAllByTab, setShowAllByTab] = useState({});
+  const stepId = STEP_IDS[step];
+  const stepCounts = countsByStep(safeValue);
+  const showRequiredToggle = canChooseRequired(stepId);
   const [search, setSearch] = useState("");
   const [newItemOptional, setNewItemOptional] = useState(false);
   const [capNotice, setCapNotice] = useState("");
