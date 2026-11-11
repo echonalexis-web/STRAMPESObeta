@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const {
   getEmployerJobs,
+  getArchivedJobs,
   createJob,
   updateJob,
   deleteJob,
@@ -70,6 +71,8 @@ router.delete("/cover/image", removeCoverImage);
 // Jobs — viewing your own (possibly empty) list never requires verification;
 // creating/editing a posting does.
 router.get("/jobs", sanitizeQueryParams, getEmployerJobs);
+// Archived tab: closed jobs with server-computed outcome (read-only, own jobs only).
+router.get("/jobs/archived", sanitizeQueryParams, getArchivedJobs);
 router.post("/jobs",
   isVerifiedEmployer,
   jobCreationLimiter,

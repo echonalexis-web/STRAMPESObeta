@@ -76,7 +76,12 @@ exports.buildArchivedJobSnapshot = (job, metrics = {}) => {
   };
 };
 
-const archiveJobRecord = async (job, archiveReason = "manual_close", io = null) => {
+// Old archiveReason values map onto the closeReason vocabulary (services/archivedJobsService.js).
+const CLOSE_REASON_FOR_ARCHIVE = { manual_close: "manual", deadline_passed: "expired", quota_reached: "filled" };
+
+// `closedBy` is who closed it ("employer" or "admin"). `recordCloseReason` is false when
+// an already-closed job is only being archived, so a sweep's reason is not overwritten.
+const archiveJobRecord = async (job, archiveReason = "manual_close", io = null, { closedBy = "employer", recordCloseReason = true } = {}) => {
   if (!job || job.archived) return job;
 
   // Withdrawn applications don't count toward the archived snapshot's
@@ -93,14 +98,10 @@ const archiveJobRecord = async (job, archiveReason = "manual_close", io = null) 
   }).length;
   const hiredApplications = applications.filter((app) => ["hired", "accepted"].includes(normalizeApplicationStatusValue(app.status)));
   const hiredCandidateIds = hiredApplications.map((app) => String(app.applicant));
-  const hiredCandidateNames = hiredApplications
-    .map((app) => {
-      if (app.applicant && typeof app.applicant === "object" && app.applicant.name) {
-        return String(app.applicant.name);
-      }
-      return "";
-    })
-    .filter(Boolean);
+  // The applications are not populated, so the hired people's names come from User.
+  const hiredUsers = hiredCandidateIds.length ? await User.find({ _id: { $in: hiredCandidateIds } }).select("name").lean() : [];
+  const nameById = new Map(hiredUsers.map((u) => [String(u._id), u.name]));
+  const hiredCandidateNames = hiredCandidateIds.map((id) => nameById.get(id)).filter(Boolean).map(String);
 
   const snapshot = exports.buildArchivedJobSnapshot(job, {
     totalApplicants,
@@ -117,6 +118,10 @@ const archiveJobRecord = async (job, archiveReason = "manual_close", io = null) 
   job.archived = true;
   job.archivedAt = snapshot.archivedAt;
   job.archiveReason = archiveReason;
+  if (recordCloseReason && !job.closeReason) {
+    job.closeReason = closedBy === "admin" ? "admin" : CLOSE_REASON_FOR_ARCHIVE[archiveReason] || "manual";
+    job.closedBy = closedBy;
+  }
   job.archivedMetrics = {
     ...snapshot,
     archiveReason,
@@ -976,7 +981,7 @@ exports.closeJob = async (req, res) => {
 
     job.status = "closed";
     job.closedAt = new Date();
-    const archivedJob = await archiveJobRecord(job, "manual_close", io);
+    const archivedJob = await archiveJobRecord(job, "manual_close", io, { closedBy: isAdminActingOnAnothersJob ? "admin" : "employer" });
 
     if (isAdminActingOnAnothersJob) {
       await createNotificationForUser({
@@ -1037,7 +1042,10 @@ exports.archiveJob = async (req, res) => {
       job.closedAt = job.closedAt || new Date();
     }
 
-    const archivedJob = await archiveJobRecord(job, req.body?.reason || "manual_close", io);
+    const archivedJob = await archiveJobRecord(job, req.body?.reason || "manual_close", io, {
+      closedBy: isAdminActingOnAnothersJob ? "admin" : "employer",
+      recordCloseReason: wasOpenBeforeArchive,
+    });
 
     if (isAdminActingOnAnothersJob && wasOpenBeforeArchive) {
       await createNotificationForUser({

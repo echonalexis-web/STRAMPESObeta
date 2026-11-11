@@ -13,6 +13,7 @@ const SystemSettings = require("../models/SystemSettings");
 const { sendError } = require("../utils/sendError");
 const { resolveRelationship, projectJobseeker, projectApplicant } = require("../services/profileProjection");
 const { resolveCover } = require("../services/bannerTemplateService");
+const archivedJobs = require("../services/archivedJobsService");
 
 // Fields an applicant list may populate. Resume, resume file, ID file and the
 // whole JobseekerProfile are NOT part of an application list: the application
@@ -67,7 +68,7 @@ const autoCloseOverdueJobsForEmployer = async (employerId, io = null) => {
 
   await JobVacancy.updateMany(
     { _id: { $in: overdueJobs.map((job) => job._id) } },
-    { $set: { status: "closed", closedAt: now } }
+    { $set: { status: "closed", closedAt: now, closeReason: "expired", closedBy: "system" } }
   );
 
   await Promise.all(
@@ -139,7 +140,7 @@ const applyInactivityAutoCloseForEmployer = async (employerId, io = null) => {
   if (toClose.length > 0) {
     await JobVacancy.updateMany(
       { _id: { $in: toClose.map((job) => job._id) } },
-      { $set: { status: "closed", closedAt: now } }
+      { $set: { status: "closed", closedAt: now, closeReason: "inactivity", closedBy: "system" } }
     );
     await Promise.all(
       toClose.map((job) =>
@@ -313,6 +314,66 @@ exports.getEmployerJobs = async (req, res) => {
     return res.json(jobsWithCounts);
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch employer jobs" });
+  }
+};
+
+// ---------------------------------------------------------------------
+// GET /employer/jobs/archived
+// The Archived tab: this employer's closed jobs with server-computed status, close
+// reason, funnel, hired people (id, name, photo only), filters, sort, pagination and
+// stats. Read-only (the sweeps still run through GET /employer/jobs).
+// ---------------------------------------------------------------------
+const ARCHIVED_DEFAULT_LIMIT = 10;
+const ARCHIVED_MAX_LIMIT = 50;
+const positiveInt = (value, fallback) => {
+  const n = Number.parseInt(value, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+};
+
+exports.getArchivedJobs = async (req, res) => {
+  try {
+    const employerId = getUserId(req);
+    const limit = Math.min(positiveInt(req.query.limit, ARCHIVED_DEFAULT_LIMIT), ARCHIVED_MAX_LIMIT);
+    const page = positiveInt(req.query.page, 1);
+    const filter = archivedJobs.FILTERS.includes(req.query.filter) ? req.query.filter : "all";
+    const sort = archivedJobs.SORTS.includes(req.query.sort) ? req.query.sort : "recent";
+    const q = typeof req.query.q === "string" ? req.query.q.slice(0, 100) : "";
+
+    // Scoped to the signed-in employer: other employers' jobs are never queried.
+    const jobs = await JobVacancy.find({ employer: employerId, $or: [{ archived: true }, { status: "closed" }] })
+      .select("title location slots createdAt closedAt archivedAt archiveReason archivedMetrics.archiveReason archivedMetrics.archivedAt closeReason closedBy applicationDeadline")
+      .lean();
+
+    const jobIds = jobs.map((j) => j._id);
+    const applications = jobIds.length
+      ? await JobApplication.find({ vacancy: { $in: jobIds }, status: { $ne: "withdrawn" } })
+          .select("vacancy applicant status appliedAt statusUpdatedAt includePhoto")
+          .lean()
+      : [];
+    const byJob = new Map();
+    for (const app of applications) {
+      const key = String(app.vacancy);
+      if (!byJob.has(key)) byJob.set(key, []);
+      byJob.get(key).push(app);
+    }
+    const hiredApplicantIds = [
+      ...new Set(applications.filter((a) => archivedJobs.HIRED_STATUSES.includes(String(a.status || "").toLowerCase())).map((a) => String(a.applicant))),
+    ];
+    const users = hiredApplicantIds.length
+      ? await User.find({ _id: { $in: hiredApplicantIds } }).select("name profileImage privacy.profileVisibility").lean()
+      : [];
+    const usersById = new Map(users.map((u) => [String(u._id), u]));
+
+    const all = jobs.map((job) => archivedJobs.buildArchivedItem(job, byJob.get(String(job._id)) || [], usersById));
+    const stats = archivedJobs.buildStats(all);
+    const counts = archivedJobs.filterCounts(all);
+    const listed = archivedJobs.applyListControls(all, { filter, sort, q });
+    const items = listed.slice((page - 1) * limit, page * limit).map(archivedJobs.stripInternal);
+
+    res.set("Cache-Control", "no-store");
+    return res.json({ items, total: listed.length, page, limit, stats, counts });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch archived jobs" });
   }
 };
 

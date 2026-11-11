@@ -172,6 +172,18 @@ const jobVacancySchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  // How and by whom the posting closed (Archived tab). Additive: older jobs have neither
+  // and are shown with a neutral "Closed" (see services/archivedJobsService.js).
+  closeReason: {
+    type: String,
+    enum: ["filled", "manual", "expired", "inactivity", "admin", null],
+    default: null,
+  },
+  closedBy: {
+    type: String,
+    enum: ["employer", "system", "admin", null],
+    default: null,
+  },
   // Set once an "about to auto-close" warning notification has been sent to
   // the employer (see employerController.applyInactivityAutoCloseForEmployer),
   // so the lazy sweep doesn't re-notify every time the employer's dashboard

@@ -868,7 +868,6 @@
     "archived": {
       "sumJobs": "Archived jobs",
       "sumApplicants": "Total applicants",
-      "sumAvgDays": "Avg. days active",
       "sumHired": "Hired candidates",
       "title": "Archived postings",
       "searchPlaceholder": "Search archived jobs by title or location…",
@@ -895,7 +894,79 @@
       "hideReport": "Hide report",
       "pagination": "Archived jobs pagination",
       "prevPage": "Previous page",
-      "nextPage": "Next page"
+      "nextPage": "Next page",
+      "status": {
+        "filled": "Filled",
+        "closed_manually": "Closed manually",
+        "expired": "Expired",
+        "auto_closed": "Auto-closed",
+        "closed": "Closed"
+      },
+      "reason": {
+        "filled": "All vacancies were filled",
+        "manual": "You closed this posting",
+        "expired": "The application deadline passed",
+        "inactivity": "Closed automatically after a period with no new applicants",
+        "admin": "Closed by an administrator",
+        "unknown": "Closed (no reason recorded)"
+      },
+      "closedBy": {
+        "employer": "You",
+        "system": "The system",
+        "admin": "An administrator"
+      },
+      "filtersLabel": "Filter archived postings",
+      "filters": {
+        "all": "All",
+        "filled": "Filled",
+        "closedManually": "Closed manually",
+        "expired": "Expired",
+        "noApplicants": "No applicants"
+      },
+      "sort": {
+        "label": "Sort by",
+        "recent": "Recently closed",
+        "applicants": "Most applicants"
+      },
+      "lessThanDay": "Less than 1 day",
+      "daysOpen_one": "{{count}} day",
+      "daysOpen_other": "{{count}} days",
+      "daysShort_one": "{{count}} day",
+      "daysShort_other": "{{count}} days",
+      "filledOf": "{{filled}} of {{vacancies}} filled",
+      "funnel": {
+        "applicants": "Applicants",
+        "qualified": "Qualified",
+        "shortlisted": "Shortlisted",
+        "hired": "Hired"
+      },
+      "funnelPct": "{{count}} of {{total}} · {{pct}}%",
+      "noApplicants": "No applicants",
+      "outcome": "Outcome",
+      "closeReason": "Reason",
+      "closedOnLabel": "Closed on",
+      "closedByLabel": "Closed by",
+      "funnelTitle": "Applicant funnel",
+      "hiredCandidates": "Hired candidates",
+      "noneHired": "No one was hired for this posting.",
+      "formerUser": "Former user",
+      "timelineTitle": "Timeline",
+      "timeline": {
+        "posted": "Posted",
+        "firstApplicant": "First applicant",
+        "closed": "Closed"
+      },
+      "viewApplicants": "View applicants for this job",
+      "sumTimeToFill": "Avg. time to fill",
+      "sumFillRate": "Fill rate",
+      "noteTimeToFill": "Filled jobs only",
+      "noteFillRate": "Jobs that had applicants",
+      "resultsCount_one": "{{count}} archived job found",
+      "resultsCount_other": "{{count}} archived jobs found",
+      "clearFilters": "Clear filters",
+      "noMatchBody": "Try another filter or a different search.",
+      "loadErrorTitle": "Could not load archived jobs",
+      "loadErrorBody": "Check your connection and try again."
     },
     "matchWeights": {
       "title": "Matching preferences",

@@ -868,7 +868,6 @@
     "archived": {
       "sumJobs": "Mga naka-archive na job",
       "sumApplicants": "Kabuuang aplikante",
-      "sumAvgDays": "Karaniwang araw na bukas",
       "sumHired": "Mga natanggap",
       "title": "Mga naka-archive na posting",
       "searchPlaceholder": "Hanapin ang naka-archive na job ayon sa titulo o lokasyon…",
@@ -895,7 +894,79 @@
       "hideReport": "Itago ang ulat",
       "pagination": "Pagination ng mga naka-archive na job",
       "prevPage": "Nakaraang pahina",
-      "nextPage": "Susunod na pahina"
+      "nextPage": "Susunod na pahina",
+      "status": {
+        "filled": "Napunan",
+        "closed_manually": "Isinara nang mano-mano",
+        "expired": "Nag-expire",
+        "auto_closed": "Awtomatikong isinara",
+        "closed": "Sarado"
+      },
+      "reason": {
+        "filled": "Napunan ang lahat ng bakante",
+        "manual": "Ikaw ang nagsara ng posting na ito",
+        "expired": "Lumampas na ang huling araw ng aplikasyon",
+        "inactivity": "Awtomatikong isinara dahil walang bagong aplikante sa loob ng ilang panahon",
+        "admin": "Isinara ng isang administrator",
+        "unknown": "Sarado (walang naitalang dahilan)"
+      },
+      "closedBy": {
+        "employer": "Ikaw",
+        "system": "Ang sistema",
+        "admin": "Isang administrator"
+      },
+      "filtersLabel": "I-filter ang mga naka-archive na posting",
+      "filters": {
+        "all": "Lahat",
+        "filled": "Napunan",
+        "closedManually": "Isinara nang mano-mano",
+        "expired": "Nag-expire",
+        "noApplicants": "Walang aplikante"
+      },
+      "sort": {
+        "label": "Ayusin ayon sa",
+        "recent": "Pinakabagong isinara",
+        "applicants": "Pinakamaraming aplikante"
+      },
+      "lessThanDay": "Wala pang 1 araw",
+      "daysOpen_one": "{{count}} araw",
+      "daysOpen_other": "{{count}} araw",
+      "daysShort_one": "{{count}} araw",
+      "daysShort_other": "{{count}} araw",
+      "filledOf": "{{filled}} sa {{vacancies}} ang napunan",
+      "funnel": {
+        "applicants": "Mga aplikante",
+        "qualified": "Kwalipikado",
+        "shortlisted": "Na-shortlist",
+        "hired": "Natanggap"
+      },
+      "funnelPct": "{{count}} sa {{total}} · {{pct}}%",
+      "noApplicants": "Walang aplikante",
+      "outcome": "Kinalabasan",
+      "closeReason": "Dahilan",
+      "closedOnLabel": "Isinara noong",
+      "closedByLabel": "Isinara ng",
+      "funnelTitle": "Daloy ng mga aplikante",
+      "hiredCandidates": "Mga natanggap na kandidato",
+      "noneHired": "Walang natanggap sa posting na ito.",
+      "formerUser": "Dating user",
+      "timelineTitle": "Takbo ng panahon",
+      "timeline": {
+        "posted": "Na-post",
+        "firstApplicant": "Unang aplikante",
+        "closed": "Isinara"
+      },
+      "viewApplicants": "Tingnan ang mga aplikante sa trabahong ito",
+      "sumTimeToFill": "Karaniwang oras bago mapunan",
+      "sumFillRate": "Rate ng pagpuno",
+      "noteTimeToFill": "Mga napunang trabaho lang",
+      "noteFillRate": "Mga trabahong may aplikante",
+      "resultsCount_one": "{{count}} naka-archive na trabaho ang nahanap",
+      "resultsCount_other": "{{count}} naka-archive na trabaho ang nahanap",
+      "clearFilters": "I-clear ang mga filter",
+      "noMatchBody": "Subukan ang ibang filter o ibang paghahanap.",
+      "loadErrorTitle": "Hindi ma-load ang mga naka-archive na trabaho",
+      "loadErrorBody": "Suriin ang iyong koneksyon at subukan muli."
     },
     "matchWeights": {
       "title": "Mga matching preference",

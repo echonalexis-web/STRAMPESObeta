@@ -34,6 +34,7 @@ import { useSwipeable } from "react-swipeable";
 import { useTranslation } from "react-i18next";
 import PageHero from "../components/PageHero";
 import MetricCard from "../components/MetricCard";
+import ArchivedJobsTab from "../components/ArchivedJobsTab";
 import StateBlock from "../components/StateBlock";
 import Reveal from "../components/Reveal";
 import {
@@ -214,13 +215,6 @@ const jobFunnel = (apps = []) => {
   return f;
 };
 
-const archiveReasonLabel = (reason) => {
-  if (!reason) return "";
-  return String(reason)
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-};
-
 // Days a deadline is away, or null when there is no upcoming deadline.
 const daysUntilDeadline = (value) => {
   if (!value) return null;
@@ -355,36 +349,6 @@ function SwipeableJobCard({
   );
 }
 
-// ===== ARCHIVED JOB POST-MORTEM (shared by table detail row + mobile card) =====
-function ArchivedPostMortem({ job }) {
-  const m = job.archivedMetrics || {};
-  const rates = [
-    { label: "Qualified rate", value: m.qualifiedRate ?? 0 },
-    { label: "Shortlist rate", value: m.shortlistedRate ?? 0 },
-    { label: "Hire rate", value: m.hireRate ?? 0 },
-  ];
-  return (
-    <div className="emp-postmortem">
-      <div className="emp-postmortem-facts">
-        <div><span>Total applicants</span><strong>{m.totalApplicants ?? 0}</strong></div>
-        <div><span>Qualified / Shortlisted</span><strong>{(m.qualifiedCount ?? 0)} / {(m.shortlistedCount ?? 0)}</strong></div>
-        <div><span>Time to close</span><strong>{m.daysActive ?? 0} days</strong></div>
-        <div><span>Hired</span><strong>{(m.hiredCandidateIds || []).length ? m.hiredCandidateIds.join(", ") : "None"}</strong></div>
-        <div><span>Reason</span><strong>{archiveReasonLabel(job.archiveReason) || "N/A"}</strong></div>
-      </div>
-      <div className="emp-postmortem-bars">
-        {rates.map((r) => (
-          <div key={r.label} className="emp-bar-row">
-            <label>{r.label}</label>
-            <div className="emp-bar"><span style={{ width: `${Math.min(100, Math.max(0, r.value))}%` }} /></div>
-            <small>{r.value}%</small>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ===== MAIN COMPONENT =====
 export default function EmployerDashboard() {
   const { t } = useTranslation();
@@ -467,10 +431,6 @@ export default function EmployerDashboard() {
 
   // Swipe state: which job card is open
   const [openSwipeId, setOpenSwipeId] = useState(null);
-  const [expandedArchivedJobs, setExpandedArchivedJobs] = useState({});
-  const [archivedSearch, setArchivedSearch] = useState("");
-  const [archivedPage, setArchivedPage] = useState(1);
-  const ARCHIVED_PAGE_SIZE = 10;
   const [applicantsPage, setApplicantsPage] = useState(1);
   const APPLICANTS_PAGE_SIZE = 10;
 
@@ -602,27 +562,6 @@ export default function EmployerDashboard() {
     () => jobs.filter((job) => job.archived || job.status === "closed"),
     [jobs]
   );
-  const filteredArchivedJobs = useMemo(() => {
-    const query = archivedSearch.trim().toLowerCase();
-    if (!query) return archivedJobs;
-    return archivedJobs.filter((job) =>
-      String(job.title || "").toLowerCase().includes(query) ||
-      String(job.location || "").toLowerCase().includes(query)
-    );
-  }, [archivedJobs, archivedSearch]);
-  const archivedTotalPages = Math.max(1, Math.ceil(filteredArchivedJobs.length / ARCHIVED_PAGE_SIZE));
-  const paginatedArchivedJobs = useMemo(() => {
-    const start = (archivedPage - 1) * ARCHIVED_PAGE_SIZE;
-    return filteredArchivedJobs.slice(start, start + ARCHIVED_PAGE_SIZE);
-  }, [filteredArchivedJobs, archivedPage]);
-
-  useEffect(() => {
-    setArchivedPage(1);
-  }, [archivedSearch]);
-
-  useEffect(() => {
-    if (archivedPage > archivedTotalPages) setArchivedPage(archivedTotalPages);
-  }, [archivedTotalPages, archivedPage]);
   const liveJobs = useMemo(
     () => jobs.filter((job) => !job.archived && job.status !== "closed"),
     [jobs]
@@ -1339,24 +1278,8 @@ export default function EmployerDashboard() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 3);
 
-  // Archive summary numbers (same sums the tiles always showed).
-  const archivedTotals = {
-    applicants: archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.totalApplicants || job.applicationCount || 0), 0),
-    avgDays: archivedJobs.length
-      ? (archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.daysActive || 0), 0) / archivedJobs.length).toFixed(1)
-      : "0.0",
-    hired: archivedJobs.reduce((sum, job) => sum + Number(job.archivedMetrics?.hiredCount || 0), 0),
-  };
-
   const openSwipe = (id) => setOpenSwipeId(id);
   const closeSwipe = () => setOpenSwipeId(null);
-  const toggleArchivedJobDetails = (jobId) => {
-    setExpandedArchivedJobs((prev) => ({
-      ...prev,
-      [jobId]: !prev[jobId],
-    }));
-  };
-
   return (
     <div className="dashboard-container employer-dashboard-page ed-page">
       {/* Verification Modal */}
@@ -1812,242 +1735,7 @@ export default function EmployerDashboard() {
             )}
 
             {/* -------- ARCHIVED JOBS TAB -------- */}
-            {activeTab === "archived" && (
-              <div className="employer-tab-panel archived-jobs-layout ed-arch">
-                <Reveal className="ds-metrics ds-metrics--4 ed-metrics ed-arch__metrics">
-                  <MetricCard
-                    icon={<Archive size={20} />}
-                    value={archivedJobs.length}
-                    label={t("employerDashboard.archived.sumJobs")}
-                  />
-                  <MetricCard
-                    icon={<Users size={20} />}
-                    value={archivedTotals.applicants}
-                    label={t("employerDashboard.archived.sumApplicants")}
-                  />
-                  <MetricCard
-                    icon={<CalendarDays size={20} />}
-                    value={archivedTotals.avgDays}
-                    label={t("employerDashboard.archived.sumAvgDays")}
-                  />
-                  <MetricCard
-                    icon={<UserCheck size={20} />}
-                    value={archivedTotals.hired}
-                    label={t("employerDashboard.archived.sumHired")}
-                    className="ed-arch__metric--hired"
-                  />
-                </Reveal>
-
-                <div className="ed-arch__head">
-                  <h2 className="ed-arch__title">{t("employerDashboard.archived.title")}</h2>
-                  <div className="archived-search-bar">
-                    <FaSearch className="archived-search-icon" aria-hidden="true" />
-                    <input
-                      type="text"
-                      className="archived-search-input"
-                      placeholder={t("employerDashboard.archived.searchPlaceholder")}
-                      aria-label={t("employerDashboard.archived.searchLabel")}
-                      value={archivedSearch}
-                      onChange={(event) => setArchivedSearch(event.target.value)}
-                    />
-                    {archivedSearch ? (
-                      <button
-                        type="button"
-                        className="archived-search-clear"
-                        onClick={() => setArchivedSearch("")}
-                        aria-label={t("employerDashboard.archived.clearSearch")}
-                      >
-                        <X size={16} aria-hidden="true" />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                {filteredArchivedJobs.length ? (
-                  <div className="archived-results-row" role="status">
-                    {t("employerDashboard.archived.results", {
-                      from: (archivedPage - 1) * ARCHIVED_PAGE_SIZE + 1,
-                      to: Math.min(archivedPage * ARCHIVED_PAGE_SIZE, filteredArchivedJobs.length),
-                      count: filteredArchivedJobs.length,
-                    })}
-                  </div>
-                ) : null}
-
-                {!paginatedArchivedJobs.length ? (
-                  archivedJobs.length ? (
-                    <StateBlock
-                      kind="empty"
-                      className="archived-empty-state"
-                      title={t("employerDashboard.archived.noMatchTitle")}
-                      description={t("employerDashboard.jobs.noMatchBody")}
-                    />
-                  ) : (
-                    <StateBlock
-                      kind="empty"
-                      className="archived-empty-state"
-                      title={t("employerDashboard.archived.emptyTitle")}
-                      description={t("employerDashboard.archived.emptyBody")}
-                    />
-                  )
-                ) : isMobile ? (
-                  <div className="emp-archived-cards">
-                    {paginatedArchivedJobs.map((job) => {
-                      const isExpanded = !!expandedArchivedJobs[job._id];
-                      const m = job.archivedMetrics || {};
-                      return (
-                        <article key={job._id} className="emp-archived-card">
-                          <button
-                            type="button"
-                            className="emp-archived-card-head"
-                            aria-expanded={isExpanded}
-                            onClick={() => toggleArchivedJobDetails(job._id)}
-                          >
-                            <span className="ed-arch__tile" aria-hidden="true">
-                              <Archive size={18} />
-                            </span>
-                            <span className="emp-archived-card-title">
-                              <strong>{job.title}</strong>
-                              <span className="emp-job-loc">
-                                <MapPin size={14} aria-hidden="true" /> {formatJobLocation(job.location)}
-                              </span>
-                            </span>
-                            <ChevronDown size={20} className={`ed-arch__chev ${isExpanded ? "is-open" : ""}`} aria-hidden="true" />
-                          </button>
-                          <div className="emp-archived-card-stats">
-                            <span>{t("employerDashboard.archived.applicantsCount", { count: m.totalApplicants ?? job.applicationCount ?? 0 })}</span>
-                            <span>{t("employerDashboard.archived.hiredCount", { count: m.hiredCount ?? 0 })}</span>
-                            <span>{t("employerDashboard.archived.daysCount", { count: m.daysActive ?? 0 })}</span>
-                            {job.archiveReason && <span className="emp-chip">{archiveReasonLabel(job.archiveReason)}</span>}
-                          </div>
-                          {isExpanded && <ArchivedPostMortem job={job} />}
-                        </article>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  /* >=768px: archive rows in the shared list-row look. Each
-                     row is a real button (aria-expanded) that toggles the same
-                     post-mortem report the old table detail row showed. */
-                  <ul className="ds-list ed-arch__list" aria-label={t("employerDashboard.archived.listLabel")}>
-                    {paginatedArchivedJobs.map((job) => {
-                      const isExpanded = !!expandedArchivedJobs[job._id];
-                      const m = job.archivedMetrics || {};
-                      const reportId = `ed-arch-report-${job._id}`;
-                      return (
-                        <li key={job._id} className={`ed-arch__item ${isExpanded ? "is-open" : ""}`}>
-                          <button
-                            type="button"
-                            className="ds-list-row ed-arch__row"
-                            aria-expanded={isExpanded}
-                            aria-controls={reportId}
-                            onClick={() => toggleArchivedJobDetails(job._id)}
-                          >
-                            <span className="ds-list-row__lead ed-arch__tile" aria-hidden="true">
-                              <Archive size={18} />
-                            </span>
-                            <span className="ds-list-row__main">
-                              <span className="ds-list-row__title">{job.title}</span>
-                              <span className="ds-list-row__sub ed-arch__sub">
-                                <span>{formatJobLocation(job.location)}</span>
-                                <span aria-hidden="true"> · </span>
-                                <span>
-                                  {t("employerDashboard.archived.closedOn", {
-                                    date: formatDate(job.closedAt || job.archivedAt || m.archivedAt),
-                                  })}
-                                </span>
-                                {job.archiveReason && (
-                                  <span className="emp-chip ed-arch__reason">{archiveReasonLabel(job.archiveReason)}</span>
-                                )}
-                              </span>
-                            </span>
-                            <span className="ds-list-row__end ed-arch__end">
-                              <span className="ed-arch__stats">
-                                <span className="ed-arch__stat">
-                                  <span className="ed-arch__stat-value">{m.totalApplicants ?? job.applicationCount ?? 0}</span>
-                                  <span className="ed-arch__stat-label">{t("employerDashboard.archived.statApplicants")}</span>
-                                </span>
-                                <span className="ed-arch__stat">
-                                  <span className="ed-arch__stat-value">{m.qualifiedCount ?? 0}</span>
-                                  <span className="ed-arch__stat-label">{t("employerDashboard.archived.statQualified")}</span>
-                                </span>
-                                <span className="ed-arch__stat is-hired">
-                                  <span className="ed-arch__stat-value">{m.hiredCount ?? 0}</span>
-                                  <span className="ed-arch__stat-label">{t("employerDashboard.archived.statHired")}</span>
-                                </span>
-                                <span className="ed-arch__stat">
-                                  <span className="ed-arch__stat-value">{m.daysActive ?? 0}</span>
-                                  <span className="ed-arch__stat-label">{t("employerDashboard.archived.statDays")}</span>
-                                </span>
-                              </span>
-                              <span className="ed-arch__toggle">
-                                {isExpanded
-                                  ? t("employerDashboard.archived.hideReport")
-                                  : t("employerDashboard.archived.viewReport")}
-                                <ChevronDown size={16} className={`ed-arch__chev ${isExpanded ? "is-open" : ""}`} aria-hidden="true" />
-                              </span>
-                            </span>
-                          </button>
-                          {isExpanded && (
-                            <div id={reportId} className="ed-arch__report">
-                              <ArchivedPostMortem job={job} />
-                            </div>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-
-                {filteredArchivedJobs.length > 0 ? (
-                  <nav className="emp-pager" aria-label={t("employerDashboard.archived.pagination")}>
-                    <button
-                      type="button"
-                      className="emp-pager-btn"
-                      onClick={() => setArchivedPage((p) => Math.max(1, p - 1))}
-                      disabled={archivedPage === 1}
-                      aria-label={t("employerDashboard.archived.prevPage")}
-                    >
-                      <FaChevronLeft />
-                    </button>
-
-                    <div className="emp-pager-numbers">
-                      {Array.from({ length: archivedTotalPages }, (_, i) => i + 1)
-                        .filter((page) => page === 1 || page === archivedTotalPages || Math.abs(page - archivedPage) <= 1)
-                        .reduce((acc, page, idx, arr) => {
-                          if (idx > 0 && page - arr[idx - 1] > 1) acc.push("ellipsis-" + page);
-                          acc.push(page);
-                          return acc;
-                        }, [])
-                        .map((page) =>
-                          typeof page === "string" ? (
-                            <span key={page} className="emp-pager-ellipsis">…</span>
-                          ) : (
-                            <button
-                              type="button"
-                              key={page}
-                              className={`emp-pager-btn ${page === archivedPage ? "active" : ""}`}
-                              onClick={() => setArchivedPage(page)}
-                              aria-current={page === archivedPage ? "page" : undefined}
-                            >
-                              {page}
-                            </button>
-                          )
-                        )}
-                    </div>
-
-                    <button
-                      type="button"
-                      className="emp-pager-btn"
-                      onClick={() => setArchivedPage((p) => Math.min(archivedTotalPages, p + 1))}
-                      disabled={archivedPage === archivedTotalPages}
-                      aria-label={t("employerDashboard.archived.nextPage")}
-                    >
-                      <FaChevronRight />
-                    </button>
-                  </nav>
-                ) : null}
-              </div>
-            )}
+            {activeTab === "archived" && <ArchivedJobsTab onViewApplicants={viewJobApplicants} />}
 
             {/* -------- APPLICANTS TAB -------- */}
             {activeTab === "applicants" && (

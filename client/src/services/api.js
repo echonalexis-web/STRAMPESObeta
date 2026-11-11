@@ -537,6 +537,8 @@ export const employerAPI = {
   getStats: () => api.get('/employer/stats', getAuthHeader()),
   getProfileStats: () => api.get('/employer/profile-stats', getAuthHeader()),
   getJobs: () => api.get('/employer/jobs', getAuthHeader()),
+  // Archived tab: closed jobs with server-computed status, funnel, hired people and stats.
+  getArchivedJobs: (params, signal) => api.get('/employer/jobs/archived', { ...getAuthHeader(), params, signal }),
   createJob: (data) => api.post('/employer/jobs', data, getAuthHeader()),
   updateJob: (id, data) => api.put(`/employer/jobs/${id}`, data, getAuthHeader()),
   deleteJob: (id) => api.delete(`/employer/jobs/${id}`, getAuthHeader()),
