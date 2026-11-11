@@ -93,6 +93,13 @@
   min-width: 0;
 }
 
+/* Wrappers that only stop events from reaching the card: no box of their own. */
+.vac-profile-link { display: contents; }
+.vac-profile-link--text { display: block; min-width: 0; }
+.vac-company--link { text-decoration: none; }
+.vac-company--link:hover { color: var(--ds-green-deep); text-decoration: underline; }
+.vac-company--link:focus-visible { outline: 3px solid var(--ds-gold); outline-offset: 2px; border-radius: 4px; }
+
 .vac-company {
   display: block;
   font-size: var(--ds-text-sm);

@@ -1,5 +1,6 @@
 import JobFavoriteButton from "./JobFavoriteButton";
 import EmployerAvatar from "./EmployerAvatar";
+import ProfileLink from "./ProfileLink";
 import { FaUsers, FaStar, FaHeart, FaCheck, FaTimes } from "react-icons/fa";
 import { tierForPercent } from "../utils/qualifications";
 import "../styles/vacancy-card.css";
@@ -88,6 +89,11 @@ export default function VacancyCard({
   ].filter(Boolean).join("  ·  ");
 
   const clickable = !preview && typeof onOpen === "function";
+  // Company logo and name: hover card on pointer devices, link to the company page.
+  // Clicks and keys stay off the card's own "open job" handlers.
+  const employerId = !preview ? job?.employer?._id || job?.employer?.id || null : null;
+  const companyName = job?.employer?.companyName || job?.employer?.name || "Employer";
+  const stop = (event) => event.stopPropagation();
 
   // First three Required qualifications, each flagged met/missing against
   // checklist.missingRequired (same type+value, folded "other"→skill) —
@@ -112,9 +118,25 @@ export default function VacancyCard({
     >
       <div className="vac-card-top">
         <div className="vac-brand">
-          <EmployerAvatar employer={job?.employer} className="vac-logo" />
+          {employerId ? (
+            <span className="vac-profile-link" onClick={stop} onKeyDown={stop}>
+              <ProfileLink userId={employerId} role="employer" decorative>
+                <EmployerAvatar employer={job?.employer} className="vac-logo" />
+              </ProfileLink>
+            </span>
+          ) : (
+            <EmployerAvatar employer={job?.employer} className="vac-logo" />
+          )}
           <div className="vac-brand-text">
-            <span className="vac-company">{job?.employer?.companyName || job?.employer?.name || "Employer"}</span>
+            {employerId ? (
+              <span className="vac-profile-link vac-profile-link--text" onClick={stop} onKeyDown={stop}>
+                <ProfileLink userId={employerId} role="employer" className="vac-company vac-company--link">
+                  {companyName}
+                </ProfileLink>
+              </span>
+            ) : (
+              <span className="vac-company">{companyName}</span>
+            )}
             <h3 className="vac-title">{job?.title || "Job title"}</h3>
           </div>
         </div>
