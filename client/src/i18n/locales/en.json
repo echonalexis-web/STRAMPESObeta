@@ -2391,7 +2391,19 @@
     "credentials": "Training and credentials",
     "preferences": "Job preferences",
     "salary": "Expected salary",
-    "languages": "Languages"
+    "languages": "Languages",
+    "businessAddress": "Business address",
+    "ownerAndAuthorized": "Owner and authorized person",
+    "nameLabel": "Name",
+    "designationLabel": "Designation",
+    "ownerDesignation": "Owner / President",
+    "authorizedDesignation": "Authorized representative",
+    "postings": "Job postings",
+    "postingsCount": "Job postings ({{count}})",
+    "postingsEmpty": "This employer has no open job postings right now.",
+    "postingsEmptyHint": "Check back later.",
+    "postingsErrorTitle": "Could not load the job postings",
+    "postingsErrorBody": "Check your connection and try again."
   },
   "profileCard": {
     "loading": "Loading profile",

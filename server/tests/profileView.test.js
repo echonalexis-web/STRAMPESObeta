@@ -232,7 +232,7 @@ describe("employer target", () => {
     const res = await request(appFor(SEEKER2)).get(`/${ID}`);
     expect(res.status).toBe(200);
     const json = JSON.stringify(res.body);
-    ["hr@acme.com", "0917", "loginLock", "tin", "ownerName", "Owner"].forEach((k) => expect(json).not.toContain(k));
+    ["hr@acme.com", "0917", "loginLock", "tin", "ownerName"].forEach((k) => expect(json).not.toContain(k));
     expect(res.body.user.verified).toBe(true);
   });
 

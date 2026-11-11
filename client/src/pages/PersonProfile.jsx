@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FaArrowLeft, FaCheckCircle } from "react-icons/fa";
 import Avatar from "../components/Avatar";
+import EmployerProfileView from "../components/EmployerProfileView";
 import PersonProfileView from "../components/PersonProfileView";
 import ProfileBanner from "../components/ProfileBanner";
 import StateBlock from "../components/StateBlock";
@@ -131,7 +132,15 @@ export default function PersonProfile() {
 
   return (
     <div className="rd-page">
-      <section className="rd-shell">{data.role === "employer" ? <EmployerCard data={data} onBack={onBack} /> : <PersonProfileView data={data} onBack={onBack} />}</section>
+      <section className="rd-shell">
+        {data.role === "employer" && data.mode === "jobseeker" ? (
+          <EmployerProfileView data={data} employerId={id} onBack={onBack} />
+        ) : data.role === "employer" ? (
+          <EmployerCard data={data} onBack={onBack} />
+        ) : (
+          <PersonProfileView data={data} onBack={onBack} />
+        )}
+      </section>
     </div>
   );
 }

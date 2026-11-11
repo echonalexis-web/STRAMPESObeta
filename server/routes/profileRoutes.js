@@ -2,7 +2,7 @@ const router = require("express").Router();
 const rateLimit = require("express-rate-limit");
 const { verifyToken: protect } = require("../middleware/auth");
 const { profileViewBudget } = require("../middleware/budgets");
-const { getSummary, getProfile } = require("../controllers/profileViewController");
+const { getSummary, getProfile, getEmployerJobs } = require("../controllers/profileViewController");
 
 // A per-process burst limiter per ACCOUNT (not per IP, so a job fair network is
 // not blocked). It resets on restart; the database daily budget is the real guard.
@@ -22,6 +22,7 @@ const burstLimiter =
 router.use(protect, burstLimiter, profileViewBudget);
 // No id validation middleware: a malformed id gets the same "unavailable" answer as any other miss.
 router.get("/:id/summary", getSummary);
+router.get("/:id/jobs", getEmployerJobs);
 router.get("/:id", getProfile);
 
 module.exports = router;

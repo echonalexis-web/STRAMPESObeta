@@ -20,25 +20,8 @@ const { logAuditEvent } = require("../services/auditService");
 const logger = require("../utils/logger");
 const { runPostCommit } = require("../utils/postCommit");
 
-// Helper to check if a job is past its deadline
-const isJobPastDeadline = (job) => {
-  if (!job.applicationDeadline) return false;
-  return new Date() > new Date(job.applicationDeadline);
-};
-
-// Helper to check if a job should be visible to jobseekers (not closed and not past deadline)
-const isJobVisibleToJobseekers = (job) => {
-  // Job must be active and not closed
-  if (job.status === "closed") return false;
-  
-  // Job must not be past its deadline
-  if (isJobPastDeadline(job)) return false;
-  
-  // Job must not be archived
-  if (job.archived) return false;
-  
-  return true;
-};
+// Job visibility rules live in utils/jobVisibility.js (shared with the employer postings list).
+const { isJobVisibleToJobseekers } = require("../utils/jobVisibility");
 
 // Helper to format qualifications for response
 const formatQualifications = (qualifications) => {

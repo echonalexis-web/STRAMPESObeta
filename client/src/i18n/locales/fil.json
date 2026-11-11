@@ -2391,7 +2391,19 @@
     "credentials": "Training at mga kredensyal",
     "preferences": "Mga gustong trabaho",
     "salary": "Inaasahang sahod",
-    "languages": "Mga wika"
+    "languages": "Mga wika",
+    "businessAddress": "Address ng negosyo",
+    "ownerAndAuthorized": "May-ari at awtorisadong kinatawan",
+    "nameLabel": "Pangalan",
+    "designationLabel": "Posisyon",
+    "ownerDesignation": "May-ari / Pangulo",
+    "authorizedDesignation": "Awtorisadong kinatawan",
+    "postings": "Mga bakanteng trabaho",
+    "postingsCount": "Mga bakanteng trabaho ({{count}})",
+    "postingsEmpty": "Walang bukas na bakanteng trabaho ang employer na ito sa ngayon.",
+    "postingsEmptyHint": "Bumalik na lang mamaya.",
+    "postingsErrorTitle": "Hindi ma-load ang mga bakanteng trabaho",
+    "postingsErrorBody": "Suriin ang iyong koneksyon at subukan muli."
   },
   "profileCard": {
     "loading": "Naglo-load ng profile",

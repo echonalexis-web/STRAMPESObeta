@@ -43,6 +43,9 @@ const matchKey = (type, value) => `${String(type || "skill").toLowerCase()}::${S
  *   onOpen         open the job detail page
  *   onApply        go to the apply screen
  *   canApply       false hides Apply (15-17 accounts: regular jobs are view-only)
+ *   publicView     a posting listed on a company page: no match panel, no
+ *                  requirement pills, no applicant count and no Apply button;
+ *                  applying stays on the job detail page with its own rules
  */
 export default function VacancyCard({
   job,
@@ -54,6 +57,7 @@ export default function VacancyCard({
   onOpen,
   onApply,
   canApply = true,
+  publicView = false,
 }) {
   const checklist = job?.checklistMatch || null;
   const hasChecklist = matchAvailable && Boolean(checklist);
@@ -138,7 +142,7 @@ export default function VacancyCard({
         )}
       </div>
 
-      {!preview && tier !== "na" && (
+      {!preview && !publicView && tier !== "na" && (
         <div className="vac-match-panel">
           <div className="vac-match-head">
             <span className={`vac-match-tier tier-${tier}`}>{tierLabel}</span>
@@ -160,7 +164,7 @@ export default function VacancyCard({
         </div>
       )}
 
-      {!preview && requiredPreviewQuals.length > 0 && (
+      {!preview && !publicView && requiredPreviewQuals.length > 0 && (
         <div className="vac-req-pills">
           {requiredPreviewQuals.map((q) => {
             const met = matchAvailable && !missingKeys.has(matchKey(q.type, q.value));
@@ -175,14 +179,14 @@ export default function VacancyCard({
 
       <div className="vac-footer">
         <span className="vac-footer-meta">
-          <FaUsers aria-hidden="true" /> {applicantCount} applied{posted ? ` · posted ${posted}` : ""}
+          {publicView ? (posted ? `Posted ${posted}` : null) : (<><FaUsers aria-hidden="true" /> {applicantCount} applied{posted ? ` · posted ${posted}` : ""}</>)}
         </span>
         {!preview && (
           <div className="vac-actions" onClick={(event) => event.stopPropagation()}>
             <button className="ds-btn ds-btn--secondary btn-vac btn-vac--outline" onClick={onOpen}>
               View details
             </button>
-            {applied ? (
+            {publicView ? null : applied ? (
               <button className="ds-btn ds-btn--primary btn-vac btn-vac--primary" disabled title="You have already applied to this job">
                 Applied
               </button>

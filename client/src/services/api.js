@@ -614,6 +614,8 @@ export const systemOptionsAPI = {
 export const profileViewAPI = {
   summary: (id, signal) => api.get(`/profiles/${id}/summary`, { ...getAuthHeader(), signal }),
   get: (id, signal) => api.get(`/profiles/${id}`, { ...getAuthHeader(), signal }),
+  // An employer's open postings, for a jobseeker viewing the company page.
+  jobs: (id, { page = 1, limit = 10 } = {}, signal) => api.get(`/profiles/${id}/jobs`, { ...getAuthHeader(), params: { page, limit }, signal }),
 };
 
 // Employer cover image (verified employers): upload a cropped image, or remove it.

@@ -167,6 +167,12 @@ const CONTACT_USER_FIELDS = { phone: "phone", email: "email" };
 
 const EMPLOYER_PUBLIC_USER = ["_id", "name", "role", "companyName", "profileImage", "industry", "companySize", "website", "businessAddress", "companyDescription"];
 const EMPLOYER_PUBLIC_PROFILE = ["tradeName", "acronym"];
+// A jobseeker viewing a company sees five things only: the header, About, the
+// business address, the owner and authorized person (name and position), and the
+// open postings (a separate endpoint). Nothing else: no email, phone, website,
+// company size, TIN, fax, registration or verification data.
+const EMPLOYER_JOBSEEKER_USER = ["_id", "name", "role", "companyName", "profileImage", "industry"];
+const BUSINESS_ADDRESS_PARTS = ["street", "barangay", "municipality", "province"];
 // The employer profile holds company registration and contact-person data that
 // is not public.
 const EMPLOYER_PRIVATE_PROFILE = ["tin", "fax", "ownerName", "contactPersonName", "contactPersonPosition"];
@@ -336,6 +342,42 @@ const projectApplicant = ({ user, profile, includePhoto = false }) => {
   return out;
 };
 
+const text = (value) => (typeof value === "string" ? value.trim() : "");
+
+// The employer's registered business address, non-empty parts only (no region).
+const businessAddressOf = (prof) => {
+  const source = prof?.businessAddress;
+  if (!source || typeof source !== "object") return null;
+  const out = {};
+  for (const key of BUSINESS_ADDRESS_PARTS) if (text(source[key])) out[key] = text(source[key]);
+  return Object.keys(out).length ? out : null;
+};
+
+// What a signed-in jobseeker sees of a company. An empty section is simply absent.
+const employerForJobseeker = ({ user, prof, cover }) => {
+  const out = { ...pick(user, EMPLOYER_JOBSEEKER_USER), verified: user.verificationStatus === "verified" };
+  if (text(user.companyDescription)) out.companyDescription = user.companyDescription;
+  if (cover) out.cover = cover;
+  const profile = {};
+  const address = businessAddressOf(prof);
+  if (address) profile.businessAddress = address;
+  if (text(prof?.ownerName)) profile.owner = { name: text(prof.ownerName) };
+  if (text(prof?.contactPersonName)) {
+    profile.authorizedPerson = { name: text(prof.contactPersonName), ...(text(prof.contactPersonPosition) ? { position: text(prof.contactPersonPosition) } : {}) };
+  }
+  return { mode: "jobseeker", user: out, profile };
+};
+
+// Fields of one posting on a company page: only what the job card shows. No
+// applicant count, match data, qualifications, description or internal fields.
+const EMPLOYER_POSTING_FIELDS = ["_id", "title", "location", "salary", "jobType", "createdAt", "applicationDeadline"];
+const projectEmployerPosting = (job, employer) => {
+  const out = pick(job, EMPLOYER_POSTING_FIELDS);
+  if (job.remainingSlots !== undefined) out.remainingSlots = job.remainingSlots;
+  out.employer = { ...pick(employer, ["_id", "name", "companyName", "profileImage"]) };
+  return out;
+};
+
 // Public view of an employer account.
 const projectEmployer = ({ viewer, target, profile, cover }) => {
   const cls = viewerClass(viewer, target);
@@ -344,6 +386,7 @@ const projectEmployer = ({ viewer, target, profile, cover }) => {
 
   const user = plain(target);
   const prof = plain(profile) || null;
+  if (cls === "jobseeker") return employerForJobseeker({ user, prof, cover });
   if (cls === "owner" || cls === "staff") {
     return { mode: cls === "owner" ? "full" : "staff", user: { ...omit(user, SECRET_USER_FIELDS), ...(cover ? { cover } : {}) }, profile: prof };
   }
@@ -386,5 +429,6 @@ module.exports = {
   projectJobseeker,
   projectApplicant,
   projectEmployer,
+  projectEmployerPosting,
   scrubEmployerForJobPayload,
 };

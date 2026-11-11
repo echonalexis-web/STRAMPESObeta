@@ -10,8 +10,13 @@ const JobseekerProfile = require("../models/JobseekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
 const { resolveCover } = require("../services/bannerTemplateService");
 const { resolveAvatarPreset } = require("../services/avatarPresetService");
-const { normalizeRole, projectJobseeker, projectEmployer, resolveRelationship, allowedContact, municipalityOf } = require("../services/profileProjection");
+const { normalizeRole, projectJobseeker, projectEmployer, projectEmployerPosting, resolveRelationship, allowedContact, municipalityOf } = require("../services/profileProjection");
 const { sendError } = require("../utils/sendError");
+const { getAgeDenial, sendAgeDenial } = require("../utils/ageAccess");
+const { buildVisibleJobFilter } = require("../utils/jobVisibility");
+
+const POSTINGS_DEFAULT_LIMIT = 10;
+const POSTINGS_MAX_LIMIT = 50;
 
 const unavailable = (res) => {
   res.set("Cache-Control", "no-store");
@@ -116,5 +121,59 @@ exports.getProfile = async (req, res) => {
     return res.json(body);
   } catch (error) {
     return sendError(res, error, "Failed to load the profile");
+  }
+};
+
+const positiveInt = (value, fallback) => {
+  const n = Number.parseInt(value, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+};
+
+// GET /profiles/:id/jobs  (an employer's open postings, for a jobseeker viewer)
+// Same visibility as the job board (utils/jobVisibility.js), newest first, paginated
+// with a capped page size, and only the fields the job card shows.
+exports.getEmployerJobs = async (req, res) => {
+  try {
+    // Only jobseekers browse postings here; everyone else gets the neutral answer.
+    if (normalizeRole(req.user?.role) !== "jobseeker") return unavailable(res);
+    const ageDenial = getAgeDenial(req.user, "jobView");
+    if (ageDenial) return sendAgeDenial(res, ageDenial);
+
+    const ctx = await load(req);
+    if (!ctx || ctx.role !== "employer") return unavailable(res);
+    const projected = await project(ctx);
+    if (!projected || projected.mode !== "jobseeker") return unavailable(res);
+
+    const JobVacancy = require("../models/JobVacancy");
+    const JobApplication = require("../models/JobApplication");
+    const { getHiredCountMap } = require("../utils/jobDisplay");
+
+    const limit = Math.min(positiveInt(req.query.limit, POSTINGS_DEFAULT_LIMIT), POSTINGS_MAX_LIMIT);
+    const page = positiveInt(req.query.page, 1);
+
+    const filter = buildVisibleJobFilter(ctx.target._id);
+    // The board hides jobs the viewer was already hired for; so does this list.
+    const hired = await JobApplication.find({ applicant: ctx.viewer.id, status: { $in: ["hired", "Accepted"] } }).select("vacancy");
+    const hiredIds = (hired || []).map((a) => a.vacancy);
+    if (hiredIds.length) filter._id = { $nin: hiredIds };
+
+    const total = await JobVacancy.countDocuments(filter);
+    const jobs = total
+      ? await JobVacancy.find(filter)
+          .select("title location salary jobType createdAt applicationDeadline slots")
+          .sort({ createdAt: -1, _id: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .lean()
+      : [];
+    const hiredCounts = jobs.length ? await getHiredCountMap(jobs.map((j) => j._id)) : {};
+    const employer = { _id: ctx.target._id, name: ctx.target.name, companyName: ctx.target.companyName, profileImage: ctx.target.profileImage };
+    const items = jobs.map((job) =>
+      projectEmployerPosting({ ...job, remainingSlots: Math.max(0, Number(job.slots || 0) - Number(hiredCounts[String(job._id)] || 0)) }, employer)
+    );
+    setViewHeaders(res);
+    return res.json({ items, total, page, limit });
+  } catch (error) {
+    return sendError(res, error, "Failed to load the job postings");
   }
 };
