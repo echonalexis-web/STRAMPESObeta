@@ -6,7 +6,7 @@ import { useToast, useConfirm } from "../components/feedback/context";
 import "../styles/report.css";
 import AppModal from "../components/AppModal";
 import EmployerAvatar from "../components/EmployerAvatar";
-import EmployerModal from "../components/EmployerModal";
+import ProfileLink from "../components/ProfileLink";
 import ReportButton from "../components/ReportButton";
 import JobFavoriteButton from "../components/JobFavoriteButton";
 import QualificationsDisplay from "../components/QualificationsDisplay";
@@ -115,7 +115,6 @@ export default function JobDetail() {
   const [error, setError] = useState("");
   const [unavailableTitle, setUnavailableTitle] = useState("");
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  const [employerModalOpen, setEmployerModalOpen] = useState(false);
   const [applyModalOpen, setApplyModalOpen] = useState(false);
   const [recommendedJobs, setRecommendedJobs] = useState([]);
   const [recLoading, setRecLoading] = useState(false);
@@ -408,15 +407,11 @@ export default function JobDetail() {
           </button>
           <h1>{job.title}</h1>
           <div className="job-hero-employer">
-            <button
-              type="button"
-              className="job-hero-company"
-              onClick={() => setEmployerModalOpen(true)}
-              title={`View ${employerName}'s profile`}
-            >
+            {/* Hover card on pointer devices; the link opens the company page. */}
+            <ProfileLink userId={employerId} role="employer" className="job-hero-company">
               <EmployerAvatar employer={job.employer} name={employerName} className="job-hero-logo" />
               <span className="job-hero-company-name">{employerName}</span>
-            </button>
+            </ProfileLink>
             {canFollowEmployer && (
               <button
                 type="button"
@@ -747,12 +742,6 @@ export default function JobDetail() {
           </button>
         </div>
       )}
-
-      <EmployerModal
-        isOpen={employerModalOpen}
-        onClose={() => setEmployerModalOpen(false)}
-        employer={job.employer}
-      />
 
       <ApplyModal
         isOpen={applyModalOpen}
