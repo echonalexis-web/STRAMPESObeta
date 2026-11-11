@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { FaIdCard, FaGraduationCap, FaBriefcase, FaBolt } from "react-icons/fa";
 import "../styles/basic-requirements.css";
 import {
@@ -8,6 +9,7 @@ import {
   LANGUAGE_MODES,
 } from "../data/jobRequirements";
 import { EMPTY_BASIC_REQUIREMENTS, validateBasicRequirements } from "../utils/basicRequirements";
+import { selectAllState } from "../utils/qualificationSteps";
 
 // Years-of-experience quick-pick chips. "fresh" maps to "0" (open to fresh
 // grads); the others set a floor the applicant's work history must clear.
@@ -21,6 +23,7 @@ const EXPERIENCE_CHIPS = [
 ];
 
 export default function BasicRequirements({ value, onChange, disabled = false }) {
+  const { t } = useTranslation();
   const form = useMemo(() => ({ ...EMPTY_BASIC_REQUIREMENTS, ...(value || {}) }), [value]);
   const issues = validateBasicRequirements(form);
 
@@ -54,6 +57,14 @@ export default function BasicRequirements({ value, onChange, disabled = false })
       languageRequirements: form.languageRequirements.map((item) =>
         item.language === language ? { ...item, [mode]: checked } : item
       ),
+    });
+  };
+
+  // The "All" checkbox: all four pills on, or all four off.
+  const setAllModes = (language, checked) => {
+    const modes = Object.fromEntries(LANGUAGE_MODES.map((mode) => [mode, checked]));
+    set({
+      languageRequirements: form.languageRequirements.map((item) => (item.language === language ? { ...item, ...modes } : item)),
     });
   };
 
@@ -201,24 +212,42 @@ export default function BasicRequirements({ value, onChange, disabled = false })
           {REQUIREMENT_LANGUAGES.map((language) => {
             const entry = langEntry(language);
             const on = Boolean(entry);
+            const allState = selectAllState(LANGUAGE_MODES, entry);
             return (
               <div key={language} className={`br-lang-card ${on ? "is-on" : ""}`}>
                 <div className="br-lang-card-head">
-                  <button
-                    type="button"
-                    role="switch"
-                    className={`br-lang-switch ${on ? "is-on" : ""}`}
-                    onClick={() => toggleLanguage(language, !on)}
-                    disabled={disabled}
-                    aria-checked={on}
-                    aria-label={`Require ${LANGUAGE_LABELS[language] || language}`}
-                  >
-                    <span className="br-lang-switch-thumb" aria-hidden="true" />
-                  </button>
-                  <span className="br-lang-name">{LANGUAGE_LABELS[language] || language}</span>
-                  <span className="br-lang-status">{on ? "Required" : "Not required"}</span>
-                </div>
-                {on && (
+                  <div className="br-lang-ctrl">
+                    <button
+                      type="button"
+                      role="switch"
+                      className={`br-lang-switch ${on ? "is-on" : ""}`}
+                      onClick={() => toggleLanguage(language, !on)}
+                      disabled={disabled}
+                      aria-checked={on}
+                      aria-label={`Require ${LANGUAGE_LABELS[language] || language}`}
+                    >
+                      <span className="br-lang-switch-thumb" aria-hidden="true" />
+                    </button>
+                    {on && (
+                      <label className="br-lang-all">
+                        <input
+                          type="checkbox"
+                          checked={allState === "all"}
+                          ref={(el) => {
+                            if (el) el.indeterminate = allState === "some";
+                          }}
+                          onChange={() => setAllModes(language, allState !== "all")}
+                          disabled={disabled}
+                        />
+                        <span>{t("qualSteps.selectAll")}</span>
+                      </label>
+                    )}
+                  </div>
+                  <div className="br-lang-id">
+                    <span className="br-lang-name">{LANGUAGE_LABELS[language] || language}</span>
+                    <span className="br-lang-status">{on ? "Required" : "Not required"}</span>
+                  </div>
+                  {on && (
                   <div className="br-lang-modes" role="group" aria-label={`${LANGUAGE_LABELS[language] || language} proficiency`}>
                     {LANGUAGE_MODES.map((mode) => {
                       const active = Boolean(entry && entry[mode]);
@@ -236,7 +265,8 @@ export default function BasicRequirements({ value, onChange, disabled = false })
                       );
                     })}
                   </div>
-                )}
+                  )}
+                </div>
               </div>
             );
           })}

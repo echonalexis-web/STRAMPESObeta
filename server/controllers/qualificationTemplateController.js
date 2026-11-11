@@ -5,6 +5,8 @@ const ALLOWED_TYPES = ["education", "experience", "skill", "certification", "lic
 const MAX_TEMPLATES_PER_EMPLOYER = 60;
 const MAX_ITEMS_PER_TEMPLATE = 60;
 
+const { normalizeQualificationItem, DOCUMENT_GROUPS } = require("../utils/qualificationRules");
+
 const getUserId = (req) => req.user._id || req.user.id;
 
 // Coerce whatever the client sent into a clean, ordered item array or throw a
@@ -32,12 +34,14 @@ const sanitizeItems = (rawItems) => {
     }
     if (!value) throw `Item ${index + 1}: value is required`;
     if (value.length > 200) throw `Item ${index + 1}: value is too long`;
-    return {
+    // A personal skill is always preferred; a document may carry a group.
+    const cleaned = normalizeQualificationItem({
       type,
       value,
       optional: Boolean(item?.optional ?? item?.isPreferred),
-      order: index,
-    };
+      group: item?.group,
+    });
+    return { ...cleaned, order: index };
   });
 };
 
@@ -50,6 +54,7 @@ const serializeCustom = (doc) => ({
     type: item.type,
     value: item.value,
     optional: Boolean(item.optional),
+    ...(DOCUMENT_GROUPS.includes(item.group) ? { group: item.group } : {}),
     order: item.order != null ? item.order : index,
   })),
   updatedAt: doc.updatedAt,

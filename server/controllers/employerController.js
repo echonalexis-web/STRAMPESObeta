@@ -193,6 +193,7 @@ const formatQualifications = (qualifications) => {
 // Mirrors the client-side cap in utils/qualifications.js (MAX_SKILL_QUALIFICATIONS)
 // — enforced here too so the limit can't be bypassed by calling the API directly.
 const MAX_SKILL_QUALIFICATIONS = 8;
+const { normalizeQualificationList } = require("../utils/qualificationRules");
 const isSkillQualification = (q) => {
   const type = String(q?.type || "").trim().toLowerCase();
   return type === "skill" || type === "other" || !type;
@@ -356,7 +357,8 @@ exports.createJob = async (req, res) => {
     }
 
     // Set order if not provided
-    const processedQualifications = parsedQualifications.map((q, index) => ({
+    // Personal skills are always preferred (utils/qualificationRules.js).
+    const processedQualifications = normalizeQualificationList(parsedQualifications).map((q, index) => ({
       ...q,
       order: q.order !== undefined ? q.order : index,
     }));
@@ -440,7 +442,7 @@ const applyJobUpdate = async (req, res, job, actorRole, action) => {
       return res.status(400).json({ message: `You can add up to ${MAX_SKILL_QUALIFICATIONS} skills` });
     }
 
-    parsedQualifications = parsedQualifications.map((q, index) => ({
+    parsedQualifications = normalizeQualificationList(parsedQualifications).map((q, index) => ({
       ...q,
       order: q.order !== undefined ? q.order : index,
     }));

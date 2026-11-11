@@ -2375,6 +2375,32 @@
     "removeError": "Hindi maalis ang cover na larawan.",
     "editorTitle": "Ayusin ang cover mo"
   },
+  "qualSteps": {
+    "stepperLabel": "Mga hakbang sa kwalipikasyon",
+    "steps": {
+      "skills": "Mga personal na kasanayan",
+      "tesda": "TESDA at mga Sertipikasyon",
+      "clearances": "Mga clearance ng gobyerno"
+    },
+    "explain": {
+      "skills": "Piliin ang mga soft skill at kasanayan sa trabaho na kailangan. Nakakatulong ito sa pag-rank ng kandidato pero hindi nakakaharang sa kahit sino.",
+      "tesda": "Idagdag ang mga sertipiko ng TESDA, lisensya at iba pang papeles na gusto mo. Markahan ang bawat isa bilang Kinakailangan o Mas Gusto.",
+      "clearances": "Idagdag ang mga clearance ng gobyerno na gusto mo, tulad ng Barangay, NBI o Police clearance. Markahan ang bawat isa bilang Kinakailangan o Mas Gusto."
+    },
+    "noneAdded": "Wala pang naidagdag",
+    "noneNeeded": "Hindi kailangan",
+    "countAdded": "{{count}} ang naidagdag",
+    "next": "Susunod",
+    "back": "Bumalik",
+    "done": "Tapos na",
+    "doneNote": "Nasuri na ang lahat ng hakbang. Maaari ka pa ring bumalik at magbago.",
+    "doneAnnounce": "Nasuri na ang lahat ng hakbang sa kwalipikasyon.",
+    "announce": "Hakbang {{current}} sa {{total}}: {{name}}",
+    "personalNote": "Ang mga personal na kasanayan ay laging idinaragdag bilang Mas Gusto.",
+    "filterLabel": "I-filter ang mga personal na kasanayan",
+    "filterAll": "Lahat",
+    "selectAll": "Lahat"
+  },
   "person": {
     "empty": "Wala pang idinagdag na detalye ang taong ito.",
     "unavailableTitle": "Hindi available ang profile na ito",

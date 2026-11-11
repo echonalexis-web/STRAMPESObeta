@@ -63,6 +63,8 @@ export const normalizeQualification = (raw, index = 0) => ({
   value: String(raw?.value ?? raw?.text ?? "").trim(),
   optional: Boolean(raw?.optional ?? raw?.isPreferred),
   order: Number.isFinite(raw?.order) ? raw.order : index,
+  // Which document step a certification or licence was added in (see qualificationSteps.js).
+  ...(raw?.group === "tesda" || raw?.group === "clearance" ? { group: raw.group } : {}),
 });
 
 export const normalizeQualifications = (list = []) => {

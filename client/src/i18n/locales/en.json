@@ -2375,6 +2375,32 @@
     "removeError": "Could not remove the cover image.",
     "editorTitle": "Adjust your cover"
   },
+  "qualSteps": {
+    "stepperLabel": "Qualification steps",
+    "steps": {
+      "skills": "Personal skills",
+      "tesda": "TESDA & Certifications",
+      "clearances": "Government clearances"
+    },
+    "explain": {
+      "skills": "Pick the soft skills and trade skills this job needs. They help rank candidates but never block anyone.",
+      "tesda": "Add the TESDA certificates, licences and other papers you want. Mark each as Required or Preferred.",
+      "clearances": "Add the government clearances you want, such as Barangay, NBI or Police clearance. Mark each as Required or Preferred."
+    },
+    "noneAdded": "None added",
+    "noneNeeded": "None needed",
+    "countAdded": "{{count}} added",
+    "next": "Next",
+    "back": "Back",
+    "done": "Done",
+    "doneNote": "All steps reviewed. You can still go back and change anything.",
+    "doneAnnounce": "All qualification steps reviewed.",
+    "announce": "Step {{current}} of {{total}}: {{name}}",
+    "personalNote": "Personal skills are always added as Preferred.",
+    "filterLabel": "Filter personal skills",
+    "filterAll": "All",
+    "selectAll": "All"
+  },
   "person": {
     "empty": "This person has not added any details yet.",
     "unavailableTitle": "This profile is unavailable",

@@ -13,6 +13,8 @@ const qualificationSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  // Which document step a certification or licence belongs to (client form only).
+  group: { type: String, enum: ["tesda", "clearance"], default: undefined },
   optional: {
     type: Boolean,
     default: false,

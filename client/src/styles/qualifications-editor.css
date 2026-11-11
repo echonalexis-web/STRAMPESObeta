@@ -1192,3 +1192,206 @@
     padding-left: 0;
   }
 }
+
+/* ======================================================================
+   Step-by-step adding: stepper, step panel, nav, grouped Active panel
+   ====================================================================== */
+.qe-stepper-list {
+  list-style: none;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.qe-step {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 52px;
+  padding: 0.45rem 0.7rem;
+  text-align: left;
+  font: inherit;
+  color: var(--qe-ink);
+  background: #fff;
+  border: 1px solid var(--qe-border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.qe-step:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.qe-step.is-current {
+  border-color: var(--qe-brand-700);
+  background: var(--qe-brand-50);
+}
+
+.qe-step:focus-visible {
+  outline: 3px solid var(--qe-brand-700);
+  outline-offset: 2px;
+}
+
+.qe-step-num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--qe-slate-100);
+  color: var(--qe-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.qe-step.is-current .qe-step-num,
+.qe-step.is-filled .qe-step-num {
+  background: var(--qe-brand-700);
+  color: #fff;
+}
+
+.qe-step-text {
+  display: grid;
+  min-width: 0;
+}
+
+.qe-step-name {
+  font-size: 0.84rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.qe-step-status {
+  font-size: 0.74rem;
+  color: var(--qe-muted);
+}
+
+.qe-step-heading {
+  margin: 0 0 0.2rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--qe-ink);
+}
+
+.qe-step-heading:focus-visible {
+  outline: 3px solid var(--qe-brand-700);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.qe-step-explain {
+  margin: 0 0 0.8rem;
+  font-size: 0.86rem;
+  color: var(--qe-muted);
+}
+
+.qe-personal-note {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--qe-brand-800);
+}
+
+.qe-step-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.4rem 0 1.1rem;
+}
+
+.qe-step-nav-right {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.qe-step-nav .qe-ghost-btn,
+.qe-step-nav .qe-primary-btn {
+  min-height: var(--ds-tap, 44px);
+  padding-inline: 1rem;
+}
+
+.qe-primary-btn {
+  border: 1px solid var(--qe-brand-700);
+  background: var(--qe-brand-700);
+  color: #fff;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.qe-primary-btn:hover:not(:disabled) {
+  background: var(--qe-brand-800);
+}
+
+.qe-primary-btn:focus-visible,
+.qe-step-nav .qe-ghost-btn:focus-visible {
+  outline: 3px solid var(--qe-brand-700);
+  outline-offset: 2px;
+}
+
+.qe-primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.qe-step-done {
+  margin: -0.5rem 0 1rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--qe-brand-800);
+}
+
+/* Active qualifications: one group per step */
+.qe-active-group {
+  margin-top: 0.9rem;
+}
+
+.qe-active-group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.45rem;
+}
+
+.qe-count--small {
+  min-width: 20px;
+  height: 20px;
+  font-size: 0.7rem;
+}
+
+.qe-active-group-empty {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--qe-muted);
+}
+
+.qe-tag-switch.is-fixed {
+  cursor: default;
+}
+
+/* Room for the floating chat and help buttons under the last group */
+.qe-active {
+  margin-bottom: 72px;
+}
+
+@media (max-width: 640px) {
+  .qe-stepper-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qe-step,
+  .qe-primary-btn {
+    transition: none;
+  }
+}

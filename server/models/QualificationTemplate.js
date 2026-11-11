@@ -16,6 +16,7 @@ const templateItemSchema = new mongoose.Schema(
       trim: true,
       maxlength: 200,
     },
+    group: { type: String, enum: ["tesda", "clearance"], default: undefined },
     optional: {
       type: Boolean,
       default: false,
