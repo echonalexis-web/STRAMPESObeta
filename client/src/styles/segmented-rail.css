@@ -1,0 +1,72 @@
+/* Shared segmented pill rail (hooks/useSegmentedRail.js).
+   From 769px up, a single-select rail whose pills fit on one row (data-segmented="joined")
+   becomes one group: the pills sit edge to edge on a shared 1px border, the outer ends keep
+   the fully rounded pill radius and every inner side gets the small radius. A one-pill rail
+   stays fully rounded. A rail that does not fit (data-segmented="separate") and every rail
+   at 768px and below keep their own separated pills, so a joined group never wraps.
+
+   The selectors repeat .seg-rail on purpose: each page styles its own pills with
+   page-scoped rules, and this shape has to win over all of them. Only the shape and the
+   separation change here: colours, labels and the count badges inside a pill are untouched.
+   Keep the 769px in sync with SEGMENTED_MIN_WIDTH in utils/segmentedRail.js. */
+@media (min-width: 769px) {
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] {
+    flex-wrap: nowrap;
+    gap: 0;
+    column-gap: 0;
+    row-gap: 0;
+    /* it fits, so there is nothing to scroll; visible keeps a focus ring from being clipped */
+    overflow: visible;
+  }
+
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos] {
+    position: relative;
+    box-sizing: border-box;
+    margin-inline-start: -1px;
+    border-style: solid;
+    border-width: 1px;
+    border-radius: var(--ds-radius-sm);
+  }
+
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos="first"],
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos="single"] {
+    margin-inline-start: 0;
+  }
+
+  /* inactive pills share the thin separation colour; an active pill keeps the colour its
+     own page gives it (the filled dark green, or an accent) */
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos]:not(.is-active):not(.active):not([aria-selected="true"]):not([aria-pressed="true"]):not([aria-current]) {
+    border-color: var(--ds-ink-300);
+  }
+
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos="first"] {
+    border-radius: var(--ds-radius-pill) var(--ds-radius-sm) var(--ds-radius-sm) var(--ds-radius-pill);
+  }
+
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos="last"] {
+    border-radius: var(--ds-radius-sm) var(--ds-radius-pill) var(--ds-radius-pill) var(--ds-radius-sm);
+  }
+
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos="single"] {
+    border-radius: var(--ds-radius-pill);
+  }
+
+  /* the active pill sits above its neighbours so its border is whole; a focused pill sits
+     above everything so its focus ring is never covered */
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos].is-active,
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos].active,
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos][aria-selected="true"],
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos][aria-pressed="true"],
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos][aria-current="page"],
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos][aria-current="true"] {
+    z-index: 1;
+  }
+
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos]:hover {
+    z-index: 2;
+  }
+
+  .seg-rail.seg-rail.seg-rail[data-segmented="joined"] > [data-seg-pos]:focus-visible {
+    z-index: 3;
+  }
+}
