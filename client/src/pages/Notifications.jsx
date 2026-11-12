@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import useSegmentedRail from "../hooks/useSegmentedRail";
 import {
   FaBell,
   FaCheck,
@@ -67,6 +68,7 @@ const FILTER_TABS = [
 ];
 
 export default function Notifications() {
+  const railRef = useSegmentedRail();
   const navigate = useNavigate();
   const toast = useToast();
   const { t } = useTranslation();
@@ -144,7 +146,7 @@ export default function Notifications() {
 
       {hasItems && (
         <>
-          <div className="notif-filter-tabs" role="tablist" aria-label="Filter notifications">
+          <div ref={railRef} className="notif-filter-tabs seg-rail" role="tablist" aria-label="Filter notifications">
             {FILTER_TABS.map((tab) => (
               <button
                 key={tab.key}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import useSegmentedRail from "../hooks/useSegmentedRail";
 import { FaSearch } from "react-icons/fa";
 import { spesAPI } from "../services/api";
 import SpesPostingCard from "../components/SpesPostingCard";
@@ -15,6 +16,7 @@ import "../styles/spes.css";
 // search, a featured posting, then a grid of cards). 15-17 users apply from here; users
 // aged 31 and older can read the postings but not apply (the server enforces both).
 export default function SpesPostings() {
+  const railRef = useSegmentedRail();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
@@ -73,7 +75,7 @@ export default function SpesPostings() {
 
       <section className="news-feed-controls-wrap">
         <div className="news-feed-toolbar">
-          <div className="news-filter-chips" role="tablist" aria-label={t("spesPostings.tabsLabel")}>
+          <div ref={railRef} className="news-filter-chips seg-rail" role="tablist" aria-label={t("spesPostings.tabsLabel")}>
             {POSTING_TABS.map((key) => (
               <button
                 key={key}
