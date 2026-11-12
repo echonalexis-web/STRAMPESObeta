@@ -8,6 +8,7 @@ import { FaUser, FaEnvelope, FaPhone, FaBriefcase, FaBuilding, FaMapMarkerAlt, F
 import LocationSelect from "../components/LocationSelect";
 import LocationAutosuggest from "../components/LocationAutosuggest";
 import Autosuggest from "../components/Autosuggest";
+import { NATIONALITIES, CIVIL_SERVICE_ELIGIBILITIES, PRC_PROFESSIONS } from "../data/profileSuggestions";
 import SearchableDropdown from "../components/SearchableDropdown";
 import FileDropzone from "../components/FileDropzone";
 import EmailChangeCard from "../components/EmailChangeCard";
@@ -1879,8 +1880,16 @@ export default function EditProfile() {
                     <button type="button" className="repeat-entry-remove" onClick={() => removeListItem("eligibilities", i)}>Remove</button>
                   </div>
                   <div className="profile-field">
-                    <label>Eligibility</label>
-                    <input type="text" value={entry.name || ""} onChange={(e) => updateListItem("eligibilities", i, "name", e.target.value)} />
+                    <label htmlFor={`eligibility-name-${i}`}>Eligibility</label>
+                    <Autosuggest
+                      id={`eligibility-name-${i}`}
+                      enhanced
+                      value={entry.name || ""}
+                      onChange={(v) => updateListItem("eligibilities", i, "name", v)}
+                      options={CIVIL_SERVICE_ELIGIBILITIES}
+                      placeholder={t("suggest.placeholder")}
+                      maxLength={120}
+                    />
                   </div>
                   <div className="profile-field-grid">
                     <div className="profile-field">
@@ -1905,8 +1914,16 @@ export default function EditProfile() {
                   </div>
                   <div className="profile-field-grid">
                     <div className="profile-field">
-                      <label>License</label>
-                      <input type="text" value={entry.name || ""} onChange={(e) => updateListItem("professionalLicenses", i, "name", e.target.value)} />
+                      <label htmlFor={`license-name-${i}`}>License</label>
+                      <Autosuggest
+                        id={`license-name-${i}`}
+                        enhanced
+                        value={entry.name || ""}
+                        onChange={(v) => updateListItem("professionalLicenses", i, "name", v)}
+                        options={PRC_PROFESSIONS}
+                        placeholder={t("suggest.placeholder")}
+                        maxLength={120}
+                      />
                     </div>
                     <div className="profile-field">
                       <label>Valid Until</label>
@@ -2124,7 +2141,15 @@ export default function EditProfile() {
                   </div>
                   <div className="profile-field">
                     <label htmlFor="citizenship">Citizenship</label>
-                    <input id="citizenship" type="text" name="citizenship" value={formData.citizenship} onChange={handleChange} />
+                    <Autosuggest
+                      id="citizenship"
+                      enhanced
+                      value={formData.citizenship}
+                      onChange={(v) => setFormData((prev) => ({ ...prev, citizenship: v }))}
+                      options={NATIONALITIES}
+                      placeholder={t("suggest.placeholder")}
+                      maxLength={50}
+                    />
                   </div>
                   <div className="profile-field">
                     <label htmlFor="religion">Religion (optional)</label>

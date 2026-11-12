@@ -2720,3 +2720,46 @@ body:has(.ep-page) {
     align-items: center;
   }
 }
+
+/* Rich autosuggest on the Edit Profile page (Citizenship, Eligibility, PRC license).
+   Opt-in through .autosuggest--rich; the plain autosuggest is unchanged. */
+.autosuggest--rich .autosuggest-list li {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  overflow-wrap: anywhere;
+}
+
+.autosuggest--rich .autosuggest-list {
+  overscroll-behavior: contain;
+}
+
+.autosuggest--rich .autosuggest-list--up,
+.autosuggest--rich .autosuggest-empty--up {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.autosuggest-empty {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid var(--ds-border, #e8ecf0);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(20, 32, 28, 0.12);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ds-ink-700, #2f463d);
+}
+
+.autosuggest--rich input:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}
