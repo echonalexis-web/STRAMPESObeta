@@ -693,6 +693,19 @@
     "next": "Susunod",
     "pageOf": "Pahina {{page}} ng {{total}}"
   },
+  "profileAbout": {
+    "positionsTitle": "Mga gustong posisyon sa trabaho",
+    "statusTitle": "Katayuan sa paghahanap ng trabaho",
+    "addressTitle": "Address",
+    "locationsTitle": "Mga gustong lugar ng trabaho",
+    "addBio": "Magdagdag ng pagpapakilala",
+    "addPositions": "Magdagdag ng mga gustong posisyon",
+    "addStatus": "Idagdag ang iyong katayuan sa paghahanap ng trabaho",
+    "addAddress": "Idagdag ang iyong address",
+    "addLocations": "Magdagdag ng mga gustong lugar ng trabaho",
+    "showMore": "Magpakita pa",
+    "showLess": "Magpakita ng kaunti"
+  },
   "suggest": {
     "placeholder": "Simulang mag-type...",
     "listLabel": "Mga mungkahi",

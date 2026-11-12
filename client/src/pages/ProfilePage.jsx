@@ -49,6 +49,8 @@ import AvatarPresetPicker from "../components/AvatarPresetPicker";
 import PersonProfileView from "../components/PersonProfileView";
 import StateBlock from "../components/StateBlock";
 import Pagination from "../components/Pagination";
+import ProfileAbout from "../components/ProfileAbout";
+import { hasAboutContent } from "../utils/profileAbout";
 import usePagination from "../hooks/usePagination";
 import "../styles/profile-redesign.css";
 
@@ -688,10 +690,27 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
     return [...new Set(merged)];
   }, [profile]);
 
-  const firstName = (profile?.name || "").trim().split(/\s+/)[0] || (profile?.name || "");
   const contactLocation = isEmployer ? businessAddressText : (profile?.address || presentAddressText);
-  const availabilityPhrase = profile?.availabilityStatus ? profile.availabilityStatus.toLowerCase() : "";
-  const hasNarrative = Boolean(firstName && (profile?.desiredJobTitle || contactLocation || availabilityPhrase));
+
+  // The About card (jobseeker). The owner sees the same address text as in Contact & identity.
+  const aboutProps = {
+    bio: profile?.about,
+    positions: [profile?.desiredJobTitle, ...(Array.isArray(profile?.preferredOccupations) ? profile.preferredOccupations : [])],
+    status: profile?.availabilityStatus,
+    address: presentAddressText || profile?.address,
+    locations: [
+      ...(Array.isArray(profile?.preferredWorkLocationLocal) ? profile.preferredWorkLocationLocal : []),
+      ...(Array.isArray(profile?.preferredWorkLocationOverseas) ? profile.preferredWorkLocationOverseas : []),
+    ],
+    isOwner: !isReadOnly,
+    editHref: {
+      bio: "/profile/edit",
+      positions: "/profile/edit?tab=career",
+      status: "/profile/edit?tab=career",
+      address: "/profile/edit?tab=profile",
+      locations: "/profile/edit?tab=career",
+    },
+  };
 
   let employmentLabel = profile?.employmentStatus
     ? profile.employmentStatus.charAt(0).toUpperCase() + profile.employmentStatus.slice(1)
@@ -837,7 +856,9 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                   </>
                 ) : (
                   <>
-                    <span className="rd2-role">{profile?.desiredJobTitle || (isSuperadmin ? "System Superadmin" : isAdmin ? "Administrator" : "Jobseeker")}</span>
+                    {isSuperadmin || isAdmin ? (
+                      <span className="rd2-role">{isSuperadmin ? "System Superadmin" : "Administrator"}</span>
+                    ) : null}
                     {profile?.availabilityStatus ? (
                       <span className="rd2-status"><i className="rd2-dot" />{profile.availabilityStatus}</span>
                     ) : null}
@@ -1179,21 +1200,11 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
           </main>
         ) : (
           <main className="rd2-body">
-            <Section id="sec-about" icon={<FaInfoCircle />} title="About">
-              {hasNarrative ? (
-                <p className="rd2-about">
-                  <strong>{firstName}</strong>
-                  {profile?.desiredJobTitle ? <> is a <strong>{profile.desiredJobTitle}</strong></> : <> is registered</>}
-                  {contactLocation ? <> from {contactLocation}</> : null}
-                  {availabilityPhrase ? <>, currently <strong className="rd2-accent">{availabilityPhrase}</strong> for work</> : null}.
-                  {profile?.about ? <> &ldquo;{profile.about}&rdquo;</> : null}
-                </p>
-              ) : profile?.about ? (
-                <p className="rd2-about">&ldquo;{profile.about}&rdquo;</p>
-              ) : (
-                <EmptyNote>No introduction added yet.</EmptyNote>
-              )}
-            </Section>
+            {!isReadOnly || hasAboutContent(aboutProps) ? (
+              <Section id="sec-about" icon={<FaInfoCircle />} title="About">
+                <ProfileAbout {...aboutProps} />
+              </Section>
+            ) : null}
 
             {/* Side column from 1101px (profile-redesign.css); below that the
                 wrapper is display: contents, so the stack order is unchanged. */}

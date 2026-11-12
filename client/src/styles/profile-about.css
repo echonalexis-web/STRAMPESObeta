@@ -1,0 +1,211 @@
+/* About card body: bio, then two aligned two-column rows
+   (positions | status, address | preferred locations). Hand-written, --ds-* tokens.
+   Chips and the status dot reuse the profile header's mint/green pill look. */
+.pa {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pa-bio {
+  min-width: 0;
+}
+
+.pa-bio__text {
+  margin: 0;
+  max-width: 70ch;
+  color: var(--ds-text, #10271f);
+  font-size: var(--ds-text-md, 1rem);
+  line-height: 1.6;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.pa-bio__text.is-clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+}
+
+.pa-more {
+  min-height: var(--ds-tap, 44px);
+  margin-top: var(--ds-space-1, 4px);
+  padding: 0 var(--ds-space-2, 8px);
+  border: 0;
+  background: none;
+  color: var(--ds-green, #07553a);
+  font: inherit;
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.pa-divider {
+  height: 0;
+  margin: var(--ds-space-4, 16px) 0;
+  border: 0;
+  border-top: 1px solid var(--ds-border, #dfe8e3);
+}
+
+/* Both rows use the same two equal columns so they line up. */
+.pa-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.pa-col {
+  min-width: 0;
+  padding: var(--ds-space-3, 12px) 0;
+}
+
+.pa-col:first-child {
+  padding-top: 0;
+}
+
+.pa-col:last-child {
+  padding-bottom: 0;
+}
+
+/* Narrow: one column in the order bio, positions, status, address, locations;
+   the dividers become horizontal. */
+.pa-col + .pa-col {
+  border-top: 1px solid var(--ds-border, #dfe8e3);
+}
+
+@media (min-width: 769px) {
+  .pa-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pa-row--single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pa-col,
+  .pa-col:first-child,
+  .pa-col:last-child {
+    padding: 0 var(--ds-space-5, 20px);
+  }
+
+  .pa-col:first-child {
+    padding-left: 0;
+  }
+
+  .pa-col:last-child {
+    padding-right: 0;
+  }
+
+  /* A thin vertical divider between the two columns. */
+  .pa-col + .pa-col {
+    border-top: 0;
+    border-left: 1px solid var(--ds-border, #dfe8e3);
+  }
+
+  .pa-row--single .pa-col {
+    padding: 0;
+  }
+}
+
+/* Small muted uppercase label above each part */
+.pa-label {
+  margin: 0 0 var(--ds-space-2, 8px);
+  color: var(--ds-ink-500, #5a6c65);
+  font-family: var(--ds-font-body, inherit);
+  font-size: var(--ds-text-xs, 0.75rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pa-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2, 8px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Filled pale-green chip: the look the header position pill had */
+.pa-chip {
+  max-width: 100%;
+  padding: 4px var(--ds-space-3, 12px);
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-pill, 999px);
+  background: var(--ds-mint, #e9f4ed);
+  color: var(--ds-green, #07553a);
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* Preferred locations: outlined, so they read differently from the positions */
+.pa-chips--outline .pa-chip {
+  background: transparent;
+  border-color: var(--ds-green-secondary, #0b704b);
+  color: var(--ds-ink-900, #10271f);
+  font-weight: 600;
+}
+
+.pa-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2, 8px);
+  margin: 0;
+  color: var(--ds-green, #07553a);
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 700;
+}
+
+.pa-address {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-2, 8px);
+  margin: 0;
+  color: var(--ds-text, #10271f);
+  font-size: var(--ds-text-sm, 0.875rem);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.pa-address svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--ds-green-secondary, #0b704b);
+}
+
+/* The owner's "Add ..." prompt: dashed, 44px */
+.pa-add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2, 8px);
+  min-height: var(--ds-tap, 44px);
+  box-sizing: border-box;
+  padding: 0 var(--ds-space-4, 16px);
+  border: 1px dashed var(--ds-green-secondary, #0b704b);
+  border-radius: var(--ds-radius-md, 12px);
+  color: var(--ds-green, #07553a);
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pa-add svg {
+  font-size: 10px;
+}
+
+.pa-add:hover {
+  background: var(--ds-mint, #e9f4ed);
+}
+
+.pa-add:focus-visible,
+.pa-more:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}

@@ -693,6 +693,19 @@
     "next": "Next",
     "pageOf": "Page {{page}} of {{total}}"
   },
+  "profileAbout": {
+    "positionsTitle": "Desired job positions",
+    "statusTitle": "Job search status",
+    "addressTitle": "Address",
+    "locationsTitle": "Preferred work locations",
+    "addBio": "Add an introduction",
+    "addPositions": "Add desired job positions",
+    "addStatus": "Add your job search status",
+    "addAddress": "Add your address",
+    "addLocations": "Add preferred work locations",
+    "showMore": "Show more",
+    "showLess": "Show less"
+  },
   "suggest": {
     "placeholder": "Start typing...",
     "listLabel": "Suggestions",

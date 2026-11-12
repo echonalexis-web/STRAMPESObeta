@@ -2,6 +2,8 @@ import { FaArrowLeft } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
 import Avatar from "./Avatar";
 import ProfileBanner from "./ProfileBanner";
+import ProfileAbout from "./ProfileAbout";
+import { hasAboutContent } from "../utils/profileAbout";
 import { jobDates, personSections } from "../utils/personProfile";
 import "../styles/profile-redesign.css";
 import "../styles/profile-card.css";
@@ -24,10 +26,23 @@ export default function PersonProfileView({ data, onBack }) {
   const { t } = useTranslation();
   const user = data?.user || {};
   const profile = data?.profile || {};
-  const { about, skills, work, place, empty } = personSections({ user, profile });
+  const { about, skills, work, place } = personSections({ user, profile });
   // Present only when the person shared it with this employer, or applied to them.
   const contact = [user.phone, user.email].filter(Boolean).join(" · ");
   const name = user.name || "";
+  // About shows what this viewer's response carries: the bio, the one desired position,
+  // the job search status and the coarse place. Preferred work locations and the full
+  // position list are not in this response, so they are not shown here.
+  const aboutProps = {
+    bio: about,
+    positions: user.desiredJobTitle ? [user.desiredJobTitle] : [],
+    status: user.availabilityStatus || "",
+    address: place,
+    locations: [],
+    isOwner: false,
+  };
+  const showAbout = hasAboutContent(aboutProps);
+  const nothingToShow = !showAbout && skills.length === 0 && work.length === 0;
 
   return (
     <>
@@ -46,15 +61,12 @@ export default function PersonProfileView({ data, onBack }) {
           </div>
           <div className="rd2-head-main">
             <h1 className="rd2-name">{name}</h1>
-            {user.desiredJobTitle || user.availabilityStatus ? (
+            {user.availabilityStatus ? (
               <div className="rd2-badges">
-                {user.desiredJobTitle ? <span className="rd2-role">{user.desiredJobTitle}</span> : null}
-                {user.availabilityStatus ? (
-                  <span className="rd2-status">
-                    <i className="rd2-dot" />
-                    {user.availabilityStatus}
-                  </span>
-                ) : null}
+                <span className="rd2-status">
+                  <i className="rd2-dot" />
+                  {user.availabilityStatus}
+                </span>
               </div>
             ) : null}
             {place ? <p className="person-line">{place}</p> : null}
@@ -65,9 +77,9 @@ export default function PersonProfileView({ data, onBack }) {
 
       <main className="person-main">
         <div className="person-col">
-          {about ? (
+          {showAbout ? (
             <Section id="pv-about" title={t("person.about")}>
-              <p className="person-about">{about}</p>
+              <ProfileAbout {...aboutProps} />
             </Section>
           ) : null}
           {work.length > 0 ? (
@@ -92,7 +104,7 @@ export default function PersonProfileView({ data, onBack }) {
               </ul>
             </Section>
           ) : null}
-          {empty ? <p className="person-empty">{t("person.empty")}</p> : null}
+          {nothingToShow ? <p className="person-empty">{t("person.empty")}</p> : null}
         </div>
       </main>
     </>
