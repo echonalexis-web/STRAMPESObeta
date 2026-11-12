@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { systemOptionsAPI } from "../services/api";
+import useSegmentedRail from "../hooks/useSegmentedRail";
 
 /**
  * Admin-maintainable catalogs (item 11,
@@ -20,6 +21,7 @@ const CATEGORIES = [
 ];
 
 export default function SystemOptionsSettings() {
+  const railRef = useSegmentedRail();
   const [activeCategory, setActiveCategory] = useState("industry");
   const [options, setOptions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +101,7 @@ export default function SystemOptionsSettings() {
         </p>
       </header>
 
-      <div className="so__tabs" role="tablist" aria-label="Catalog category">
+      <div ref={railRef} className="so__tabs seg-rail" role="tablist" aria-label="Catalog category">
         {CATEGORIES.map((cat) => (
           <button
             key={cat.key}

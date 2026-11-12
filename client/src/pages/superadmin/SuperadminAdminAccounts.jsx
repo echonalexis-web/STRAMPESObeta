@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import useSegmentedRail from "../../hooks/useSegmentedRail";
 import {
   FaUserShield,
   FaUserPlus,
@@ -62,6 +63,7 @@ const STATUS_META = {
 
 // The Managed Admin Accounts function (its own page under the console launcher).
 export default function SuperadminAdminAccounts() {
+  const railRef = useSegmentedRail();
   const { t } = useTranslation();
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -283,7 +285,7 @@ export default function SuperadminAdminAccounts() {
                 </button>
               ) : null}
             </div>
-            <div className="sac__tabs ds-tabs" role="tablist" aria-label={t("superadmin.console.filterLabel")}>
+            <div ref={railRef} className="sac__tabs ds-tabs seg-rail" role="tablist" aria-label={t("superadmin.console.filterLabel")}>
               {FILTERS.map((tab) => (
                 <button
                   key={tab.key}
