@@ -32,6 +32,7 @@ import ResumeViewerModal from "../components/ResumeViewerModal";
 import { useRankedApplicants } from "../hooks/useRankedApplicants";
 import { useSwipeable } from "react-swipeable";
 import { useTranslation } from "react-i18next";
+import useSegmentedRail from "../hooks/useSegmentedRail";
 import PageHero from "../components/PageHero";
 import MetricCard from "../components/MetricCard";
 import ArchivedJobsTab from "../components/ArchivedJobsTab";
@@ -351,6 +352,7 @@ function SwipeableJobCard({
 
 // ===== MAIN COMPONENT =====
 export default function EmployerDashboard() {
+  const railRef = useSegmentedRail();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
@@ -1380,7 +1382,8 @@ export default function EmployerDashboard() {
       />
 
       <div
-        className="employer-tabs emp-segmented ds-tabs ed-tabs"
+        ref={railRef}
+        className="employer-tabs emp-segmented ds-tabs ed-tabs seg-rail"
         role="tablist"
         aria-label={t("employerDashboard.tabs.label")}
         onFocus={(e) => e.target.scrollIntoView?.({ block: "nearest", inline: "nearest" })}
