@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import useSegmentedRail from "../hooks/useSegmentedRail";
 import { jobAPI, displayFileName } from "../services/api";
 import EmployerAvatar from "../components/EmployerAvatar";
 import StateBlock from "../components/StateBlock";
@@ -66,7 +65,6 @@ const TABS = [
 ];
 
 export default function YourApplications() {
-  const railRef = useSegmentedRail();
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -155,7 +153,7 @@ export default function YourApplications() {
       </section>
 
       <div className="jobboard-content">
-        <div ref={railRef} className="app-status-tabs seg-rail" role="tablist" aria-label="Filter applications by status">
+        <div className="app-status-tabs" role="tablist" aria-label="Filter applications by status">
           {TABS.map((tab) => (
             <button
               key={tab.key}

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import useSegmentedRail from "../../hooks/useSegmentedRail";
 import {
   Area,
   Bar,
@@ -169,7 +168,6 @@ const JOB_COLUMNS = [
 ];
 
 export default function Reports() {
-  const railRef = useSegmentedRail();
   const { t } = useTranslation();
   const reduced = usePrefersReducedMotion();
   const [analytics, setAnalytics] = useState(fallbackAnalytics);
@@ -493,7 +491,7 @@ export default function Reports() {
 
       <section className="rpt-records">
         <div className="rpt-records__head">
-          <div ref={railRef} className="rpt-tabs ds-tabs seg-rail" role="tablist" aria-label={t("admin.reports.tabsLabel")}>
+          <div className="rpt-tabs ds-tabs" role="tablist" aria-label={t("admin.reports.tabsLabel")}>
             {TABS.map((entry) => (
               <button
                 key={entry.key}

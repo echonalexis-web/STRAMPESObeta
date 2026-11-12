@@ -1,7 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import useSegmentedRail from "../hooks/useSegmentedRail";
 import {
   FaEnvelope,
   FaMapMarkerAlt,
@@ -264,8 +263,6 @@ const LANGUAGE_SKILLS = [
 ];
 
 export default function ProfilePage({ isAdminView = false, isEmployerView = false }) {
-  const utilityRailRef = useSegmentedRail();
-  const sectionRailRef = useSegmentedRail();
   const { user, setUser } = useContext(AuthContext);
   const { userId } = useParams();
   const location = useLocation();
@@ -913,7 +910,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
           ) : null}
 
           {!isAdmin && !isReadOnly ? (
-            <nav ref={utilityRailRef} className="rd2-utilitynav seg-rail" aria-label="Profile views" onFocus={(e) => e.target.scrollIntoView?.({ block: "nearest", inline: "nearest" })}>
+            <nav className="rd2-utilitynav" aria-label="Profile views" onFocus={(e) => e.target.scrollIntoView?.({ block: "nearest", inline: "nearest" })}>
               <Link to="/profile" className={activeTab === "overview" ? "is-active" : ""} aria-current={activeTab === "overview" ? "page" : undefined}>Overview</Link>
               {!isEmployer ? <Link to="/profile/favorites" className={activeTab === "favorites" ? "is-active" : ""} aria-current={activeTab === "favorites" ? "page" : undefined}>Favorites</Link> : null}
               <Link to="/profile/likes" className={activeTab === "likes" ? "is-active" : ""} aria-current={activeTab === "likes" ? "page" : undefined}>My Likes</Link>
@@ -960,7 +957,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
         ) : null}
 
         {activeTab === "overview" && sectionTabs.length > 0 ? (
-          <nav ref={sectionRailRef} className="rd2-tabs seg-rail" aria-label="Jump to section" onFocus={(e) => e.target.scrollIntoView?.({ block: "nearest", inline: "nearest" })}>
+          <nav className="rd2-tabs" aria-label="Jump to section" onFocus={(e) => e.target.scrollIntoView?.({ block: "nearest", inline: "nearest" })}>
             {sectionTabs.map(([sid, label]) => (
               <button
                 key={sid}

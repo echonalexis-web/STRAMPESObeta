@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import useSegmentedRail from "../../hooks/useSegmentedRail";
 import { Building2, TriangleAlert, UserRound } from "lucide-react";
 import { adminAPI } from "../../services/api";
 import MetricCard from "../../components/MetricCard";
@@ -234,7 +233,6 @@ function buildPageList(current, total) {
 }
 
 export default function UserManagement() {
-  const railRef = useSegmentedRail();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("employers");
@@ -398,7 +396,7 @@ export default function UserManagement() {
         jobseekers={counts.jobseekerCount}
       />
 
-      <div ref={railRef} className="ds-tabs um-tabs seg-rail" role="tablist" aria-label={t("superadmin.users.tabsLabel")}>
+      <div className="ds-tabs um-tabs" role="tablist" aria-label={t("superadmin.users.tabsLabel")}>
         {Object.entries(tabMeta).map(([key, meta]) => (
           <button
             key={key}

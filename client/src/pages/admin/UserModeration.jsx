@@ -1,7 +1,6 @@
 import { useContext, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import useSegmentedRail from "../../hooks/useSegmentedRail";
 import { FaArrowLeft, FaShieldAlt, FaFlag, FaEnvelopeOpenText } from "react-icons/fa";
 import "../../styles/admin.css";
 import "../../styles/moderation.css";
@@ -15,7 +14,6 @@ const TABS = {
 };
 
 export default function UserModeration() {
-  const railRef = useSegmentedRail();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -50,7 +48,7 @@ export default function UserModeration() {
         <FaArrowLeft aria-hidden="true" /> {t("superadmin.moderation.back")}
       </button>
 
-      <div ref={railRef} className="ds-tabs mq-tab-bar seg-rail" role="tablist" aria-label={t("superadmin.moderation.tabsLabel")}>
+      <div className="ds-tabs mq-tab-bar" role="tablist" aria-label={t("superadmin.moderation.tabsLabel")}>
         {Object.entries(visibleTabs).map(([key, meta]) => {
           const badge = tabBadge(key);
           return (

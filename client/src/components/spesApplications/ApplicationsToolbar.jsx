@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import useSegmentedRail from "../../hooks/useSegmentedRail";
 import { Search } from "lucide-react";
 import { APPLICATION_FILTERS } from "../../utils/spesApplications";
 
@@ -7,11 +6,10 @@ export const SEARCH_THRESHOLD = 5;
 
 // Filter chips, sort control and (with more than five applications) a search box.
 export default function ApplicationsToolbar({ filter, onFilter, sort, onSort, query, onQuery, total, counts }) {
-  const railRef = useSegmentedRail();
   const { t } = useTranslation();
   return (
     <div className="spes-toolbar">
-      <div ref={railRef} className="spes-chips seg-rail" role="group" aria-label={t("spes.my.filterLabel")}>
+      <div className="spes-chips" role="group" aria-label={t("spes.my.filterLabel")}>
         {APPLICATION_FILTERS.map((key) => (
           <button
             key={key}

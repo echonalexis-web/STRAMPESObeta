@@ -1,7 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import useSegmentedRail from "../hooks/useSegmentedRail";
 import { FaHeart, FaRegHeart, FaSearch } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { newsAPI, newsLikeAPI } from "../services/api";
@@ -21,7 +20,6 @@ const CATEGORIES = [
 ];
 
 export default function NewsFeed() {
-  const railRef = useSegmentedRail();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
   const isLoggedIn = Boolean(user);
@@ -192,7 +190,7 @@ export default function NewsFeed() {
 
       <section className="news-feed-controls-wrap">
         <div className="news-feed-toolbar">
-          <div ref={railRef} className="news-filter-chips seg-rail" role="tablist" aria-label="News categories">
+          <div className="news-filter-chips" role="tablist" aria-label="News categories">
             {CATEGORIES.map((option) => (
               <button
                 key={option.label}

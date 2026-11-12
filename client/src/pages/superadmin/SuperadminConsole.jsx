@@ -1,7 +1,6 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import useSegmentedRail from "../../hooks/useSegmentedRail";
 import { FaArrowRight, FaFilePdf, FaImages, FaListCheck, FaMagnifyingGlass, FaScaleBalanced, FaUserShield, FaXmark } from "react-icons/fa6";
 import { avatarPresetAPI, bannerTemplateAPI, superadminAPI } from "../../services/api";
 import { ConsoleHero } from "./ConsoleShell";
@@ -55,7 +54,6 @@ const useCardSummaries = () => {
 // The console home: a toolbar (group chips and search) over one grid of cards, each
 // a link to its own page. Summary lines are loaded here; nothing else is.
 export default function SuperadminConsole() {
-  const railRef = useSegmentedRail();
   const { t } = useTranslation();
   const { hash } = useLocation();
   const searchId = useId();
@@ -86,7 +84,7 @@ export default function SuperadminConsole() {
         <ConsoleHero compact title={t("navbar.superadminConsole")} subtitle={t("superadmin.console.subtitle")} />
 
         <div className="scl__toolbar">
-          <div ref={railRef} className="scl__chips seg-rail" role="group" aria-label={t("superadmin.launcher.filterLabel")}>
+          <div className="scl__chips" role="group" aria-label={t("superadmin.launcher.filterLabel")}>
             {chips.map((value) => (
               <button key={value} type="button" className="scl__chip" aria-pressed={group === value} onClick={() => setGroup(value)}>
                 {value === "all" ? t("superadmin.launcher.all") : t(groupKey(value))}

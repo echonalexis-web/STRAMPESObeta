@@ -2,7 +2,6 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { FaCheckCircle, FaClipboardCheck, FaClock, FaEnvelope, FaFileAlt, FaInfoCircle, FaSearch } from "react-icons/fa";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import useSegmentedRail from "../../hooks/useSegmentedRail";
 import { AuthContext } from "../../context/AuthContext";
 import { verificationAPI } from "../../services/api";
 import SecureFileLink from "../../components/SecureFileLink";
@@ -73,7 +72,6 @@ const buildPageList = (current, total) => {
 };
 
 export default function EmployerVerification() {
-  const railRef = useSegmentedRail();
   const { t } = useTranslation();
   const { user } = useContext(AuthContext);
   // Only a plain admin may approve/reject (mirrors the backend guards on
@@ -247,7 +245,7 @@ export default function EmployerVerification() {
         }
       />
 
-      <div ref={railRef} className="ev-tabs seg-rail" role="tablist" aria-label={t("admin.verification.tabsLabel")}>
+      <div className="ev-tabs" role="tablist" aria-label={t("admin.verification.tabsLabel")}>
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.key}
