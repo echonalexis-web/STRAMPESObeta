@@ -114,8 +114,14 @@ const placeOnly = (prof) => {
   return municipality || province ? { presentAddress: { municipality, province } } : {};
 };
 
+// A list of non-empty strings (anything else is dropped).
+const cleanStrings = (value) =>
+  (Array.isArray(value) ? value : [])
+    .filter((item) => typeof item === "string" && item.trim())
+    .map((item) => item.trim());
+
 // The one shape for a viewer who is neither the owner nor staff.
-const jobseekerCard = ({ user, prof, cover, tier }) => {
+const jobseekerCard =({ user, prof, cover, tier }) => {
   const minor = tier === TIERS.MINOR || tier === TIERS.UNDER_15;
   if (minor) {
     return {
@@ -132,9 +138,16 @@ const jobseekerCard = ({ user, prof, cover, tier }) => {
   const workHistory = (Array.isArray(prof?.workHistory) ? prof.workHistory : [])
     .map((job) => pick(job, CARD_WORK_FIELDS))
     .filter((job) => job.position || job.companyName);
+  // Desired job positions (the About card's list). Non-empty text only; absent when empty.
+  const occupations = cleanStrings(prof?.preferredOccupations);
   return {
     user: outUser,
-    profile: { ...(Array.isArray(prof?.skills) && prof.skills.length ? { skills: prof.skills } : {}), ...placeOnly(prof), ...(workHistory.length ? { workHistory } : {}) },
+    profile: {
+      ...(Array.isArray(prof?.skills) && prof.skills.length ? { skills: prof.skills } : {}),
+      ...placeOnly(prof),
+      ...(workHistory.length ? { workHistory } : {}),
+      ...(occupations.length ? { preferredOccupations: occupations } : {}),
+    },
   };
 };
 
@@ -319,6 +332,11 @@ const projectJobseeker = ({ viewer, target, profile, relationship, cover }) => {
   // application to this employer is active or they explicitly shared them (the
   // contact-sharing rule); with no relationship the keys are absent.
   const card = jobseekerCard({ user, prof, cover, tier });
+  // Preferred work locations: employers only (another jobseeker never gets them).
+  const localLocations = cleanStrings(prof?.preferredWorkLocationLocal);
+  const overseasLocations = cleanStrings(prof?.preferredWorkLocationOverseas);
+  if (localLocations.length) card.profile.preferredWorkLocationLocal = localLocations;
+  if (overseasLocations.length) card.profile.preferredWorkLocationOverseas = overseasLocations;
   if (contact.phone && user.phone !== undefined) card.user.phone = user.phone;
   if (contact.email && user.email !== undefined) card.user.email = user.email;
   return { mode, ...card };

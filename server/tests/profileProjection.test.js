@@ -186,6 +186,52 @@ describe("projectJobseeker for owner, staff and peers", () => {
   });
 });
 
+describe("About card fields: desired positions and preferred work locations", () => {
+  const peer = { id: "other", role: "jobseeker" };
+  const withPrefs = () => ({
+    ...profile(),
+    preferredOccupations: [" Clerk ", "", 5, "Administrative Aide"],
+    preferredWorkLocationLocal: ["Boac"],
+    preferredWorkLocationOverseas: ["Japan"],
+  });
+
+  test("another jobseeker gets the desired positions, never the preferred work locations", () => {
+    const out = projection.projectJobseeker({ viewer: peer, target: seeker(), profile: withPrefs(), relationship: {} });
+    expect(out.profile.preferredOccupations).toEqual(["Clerk", "Administrative Aide"]);
+    expect("preferredWorkLocationLocal" in out.profile).toBe(false);
+    expect("preferredWorkLocationOverseas" in out.profile).toBe(false);
+  });
+
+  test("an employer gets the desired positions and the preferred work locations", () => {
+    const out = projection.projectJobseeker({ viewer: employer, target: seeker(), profile: withPrefs(), relationship: {} });
+    expect(out.profile.preferredOccupations).toEqual(["Clerk", "Administrative Aide"]);
+    expect(out.profile.preferredWorkLocationLocal).toEqual(["Boac"]);
+    expect(out.profile.preferredWorkLocationOverseas).toEqual(["Japan"]);
+    FORBIDDEN_PROFILE.forEach((k) => expect(k in out.profile).toBe(false));
+  });
+
+  test("empty or missing lists are absent, not empty arrays", () => {
+    const out = projection.projectJobseeker({ viewer: employer, target: seeker(), profile: { ...profile(), preferredOccupations: [], preferredWorkLocationLocal: [""] }, relationship: {} });
+    ["preferredOccupations", "preferredWorkLocationLocal", "preferredWorkLocationOverseas"].forEach((k) => expect(k in out.profile).toBe(false));
+  });
+
+  test("a 15 to 17 year old peer card does not carry either field", () => {
+    const out = projection.projectJobseeker({ viewer: peer, target: seeker({ dateOfBirth: minorDob }), profile: withPrefs(), relationship: {} });
+    expect("preferredOccupations" in out.profile).toBe(false);
+    expect("preferredWorkLocationLocal" in out.profile).toBe(false);
+  });
+
+  test("a hidden profile with an application stays name and contact only", () => {
+    const out = projection.projectJobseeker({
+      viewer: employer,
+      target: seeker({ privacy: { profileVisibility: "hidden" } }),
+      profile: withPrefs(),
+      relationship: { appliedActive: true, includePhoto: false, sharedFields: {} },
+    });
+    expect(out.profile).toEqual({});
+  });
+});
+
 describe("projectJobseeker peer view: work history and minors", () => {
   const viewer = { id: "other", role: "jobseeker" };
   const withWork = () => ({

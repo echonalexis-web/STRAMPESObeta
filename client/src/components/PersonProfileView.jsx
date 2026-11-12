@@ -30,15 +30,16 @@ export default function PersonProfileView({ data, onBack }) {
   // Present only when the person shared it with this employer, or applied to them.
   const contact = [user.phone, user.email].filter(Boolean).join(" · ");
   const name = user.name || "";
-  // About shows what this viewer's response carries: the bio, the one desired position,
-  // the job search status and the coarse place. Preferred work locations and the full
-  // position list are not in this response, so they are not shown here.
+  // About shows what this viewer's response carries: the bio, the desired positions, the
+  // job search status and the coarse place. Preferred work locations are only in the
+  // employer's response, so another jobseeker simply never sees that part.
+  const asList = (value) => (Array.isArray(value) ? value : []);
   const aboutProps = {
     bio: about,
-    positions: user.desiredJobTitle ? [user.desiredJobTitle] : [],
+    positions: [user.desiredJobTitle, ...asList(profile.preferredOccupations)],
     status: user.availabilityStatus || "",
     address: place,
-    locations: [],
+    locations: [...asList(profile.preferredWorkLocationLocal), ...asList(profile.preferredWorkLocationOverseas)],
     isOwner: false,
   };
   const showAbout = hasAboutContent(aboutProps);
