@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { FaMapMarkerAlt, FaPlus } from "react-icons/fa";
+import { FaGlobeAsia, FaMapMarkerAlt, FaPlus } from "react-icons/fa";
 import useMediaQuery from "../hooks/useMediaQuery";
-import { aboutModel } from "../utils/profileAbout";
+import { aboutModel, splitPlace } from "../utils/profileAbout";
 import "../styles/profile-about.css";
 
 // Phones and small tablets: the bio is clamped to five lines with Show more.
@@ -13,15 +13,25 @@ const NARROW_QUERY = "(max-width: 768px)";
 // other people get. It shows only what it is given: the server decides what each viewer
 // receives. `isOwner` only turns an empty part into an "Add ..." prompt.
 //
-//   bio        the person's own text, shown as written
-//   positions  desired job positions (a list)
-//   status     the job search status as stored, e.g. "Actively Looking"
-//   address    the address text this viewer may see
-//   locations  preferred work locations (a list)
-//   editHref   where the owner's "Add ..." prompts go: { bio, positions, status, address, locations }
-export default function ProfileAbout({ bio, positions, status, address, locations, isOwner = false, editHref = {} }) {
+//   bio                the person's own text, shown as written
+//   positions          desired job positions (a list)
+//   status             the job search status as stored, e.g. "Actively Looking"
+//   address            the address text this viewer may see
+//   localLocations     preferred work locations in the Philippines (a list)
+//   overseasLocations  preferred work locations abroad (a list)
+//   editHref           where the owner's "Add ..." prompts go: { bio, positions, status, address, locations }
+export default function ProfileAbout({
+  bio,
+  positions,
+  status,
+  address,
+  localLocations,
+  overseasLocations,
+  isOwner = false,
+  editHref = {},
+}) {
   const { t } = useTranslation();
-  const model = aboutModel({ bio, positions, status, address, locations, isOwner });
+  const model = aboutModel({ bio, positions, status, address, localLocations, overseasLocations, isOwner });
   const narrow = useMediaQuery(NARROW_QUERY);
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
@@ -46,6 +56,34 @@ export default function ProfileAbout({ bio, positions, status, address, location
       <FaPlus aria-hidden="true" /> {label}
     </Link>
   );
+
+  // One group of place tiles: a pin for places in the Philippines, a globe for abroad.
+  const renderPlaces = (places, kind) => {
+    if (places.length === 0) return null;
+    const Icon = kind === "overseas" ? FaGlobeAsia : FaMapMarkerAlt;
+    return (
+      <div className="pa-places__group">
+        <h4 className="pa-places__group-title">
+          {kind === "overseas" ? t("profileAbout.overseasGroup") : t("profileAbout.localGroup")}
+          <span className="pa-places__count">{places.length}</span>
+        </h4>
+        <ul className="pa-places__grid">
+          {places.map((place) => {
+            const { title, sub } = splitPlace(place);
+            return (
+              <li key={place} className={`pa-place pa-place--${kind}`}>
+                <span className="pa-place__icon" aria-hidden="true"><Icon /></span>
+                <span className="pa-place__text">
+                  <span className="pa-place__title">{title}</span>
+                  {sub ? <span className="pa-place__sub">{sub}</span> : null}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  };
 
   const renderColumn = (col) => {
     const filled = col.state === "filled";
@@ -84,13 +122,15 @@ export default function ProfileAbout({ bio, positions, status, address, location
       default:
         return (
           <>
-            <h3 className="pa-label">{t("profileAbout.locationsTitle")}</h3>
+            <h3 className="pa-label">
+              {t("profileAbout.locationsTitle")}
+              {filled ? <span className="pa-places__count">{model.locations.length}</span> : null}
+            </h3>
             {filled ? (
-              <ul className="pa-chips pa-chips--outline">
-                {model.locations.map((place) => (
-                  <li key={place} className="pa-chip">{place}</li>
-                ))}
-              </ul>
+              <div className="pa-places">
+                {renderPlaces(model.localLocations, "local")}
+                {renderPlaces(model.overseasLocations, "overseas")}
+              </div>
             ) : addPrompt("locations", t("profileAbout.addLocations"))}
           </>
         );
@@ -133,6 +173,7 @@ export default function ProfileAbout({ bio, positions, status, address, location
       ) : null}
       {renderRow(model.rowB)}
       {renderRow(model.rowC)}
+      {renderRow(model.rowD)}
     </div>
   );
 }

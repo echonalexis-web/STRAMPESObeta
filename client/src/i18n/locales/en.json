@@ -703,6 +703,8 @@
     "addStatus": "Add your job search status",
     "addAddress": "Add your address",
     "addLocations": "Add preferred work locations",
+    "localGroup": "In the Philippines",
+    "overseasGroup": "Overseas",
     "showMore": "Show more",
     "showLess": "Show less"
   },

@@ -209,3 +209,108 @@
   outline: 3px solid var(--ds-focus, #0b704b);
   outline-offset: 2px;
 }
+
+/* Preferred work locations: their own full-width section. Each place is a small tile
+   with an icon (pin in the Philippines, globe abroad), the place name in bold and the
+   region muted underneath, grouped under "In the Philippines" and "Overseas". */
+.pa-label .pa-places__count {
+  margin-left: var(--ds-space-2, 8px);
+}
+
+.pa-places {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4, 16px);
+}
+
+.pa-places__group-title {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2, 8px);
+  margin: 0 0 var(--ds-space-2, 8px);
+  color: var(--ds-ink-700, #2f463d);
+  font-family: var(--ds-font-body, inherit);
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 700;
+}
+
+.pa-places__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: var(--ds-radius-pill, 999px);
+  background: var(--ds-mint, #e9f4ed);
+  color: var(--ds-green, #07553a);
+  font-size: var(--ds-text-xs, 0.75rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+}
+
+.pa-places__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: var(--ds-space-3, 12px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pa-place {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3, 12px);
+  min-width: 0;
+  padding: var(--ds-space-3, 12px);
+  border: 1px solid var(--ds-border, #dfe8e3);
+  border-radius: var(--ds-radius-lg, 16px);
+  background: linear-gradient(135deg, var(--ds-mint, #e9f4ed) 0%, var(--ds-surface, #fff) 70%);
+}
+
+.pa-place--overseas {
+  background: linear-gradient(135deg, var(--ds-warning-bg, #fdf3d0) 0%, var(--ds-surface, #fff) 70%);
+}
+
+.pa-place__icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-green, #07553a);
+  color: #fff;
+  font-size: 1rem;
+}
+
+.pa-place--overseas .pa-place__icon {
+  background: var(--ds-gold, #e6b91e);
+  color: var(--ds-ink-900, #10271f);
+}
+
+.pa-place__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.pa-place__title {
+  color: var(--ds-ink-900, #10271f);
+  font-family: var(--ds-font-display, inherit);
+  font-size: var(--ds-text-md, 1rem);
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.pa-place__sub {
+  color: var(--ds-ink-500, #5a6c65);
+  font-size: var(--ds-text-xs, 0.75rem);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}

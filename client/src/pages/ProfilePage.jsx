@@ -698,10 +698,8 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
     positions: [profile?.desiredJobTitle, ...(Array.isArray(profile?.preferredOccupations) ? profile.preferredOccupations : [])],
     status: profile?.availabilityStatus,
     address: presentAddressText || profile?.address,
-    locations: [
-      ...(Array.isArray(profile?.preferredWorkLocationLocal) ? profile.preferredWorkLocationLocal : []),
-      ...(Array.isArray(profile?.preferredWorkLocationOverseas) ? profile.preferredWorkLocationOverseas : []),
-    ],
+    localLocations: Array.isArray(profile?.preferredWorkLocationLocal) ? profile.preferredWorkLocationLocal : [],
+    overseasLocations: Array.isArray(profile?.preferredWorkLocationOverseas) ? profile.preferredWorkLocationOverseas : [],
     isOwner: !isReadOnly,
     editHref: {
       bio: "/profile/edit",

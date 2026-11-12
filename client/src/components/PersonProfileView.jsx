@@ -39,7 +39,8 @@ export default function PersonProfileView({ data, onBack }) {
     positions: [user.desiredJobTitle, ...asList(profile.preferredOccupations)],
     status: user.availabilityStatus || "",
     address: place,
-    locations: [...asList(profile.preferredWorkLocationLocal), ...asList(profile.preferredWorkLocationOverseas)],
+    localLocations: asList(profile.preferredWorkLocationLocal),
+    overseasLocations: asList(profile.preferredWorkLocationOverseas),
     isOwner: false,
   };
   const showAbout = hasAboutContent(aboutProps);

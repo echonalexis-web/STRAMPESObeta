@@ -703,6 +703,8 @@
     "addStatus": "Idagdag ang iyong katayuan sa paghahanap ng trabaho",
     "addAddress": "Idagdag ang iyong address",
     "addLocations": "Magdagdag ng mga gustong lugar ng trabaho",
+    "localGroup": "Sa Pilipinas",
+    "overseasGroup": "Sa ibang bansa",
     "showMore": "Magpakita pa",
     "showLess": "Magpakita ng kaunti"
   },
