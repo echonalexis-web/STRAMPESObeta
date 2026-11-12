@@ -693,6 +693,13 @@
     "next": "Next",
     "pageOf": "Page {{page}} of {{total}}"
   },
+  "suggest": {
+    "placeholder": "Start typing...",
+    "listLabel": "Suggestions",
+    "noMatch": "No match. You can keep what you typed.",
+    "count_one": "{{count}} suggestion available. Use the up and down arrows, Enter to choose.",
+    "count_other": "{{count}} suggestions available. Use the up and down arrows, Enter to choose."
+  },
   "jobBoard": {
     "heroTitle": "Find work that",
     "heroAccent": "fits your future.",

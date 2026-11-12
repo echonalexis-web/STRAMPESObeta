@@ -77,6 +77,7 @@ const getAppealWindowDays = async () => {
 // client origin, then localhost dev. (Moved to utils/clientUrl.js so other
 // services can build the same absolute links — see that file.)
 const { clientBaseUrl } = require("../utils/clientUrl");
+const { tidyCitizenship, tidyNamedList } = require("../utils/profileText");
 
 const PASSWORD_RESET_TTL_MINUTES = 30;
 const EMAIL_CHANGE_TTL_MINUTES = 30;
@@ -2235,7 +2236,7 @@ exports.updateProfile = async (req, res) => {
         profileData.civilStatusOther = allFields.civilStatusOther || null;
       }
       if (allFields.placeOfBirth !== undefined) profileData.placeOfBirth = allFields.placeOfBirth || null;
-      if (allFields.citizenship !== undefined) profileData.citizenship = allFields.citizenship || null;
+      if (allFields.citizenship !== undefined) profileData.citizenship = tidyCitizenship(allFields.citizenship) || null;
       if (allFields.height !== undefined) profileData.height = allFields.height ? parseFloat(allFields.height) : null;
       if (allFields.heightUnit !== undefined) profileData.heightUnit = normalizeHeightUnit(allFields.heightUnit);
       if (allFields.weight !== undefined) profileData.weight = allFields.weight ? parseFloat(allFields.weight) : null;
@@ -2310,8 +2311,8 @@ exports.updateProfile = async (req, res) => {
       // Work history / training / eligibility / licenses
       if (allFields.workHistory !== undefined) profileData.workHistory = parseJSON(allFields.workHistory, []);
       if (allFields.vocationalTrainings !== undefined) profileData.vocationalTrainings = parseJSON(allFields.vocationalTrainings, []);
-      if (allFields.eligibilities !== undefined) profileData.eligibilities = parseJSON(allFields.eligibilities, []);
-      if (allFields.professionalLicenses !== undefined) profileData.professionalLicenses = parseJSON(allFields.professionalLicenses, []);
+      if (allFields.eligibilities !== undefined) profileData.eligibilities = tidyNamedList(parseJSON(allFields.eligibilities, []));
+      if (allFields.professionalLicenses !== undefined) profileData.professionalLicenses = tidyNamedList(parseJSON(allFields.professionalLicenses, []));
     } else if (currentUser.role === "employer") {
       profileData = {};
       if (allFields.tradeName !== undefined) profileData.tradeName = allFields.tradeName || null;

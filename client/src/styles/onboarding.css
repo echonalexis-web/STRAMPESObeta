@@ -1575,3 +1575,52 @@
   .onboarding-fields textarea,
   .skills-entry-row input { font-size: 15px; }
 }
+
+/* =============================================================
+   Rich autosuggest (profile wizard: Citizenship, Eligibility, PRC license).
+   Opt-in through .autosuggest--rich; the plain autosuggest is unchanged.
+   Rows are 44px tall for touch, the list can open upward when there is no
+   room below, and "No match" is a quiet row, not an error.
+   ============================================================= */
+.autosuggest--rich .autosuggest-list li {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  overflow-wrap: anywhere;
+}
+
+.autosuggest--rich .autosuggest-list--up,
+.autosuggest--rich .autosuggest-empty--up {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.autosuggest--rich .autosuggest-list {
+  overscroll-behavior: contain;
+}
+
+.autosuggest-empty {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  padding: 12px;
+  background: var(--ob-neutral-0);
+  border: 1px solid var(--ob-neutral-200);
+  border-radius: var(--ob-radius-sm);
+  box-shadow: var(--ob-shadow-md);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ob-neutral-700, #4a5a54);
+}
+
+.autosuggest--rich input:focus-visible {
+  outline: 3px solid var(--ob-focus, #0b704b);
+  outline-offset: 2px;
+}

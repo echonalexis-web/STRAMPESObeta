@@ -9,6 +9,7 @@ import LocationSelect from "../../components/LocationSelect";
 import { parseLocationValue } from "../../utils/locationParser";
 import LocationAutosuggest from "../../components/LocationAutosuggest";
 import Autosuggest from "../../components/Autosuggest";
+import { NATIONALITIES, CIVIL_SERVICE_ELIGIBILITIES, PRC_PROFESSIONS } from "../../data/profileSuggestions";
 import SearchableDropdown from "../../components/SearchableDropdown";
 import AvatarPicker from "../../components/AvatarPicker";
 import { usePersistentState } from "../../hooks/usePersistentState";
@@ -1217,7 +1218,17 @@ export default function JobSeekerOnboarding() {
             </h3>
             {form.eligibilities.map((entry, i) => (
               <RepeatEntryCard key={i} title={`Eligibility ${i + 1}`} onRemove={() => removeListItem("eligibilities", i)} disabled={saving}>
-                <label>Eligibility <input type="text" value={entry.name || ""} onChange={e => updateListItem("eligibilities", i, "name", e.target.value)} disabled={saving} /></label>
+                <label>Eligibility
+                  <Autosuggest
+                    enhanced
+                    value={entry.name || ""}
+                    onChange={(v) => updateListItem("eligibilities", i, "name", v)}
+                    options={CIVIL_SERVICE_ELIGIBILITIES}
+                    placeholder={t("suggest.placeholder")}
+                    maxLength={120}
+                    disabled={saving}
+                  />
+                </label>
                 <div className="onboarding-field-grid">
                   <label>Rating <input type="text" value={entry.rating || ""} onChange={e => updateListItem("eligibilities", i, "rating", e.target.value)} disabled={saving} /></label>
                   <label>Date of Examination <input type="date" value={entry.examDate || ""} onChange={e => updateListItem("eligibilities", i, "examDate", e.target.value)} disabled={saving} /></label>
@@ -1235,7 +1246,17 @@ export default function JobSeekerOnboarding() {
             {form.professionalLicenses.map((entry, i) => (
               <RepeatEntryCard key={i} title={`License ${i + 1}`} onRemove={() => removeListItem("professionalLicenses", i)} disabled={saving}>
                 <div className="onboarding-field-grid">
-                  <label>License <input type="text" value={entry.name || ""} onChange={e => updateListItem("professionalLicenses", i, "name", e.target.value)} disabled={saving} /></label>
+                  <label>License
+                    <Autosuggest
+                      enhanced
+                      value={entry.name || ""}
+                      onChange={(v) => updateListItem("professionalLicenses", i, "name", v)}
+                      options={PRC_PROFESSIONS}
+                      placeholder={t("suggest.placeholder")}
+                      maxLength={120}
+                      disabled={saving}
+                    />
+                  </label>
                   <label>Valid Until <input type="date" value={entry.validUntil || ""} onChange={e => updateListItem("professionalLicenses", i, "validUntil", e.target.value)} disabled={saving} /></label>
                 </div>
               </RepeatEntryCard>
@@ -1273,7 +1294,18 @@ export default function JobSeekerOnboarding() {
                     ))}
                   </select>
                 </label>
-                <label>Citizenship <input type="text" value={form.citizenship || ""} onChange={e => updateField("citizenship", e.target.value)} disabled={saving} /></label>
+                <label>Citizenship
+                  <Autosuggest
+                    id="citizenship"
+                    enhanced
+                    value={form.citizenship || ""}
+                    onChange={(v) => updateField("citizenship", v)}
+                    options={NATIONALITIES}
+                    placeholder={t("suggest.placeholder")}
+                    maxLength={50}
+                    disabled={saving}
+                  />
+                </label>
               </div>
               {form.civilStatus === CIVIL_STATUS_OTHER && (
                 <label>{t("profile.civilStatus.specifyLabel")}

@@ -693,6 +693,13 @@
     "next": "Susunod",
     "pageOf": "Pahina {{page}} ng {{total}}"
   },
+  "suggest": {
+    "placeholder": "Simulang mag-type...",
+    "listLabel": "Mga mungkahi",
+    "noMatch": "Walang tugma. Maaari mong panatilihin ang itinype mo.",
+    "count_one": "{{count}} mungkahi ang available. Gamitin ang pataas at pababang arrow, Enter para pumili.",
+    "count_other": "{{count}} mungkahi ang available. Gamitin ang pataas at pababang arrow, Enter para pumili."
+  },
   "jobBoard": {
     "heroTitle": "Maghanap ng trabahong",
     "heroAccent": "akma sa iyong kinabukasan.",
