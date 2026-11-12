@@ -76,6 +76,7 @@ const seekerProfile = () => ({
   skills: ["welding", "fitting"],
   languageProficiency: { English: { read: true, write: true } },
   preferredOccupations: ["Welder"],
+  preferredWorkLocationLocal: ["Boac"],
   vocationalTrainings: [{ course: "TESDA" }],
   workHistory: [{ companyName: "Mart", address: "Employer street", position: "Welder", dateFrom: "2019-01", dateTo: "2021-06", status: "Terminated" }],
   toObject,
@@ -126,8 +127,11 @@ const FORBIDDEN_USER = [
   "address", "ageTier",
 ];
 const FORBIDDEN_PROFILE = [
-  "tin", "permanentAddress", "course", "schoolAttended", "yearGraduated", "languageProficiency", "preferredOccupations", "vocationalTrainings",
+  "tin", "permanentAddress", "course", "schoolAttended", "yearGraduated", "languageProficiency", "vocationalTrainings",
 ];
+// Approved addition: the desired positions go to every other viewer; the preferred work
+// locations go to employers only (never another jobseeker).
+const LOCATION_FIELDS = ["preferredWorkLocationLocal", "preferredWorkLocationOverseas"];
 const ALLOWED_USER = ["_id", "about", "availabilityStatus", "avatarPreset", "cover", "desiredJobTitle", "name", "profileImage", "role", "skills"];
 
 const bodyOf = (res) => res.body;
@@ -144,12 +148,15 @@ const expectCard = (res) => {
   expect(user.about).toBe("I weld for a living.");
   expect(user.skills).toEqual(["welding"]);
   expect(profile.workHistory).toEqual([{ position: "Welder", companyName: "Mart", dateFrom: "2019-01", dateTo: "2021-06" }]);
+  expect(profile.preferredOccupations).toEqual(["Welder"]);
 };
 
 describe.each(MOUNTS)("another viewer sees only the header, About, Work experience and Skills (%s)", (mount) => {
   test("another jobseeker", async () => {
     wire();
-    expectCard(await request(appFor(PEER)).get(`${mount}/${ID}`));
+    const res = await request(appFor(PEER)).get(`${mount}/${ID}`);
+    expectCard(res);
+    LOCATION_FIELDS.forEach((key) => expect(key in res.body.profile).toBe(false));
   });
 
   test("an employer with no relationship: the same card, no contact keys", async () => {
@@ -157,6 +164,8 @@ describe.each(MOUNTS)("another viewer sees only the header, About, Work experien
     const res = await request(appFor(EMP)).get(`${mount}/${ID}`);
     expectCard(res);
     expect(res.body.mode).toBe("hiring");
+    // An employer also gets the preferred work locations (when the person has any).
+    expect(res.body.profile.preferredWorkLocationLocal).toEqual(["Boac"]);
   });
 
   test("an employer sees contact only for an active application or an explicit share", async () => {
