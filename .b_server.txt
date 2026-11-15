@@ -1,0 +1,330 @@
+
+> server@1.0.0 test
+> jest --passWithNoTests
+
+PASS tests/employerProfileView.test.js (20.958 s)
+PASS tests/authController.username.test.js (23.861 s)
+PASS tests/bannerTemplateUpload.test.js (26.493 s)
+PASS tests/routesNotGated.test.js (27.144 s)
+PASS tests/accountRecovery.test.js (29.173 s)
+PASS tests/adminJobAndNsrpTemplates.test.js (29.789 s)
+PASS tests/matchWeights.test.js (8.803 s)
+PASS tests/officeReset.test.js (7.725 s)
+PASS tests/ageRegistration.test.js (5.575 s)
+PASS tests/usernameSignupRegister.test.js (7.649 s)
+PASS tests/registerUsername.test.js (5.497 s)
+PASS tests/spesLifecycle.test.js (6.283 s)
+PASS tests/signupHardening.test.js (7.961 s)
+PASS tests/staffAccountRecovery.test.js (7.133 s)
+  ● Console
+
+    console.warn
+      {"timestamp":"2026-11-11T14:51:49.503Z","level":"warn","message":"Request rejected","operation":"POST /review/:id","userId":"507f1f77bcf86cd799439011","role":"admin","status":403,"error":"Only active jobseeker accounts can recover online. Employer and staff accounts require in-person verification."}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write [as warn] (utils/logger.js:38:22)
+      at warn (utils/sendError.js:57:14)
+      at logFailure (utils/sendError.js:65:3)
+      at sendError (controllers/accountRecoveryController.js:235:28)
+
+    console.warn
+      {"timestamp":"2026-11-11T14:51:49.619Z","level":"warn","message":"Request rejected","operation":"POST /review/:id","userId":"507f1f77bcf86cd799439011","role":"admin","status":403,"error":"Only active jobseeker accounts can recover online. Employer and staff accounts require in-person verification."}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write [as warn] (utils/logger.js:38:22)
+      at warn (utils/sendError.js:57:14)
+      at logFailure (utils/sendError.js:65:3)
+      at sendError (controllers/accountRecoveryController.js:235:28)
+
+    console.warn
+      {"timestamp":"2026-11-11T14:51:49.642Z","level":"warn","message":"Request rejected","operation":"POST /review/:id","userId":"507f1f77bcf86cd799439011","role":"admin","status":403,"error":"Only active jobseeker accounts can recover online. Employer and staff accounts require in-person verification."}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write [as warn] (utils/logger.js:38:22)
+      at warn (utils/sendError.js:57:14)
+      at logFailure (utils/sendError.js:65:3)
+      at sendError (controllers/accountRecoveryController.js:235:28)
+
+    console.warn
+      {"timestamp":"2026-11-11T14:51:49.659Z","level":"warn","message":"Request rejected","operation":"POST /review/:id","userId":"507f1f77bcf86cd799439011","role":"admin","status":400,"error":"Confirm contact possession and match both identity documents before approval"}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write [as warn] (utils/logger.js:38:22)
+      at warn (utils/sendError.js:57:14)
+      at logFailure (utils/sendError.js:65:3)
+      at sendError (controllers/accountRecoveryController.js:235:28)
+
+    console.warn
+      {"timestamp":"2026-11-11T14:51:49.674Z","level":"warn","message":"Request rejected","operation":"POST /review/:id","userId":"507f1f77bcf86cd799439011","role":"admin","status":403,"error":"Only active jobseeker accounts can recover online. Employer and staff accounts require in-person verification."}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write [as warn] (utils/logger.js:38:22)
+      at warn (utils/sendError.js:57:14)
+      at logFailure (utils/sendError.js:65:3)
+      at sendError (controllers/accountRecoveryController.js:235:28)
+
+    console.warn
+      {"timestamp":"2026-11-11T14:51:49.694Z","level":"warn","message":"Request rejected","operation":"POST /review/:id","userId":"507f1f77bcf86cd799439011","role":"admin","status":400,"error":"An ID already on file, submitted ID and selfie are required for online recovery. Direct this person to the PESO counter."}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write [as warn] (utils/logger.js:38:22)
+      at warn (utils/sendError.js:57:14)
+      at logFailure (utils/sendError.js:65:3)
+      at sendError (controllers/accountRecoveryController.js:235:28)
+
+    console.warn
+      {"timestamp":"2026-11-11T14:51:49.712Z","level":"warn","message":"Request rejected","operation":"POST /review/:id","userId":"507f1f77bcf86cd799439011","role":"admin","status":403,"error":"Only active jobseeker accounts can recover online. Employer and staff accounts require in-person verification."}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write [as warn] (utils/logger.js:38:22)
+      at warn (utils/sendError.js:57:14)
+      at logFailure (utils/sendError.js:65:3)
+      at sendError (controllers/accountRecoveryController.js:235:28)
+
+    console.warn
+      {"timestamp":"2026-11-11T14:51:49.770Z","level":"warn","message":"Request rejected","operation":"POST /review/:id","userId":"507f1f77bcf86cd799439011","role":"admin","status":409,"error":"This request changed or expired. Reload before reviewing."}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write [as warn] (utils/logger.js:38:22)
+      at warn (utils/sendError.js:57:14)
+      at logFailure (utils/sendError.js:65:3)
+      at sendError (controllers/accountRecoveryController.js:235:28)
+
+    console.warn
+      {"timestamp":"2026-11-11T14:51:49.863Z","level":"warn","message":"Request rejected","operation":"POST /finish","userId":"507f1f77bcf86cd799439011","role":"admin","status":400,"error":"This recovery link is invalid or expired"}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write [as warn] (utils/logger.js:38:22)
+      at warn (utils/sendError.js:57:14)
+      at logFailure (utils/sendError.js:65:3)
+      at sendError (controllers/accountRecoveryController.js:316:28)
+
+    console.warn
+      {"timestamp":"2026-11-11T14:51:49.882Z","level":"warn","message":"Request rejected","operation":"POST /finish","userId":"507f1f77bcf86cd799439011","role":"admin","status":400,"error":"This recovery link is invalid or expired"}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write [as warn] (utils/logger.js:38:22)
+      at warn (utils/sendError.js:57:14)
+      at logFailure (utils/sendError.js:65:3)
+      at sendError (controllers/accountRecoveryController.js:316:28)
+
+    console.warn
+      {"timestamp":"2026-11-11T14:51:49.899Z","level":"warn","message":"Request rejected","operation":"POST /finish","userId":"507f1f77bcf86cd799439011","role":"admin","status":400,"error":"This recovery link is invalid or expired"}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write [as warn] (utils/logger.js:38:22)
+      at warn (utils/sendError.js:57:14)
+      at logFailure (utils/sendError.js:65:3)
+      at sendError (controllers/accountRecoveryController.js:316:28)
+
+PASS tests/server_tests.js (7.02 s)
+PASS tests/onboardingPhone.test.js (6.073 s)
+PASS tests/loginLockout.test.js (6.833 s)
+PASS tests/builtInAndAvatarPresets.test.js (42.275 s)
+PASS tests/activeStatus.test.js (7.979 s)
+PASS tests/passwordPolicy.test.js (7.582 s)
+PASS tests/profileLimitedView.test.js (5.468 s)
+PASS tests/userChangePassword.test.js (6.878 s)
+  ● Console
+
+    console.error
+      {"timestamp":"2026-11-11T14:51:58.376Z","level":"error","message":"Request failed","userId":null,"role":null,"status":500,"error":"dummy write failure","stack":"Error: dummy write failure\n    at Object.<anonymous> (C:\\Users\\User\\Desktop\\STRAMPESO_V1A\\server\\tests\\userChangePassword.test.js:50:31)\n    at Promise.then.completed (C:\\Users\\User\\Desktop\\STRAMPESO_V1A\\server\\node_modules\\jest-circus\\build\\utils.js:298:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (C:\\Users\\User\\Desktop\\STRAMPESO_V1A\\server\\node_modules\\jest-circus\\build\\utils.js:231:10)\n    at _callCircusTest (C:\\Users\\User\\Desktop\\STRAMPESO_V1A\\server\\node_modules\\jest-circus\\build\\run.js:316:40)\n    at _runTest (C:\\Users\\User\\Desktop\\STRAMPESO_V1A\\server\\node_modules\\jest-circus\\build\\run.js:252:3)\n    at _runTestsForDescribeBlock (C:\\Users\\User\\Desktop\\STRAMPESO_V1A\\server\\node_modules\\jest-circus\\build\\run.js:126:9)\n    at run (C:\\Users\\User\\Desktop\\STRAMPESO_V1A\\server\\node_modules\\jest-circus\\build\\run.js:71:3)\n    at runAndTransformResultsToJestFormat (C:\\Users\\User\\Desktop\\STRAMPESO_V1A\\server\\node_modules\\jest-circus\\build\\legacy-code-todo-rewrite\\jestAdapterInit.js:122:21)\n    at jestAdapter (C:\\Users\\User\\Desktop\\STRAMPESO_V1A\\server\\node_modules\\jest-circus\\build\\legacy-code-todo-rewrite\\jestAdapter.js:79:19)\n    at runTestInternal (C:\\Users\\User\\Desktop\\STRAMPESO_V1A\\server\\node_modules\\jest-runner\\build\\runTest.js:367:16)\n    at runTest (C:\\Users\\User\\Desktop\\STRAMPESO_V1A\\server\\node_modules\\jest-runner\\build\\runTest.js:444:34)\n    at Object.worker (C:\\Users\\User\\Desktop\\STRAMPESO_V1A\\server\\node_modules\\jest-runner\\build\\testWorker.js:106:12)"}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write (utils/logger.js:39:23)
+      at error (utils/sendError.js:55:14)
+      at logFailure (utils/sendError.js:65:3)
+      at sendError (controllers/userController.js:313:5)
+      at Object.<anonymous> (tests/userChangePassword.test.js:51:3)
+
+PASS tests/spesUploadLimits.test.js
+PASS tests/applyToJob.postCommit.test.js (7.071 s)
+PASS tests/coverUpload.test.js (7.119 s)
+PASS tests/devLinks.test.js (5.706 s)
+PASS tests/recoveryPhone.test.js
+PASS tests/reportsAdminScope.test.js (5.291 s)
+PASS tests/spesPostingController.test.js (6.352 s)
+PASS tests/ageAccess.test.js (6.058 s)
+PASS tests/setPassword.test.js (6.22 s)
+  ● Console
+
+    console.error
+      {"timestamp":"2026-11-11T14:52:05.813Z","level":"error","message":"Failed to send password-added notification email","userId":"507f1f77bcf86cd799439011","error":"smtp down"}
+
+    [0m [90m 32 |[39m }[33m;[39m
+     [90m 33 |[39m
+    [31m[1m>[22m[39m[90m 34 |[39m [36mconst[39m write [33m=[39m (level[33m,[39m stream[33m,[39m args) [33m=>[39m stream(format(level[33m,[39m args))[33m;[39m
+     [90m    |[39m                                        [31m[1m^[22m[39m
+     [90m 35 |[39m
+     [90m 36 |[39m module[33m.[39mexports [33m=[39m {
+     [90m 37 |[39m   info[33m:[39m ([33m...[39margs) [33m=>[39m write([32m"info"[39m[33m,[39m console[33m.[39mlog[33m,[39m args)[33m,[39m[0m
+
+      at stream (utils/logger.js:34:40)
+      at Object.write (utils/logger.js:39:23)
+      at error (controllers/authController.js:775:14)
+
+PASS tests/nsrpFormService.test.js
+PASS tests/idOcrIntegration.test.js (5.974 s)
+PASS tests/spesCoverAndNotice.test.js (5.225 s)
+PASS tests/staffRecoveryDelivery.test.js (5.078 s)
+PASS tests/profileProjection.test.js
+PASS tests/publicPayloads.test.js
+PASS tests/bannerTemplates.test.js (5.242 s)
+PASS tests/notificationUnsubscribe.test.js
+PASS tests/coverTemplatePick.test.js
+PASS tests/profileView.test.js
+PASS tests/emailCodeRoutes.test.js
+PASS tests/idFileAudit.test.js
+PASS tests/contactShare.test.js
+PASS tests/spesPostingService.test.js
+PASS tests/postCommit.flows.test.js
+PASS tests/systemOptionCatalog.test.js
+PASS tests/civilStatusOther.test.js
+PASS tests/jobApplicationEligibility.test.js
+PASS tests/applicantPayloads.test.js
+PASS tests/searchAndMinors.test.js
+PASS tests/newsRealtime.test.js
+PASS tests/sendError.test.js
+PASS tests/verifyToken.test.js
+PASS tests/spesPostingPure.test.js
+PASS tests/usernameSignupModel.test.js
+PASS tests/followListsPrivacy.test.js
+PASS tests/semanticService.dimensions.test.js
+PASS tests/ocrWorkerBoundary.test.js
+PASS tests/emailCodeUtils.test.js
+PASS tests/notificationService.email.test.js
+PASS tests/age.test.js
+PASS tests/username.test.js
+PASS tests/mongoRateLimitStore.test.js
+  ● Console
+
+    console.error
+      ValidationError: The hit count for ::ffff:127.0.0.1 was incremented more than once for a single request. See https://express-rate-limit.github.io/ERR_ERL_DOUBLE_COUNT/ for more information.
+          at Object.singleCount (C:\Users\User\Desktop\STRAMPESO_V1A\server\node_modules\express-rate-limit\dist\index.cjs:240:13)
+          at Object.wrappedValidations.<computed> [as singleCount] (C:\Users\User\Desktop\STRAMPESO_V1A\server\node_modules\express-rate-limit\dist\index.cjs:397:22)
+          at C:\Users\User\Desktop\STRAMPESO_V1A\server\node_modules\express-rate-limit\dist\index.cjs:729:26
+          at processTicksAndRejections (node:internal/process/task_queues:105:5)
+          at C:\Users\User\Desktop\STRAMPESO_V1A\server\node_modules\express-rate-limit\dist\index.cjs:691:5 {
+        code: 'ERR_ERL_DOUBLE_COUNT',
+        help: 'https://express-rate-limit.github.io/ERR_ERL_DOUBLE_COUNT/'
+      }
+
+      at Object.wrappedValidations.<computed> [as singleCount] (node_modules/express-rate-limit/dist/index.cjs:403:24)
+      at node_modules/express-rate-limit/dist/index.cjs:729:26
+      at node_modules/express-rate-limit/dist/index.cjs:691:5
+
+PASS tests/governmentIdFormats.test.js
+PASS tests/ocrService.test.js
+PASS tests/emailOutboxService.test.js
+PASS tests/unitFields.test.js
+PASS tests/phoneAndGuards.test.js
+PASS tests/emailUnsubscribe.test.js
+PASS tests/canPersonalize.test.js
+PASS tests/memoizeString.test.js
+PASS tests/profileCompleteness.test.js
+PASS tests/userSaveValidation.test.js
+PASS tests/spesFileAccess.test.js
+A worker process has failed to exit gracefully and has been force exited. This is likely caused by tests leaking due to improper teardown. Try running with --detectOpenHandles to find leaks. Active timers can also cause this, ensure that .unref() was called on them.
+
+Test Suites: 75 passed, 75 total
+Tests:       1394 passed, 1394 total
+Snapshots:   0 total
+Time:        67.626 s, estimated 68 s
+Ran all test suites.
+done 0

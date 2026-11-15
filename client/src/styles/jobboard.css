@@ -3264,3 +3264,16 @@ button:disabled,
   color: var(--ds-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* Phones: leave room under the list and pager for the fixed help and chat
+   buttons (about 130px stacked, bottom right), and size the loading card like
+   the compact job card. Mitigation only: the buttons are global and fixed. */
+@media (max-width: 599px) {
+  .jb-main {
+    padding-bottom: calc(var(--ds-space-6, 24px) + 140px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .jb-sk-card {
+    min-height: 134px;
+  }
+}

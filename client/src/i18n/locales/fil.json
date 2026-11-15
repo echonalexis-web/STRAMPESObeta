@@ -715,6 +715,52 @@
     "count_one": "{{count}} mungkahi ang available. Gamitin ang pataas at pababang arrow, Enter para pumili.",
     "count_other": "{{count}} mungkahi ang available. Gamitin ang pataas at pababang arrow, Enter para pumili."
   },
+  "profileEditor": {
+    "sectionsNav": "Mga seksyon ng profile",
+    "stillToDo": "Natitirang gawin:",
+    "statusComplete": "Kumpleto",
+    "statusTodo": "Gagawin",
+    "ringLabel": "{{percent}}% kumpleto ang profile",
+    "help": {
+      "profile": "Ang iyong pangalan at mga detalye sa pakikipag-ugnayan.",
+      "employerProfile": "Ang mga detalye ng iyong kumpanya at contact person.",
+      "career": "Ang trabahong gusto mo at ang mga kasanayang dala mo.",
+      "training": "Ang iyong mga pagsasanay at civil service eligibility.",
+      "nsrp": "Mga detalyeng ginagamit sa form ng National Service and Referral Program (NSRP).",
+      "documents": "Ang iyong resume at balidong ID."
+    },
+    "unsaved": "May hindi pa nase-save na pagbabago",
+    "allSaved": "Naka-save ang lahat ng pagbabago",
+    "savedNote": "Nase-save ang mga field kapag pinindot mo ang Save Profile.",
+    "discard": "I-discard",
+    "discardTitle": "I-discard ang mga pagbabago?",
+    "discardMessage": "Ibabalik ang iyong mga binago sa huling na-save na bersyon.",
+    "discardConfirm": "I-discard ang mga pagbabago",
+    "keepEditing": "Ituloy ang pag-edit",
+    "whyWeAsk": "Bakit namin ito itinatanong"
+  },
+  "vacancy": {
+    "compact": {
+      "mustHavesOf": "{{met}} sa {{total}} na kailangan",
+      "noMustHaves": "Walang nakalistang kailangan",
+      "moreDetails": "Detalye at pag-apply",
+      "matchSummary": "{{tier}} na tugma: natutugunan mo ang {{met}} sa {{total}} na kailangan",
+      "matchSummaryNoCount": "{{tier}} na tugma",
+      "estimatedFit": "Tinatayang tugma",
+      "estimated": "tantya",
+      "companyPosted": "{{company}} · nai-post {{posted}}",
+      "expand": "Ipakita ang detalye ng tugma para sa {{title}}",
+      "collapse": "Itago ang detalye ng tugma para sa {{title}}",
+      "viewDetails": "Tingnan ang detalye",
+      "viewDetailsFor": "Tingnan ang detalye ng {{title}}",
+      "viewOnlyShort": "Pagtingin lang",
+      "viewOnlyAge": "Pagtingin lang: maaari kang mag-apply mula edad 18.",
+      "applied": "Nag-apply na",
+      "missing": "Kulang: {{list}}",
+      "applicants": "{{count}} ang nag-apply",
+      "postedAgo": "nai-post {{posted}}"
+    }
+  },
   "jobBoard": {
     "heroTitle": "Maghanap ng trabahong",
     "heroAccent": "akma sa iyong kinabukasan.",
@@ -756,7 +802,14 @@
   "news": {
     "readStory": "Basahin ang balita",
     "moreFrom": "Iba pa mula sa STRAM PESO",
-    "readMore": "Magbasa pa"
+    "readMore": "Magbasa pa",
+    "filters": {
+      "dateGroup": "I-filter ayon sa petsa",
+      "dateFrom": "Mula",
+      "dateTo": "Hanggang",
+      "clear": "I-clear ang mga filter",
+      "emptyFiltered": "Walang anunsyong tumutugma sa mga filter na ito. Subukan ang mas malawak na saklaw ng petsa o ibang kategorya."
+    }
   },
   "presence": {
     "activeNow": "Aktibo ngayon",
@@ -1364,6 +1417,37 @@
     },
     "copyright": "© {{year}} STRAM PESO. Lahat ng karapatan ay nakalaan.",
     "secureServices": "Ligtas na serbisyo ng account"
+  },
+  "changePassword": {
+    "eyebrow": "Seguridad ng account",
+    "eyebrowForced": "Kailangan ng aksyon",
+    "title": "Palitan ang password",
+    "titleForced": "Itakda ang iyong password",
+    "subtitle": "I-update ang password na ginagamit mo sa pag-sign in.",
+    "subtitleForced": "Ginawa ang iyong account gamit ang pansamantalang password. Pumili ng sarili mong password para magpatuloy.",
+    "currentLabel": "Kasalukuyang password",
+    "temporaryLabel": "Pansamantalang password",
+    "newLabel": "Bagong password",
+    "confirmLabel": "Kumpirmahin ang bagong password",
+    "requirementsTitle": "Kailangan ng iyong bagong password",
+    "reqLength": "Hindi bababa sa 8 character",
+    "reqMatch": "Tugma sa kumpirmasyon",
+    "show": "Ipakita ang password",
+    "hide": "Itago ang password",
+    "submit": "I-save ang password",
+    "saving": "Sine-save…",
+    "backToSettings": "Bumalik sa settings",
+    "logout": "Mag-log out",
+    "errors": {
+      "fillCurrentNew": "Ilagay ang iyong kasalukuyan at bagong password.",
+      "tooShort": "Dapat hindi bababa sa 8 character ang iyong bagong password.",
+      "mismatch": "Hindi magkatugma ang bagong password at ang kumpirmasyon nito.",
+      "generic": "Hindi napalitan ang iyong password. Pakisubukang muli."
+    },
+    "tipsTitle": "Panatilihing ligtas ang iyong account",
+    "tip1": "Gumamit ng mahabang password na hindi mo ginagamit saanman.",
+    "tip2": "Iwasan ang mga pangalan, kaarawan at iba pang madaling hulaan.",
+    "tip3": "Maglo-log out ka sa iyong ibang device pagkatapos ng pagpapalit."
   },
   "resultModal": {
     "close": "Isara",
@@ -2468,6 +2552,20 @@
     "removeError": "Hindi maalis ang cover na larawan.",
     "editorTitle": "Ayusin ang cover mo"
   },
+  "profileCard": {
+    "loading": "Naglo-load ng profile",
+    "unavailable": "Hindi available ang profile na ito.",
+    "error": "Hindi ma-load ang profile na ito.",
+    "verified": "Beripikado",
+    "view": "Tingnan ang profile",
+    "viewOwn": "Tingnan ang iyong profile",
+    "role": {
+      "jobseeker": "Jobseeker",
+      "employee": "Jobseeker",
+      "resident": "Jobseeker",
+      "employer": "Employer"
+    }
+  },
   "qualSteps": {
     "stepperLabel": "Mga hakbang sa kwalipikasyon",
     "steps": {
@@ -2523,20 +2621,6 @@
     "postingsEmptyHint": "Bumalik na lang mamaya.",
     "postingsErrorTitle": "Hindi ma-load ang mga bakanteng trabaho",
     "postingsErrorBody": "Suriin ang iyong koneksyon at subukan muli."
-  },
-  "profileCard": {
-    "loading": "Naglo-load ng profile",
-    "unavailable": "Hindi available ang profile na ito.",
-    "error": "Hindi ma-load ang profile na ito.",
-    "verified": "Beripikado",
-    "view": "Tingnan ang profile",
-    "viewOwn": "Tingnan ang iyong profile",
-    "role": {
-      "jobseeker": "Jobseeker",
-      "employee": "Jobseeker",
-      "resident": "Jobseeker",
-      "employer": "Employer"
-    }
   },
   "contactShare": {
     "button": "Ibahagi ang contact details ko",

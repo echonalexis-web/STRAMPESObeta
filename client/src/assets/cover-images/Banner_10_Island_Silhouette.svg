@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 480" width="1920" height="480">
+            <defs>
+                <linearGradient id="dusk" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#1b7f86"/>
+                    <stop offset="60%" stop-color="#bfe8e3"/>
+                    <stop offset="100%" stop-color="#f6e7a6"/>
+                </linearGradient>
+            </defs>
+            <rect width="1920" height="480" fill="url(#dusk)"/>
+            <!-- Sun low on horizon -->
+            <circle cx="1250" cy="310" r="50" fill="#e6b91e" opacity="0.9"/>
+            <!-- Island silhouette layer 1 (distant) -->
+            <path d="M 800 360 Q 1050 280 1300 350 Q 1500 300 1750 360 L 1920 360 L 1920 480 L 800 480 Z" fill="#1b7f86" opacity="0.6"/>
+            <!-- Island silhouette layer 2 (main) -->
+            <path d="M 950 380 Q 1200 300 1450 370 Q 1650 320 1920 370 L 1920 480 L 950 480 Z" fill="#105258"/>
+            <!-- Sea horizon base -->
+            <rect y="375" width="1920" height="105" fill="#105258" opacity="0.95"/>
+        </svg>

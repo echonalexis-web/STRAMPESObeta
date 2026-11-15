@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 480" width="1920" height="480">
+            <rect width="1920" height="480" fill="#10271f"/>
+            <!-- Translucent Triangles to the right -->
+            <polygon points="1200,0 1600,0 1400,350" fill="#e6b91e" opacity="0.25"/>
+            <polygon points="1400,100 1920,0 1800,450" fill="#2f8a5f" opacity="0.3"/>
+            <polygon points="1050,480 1500,200 1750,480" fill="#07553a" opacity="0.5"/>
+            <polygon points="1600,180 1920,120 1920,480" fill="#e6b91e" opacity="0.2"/>
+            <polygon points="850,0 1250,0 1050,220" fill="#2f8a5f" opacity="0.15"/>
+        </svg>

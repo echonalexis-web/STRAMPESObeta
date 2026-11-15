@@ -91,6 +91,11 @@
   color: var(--ds-ink-700);
 }
 
+.ed-page .ed-arch2__sort > span {
+  flex: none;
+  white-space: nowrap;
+}
+
 .ed-page .ed-arch2__sort select {
   min-height: var(--ds-tap);
   padding: 0 var(--ds-space-3);

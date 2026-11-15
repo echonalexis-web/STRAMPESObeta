@@ -2081,3 +2081,64 @@ body.app-with-sidebar .news-article-page .news-article-body p {
     transform: none;
   }
 }
+
+/* ---- Date range filter + clear (News feed) ---- */
+.news-feed-page .news-date-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--ds-space-3);
+}
+
+.news-feed-page .news-date-field {
+  flex: 1 1 150px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  color: var(--ds-ink-700, var(--ds-text));
+}
+
+.news-feed-page .news-date-field input {
+  width: 100%;
+  min-height: var(--ds-tap);
+  box-sizing: border-box;
+  padding: 0 var(--ds-space-3);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-md);
+}
+
+.news-feed-page .news-date-field input:focus-visible,
+.news-feed-page .news-clear-filters:focus-visible {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 2px;
+  border-color: var(--ds-green-secondary);
+}
+
+.news-feed-page .news-clear-filters {
+  flex: none;
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-4);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--ds-green);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.news-feed-page .news-clear-filters:hover {
+  background: var(--ds-mint);
+}
+
+.news-feed-page .news-feed-list-wrap .pager {
+  margin-top: var(--ds-space-5);
+}

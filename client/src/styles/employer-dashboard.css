@@ -7504,3 +7504,9 @@
   .ed-page .ed-arch__chev,
   .ed-page .ed-arch .archived-search-bar { transition: none; }
 }
+
+/* Tabs are not sticky, but focusing a tab scrolls it into view: keep it
+   clear of the sticky DashboardTopBar (>=901px) and the fixed mobile navbar. */
+.ed-page .ed-tabs {
+  scroll-margin-top: calc(var(--ds-topbar-h, 76px) + var(--ds-space-4));
+}

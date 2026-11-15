@@ -489,13 +489,13 @@ export default function Navbar() {
     setIsMobileMenuOpen(true);
   };
 
-  // Above 768px, the globally-mounted DashboardTopBar already has its own
+  // From 901px up, the globally-mounted DashboardTopBar already has its own
   // Messages/Notifications bells (with preview dropdowns), so the navbar's
-  // copies are now redundant there — Messages always hides above that width,
+  // copies are now redundant there — Messages always hides from that width,
   // Notifications only stays except on the few routes where DashboardTopBar
   // itself is hidden (Settings, Profile, and the Messages page — see
   // DashboardTopBar.jsx's own HIDDEN_PATH_PREFIXES), which would otherwise
-  // leave no way at all to reach notifications from those pages above 768px.
+  // leave no way at all to reach notifications from those pages from 901px up.
   const isNotificationsPinnedRoute =
     location.pathname === "/settings" ||
     location.pathname === "/messages" ||

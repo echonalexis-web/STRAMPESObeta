@@ -33,6 +33,9 @@ coverage/
 server/uploads/*
 !server/uploads/.gitkeep
 
+# Local backup snapshot
+/backup-2026-11-09/
+
 # NSRP coordinate calibration output (see server/scripts/debugNsrpCoordinates.js)
 server/scripts/debug-output/
 server/assets/test-output-nsrp1.pdf

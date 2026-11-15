@@ -38,6 +38,9 @@ export default function JobBoard() {
   const [jobsPerPage] = useState(6);
   const [activeFilters, setActiveFilters] = useState({});
   const [applyModalJobId, setApplyModalJobId] = useState(null);
+  // Phone compact cards: only one card's match and apply area is open at a time.
+  const [openJobId, setOpenJobId] = useState(null);
+  const toggleJob = (jobId) => setOpenJobId((current) => (current === jobId ? null : jobId));
   // Tracks the in-flight request so a slower, superseded search (e.g. an
   // earlier keystroke/click) can never overwrite state with stale results
   // after a newer one has already started.
@@ -50,6 +53,7 @@ export default function JobBoard() {
 
     setLoading(true);
     setError("");
+    setOpenJobId(null);
     try {
       const sanitizedFilters = { ...filters };
       Object.keys(sanitizedFilters).forEach((key) => {
@@ -256,6 +260,9 @@ export default function JobBoard() {
                       onOpen={() => navigate(`/jobs/${job._id}`)}
                       onApply={() => setApplyModalJobId(job._id)}
                       canApply={canApplyJobs}
+                      compact
+                      expanded={openJobId === job._id}
+                      onToggle={() => toggleJob(job._id)}
                     />
                   ))}
                 </div>
@@ -274,6 +281,9 @@ export default function JobBoard() {
                   onOpen={() => navigate(`/jobs/${job._id}`)}
                   onApply={() => setApplyModalJobId(job._id)}
                   canApply={canApplyJobs}
+                  compact
+                  expanded={openJobId === job._id}
+                  onToggle={() => toggleJob(job._id)}
                 />
               ))}
             </div>

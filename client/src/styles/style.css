@@ -54,9 +54,11 @@ input,
 textarea,
 select {
   width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
   display: block;
+  box-sizing: border-box;
 }
 
 input:focus,

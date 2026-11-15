@@ -250,6 +250,11 @@ export default function Register() {
       : validatePassword(formData.password);
     if (passwordValidationErrors.length > 0) {
       setPasswordErrors(passwordValidationErrors);
+      // The requirements list only shows while the password field has focus, and the
+      // submit click moves focus away, so say what is wrong and put focus back.
+      showError(`Your password needs: ${passwordValidationErrors.join("; ")}.`);
+      setIsPasswordFocused(true);
+      document.getElementById("password")?.focus();
       return;
     }
 
@@ -718,7 +723,9 @@ export default function Register() {
           </span>
         </label>
 
-        <button type="submit" className="auth-button" disabled={loading || !agreedToTerms}>
+        {/* Not disabled while terms are unticked: a dead button gave no feedback.
+            handleSubmit already stops with "Please agree to the Terms..." */}
+        <button type="submit" className="auth-button" disabled={loading}>
           <FaUserPlus aria-hidden="true" />
           {loading
             ? usernameMode

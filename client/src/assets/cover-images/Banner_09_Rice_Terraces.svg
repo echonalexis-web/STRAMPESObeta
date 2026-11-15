@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 480" width="1920" height="480">
+            <rect width="1920" height="480" fill="#0a4430"/>
+            <!-- Stepped horizontal terrace bands -->
+            <path d="M 0 0 L 1920 0 L 1920 120 C 1400 160, 1000 80, 0 140 Z" fill="#07553a"/>
+            <path d="M 0 140 C 1000 80, 1400 160, 1920 120 L 1920 220 C 1300 270, 800 180, 0 240 Z" fill="#0b6b49"/>
+            <path d="M 0 240 C 800 180, 1300 270, 1920 220 L 1920 330 C 1200 370, 700 300, 0 350 Z" fill="#2f8a5f"/>
+            <path d="M 0 350 C 700 300, 1200 370, 1920 330 L 1920 410 C 1400 440, 900 390, 0 430 Z" fill="#e6b91e" opacity="0.85"/>
+            <path d="M 0 430 C 900 390, 1400 440, 1920 410 L 1920 480 L 0 480 Z" fill="#07553a"/>
+        </svg>

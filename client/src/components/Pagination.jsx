@@ -26,6 +26,7 @@ export default function Pagination({
   idPrefix = "pager",
   scrollTargetRef,
   variant = "inline", // "card": a standalone bar under a list (inline sits inside a table card)
+  showPageSize = true, // false for a list with one fixed page size
 }) {
   const { t } = useTranslation();
   const summaryRef = useRef(null);
@@ -66,16 +67,18 @@ export default function Pagination({
 
   return (
     <div className={`pager${variant === "card" ? " pager--card" : ""}`}>
-      <label className="pager__size" htmlFor={`${idPrefix}-size`}>
-        <span>{t("pagination.rowsPerPage")}</span>
-        <select id={`${idPrefix}-size`} value={pageSize} disabled={disabled} onChange={(event) => changeSize(Number(event.target.value))}>
-          {pageSizes.map((size) => (
-            <option key={size} value={size}>
-              {size}
-            </option>
-          ))}
-        </select>
-      </label>
+      {showPageSize ? (
+        <label className="pager__size" htmlFor={`${idPrefix}-size`}>
+          <span>{t("pagination.rowsPerPage")}</span>
+          <select id={`${idPrefix}-size`} value={pageSize} disabled={disabled} onChange={(event) => changeSize(Number(event.target.value))}>
+            {pageSizes.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       <p className="pager__summary" ref={summaryRef} tabIndex={-1}>
         {summary}

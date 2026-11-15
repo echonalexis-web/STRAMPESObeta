@@ -99,6 +99,7 @@ const UNEMPLOYMENT_LABELS = {
   retired: "retired",
   laidoff_local: "laid off (local)",
   laidoff_abroad: "laid off (abroad)",
+  lost_informal_work: "lost informal work",
 };
 
 const hasAnyWorkHistory = (profile) =>

@@ -2,7 +2,7 @@ import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } fro
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { authAPI, jobseekerDocumentAPI, resolveAssetUrl, verificationAPI } from "../services/api";
+import { authAPI, jobseekerDocumentAPI, verificationAPI } from "../services/api";
 import "../styles/profile.css";
 import { FaUser, FaEnvelope, FaPhone, FaBriefcase, FaBuilding, FaMapMarkerAlt, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaIdCard, FaTimes, FaPlus, FaSave, FaArrowLeft, FaEye, FaEyeSlash, FaMagic } from "react-icons/fa";
 import LocationSelect from "../components/LocationSelect";
@@ -1010,14 +1010,11 @@ export default function EditProfile() {
     }
   };
 
-  // For an employer whose account predates the name/companyName sync fix
-  // (e.g. a Google sign-up, where `name` still holds the personal Google
-  // account name), prefer the company name directly here so the sidebar is
-  // correct immediately — not just after their next profile save.
-  const railName = isEmployer
-    ? (formData.companyName || formData.name || "Your Profile")
-    : formData.name || [formData.firstName, formData.surname].filter(Boolean).join(" ") || "Your Profile";
-  const railRole = isSuperadmin ? "System Superadmin" : isAdmin ? "Administrator" : isEmployer ? "Employer" : "Job Seeker";
+  // Sections still to do (jobseeker header: "Still to do: Career, Documents"),
+  // each a link that opens that section. Uses the same per-section check as the rail.
+  const missingTabs = !isAdmin && !isEmployer ? tabs.filter((tab) => !isTabComplete(tab.id)) : [];
+  const activeTabMeta = tabs.find((tab) => tab.id === activeTab) || tabs[0];
+  const sectionHelpKey = activeTabMeta?.id === "profile" && isEmployer ? "employerProfile" : activeTabMeta?.id;
 
   // Dirty = current form state differs from the last state actually saved to
   // the server (not from the localStorage draft, which tracks every keystroke
@@ -1055,6 +1052,36 @@ export default function EditProfile() {
     if (leave) navigate(to);
   };
 
+  // Reset the form to the last state saved on the server (the same snapshot the
+  // dirty check compares against) and clear any typed passwords.
+  const handleDiscard = async () => {
+    if (!isDirty || baselineRef.current === null) return;
+    const ok = await confirm({
+      title: t("profileEditor.discardTitle"),
+      message: t("profileEditor.discardMessage"),
+      confirmLabel: t("profileEditor.discardConfirm"),
+      cancelLabel: t("profileEditor.keepEditing"),
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
+      const base = JSON.parse(baselineRef.current);
+      setPersistedState((prev) => ({
+        ...prev,
+        formData: base.formData,
+        skills: base.skills,
+        preferredIndustries: base.preferredIndustries,
+        industryPreferenceLevel: base.industryPreferenceLevel,
+      }));
+    } catch {
+      return;
+    }
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setError("");
+  };
+
   return (
     <div className="editprofile-shell ep-page">
       <aside className="editprofile-rail">
@@ -1063,24 +1090,16 @@ export default function EditProfile() {
             <FaArrowLeft />
             <span className="editprofile-rail-back-label"> Back to Profile</span>
           </Link>
-          <div className="editprofile-rail-identity">
-            <div className="editprofile-rail-avatar">
-              {user?.profileImage
-                ? <img src={resolveAssetUrl(user.profileImage)} alt="" />
-                : (railName.trim().charAt(0).toUpperCase() || "U")}
-            </div>
-            <div>
-              <div className="editprofile-rail-name">{railName}</div>
-              <p className="editprofile-rail-role">{railRole}</p>
-            </div>
-          </div>
-          <ul className="editprofile-tabs">
+          <ul className="editprofile-tabs" aria-label={t("profileEditor.sectionsNav")}>
           {tabs.map((tab) => (
             <li key={tab.id}>
-              <button type="button" className={`editprofile-tab ${activeTab === tab.id ? "active" : ""}`} aria-label={tab.label} aria-current={activeTab === tab.id ? "true" : undefined} onClick={() => setActiveTab(tab.id)}>
+              <button type="button" className={`editprofile-tab ${activeTab === tab.id ? "active" : ""}`} aria-label={`${tab.label}, ${isTabComplete(tab.id) ? t("profileEditor.statusComplete") : t("profileEditor.statusTodo")}`} aria-current={activeTab === tab.id ? "true" : undefined} onClick={() => setActiveTab(tab.id)}>
                 {tab.icon}
                 <span className="editprofile-tab-label">{tab.label}</span>
-                <span className={`editprofile-tab-dot ${isTabComplete(tab.id) ? "editprofile-tab-dot--done" : ""}`} />
+                <span className={`editprofile-tab-dot ${isTabComplete(tab.id) ? "editprofile-tab-dot--done" : ""}`} aria-hidden="true" />
+                <span className="editprofile-tab-status">
+                  {isTabComplete(tab.id) ? t("profileEditor.statusComplete") : t("profileEditor.statusTodo")}
+                </span>
               </button>
             </li>
           ))}
@@ -1095,34 +1114,43 @@ export default function EditProfile() {
             <FaMagic /> Resume &amp; Cover Letter Studio
           </Link>
         ) : null}
-        <p className="editprofile-rail-footer">Fields are saved when you click Save Profile.</p>
       </aside>
 
       <div className="editprofile-panel">
-        <EmailChangeCard currentEmail={user?.email || formData.email} />
+        {/* Own <form> inside, so it stays outside the profile form (no nested forms).
+            Shown on the first section only, where the sign-in email belongs. */}
+        {activeTab === "profile" ? <EmailChangeCard currentEmail={user?.email || formData.email} /> : null}
 
         <form className="editprofile-panel-inner" id="edit-profile-form" onSubmit={handleSubmit}>
-          <div className="editprofile-panel-header">
-            <h1 className="editprofile-panel-title">Edit Profile</h1>
-            <p className="editprofile-panel-subtitle">Update your personal information and preferences</p>
-          </div>
-
-          {!isAdmin && !isEmployer && profileCompleteness && (
-            <div className="profile-completeness">
-              <div className="profile-completeness-row">
-                <span>Profile {profileCompleteness.percent}% complete</span>
-                <span className="profile-completeness-fraction">
+          <div className="editprofile-panel-header ep-header">
+            <div className="ep-header__text">
+              <h1 className="editprofile-panel-title">Edit Profile</h1>
+              <p className="editprofile-panel-subtitle">Update your personal information and preferences</p>
+              {missingTabs.length > 0 && (
+                <p className="ep-missing">
+                  <span>{t("profileEditor.stillToDo")}</span>
+                  {missingTabs.map((tab) => (
+                    <button key={tab.id} type="button" className="ep-missing__link" onClick={() => setActiveTab(tab.id)}>
+                      {tab.label}
+                    </button>
+                  ))}
+                </p>
+              )}
+            </div>
+            {!isAdmin && !isEmployer && profileCompleteness && (
+              <div
+                className="ep-ring"
+                role="img"
+                aria-label={t("profileEditor.ringLabel", { percent: profileCompleteness.percent })}
+                style={{ "--ep-pct": Math.min(100, Math.max(0, profileCompleteness.percent)) }}
+              >
+                <span className="ep-ring__value" aria-hidden="true">{profileCompleteness.percent}%</span>
+                <span className="ep-ring__sub" aria-hidden="true">
                   {profileCompleteness.filled} of {profileCompleteness.total}
                 </span>
               </div>
-              <div className="profile-completeness-bar" role="presentation">
-                <div
-                  className="profile-completeness-bar-fill"
-                  style={{ width: `${Math.min(100, Math.max(0, profileCompleteness.percent))}%` }}
-                />
-              </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {error && <div className="alert alert-error" role="alert">{error}</div>}
           {emailChangeNotice && (
@@ -1134,6 +1162,20 @@ export default function EditProfile() {
           )}
 
           <div className="editprofile-card ds-card">
+          {activeTabMeta && (
+            <div className="ep-section-head">
+              <span className="ep-section-head__icon" aria-hidden="true">{activeTabMeta.icon}</span>
+              <div className="ep-section-head__text">
+                <h2 className="ep-section-head__title">{activeTabMeta.label}</h2>
+                <p className="ep-section-head__help">{t(`profileEditor.help.${sectionHelpKey}`, { defaultValue: "" })}</p>
+              </div>
+              {!isAdmin && !isEmployer && (
+                <span className={`ep-chip ${isTabComplete(activeTabMeta.id) ? "ep-chip--done" : ""}`}>
+                  {isTabComplete(activeTabMeta.id) ? t("profileEditor.statusComplete") : t("profileEditor.statusTodo")}
+                </span>
+              )}
+            </div>
+          )}
           <div className="profile-fields">
           {/* --- PERSONAL INFO TAB --- */}
           {activeTab === "profile" && (
@@ -1168,13 +1210,6 @@ export default function EditProfile() {
                     </div>
                   </>
                 )}
-                <div className="profile-field">
-                  <label htmlFor="email"><FaEnvelope /> Email</label>
-                  <input id="email" type="email" name="email" value={formData.email} readOnly />
-                  <p className="help-text" style={{ marginTop: "6px" }}>
-                    Use the <strong>Email address</strong> panel above to change your sign-in email.
-                  </p>
-                </div>
                 <div className="profile-field">
                   <label htmlFor="phone"><FaPhone /> Phone</label>
                   <input id="phone" type="text" name="phone" value={formData.phone} onChange={handleChange} />
@@ -1686,17 +1721,13 @@ export default function EditProfile() {
               {schoolOptions.length > 0 && (
                 <div className="profile-field">
                   <label htmlFor="schoolAttended">School Attended</label>
-                  <select id="schoolAttended" name="schoolAttended" value={formData.schoolAttended} onChange={handleChange}>
-                    <option value="">Select</option>
-                    {schoolOptions.map((name) => <option key={name} value={name}>{name}</option>)}
-                    <option value={OTHER_OPTION}>Others / Not Listed</option>
-                  </select>
-                </div>
-              )}
-              {formData.schoolAttended === OTHER_OPTION && (
-                <div className="profile-field">
-                  <label htmlFor="schoolAttendedOther">School Name</label>
-                  <input id="schoolAttendedOther" type="text" name="schoolAttendedOther" value={formData.schoolAttendedOther} onChange={handleChange} />
+                  <SearchableDropdown
+                    id="schoolAttended"
+                    value={formData.schoolAttended === OTHER_OPTION ? (formData.schoolAttendedOther || "") : (formData.schoolAttended || "")}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, schoolAttended: v, schoolAttendedOther: "" }))}
+                    options={schoolOptions}
+                    placeholder="Type or select your school"
+                  />
                 </div>
               )}
               {showCourseField && (
@@ -1947,12 +1978,19 @@ export default function EditProfile() {
             <div className="profile-field-group">
               <h3 className="profile-section-title">NSRP Form Details</h3>
               {!isEmployer && (
-                <p className="profile-section-hint">
-                  Civil status, citizenship, and place of birth are required to complete this section.
-                  Everything else here — including religion and government ID numbers, which are
-                  sensitive personal information — is optional; you can leave it blank. See our{" "}
-                  <Link to="/privacy">Privacy Policy</Link> for how this data is used and protected.
-                </p>
+                <>
+                  <p className="profile-section-hint">
+                    Civil status, citizenship, and place of birth are required to complete this section.
+                  </p>
+                  <details className="ep-why">
+                    <summary>{t("profileEditor.whyWeAsk")}</summary>
+                    <p className="profile-section-hint">
+                      Everything else here — including religion and government ID numbers, which are
+                      sensitive personal information — is optional; you can leave it blank. See our{" "}
+                      <Link to="/privacy">Privacy Policy</Link> for how this data is used and protected.
+                    </p>
+                  </details>
+                </>
               )}
               {isEmployer ? (
                 <div className="profile-field-group">
@@ -2589,6 +2627,14 @@ export default function EditProfile() {
         <div className="editprofile-footer">
           <div className="editprofile-footer-inner">
             {error && <p className="editprofile-footer-error" aria-hidden="true">{error}</p>}
+            <p className={`ep-savestate ${isDirty ? "is-dirty" : ""}`} role="status" aria-live="polite">
+              <span className="ep-savestate__dot" aria-hidden="true" />
+              <span>{isDirty ? t("profileEditor.unsaved") : t("profileEditor.allSaved")}</span>
+              <span className="ep-savestate__note">{t("profileEditor.savedNote")}</span>
+            </p>
+            <button type="button" className="ep-discard-btn" onClick={handleDiscard} disabled={loading || !isDirty}>
+              {t("profileEditor.discard")}
+            </button>
             <button type="submit" form="edit-profile-form" disabled={loading} className="profile-save-btn">
               <FaSave /> {loading ? "Saving..." : "Save Profile"}
             </button>

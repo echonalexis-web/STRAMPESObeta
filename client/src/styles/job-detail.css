@@ -257,6 +257,37 @@
   cursor: pointer;
   transition: background-color var(--ds-dur-fast) var(--ds-ease), transform var(--ds-dur-fast) var(--ds-ease);
 }
+/* Save (bookmark) sits just left of Apply now on phones and tablets; the bar is
+   hidden from 901px, where the card's own Save job control is used instead. */
+.jd-apply-bar__save { flex: none; display: flex; }
+.jd-apply-bar__save .btn-favorite-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  padding: 0;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--ds-green);
+  font-size: var(--ds-text-lg);
+  cursor: pointer;
+}
+.jd-apply-bar__save .btn-favorite-icon.btn-favorite-active {
+  background: var(--ds-mint);
+  border-color: var(--ds-green-secondary);
+}
+.jd-apply-bar__save .btn-favorite-icon:focus-visible {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 2px;
+}
+/* The bar carries Save, so the card's duplicate Save job hides while the bar shows. */
+@media (max-width: 900px) {
+  .job-detail-page.has-apply-bar .job-save-job-wrap { display: none; }
+}
+
 .jd-apply-bar__btn:hover { background: var(--ds-green-deep); }
 .jd-apply-bar__btn:active { transform: translateY(1px); }
 

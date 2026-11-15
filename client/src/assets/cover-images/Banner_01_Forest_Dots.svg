@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 480" width="1920" height="480">
+            <defs>
+                <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#0a4430"/>
+                    <stop offset="50%" stop-color="#07553a"/>
+                    <stop offset="100%" stop-color="#0b6b49"/>
+                </linearGradient>
+                <pattern id="dots" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
+                    <circle cx="15" cy="15" r="2" fill="#e9f4ed" opacity="0.15"/>
+                </pattern>
+            </defs>
+            <!-- Base Gradient -->
+            <rect width="1920" height="480" fill="url(#bg)"/>
+            <!-- Faint Dot Grid -->
+            <rect width="1920" height="480" fill="url(#dots)"/>
+            <!-- Concentric Circles Top Right -->
+            <g transform="translate(1600, 100)">
+                <circle cx="0" cy="0" r="380" fill="none" stroke="#2f8a5f" stroke-width="40" opacity="0.25"/>
+                <circle cx="0" cy="0" r="280" fill="none" stroke="#e9f4ed" stroke-width="24" opacity="0.15"/>
+                <circle cx="0" cy="0" r="180" fill="none" stroke="#2f8a5f" stroke-width="16" opacity="0.3"/>
+                <circle cx="0" cy="0" r="90" fill="#2f8a5f" opacity="0.2"/>
+            </g>
+        </svg>

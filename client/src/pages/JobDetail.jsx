@@ -737,6 +737,9 @@ export default function JobDetail() {
             <strong>{job.title}</strong>
             <span>{employerName}</span>
           </div>
+          <span className="jd-apply-bar__save" title="Save this job">
+            <JobFavoriteButton jobId={job._id} hideCount variant="ribbon" />
+          </span>
           <button type="button" className="jd-apply-bar__btn" onClick={handleApplyClick}>
             {showEditForm ? "Edit application" : "Apply now"}
           </button>

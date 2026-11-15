@@ -1,9 +1,17 @@
+import { useId } from "react";
+import { useTranslation } from "react-i18next";
 import JobFavoriteButton from "./JobFavoriteButton";
 import EmployerAvatar from "./EmployerAvatar";
 import ProfileLink from "./ProfileLink";
-import { FaUsers, FaStar, FaHeart, FaCheck, FaTimes } from "react-icons/fa";
+import { FaUsers, FaStar, FaHeart, FaCheck, FaTimes, FaChevronDown } from "react-icons/fa";
 import { tierForPercent } from "../utils/qualifications";
+import { compactCardModel, clampPercent } from "../utils/vacancyCompact";
+import useMediaQuery from "../hooks/useMediaQuery";
 import "../styles/vacancy-card.css";
+
+// Phones: the compact layout is used below this width, and only when the
+// page opts in with `compact` (Browse Jobs). 600px and up keep the full card.
+const PHONE_QUERY = "(max-width: 599px)";
 
 // A single line for the card. Drop the hyper-local barangay / zone prefix
 // when a city + province follow it — that prefix is the least useful part
@@ -47,6 +55,10 @@ const matchKey = (type, value) => `${String(type || "skill").toLowerCase()}::${S
  *   publicView     a posting listed on a company page: no match panel, no
  *                  requirement pills, no applicant count and no Apply button;
  *                  applying stays on the job detail page with its own rules
+ *   compact        opt in to the phone-width compact card (under 600px);
+ *                  wider screens and preview/publicView render the full card
+ *   expanded       compact card: the match and apply area is open
+ *   onToggle       compact card: open or close that area (the page keeps one open)
  */
 export default function VacancyCard({
   job,
@@ -59,7 +71,13 @@ export default function VacancyCard({
   onApply,
   canApply = true,
   publicView = false,
+  compact = false,
+  expanded = false,
+  onToggle,
 }) {
+  const { t } = useTranslation();
+  const isPhone = useMediaQuery(PHONE_QUERY);
+  const panelId = useId();
   const checklist = job?.checklistMatch || null;
   const hasChecklist = matchAvailable && Boolean(checklist);
   // Falls back to the plain relevance percent when the job states no
@@ -102,6 +120,151 @@ export default function VacancyCard({
   const requiredPreviewQuals = Array.isArray(job?.qualifications)
     ? job.qualifications.filter((q) => q?.value && q.optional !== true).slice(0, 3)
     : [];
+
+  // Phone-width compact card (Browse Jobs only). Same data and the same
+  // server-computed match values as the full card below; only the layout differs.
+  if (compact && isPhone && !preview && !publicView) {
+    const model = compactCardModel({ checklist, matchAvailable, tier, applied, canApply });
+    const title = job?.title || "Job title";
+    const bar = clampPercent(percent);
+    const pillWord = model.hasChecklist ? checklist.tier : t("vacancy.compact.estimated");
+    const summary = model.hasChecklist
+      ? (model.total > 0
+          ? t("vacancy.compact.matchSummary", { tier: checklist.tier, met: model.met, total: model.total })
+          : t("vacancy.compact.matchSummaryNoCount", { tier: checklist.tier }))
+      : t("vacancy.compact.estimatedFit");
+    const toggleText = model.toggleKind === "mustHaves"
+      ? t("vacancy.compact.mustHavesOf", { met: model.met, total: model.total })
+      : model.toggleKind === "noMustHaves"
+        ? t("vacancy.compact.noMustHaves")
+        : t("vacancy.compact.moreDetails");
+
+    return (
+      <article
+        className={`vac-card vac-card--compact ${preferred ? "is-preferred" : ""} ${followed ? "is-followed" : ""} ${expanded ? "is-expanded" : ""}`}
+        role={clickable ? "link" : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        aria-label={clickable ? title : undefined}
+        onClick={clickable ? onOpen : undefined}
+        onKeyDown={clickable ? (event) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onOpen();
+          }
+        } : undefined}
+      >
+        <div className="vac-c-top">
+          {employerId ? (
+            <span className="vac-profile-link" onClick={stop} onKeyDown={stop}>
+              <ProfileLink userId={employerId} role="employer" decorative>
+                <EmployerAvatar employer={job?.employer} className="vac-logo" />
+              </ProfileLink>
+            </span>
+          ) : (
+            <EmployerAvatar employer={job?.employer} className="vac-logo" />
+          )}
+          <div className="vac-c-text">
+            <h3 className="vac-c-title">{title}</h3>
+            <p className="vac-c-sub">
+              {posted ? t("vacancy.compact.companyPosted", { company: companyName, posted }) : companyName}
+            </p>
+          </div>
+          {model.showMatch && (
+            <span className={`vac-c-pill tier-${tier}`}>
+              {percent}% {pillWord}
+            </span>
+          )}
+          <div className="vac-tools" onClick={stop}>
+            <JobFavoriteButton jobId={job?._id} hideCount variant="heart" />
+          </div>
+        </div>
+
+        <p className="vac-c-facts">{facts}</p>
+
+        {model.blocked && (
+          <div className="vac-c-flags">
+            {model.blocked === "applied" ? (
+              <span className="ds-badge vac-pill vac-pill--applied"><FaCheck aria-hidden="true" /> {t("vacancy.compact.applied")}</span>
+            ) : (
+              <span className="ds-badge vac-pill vac-pill--view-only">{t("vacancy.compact.viewOnlyShort")}</span>
+            )}
+          </div>
+        )}
+
+        <div className="vac-c-row3" onClick={stop}>
+          <button
+            type="button"
+            className="vac-c-toggle"
+            aria-expanded={expanded}
+            aria-controls={panelId}
+            aria-label={`${expanded ? t("vacancy.compact.collapse", { title }) : t("vacancy.compact.expand", { title })}. ${toggleText}`}
+            onClick={onToggle}
+          >
+            <span className="vac-c-toggle-text">{toggleText}</span>
+            {model.showMatch && (
+              <span className="vac-c-bar" aria-hidden="true">
+                <span className={`vac-c-bar-fill tier-${tier}`} style={{ width: `${bar}%` }} />
+              </span>
+            )}
+            <FaChevronDown className="vac-c-chev" aria-hidden="true" />
+          </button>
+          <button type="button" className="vac-c-details" onClick={onOpen} aria-label={t("vacancy.compact.viewDetailsFor", { title })}>
+            {t("vacancy.compact.viewDetails")}
+          </button>
+        </div>
+
+        <div id={panelId} className="vac-c-panel" hidden={!expanded} onClick={stop}>
+          <p className="vac-c-summary">{model.showMatch ? summary : t("vacancy.compact.moreDetails")}</p>
+          {model.missing.length > 0 && (
+            <p className="vac-match-missing">
+              {t("vacancy.compact.missing", { list: model.missing.map((q) => q.value).join(", ") })}
+            </p>
+          )}
+          {requiredPreviewQuals.length > 0 && (
+            <div className="vac-req-pills">
+              {requiredPreviewQuals.map((q) => {
+                const met = matchAvailable && !missingKeys.has(matchKey(q.type, q.value));
+                return (
+                  <span key={`${q.type}-${q.value}`} className={`vac-req-pill ${met ? "is-met" : "is-missing"}`}>
+                    {met ? <FaCheck aria-hidden="true" /> : <FaTimes aria-hidden="true" />} <span className="ds-sr-only">{met ? "Met: " : "Missing: "}</span>{q.value}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          <div className="vac-meta">
+            <span className="ds-badge vac-pill vac-pill--open">Open</span>
+            {applied && <span className="ds-badge vac-pill vac-pill--applied"><FaCheck aria-hidden="true" /> {t("vacancy.compact.applied")}</span>}
+            {followed && (
+              <span className="ds-badge vac-pill vac-pill--follow">
+                <FaHeart aria-hidden="true" /> Following
+              </span>
+            )}
+            {preferred && (
+              <span className="ds-badge vac-pill vac-pill--preferred">
+                <FaStar aria-hidden="true" /> Preferred
+              </span>
+            )}
+          </div>
+          <p className="vac-c-counts">
+            <FaUsers aria-hidden="true" /> {t("vacancy.compact.applicants", { count: applicantCount })}
+            {posted ? ` · ${t("vacancy.compact.postedAgo", { posted })}` : ""}
+          </p>
+          {model.blocked === "age" && <p className="vac-c-note">{t("vacancy.compact.viewOnlyAge")}</p>}
+          {model.blocked === "applied" ? (
+            <button type="button" className="ds-btn ds-btn--primary btn-vac btn-vac--primary vac-c-apply" disabled>
+              {t("vacancy.compact.applied")}
+            </button>
+          ) : canApply ? (
+            <button type="button" className="ds-btn ds-btn--primary btn-vac btn-vac--primary vac-c-apply" onClick={onApply}>
+              Apply now
+            </button>
+          ) : null}
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article

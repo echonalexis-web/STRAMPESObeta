@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 480" width="1920" height="480">
+            <rect width="1920" height="480" fill="#f5f7f3"/>
+            <!-- Overlapping pale circles / blobs -->
+            <circle cx="1400" cy="180" r="220" fill="#e9f4ed" opacity="0.9"/>
+            <circle cx="1650" cy="280" r="190" fill="#f6e7a6" opacity="0.65"/>
+            <circle cx="1150" cy="300" r="160" fill="#2f8a5f" opacity="0.15"/>
+            <circle cx="950" cy="120" r="130" fill="#f6e7a6" opacity="0.5"/>
+            <circle cx="1780" cy="100" r="140" fill="#e9f4ed"/>
+        </svg>

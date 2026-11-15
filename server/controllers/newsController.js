@@ -90,6 +90,11 @@ const parsePagination = (query = {}) => {
 exports.listNews = async (req, res) => {
   try {
     const { page, limit } = parsePagination(req.query);
+    // Optional `offset` (items to skip) for lists whose first page holds a different
+    // number of items than the rest (the news feed's featured story). Without it,
+    // the skip is the usual (page - 1) * limit.
+    const offsetParam = parseInt(req.query.offset, 10);
+    const skip = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : (page - 1) * limit;
     const category = String(req.query.category || "").trim();
     const search = String(req.query.search || "").trim();
     const includeInactive = String(req.query.includeInactive || "false") === "true";
@@ -101,6 +106,22 @@ exports.listNews = async (req, res) => {
     }
     if (NEWS_CATEGORIES.includes(category)) {
       filter.category = category;
+    }
+
+    // Optional date range on the published date (the same field the list sorts by).
+    // `from` and `to` are ISO timestamps; anything unparseable is ignored.
+    const parseDate = (value) => {
+      const text = String(value || "").trim();
+      if (!text) return null;
+      const date = new Date(text);
+      return Number.isNaN(date.getTime()) ? null : date;
+    };
+    const fromDate = parseDate(req.query.from);
+    const toDate = parseDate(req.query.to);
+    if (fromDate || toDate) {
+      filter.publishedAt = {};
+      if (fromDate) filter.publishedAt.$gte = fromDate;
+      if (toDate) filter.publishedAt.$lte = toDate;
     }
 
     if (search) {
@@ -116,7 +137,7 @@ exports.listNews = async (req, res) => {
       Announcement.find(filter)
         .populate("author", "name")
         .sort({ publishedAt: -1, createdAt: -1 })
-        .skip((page - 1) * limit)
+        .skip(skip)
         .limit(limit),
     ]);
 

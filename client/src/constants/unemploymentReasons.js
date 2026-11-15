@@ -7,6 +7,7 @@ export const UNEMPLOYMENT_REASON_OPTIONS = [
   { value: "fresh_grad", label: "Fresh Graduate" },
   { value: "laidoff_abroad", label: "Laid off (Abroad)" },
   { value: "laidoff_local", label: "Laid off (Local)" },
+  { value: "lost_informal_work", label: "Lost informal work (e.g. vendor, odd jobs, day labor)" },
   { value: "resigned", label: "Resigned" },
   { value: "retired", label: "Retired" },
 ];

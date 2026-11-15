@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 480" width="1920" height="480">
+            <defs>
+                <linearGradient id="bg_sea" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#105258"/>
+                    <stop offset="100%" stop-color="#1b7f86"/>
+                </linearGradient>
+            </defs>
+            <rect width="1920" height="480" fill="url(#bg_sea)"/>
+            <!-- Pale Sun/Moon -->
+            <circle cx="1450" cy="160" r="65" fill="#f6e7a6" opacity="0.8"/>
+            <!-- Waves -->
+            <path d="M 0 480 L 0 330 C 450 280, 750 390, 1200 310 C 1550 250, 1750 330, 1920 290 L 1920 480 Z" fill="#bfe8e3" opacity="0.3"/>
+            <path d="M 0 480 L 0 370 C 400 320, 850 420, 1300 340 C 1600 290, 1800 370, 1920 330 L 1920 480 Z" fill="#1b7f86" opacity="0.8"/>
+            <path d="M 0 480 L 0 420 C 500 370, 900 430, 1400 380 C 1700 350, 1850 400, 1920 380 L 1920 480 Z" fill="#105258"/>
+        </svg>

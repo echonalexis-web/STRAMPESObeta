@@ -1047,15 +1047,14 @@ export default function JobSeekerOnboarding() {
 
               {schoolOptions.length > 0 && (
                 <label>School Attended
-                  <select value={form.schoolAttended || ""} onChange={e => updateField("schoolAttended", e.target.value)} disabled={saving}>
-                    <option value="">Select</option>
-                    {schoolOptions.map(name => <option key={name} value={name}>{name}</option>)}
-                    <option value={OTHER_OPTION}>Others / Not Listed</option>
-                  </select>
+                  <SearchableDropdown
+                    value={form.schoolAttended === OTHER_OPTION ? (form.schoolAttendedOther || "") : (form.schoolAttended || "")}
+                    onChange={(v) => { updateField("schoolAttended", v); updateField("schoolAttendedOther", ""); }}
+                    options={schoolOptions}
+                    placeholder="Type or select your school"
+                    disabled={saving}
+                  />
                 </label>
-              )}
-              {form.schoolAttended === OTHER_OPTION && (
-                <label>School Name <input type="text" value={form.schoolAttendedOther || ""} onChange={e => updateField("schoolAttendedOther", e.target.value)} disabled={saving} /></label>
               )}
               {showCourseField && (
                 <div>

@@ -665,7 +665,8 @@
 .searchable-dropdown-input-wrapper {
   display: flex;
   align-items: stretch;
-  gap: 2px;
+  gap: 0;
+  width: 100%;
 }
 
 .searchable-dropdown-input-wrapper input {
@@ -2719,6 +2720,358 @@ body:has(.ep-page) {
     flex-direction: row;
     align-items: center;
   }
+}
+
+/* ================================================================== */
+/* Edit Profile redesign: brand rail, header with progress ring and    */
+/* "still to do" links, section header, why-we-ask, save-state bar.    */
+/* Presentation only; every field and handler is unchanged.            */
+/* ================================================================== */
+
+/* Rail: brand forest gradient, gold active marker, text status per section */
+.ep-page .editprofile-rail {
+  background: linear-gradient(160deg, var(--ds-green, #07553a) 0%, var(--ds-green-deep, #043c2a) 100%);
+}
+
+.ep-page .editprofile-tab.active {
+  border-left-color: var(--ds-gold, #e6b91e);
+  border-bottom-color: var(--ds-gold, #e6b91e);
+}
+
+.ep-page .editprofile-tab-dot--done {
+  background: var(--ds-mint, #e9f4ed);
+  border-color: var(--ds-mint, #e9f4ed);
+  box-shadow: 0 0 0 3px rgba(233, 244, 237, 0.2);
+}
+
+.editprofile-tab-status {
+  display: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/* Phones: the section strip stays in view and keeps its labels */
+@media (max-width: 767px) {
+  .ep-page .editprofile-rail {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+
+  .ep-page .editprofile-tab-label {
+    display: block;
+    font-size: 12px;
+  }
+}
+
+@media (min-width: 768px) {
+  .ep-page .editprofile-tab {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "icon label dot"
+      ". status .";
+    column-gap: 10px;
+    row-gap: 0;
+    align-items: center;
+    justify-content: stretch;
+    text-align: left;
+  }
+
+  .ep-page .editprofile-tab > svg:first-child { grid-area: icon; }
+  .ep-page .editprofile-tab-label { grid-area: label; }
+  .ep-page .editprofile-tab-dot { grid-area: dot; }
+  .ep-page .editprofile-tab-status { grid-area: status; display: block; }
+}
+
+/* Header: title, subtitle, "still to do" links, progress ring */
+.ep-page .ep-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--ds-space-4, 16px);
+  margin-bottom: var(--ds-space-5, 20px);
+}
+
+.ep-page .ep-header__text {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.ep-page .editprofile-panel-title {
+  font-family: var(--ds-font-display, inherit);
+  font-size: var(--ds-text-h2, 1.5rem);
+  font-weight: 800;
+  color: var(--ds-ink-900, #10271f);
+}
+
+.ep-page .editprofile-panel-subtitle {
+  color: var(--ds-ink-500, #5a6c65);
+}
+
+.ep-page .ep-missing {
+  margin: var(--ds-space-3, 12px) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2, 8px);
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--ds-ink-700, #2f463d);
+}
+
+.ep-page .ep-missing__link {
+  min-height: 44px;
+  padding: 0 var(--ds-space-4, 16px);
+  border: 1px solid var(--ds-border, #dfe8e3);
+  border-radius: var(--ds-radius-pill, 999px);
+  background: var(--ds-surface, #fff);
+  color: var(--ds-green, #07553a);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ep-page .ep-missing__link:hover {
+  background: var(--ds-mint, #e9f4ed);
+}
+
+.ep-page .ep-missing__link:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+}
+
+/* Progress ring: gold arc on a mint track, number and "x of y" in the middle */
+.ep-page .ep-ring {
+  flex: none;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  background:
+    radial-gradient(closest-side, var(--ds-surface, #fff) 80%, transparent 82%),
+    conic-gradient(var(--ds-gold, #e6b91e) calc(var(--ep-pct, 0) * 1%), var(--ds-mint, #e9f4ed) 0);
+}
+
+.ep-page .ep-ring__value {
+  font-family: var(--ds-font-display, inherit);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ds-ink-900, #10271f);
+}
+
+.ep-page .ep-ring__sub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--ds-ink-500, #5a6c65);
+}
+
+/* Section header inside each card: mint icon tile, title, one-line help, status chip */
+.ep-page .ep-section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3, 12px);
+  padding-bottom: var(--ds-space-4, 16px);
+  margin-bottom: var(--ds-space-5, 20px);
+  border-bottom: 1px solid var(--ds-border, #dfe8e3);
+}
+
+.ep-page .ep-section-head__icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-mint, #e9f4ed);
+  color: var(--ds-green, #07553a);
+  font-size: 1.05rem;
+}
+
+.ep-page .ep-section-head__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ep-page .ep-section-head__title {
+  margin: 0;
+  font-family: var(--ds-font-display, inherit);
+  font-size: var(--ds-text-h3, 1.125rem);
+  font-weight: 800;
+  color: var(--ds-ink-900, #10271f);
+}
+
+.ep-page .ep-section-head__help {
+  margin: 2px 0 0;
+  font-size: var(--ds-text-sm, 0.875rem);
+  color: var(--ds-ink-500, #5a6c65);
+}
+
+.ep-page .ep-section-head__help:empty {
+  display: none;
+}
+
+.ep-page .ep-chip {
+  flex: none;
+  padding: 2px var(--ds-space-3, 12px);
+  border: 1px solid var(--ds-border, #dfe8e3);
+  border-radius: var(--ds-radius-pill, 999px);
+  background: var(--ds-ink-50, #f1f5f2);
+  color: var(--ds-ink-700, #2f463d);
+  font-size: var(--ds-text-xs, 0.75rem);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ep-page .ep-chip--done {
+  border-color: transparent;
+  background: var(--ds-mint, #e9f4ed);
+  color: var(--ds-green, #07553a);
+}
+
+/* NSRP: the required line stays visible, the rest sits behind "Why we ask" */
+.ep-page .ep-why summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--ds-green, #07553a);
+}
+
+.ep-page .ep-why summary:focus-visible {
+  outline: 3px solid var(--ds-focus, #0b704b);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Save bar: status (dot plus text), Discard, Save */
+.ep-page .editprofile-footer-inner {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2, 8px) var(--ds-space-3, 12px);
+}
+
+.ep-page .ep-savestate {
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--ds-space-2, 8px);
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 700;
+  color: var(--ds-ink-700, #2f463d);
+}
+
+.ep-page .ep-savestate__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ds-green-secondary, #0b704b);
+}
+
+.ep-page .ep-savestate.is-dirty .ep-savestate__dot {
+  background: var(--ds-gold, #e6b91e);
+  box-shadow: 0 0 0 3px rgba(230, 185, 30, 0.28);
+}
+
+.ep-page .ep-savestate__note {
+  flex-basis: 100%;
+  font-size: var(--ds-text-xs, 0.75rem);
+  font-weight: 500;
+  color: var(--ds-ink-500, #5a6c65);
+}
+
+.ep-page .ep-discard-btn {
+  flex: 0 0 auto;
+  min-height: 48px;
+  padding: 0 var(--ds-space-5, 20px);
+  border: 1px solid var(--ds-border, #dfe8e3);
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-surface, #fff);
+  color: var(--ds-ink-700, #2f463d);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ep-page .ep-discard-btn:hover:not(:disabled) {
+  background: var(--ds-ink-50, #f1f5f2);
+}
+
+.ep-page .ep-discard-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ep-page .ep-discard-btn:focus-visible {
+  outline: 3px solid var(--ds-gold, #e6b91e);
+  outline-offset: 2px;
+}
+
+.ep-page .profile-save-btn {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+@media (min-width: 768px) {
+  .ep-page .ep-savestate {
+    flex: 1 1 auto;
+  }
+
+  .ep-page .ep-savestate__note {
+    flex-basis: auto;
+    margin-left: var(--ds-space-2, 8px);
+  }
+
+  .ep-page .profile-save-btn {
+    flex: 0 0 auto;
+    min-width: 200px;
+  }
+}
+
+/* Wider content column on large screens so the space beside the form is used.
+   Header, email card, form card and save bar share one max width. */
+.ep-page {
+  --ep-max: 760px;
+}
+
+@media (min-width: 1024px) {
+  .ep-page { --ep-max: 1040px; }
+}
+
+@media (min-width: 1440px) {
+  .ep-page { --ep-max: 1200px; }
+}
+
+.ep-page .editprofile-panel-inner,
+.ep-page .editprofile-footer-inner {
+  max-width: var(--ep-max);
+}
+
+.ep-page .email-change-card {
+  max-width: var(--ep-max);
+}
+
+@media (min-width: 768px) {
+  .ep-page .email-change-card {
+    width: calc(100% - 48px);
+    max-width: calc(var(--ep-max) - 48px);
+  }
+}
+
+/* Checkbox groups use three columns on wide screens */
+@media (min-width: 1280px) {
+  .ep-page .checkbox-group { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 /* Rich autosuggest on the Edit Profile page (Citizenship, Eligibility, PRC license).

@@ -1025,11 +1025,16 @@ body, html {
   position: relative;
   min-height: 210px;
   border-top: 4px solid var(--marinduque-gold);
-  background: linear-gradient(rgb(2, 95, 13), rgba(0, 149, 17, 0.92)), url("../assets/images/footer.png");
-  background-size: cover;
-  background-position: center;
+  /* Matches PublicNavbar: deep green gradient + gold rule */
+  background: linear-gradient(110deg, var(--ds-green-deep), var(--ds-green));
   margin-top: 48px;
   padding: 36px 16px 20px;
+  overflow: hidden;
+}
+
+/* About page: footer sits flush under the closing hero, no white band */
+.about-mock .footer-v2 {
+  margin-top: 0;
 }
 
 .footer-v2-background-overlay {
@@ -1038,7 +1043,8 @@ body, html {
   background-image: url('../assets/images/provincial-building.jpg');
   background-size: cover;
   background-position: center;
-  opacity: 0.1;
+  opacity: 0.07;
+  mix-blend-mode: luminosity;
   pointer-events: none;
 }
 
@@ -1101,7 +1107,7 @@ body, html {
 
 .footer-v2-label {
   margin: 0 0 4px;
-  color: #fef3c7;
+  color: var(--marinduque-gold);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -1141,9 +1147,8 @@ body, html {
   border-radius: 50%;
   
   /* Soft frosted glass background instead of bare outline */
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(6px);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   
   /* Clean white icons */
   color: #ffffff;

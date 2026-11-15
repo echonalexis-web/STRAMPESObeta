@@ -1,13 +1,22 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FaHeart, FaRegHeart, FaSearch } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { newsAPI, newsLikeAPI } from "../services/api";
 import NewsCard from "../components/NewsCard";
+import Pagination from "../components/Pagination";
 import useParallaxLayer from "../hooks/useParallaxLayer";
 import { NEWS_FEED_LOADED_EVENT, NEWS_REFRESH_EVENT, newsItemTime } from "../utils/newsEvents";
+import { localDayEndIso, localDayStartIso } from "../utils/newsDateRange";
 import "../styles/news-feed.css";
+
+// Page 1 shows the newest announcement as the featured story, then the next six
+// in the grid (7 items). Every later page is six grid cards, so the pager counts
+// the grid items only (total minus the featured one).
+const PAGE_SIZE = 6;
+const featuredCount = (page) => (page === 1 ? 1 : 0);
+const totalPagesFor = (total) => Math.max(Math.ceil(Math.max(total - 1, 0) / PAGE_SIZE), 1);
 
 const CATEGORIES = [
   { label: "All", value: "" },
@@ -31,6 +40,11 @@ export default function NewsFeed() {
 
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const listRef = useRef(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -44,10 +58,27 @@ export default function NewsFeed() {
     const loadNews = async () => {
       try {
         setLoading(true);
-        const { data } = await newsAPI.list({ category: category || undefined, search: search || undefined, page: 1, limit: 30 });
+        const { data } = await newsAPI.list({
+          category: category || undefined,
+          search: search || undefined,
+          from: localDayStartIso(dateFrom),
+          to: localDayEndIso(dateTo),
+          // Page 1: items 1-7 (featured + six). Page n: six items after those.
+          page: 1,
+          offset: page === 1 ? 0 : 1 + (page - 1) * PAGE_SIZE,
+          limit: PAGE_SIZE + featuredCount(page),
+        });
         if (!active) return;
         const loaded = Array.isArray(data?.items) ? data.items : [];
+        const serverTotal = Number(data?.total ?? loaded.length);
+        const serverPages = totalPagesFor(serverTotal);
+        // A page that no longer exists (items were removed): step back to the last one.
+        if (loaded.length === 0 && page > serverPages) {
+          setPage(serverPages);
+          return;
+        }
         setItems(loaded);
+        setTotal(serverTotal);
         setError("");
         // Tell the realtime toast what is on screen, so it can drop those
         // items from its "new" count. Only an unfiltered load is a valid
@@ -57,7 +88,8 @@ export default function NewsFeed() {
             detail: {
               ids: loaded.map((item) => String(item?._id || "")).filter(Boolean),
               newestAt: Math.max(0, ...loaded.map(newsItemTime)),
-              filtered: Boolean(category || search),
+              // Only the first page with no filter shows the newest item.
+              filtered: Boolean(category || search || dateFrom || dateTo || page > 1),
             },
           }),
         );
@@ -78,12 +110,35 @@ export default function NewsFeed() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [category, search, refreshKey]);
+  }, [category, search, dateFrom, dateTo, page, refreshKey]);
+
+  // Any filter change goes back to the first page.
+  const changeCategory = (value) => {
+    setCategory(value);
+    setPage(1);
+  };
+  const changeDateFrom = (value) => {
+    setDateFrom(value);
+    setPage(1);
+  };
+  const changeDateTo = (value) => {
+    setDateTo(value);
+    setPage(1);
+  };
+  const hasFilters = Boolean(category || search || dateFrom || dateTo);
+  const clearFilters = () => {
+    setCategory("");
+    setSearch("");
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
+  };
 
   // Realtime toast -> "Refresh": reload with the current filters and go back
   // to the top, where the new items appear.
   useEffect(() => {
     const handleRefreshRequest = () => {
+      setPage(1);
       setRefreshKey((key) => key + 1);
       const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
       window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
@@ -170,8 +225,9 @@ export default function NewsFeed() {
     );
   };
 
-  const featured = !loading && !error ? items[0] : null;
-  const rest = featured ? items.slice(1) : [];
+  // The newest item is featured on the first page only; later pages are plain grids.
+  const featured = !loading && !error && page === 1 ? items[0] : null;
+  const rest = !loading && !error ? (featured ? items.slice(1) : items) : [];
 
   return (
     <main className="news-feed-page" aria-label="STRAM PESO News Feed">
@@ -199,7 +255,7 @@ export default function NewsFeed() {
                 aria-selected={category === option.value}
                 data-category={option.value}
                 className={`news-chip${category === option.value ? " is-active" : ""}`}
-                onClick={() => setCategory(option.value)}
+                onClick={() => changeCategory(option.value)}
               >
                 {option.label}
               </button>
@@ -210,7 +266,7 @@ export default function NewsFeed() {
             <select
               className="news-filter-select"
               value={category}
-              onChange={(event) => setCategory(event.target.value)}
+              onChange={(event) => changeCategory(event.target.value)}
               aria-label="Filter announcements by category"
             >
               {CATEGORIES.map((option) => (
@@ -226,15 +282,44 @@ export default function NewsFeed() {
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value.trimStart())}
+              onChange={(event) => {
+                setSearch(event.target.value.trimStart());
+                setPage(1);
+              }}
               placeholder="Search announcements..."
               aria-label="Search announcements"
             />
           </div>
+
+          <div className="news-date-filter" role="group" aria-label={t("news.filters.dateGroup")}>
+            <label className="news-date-field">
+              <span>{t("news.filters.dateFrom")}</span>
+              <input
+                type="date"
+                value={dateFrom}
+                max={dateTo || undefined}
+                onChange={(event) => changeDateFrom(event.target.value)}
+              />
+            </label>
+            <label className="news-date-field">
+              <span>{t("news.filters.dateTo")}</span>
+              <input
+                type="date"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(event) => changeDateTo(event.target.value)}
+              />
+            </label>
+            {hasFilters ? (
+              <button type="button" className="news-clear-filters" onClick={clearFilters}>
+                {t("news.filters.clear")}
+              </button>
+            ) : null}
+          </div>
         </div>
       </section>
 
-      <section className="news-feed-list-wrap">
+      <section className="news-feed-list-wrap" ref={listRef}>
         {loading ? (
           <div className="news-skeleton" role="status" aria-live="polite">
             <span className="ds-sr-only">Loading announcements...</span>
@@ -263,7 +348,7 @@ export default function NewsFeed() {
         {!loading && !error && items.length === 0 ? (
           <div className="ds-empty news-empty">
             <h3 className="ds-empty__title">No announcements found.</h3>
-            <p>Try another category or a different search term.</p>
+            <p>{hasFilters ? t("news.filters.emptyFiltered") : "Try another category or a different search term."}</p>
           </div>
         ) : null}
 
@@ -292,6 +377,21 @@ export default function NewsFeed() {
             />
           ))}
         </div>
+
+        {!error ? (
+          <Pagination
+            variant="card"
+            idPrefix="news-pager"
+            total={Math.max(total - 1, 0)}
+            page={page}
+            pageSize={PAGE_SIZE}
+            showPageSize={false}
+            disabled={loading}
+            label={t("pagination.items.announcements")}
+            scrollTargetRef={listRef}
+            onPageChange={setPage}
+          />
+        ) : null}
       </section>
     </main>
   );

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 480" width="1920" height="480">
+            <rect width="1920" height="480" fill="#f5f7f3"/>
+            <!-- Concentric Arcs rising from bottom right -->
+            <g transform="translate(1700, 480)">
+                <circle cx="0" cy="0" r="650" fill="none" stroke="#f6e7a6" stroke-width="45" opacity="0.6"/>
+                <circle cx="0" cy="0" r="540" fill="none" stroke="#e6b91e" stroke-width="35" opacity="0.7"/>
+                <circle cx="0" cy="0" r="430" fill="none" stroke="#2f8a5f" stroke-width="30" opacity="0.5"/>
+                <circle cx="0" cy="0" r="330" fill="none" stroke="#07553a" stroke-width="25" opacity="0.8"/>
+                <circle cx="0" cy="0" r="230" fill="none" stroke="#e6b91e" stroke-width="20"/>
+                <circle cx="0" cy="0" r="140" fill="#07553a" opacity="0.9"/>
+            </g>
+        </svg>

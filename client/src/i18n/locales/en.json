@@ -715,6 +715,52 @@
     "count_one": "{{count}} suggestion available. Use the up and down arrows, Enter to choose.",
     "count_other": "{{count}} suggestions available. Use the up and down arrows, Enter to choose."
   },
+  "profileEditor": {
+    "sectionsNav": "Profile sections",
+    "stillToDo": "Still to do:",
+    "statusComplete": "Complete",
+    "statusTodo": "To do",
+    "ringLabel": "Profile {{percent}}% complete",
+    "help": {
+      "profile": "Your name and contact details.",
+      "employerProfile": "Your company details and contact person.",
+      "career": "The work you want and the skills you bring.",
+      "training": "Your training and civil service eligibility.",
+      "nsrp": "Details used for the National Service and Referral Program (NSRP) form.",
+      "documents": "Your resume and valid ID."
+    },
+    "unsaved": "Unsaved changes",
+    "allSaved": "All changes saved",
+    "savedNote": "Fields are saved when you click Save Profile.",
+    "discard": "Discard",
+    "discardTitle": "Discard your changes?",
+    "discardMessage": "Your edits will be reset to the last saved version.",
+    "discardConfirm": "Discard changes",
+    "keepEditing": "Keep editing",
+    "whyWeAsk": "Why we ask"
+  },
+  "vacancy": {
+    "compact": {
+      "mustHavesOf": "{{met}} of {{total}} must-haves",
+      "noMustHaves": "No must-haves listed",
+      "moreDetails": "Details and apply",
+      "matchSummary": "{{tier}} match: you meet {{met}} of {{total}} must-haves",
+      "matchSummaryNoCount": "{{tier}} match",
+      "estimatedFit": "Estimated fit",
+      "estimated": "est.",
+      "companyPosted": "{{company}} · posted {{posted}}",
+      "expand": "Show match details for {{title}}",
+      "collapse": "Hide match details for {{title}}",
+      "viewDetails": "View details",
+      "viewDetailsFor": "View details for {{title}}",
+      "viewOnlyShort": "View only",
+      "viewOnlyAge": "View only: you can apply from age 18.",
+      "applied": "Applied",
+      "missing": "Missing: {{list}}",
+      "applicants": "{{count}} applied",
+      "postedAgo": "posted {{posted}}"
+    }
+  },
   "jobBoard": {
     "heroTitle": "Find work that",
     "heroAccent": "fits your future.",
@@ -756,7 +802,14 @@
   "news": {
     "readStory": "Read story",
     "moreFrom": "More from STRAM PESO",
-    "readMore": "Read more"
+    "readMore": "Read more",
+    "filters": {
+      "dateGroup": "Filter by date",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "clear": "Clear filters",
+      "emptyFiltered": "No announcements match these filters. Try a wider date range or another category."
+    }
   },
   "presence": {
     "activeNow": "Active now",
@@ -1364,6 +1417,37 @@
     },
     "copyright": "© {{year}} STRAM PESO. All rights reserved.",
     "secureServices": "Secure account services"
+  },
+  "changePassword": {
+    "eyebrow": "Account security",
+    "eyebrowForced": "Action required",
+    "title": "Change password",
+    "titleForced": "Set your password",
+    "subtitle": "Update the password you use to sign in.",
+    "subtitleForced": "Your account was created with a temporary password. Choose your own to continue.",
+    "currentLabel": "Current password",
+    "temporaryLabel": "Temporary password",
+    "newLabel": "New password",
+    "confirmLabel": "Confirm new password",
+    "requirementsTitle": "Your new password needs",
+    "reqLength": "At least 8 characters",
+    "reqMatch": "Matches the confirmation",
+    "show": "Show password",
+    "hide": "Hide password",
+    "submit": "Save password",
+    "saving": "Saving…",
+    "backToSettings": "Back to settings",
+    "logout": "Log out",
+    "errors": {
+      "fillCurrentNew": "Fill in your current and new password.",
+      "tooShort": "Your new password must be at least 8 characters.",
+      "mismatch": "The new password and its confirmation don't match.",
+      "generic": "Could not change your password. Please try again."
+    },
+    "tipsTitle": "Keep your account safe",
+    "tip1": "Use a long password you do not use anywhere else.",
+    "tip2": "Avoid names, birthdays and other things people could guess.",
+    "tip3": "You will be signed out on your other devices after the change."
   },
   "resultModal": {
     "close": "Close",
@@ -2468,6 +2552,20 @@
     "removeError": "Could not remove the cover image.",
     "editorTitle": "Adjust your cover"
   },
+  "profileCard": {
+    "loading": "Loading profile",
+    "unavailable": "This profile is unavailable.",
+    "error": "Could not load this profile.",
+    "verified": "Verified",
+    "view": "View profile",
+    "viewOwn": "View your profile",
+    "role": {
+      "jobseeker": "Jobseeker",
+      "employee": "Jobseeker",
+      "resident": "Jobseeker",
+      "employer": "Employer"
+    }
+  },
   "qualSteps": {
     "stepperLabel": "Qualification steps",
     "steps": {
@@ -2523,20 +2621,6 @@
     "postingsEmptyHint": "Check back later.",
     "postingsErrorTitle": "Could not load the job postings",
     "postingsErrorBody": "Check your connection and try again."
-  },
-  "profileCard": {
-    "loading": "Loading profile",
-    "unavailable": "This profile is unavailable.",
-    "error": "Could not load this profile.",
-    "verified": "Verified",
-    "view": "View profile",
-    "viewOwn": "View your profile",
-    "role": {
-      "jobseeker": "Jobseeker",
-      "employee": "Jobseeker",
-      "resident": "Jobseeker",
-      "employer": "Employer"
-    }
   },
   "contactShare": {
     "button": "Share my contact details",

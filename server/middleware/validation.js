@@ -176,7 +176,7 @@ const validateUserUpdate = (req, res, next) => {
       errors.push('Invalid employment type');
     }
     if (unemploymentReason !== undefined && unemploymentReason) {
-      const reasons = ["fresh_grad", "finished_contract", "resigned", "retired", "laidoff_local", "laidoff_abroad"];
+      const reasons = ["fresh_grad", "finished_contract", "resigned", "retired", "laidoff_local", "laidoff_abroad", "lost_informal_work"];
       if (!reasons.includes(unemploymentReason)) {
         errors.push('Invalid unemployment reason');
       }

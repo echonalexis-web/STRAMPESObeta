@@ -95,6 +95,7 @@ const jobseekerProfileSchema = new mongoose.Schema(
         "retired",
         "laidoff_local",
         "laidoff_abroad",
+        "lost_informal_work",
       ],
       default: null,
     },

@@ -6,7 +6,10 @@ import pesoLogo from "../assets/images/peso-logo.png";
 import "@fontsource/plus-jakarta-sans/800.css";
 import "../styles/public-navbar.css";
 
-export default function PublicNavbar() {
+// `action` ({ to | onClick, label, icon }) switches the bar to a minimal mode:
+// same brand and styling, but no anchor links, login/register or drawer — just
+// one button. Used by pages a signed-in user reaches (e.g. change password).
+export default function PublicNavbar({ action = null }) {
   const { t } = useTranslation();
   const { pathname, hash } = useLocation();
   const [openPanel, setOpenPanel] = useState(null);
@@ -112,6 +115,25 @@ export default function PublicNavbar() {
       <FaArrowRight className="public-nav-choice-arrow" aria-hidden="true" />
     </Link>
   ));
+
+  if (action) {
+    const content = <>{action.icon}{action.label}</>;
+    return (
+      <nav className="public-navbar" aria-label={t("publicNavbar.navigation")}>
+        <div className="public-nav-inner">
+          <div className="public-nav-brand">
+            <img src={pesoLogo} alt="" width="46" height="46" />
+            <span><strong>{t("common.appName")}</strong><small>Marinduque</small></span>
+          </div>
+          {action.to ? (
+            <Link to={action.to} className="public-nav-button">{content}</Link>
+          ) : (
+            <button type="button" className="public-nav-button" onClick={action.onClick}>{content}</button>
+          )}
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav className="public-navbar" ref={navRef} aria-label={t("publicNavbar.navigation")}>

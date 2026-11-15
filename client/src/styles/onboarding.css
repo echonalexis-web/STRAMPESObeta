@@ -739,11 +739,14 @@
   margin-bottom: 0.85rem;
 }
 
-.skills-entry-row .autosuggest {
-  flex: 1;
+.skills-entry-row .autosuggest,
+.skills-entry-row > input {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .onboarding-add-btn {
+  flex: 0 0 auto;
   border: none;
   background: var(--ob-green-600);
   color: #fff;
@@ -1235,7 +1238,27 @@
 }
 
 .onboarding-address-group input[type="text"] {
+  width: 100%;
   margin-top: 0.25rem;
+  min-height: 44px;
+  padding: 12px 16px;
+  border: 1px solid var(--ob-neutral-300);
+  border-radius: var(--ob-radius-md);
+  background: var(--ob-neutral-0);
+  color: var(--ob-neutral-900);
+  font-size: 16px;
+  box-sizing: border-box;
+  transition: border-color 0.15s var(--ob-ease), box-shadow 0.15s var(--ob-ease);
+}
+
+.onboarding-address-group input[type="text"]:hover {
+  border-color: var(--ob-neutral-400);
+}
+
+.onboarding-address-group input[type="text"]:focus {
+  outline: none;
+  border-color: var(--ob-brand-800);
+  box-shadow: 0 0 0 2px rgba(0, 75, 35, 0.22);
 }
 
 /* =============================================================
@@ -1289,7 +1312,8 @@
 .searchable-dropdown-input-wrapper {
   display: flex;
   align-items: stretch;
-  gap: 2px;
+  gap: 0;
+  width: 100%;
   margin-top: 0.4rem;
 }
 

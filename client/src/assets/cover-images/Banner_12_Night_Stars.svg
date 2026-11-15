@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 480" width="1920" height="480">
+            <defs>
+                <linearGradient id="night" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#0a4430"/>
+                    <stop offset="100%" stop-color="#10271f"/>
+                </linearGradient>
+            </defs>
+            <rect width="1920" height="480" fill="url(#night)"/>
+            <!-- Gentle Crescent Moon -->
+            <g transform="translate(1550, 160)">
+                <path d="M 0 -40 A 40 40 0 1 0 40 0 A 32 32 0 1 1 0 -40 Z" fill="#f6e7a6"/>
+            </g>
+            <!-- Gold Stars -->
+            <polygon points="1250,120 1253,128 1261,128 1255,133 1257,141 1250,136 1243,141 1245,133 1239,128 1247,128" fill="#e6b91e" opacity="0.9"/>
+            <polygon points="1400,240 1402,245 1407,245 1403,248 1404,253 1400,250 1396,253 1397,248 1393,245 1398,245" fill="#f6e7a6" opacity="0.75"/>
+            <polygon points="1720,100 1722,105 1727,105 1723,108 1724,113 1720,110 1716,113 1717,108 1713,105 1718,105" fill="#e6b91e" opacity="0.8"/>
+            <polygon points="1050,180 1051,183 1055,183 1052,185 1053,189 1050,187 1047,189 1048,185 1045,183 1049,183" fill="#f6e7a6" opacity="0.6"/>
+            <polygon points="1650,280 1651,283 1655,283 1652,285 1653,289 1650,287 1647,289 1648,285 1645,283 1649,283" fill="#e6b91e" opacity="0.7"/>
+        </svg>
