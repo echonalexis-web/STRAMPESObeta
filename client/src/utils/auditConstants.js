@@ -10,6 +10,7 @@ export const AUDIT_ACTION_LABELS = {
   // ============================================
   "auth.user.registered": "User registered",
   "auth.employer.registered": "Employer registered",
+  "auth.user.unverified_stub_replaced": "Unverified sign-up replaced by Google sign-in",
   "auth.user.login_success": "User logged in",
   "auth.user.logout": "User logged out",
   "auth.password.reset_requested": "Password reset requested",
@@ -174,6 +175,7 @@ export const AUDIT_ACTION_SEVERITY = {
   // Critical actions
   "auth.user.registered": "info",
   "auth.employer.registered": "info",
+  "auth.user.unverified_stub_replaced": "warning",
   "auth.user.login_success": "info",
   "admin.user.deleted": "critical",
   "admin.user.deactivated": "critical",

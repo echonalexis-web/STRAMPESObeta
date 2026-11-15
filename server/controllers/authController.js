@@ -1546,6 +1546,13 @@ exports.googleAuth = async (req, res) => {
     if (user?.googleSignInDisabled || user?.staffRecoveryPending) {
       return res.status(403).json({ message: "Sign in with your password or finish your approved account recovery." });
     }
+    // An unverified password account for this email may have been created
+    // by someone else; never link Google to it (see purgeUnverifiedStub).
+    if (isUnverifiedStub(user, email)) {
+      const purged = await purgeUnverifiedStub(req, user);
+      if (!purged) return res.status(409).json({ message: GOOGLE_RETRY_MESSAGE });
+      user = null;
+    }
     let isNewUser = false;
 
     if (!user) {
@@ -1601,6 +1608,7 @@ exports.googleAuth = async (req, res) => {
 
 const GOOGLE_PENDING_PURPOSE = "google_signup";
 const GOOGLE_PENDING_TTL = "10m";
+const GOOGLE_RETRY_MESSAGE = "An account with this email was just created. Please try signing in again.";
 
 const googleRaceError = (res, error) => {
   // Same email-uniqueness race as register/registerEmployer: two concurrent
@@ -1609,12 +1617,47 @@ const googleRaceError = (res, error) => {
   // commits. The loser hits the unique index instead of creating a
   // duplicate — tell the user to just try signing in again.
   if (error.code === 11000) {
-    return res.status(409).json({
-      message: "An account with this email was just created. Please try signing in again.",
-    });
+    return res.status(409).json({ message: GOOGLE_RETRY_MESSAGE });
   }
   return sendError(res, error, "Google sign-in failed");
 };
+
+// A self-service password account whose email was never verified. register()
+// and registerEmployer() are the only writers of a literal `false` (legacy
+// accounts leave it unset and are real), and login() refuses `false`, so such
+// an account has never had a session. Anyone can create one for any address,
+// which is why Google sign-in must not adopt it: linking used to keep the
+// creator's password on an account the mailbox owner then started using.
+const isUnverifiedStub = (user, email) =>
+  Boolean(user) &&
+  user.isEmailVerified === false &&
+  !user.googleId &&
+  normalizeEmail(user.email) === email &&
+  (user.role === "jobseeker" || user.role === "employer");
+
+// Deletes the stub (and its empty profile) so the normal first-time Google
+// sign-up runs for the verified mailbox owner. The delete repeats the stub
+// conditions, so an account verified or linked since it was read is left
+// alone. Returns whether it was deleted.
+async function purgeUnverifiedStub(req, user) {
+  const { deletedCount } = await User.deleteOne({ _id: user._id, isEmailVerified: false, googleId: null });
+  if (deletedCount !== 1) return false;
+
+  await Promise.all([
+    JobseekerProfile.deleteOne({ userId: user._id }),
+    EmployerProfile.deleteOne({ userId: user._id }),
+  ]);
+  await logAuditEvent({
+    req,
+    actorRole: user.role,
+    action: "auth.user.unverified_stub_replaced",
+    targetType: "user",
+    targetId: String(user._id),
+    severity: "warning",
+    metadata: { role: user.role },
+  });
+  return true;
+}
 
 // Creates the account for a first-time Google sign-in and drops the user
 // into onboarding. `dob` is the validated date (jobseekers) or null (employers).
@@ -1770,7 +1813,12 @@ exports.googleComplete = async (req, res) => {
     }
 
     // Someone may have registered the same email since the first step.
-    const existing = await User.findOne({ $or: [{ googleId: pending.googleId }, { email: pending.email }] });
+    let existing = await User.findOne({ $or: [{ googleId: pending.googleId }, { email: pending.email }] });
+    // A password stub registered during the pending window must not block
+    // (or later hijack) this sign-up — same rule as googleAuth.
+    if (isUnverifiedStub(existing, pending.email) && (await purgeUnverifiedStub(req, existing))) {
+      existing = null;
+    }
     if (existing) {
       return res.status(409).json({
         message: "An account with this email already exists. Please sign in instead.",
