@@ -22,6 +22,7 @@ const { sanitizeRequestBody, sanitizeQueryParams } = require("./middleware/valid
 const { detectMaliciousPayload, securityLogger } = require("./middleware/security");
 const { canAccessRef } = require("./controllers/fileController");
 const { classifyUploadPath } = require("./utils/uploadPath");
+const { registerConversationHandlers } = require("./sockets/conversationRooms");
 const presenceService = require("./services/presenceService");
 const { startEmailOutboxWorker } = require("./services/emailOutboxService");
 const logger = require("./utils/logger");
@@ -735,26 +736,12 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     }
     userConnections.get(socket.userId).add(socket.id);
 
-    socket.on("join_conversation", (conversationId) => {
-      if (!conversationId || !/^[a-fA-F0-9]{24}$/.test(conversationId)) {
-        return socket.emit("error", { message: "Invalid conversation ID" });
-      }
-      
-      socket.rooms = socket.rooms || new Set();
-      socket.rooms.add(conversationId);
-      socket.join(String(conversationId));
-      presenceService.markConversationActive(socket.userId, conversationId);
-      console.log(`📩 User ${socket.userId} joined conversation: ${conversationId}`);
-    });
-
-    socket.on("leave_conversation", (conversationId) => {
-      if (!conversationId || !/^[a-fA-F0-9]{24}$/.test(conversationId)) return;
-      socket.leave(String(conversationId));
-      if (socket.rooms) {
-        socket.rooms.delete(conversationId);
-      }
-      presenceService.markConversationInactive(socket.userId, conversationId);
-      console.log(`📤 User ${socket.userId} left conversation: ${conversationId}`);
+    // join/leave_conversation and typing relays. Joining checks that the
+    // user is a participant of the conversation (see sockets/conversationRooms.js).
+    registerConversationHandlers(socket, {
+      Conversation: require("./models/Conversation"),
+      presenceService,
+      logger,
     });
 
     // Note: sending a message is handled exclusively via the REST endpoint
@@ -765,21 +752,6 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     // path here anymore — a second implementation of the same write path
     // only invites the two to drift out of sync (as happened with room
     // naming and sender population), so ship exactly one.
-
-    socket.on("typing", (data = {}) => {
-      if (!data.conversationId || !/^[a-fA-F0-9]{24}$/.test(data.conversationId)) return;
-      socket.to(String(data.conversationId)).emit("user_typing", {
-        conversationId: data.conversationId,
-        senderId: socket.userId,
-      });
-    });
-
-    socket.on("stop_typing", (data = {}) => {
-      if (!data.conversationId || !/^[a-fA-F0-9]{24}$/.test(data.conversationId)) return;
-      socket.to(String(data.conversationId)).emit("user_stop_typing", {
-        conversationId: data.conversationId,
-      });
-    });
 
     socket.on("disconnect", () => {
       console.log(`❌ User disconnected: ${socket.userId}`);
