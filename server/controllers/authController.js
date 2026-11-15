@@ -1958,7 +1958,7 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.user._id || req.user.id;
-    const currentUser = await User.findById(userId).select("role password verificationStatus dateOfBirth phone");
+    const currentUser = await User.findById(userId).select("role password verificationStatus dateOfBirth phone username email name");
     if (!currentUser) return res.status(404).json({ message: "User not found" });
 
     // ---- 1. Email is immutable through this endpoint ----
@@ -1968,11 +1968,18 @@ exports.updateProfile = async (req, res) => {
     delete req.body.email;
 
     // ---- 2. Staff (admin / superadmin) password change ----
+    // Same rules as changePassword: the shared policy, no reuse of the current
+    // password, and (in step 8) every existing session is revoked.
     const isStaff = currentUser.role === "admin" || currentUser.role === "superadmin";
-    if (isStaff && req.body.newPassword) {
-      const isCurrentValid = await bcrypt.compare(req.body.currentPassword || "", currentUser.password);
+    const staffNewPassword = isStaff && req.body.newPassword ? String(req.body.newPassword) : "";
+    if (staffNewPassword) {
+      const isCurrentValid = await bcrypt.compare(String(req.body.currentPassword || ""), currentUser.password || "");
       if (!isCurrentValid) return res.status(400).json({ message: "Current password is incorrect" });
-      if (req.body.newPassword.length < 8) return res.status(400).json({ message: "New password must be at least 8 characters" });
+      if (staffNewPassword.length < 8) return res.status(400).json({ message: "New password must be at least 8 characters" });
+      if (rejectWeakPassword(res, currentUser, staffNewPassword)) return;
+      if (await bcrypt.compare(staffNewPassword, currentUser.password)) {
+        return res.status(400).json({ message: "The new password must be different from the current one." });
+      }
     }
 
     // ---- 3. Prepare common user updates ----
@@ -2339,9 +2346,41 @@ exports.updateProfile = async (req, res) => {
     }
 
     // ---- 8. Staff (admin / superadmin) password update ----
-    if (isStaff && req.body.newPassword) {
-      const hashedPassword = await bcrypt.hash(req.body.newPassword, 10);
-      await User.findByIdAndUpdate(userId, { password: hashedPassword });
+    // Bumping tokenVersion signs out every other session (a leaked token is
+    // the usual reason to change a password); the caller gets a fresh token
+    // in the response so this session stays signed in.
+    let refreshedToken = null;
+    if (staffNewPassword) {
+      const hashedPassword = await bcrypt.hash(staffNewPassword, 10);
+      const rotated = await User.findByIdAndUpdate(
+        userId,
+        { $set: { password: hashedPassword, mustChangePassword: false }, $inc: { tokenVersion: 1 } },
+        { new: true }
+      );
+      if (rotated) {
+        refreshedToken = jwt.sign(
+          { id: rotated._id, role: rotated.role, tokenVersion: rotated.tokenVersion },
+          process.env.JWT_SECRET,
+          { expiresIn: "30d" }
+        );
+      }
+
+      if (currentUser.email) {
+        sendPasswordChangedEmail({ to: currentUser.email, name: currentUser.name }).catch((err) =>
+          logger.error("Failed to send password-changed notification email", { userId: String(userId), error: err.message })
+        );
+      }
+      void accountAlerts.notifyPasswordChanged(userId, req);
+
+      await runPostCommit("profile_update.password_audit", { req, resourceType: "user", resourceId: userId }, () => logAuditEvent({
+        req,
+        actorId: userId,
+        actorRole: currentUser.role,
+        action: "user.password.changed",
+        targetType: "user",
+        targetId: String(userId),
+        severity: "warning",
+      }));
     }
 
     // ---- 9. Fetch updated user ----
@@ -2369,6 +2408,7 @@ exports.updateProfile = async (req, res) => {
       profile: updatedProfile,
       profileCompleteness:
         currentUser.role === "jobseeker" ? computeProfileCompleteness(updatedUser, updatedProfile) : null,
+      ...(refreshedToken ? { token: refreshedToken } : {}),
     });
   } catch (error) {
     console.error("Update profile error:", error);

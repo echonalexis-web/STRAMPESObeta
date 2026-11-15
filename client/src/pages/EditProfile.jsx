@@ -360,7 +360,7 @@ const getInitialPersisted = () => ({
 
 export default function EditProfile() {
   const { t } = useTranslation();
-  const { user, login } = useContext(AuthContext);
+  const { user, login, setToken } = useContext(AuthContext);
   const toast = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
@@ -891,6 +891,12 @@ export default function EditProfile() {
       if (!registrationDocFile && documentClearFlags.registrationDoc && existingRegistrationDoc) data.append("registrationDoc", "");
 
       const { data: response } = await authAPI.updateProfile(data);
+      // A staff password change revokes every earlier token, including this
+      // one; the server sends a fresh token so this session stays signed in.
+      if (response?.token) {
+        localStorage.setItem("token", response.token);
+        setToken(response.token);
+      }
       setSupportingDocumentFile(null);
       setExistingValidId(response.user?.validIdFile || "");
       toast.success(response.message || "Profile updated successfully");
