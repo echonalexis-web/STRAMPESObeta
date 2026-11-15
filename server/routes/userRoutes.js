@@ -35,7 +35,7 @@ router.put(
 );
 
 // Legacy accounts: set the date of birth once (locked afterwards)
-router.post("/me/dob", sanitizeRequestBody, detectMaliciousPayload, sensitiveOperationLimiter, setMyDateOfBirth);
+router.post("/me/dob", sensitiveOperationLimiter(5, 60 * 60 * 1000), sanitizeRequestBody, detectMaliciousPayload, setMyDateOfBirth);
 
 // Profile routes
 router.get("/profile", sanitizeQueryParams, getProfile);
