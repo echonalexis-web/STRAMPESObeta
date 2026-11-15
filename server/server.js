@@ -21,6 +21,7 @@ const { fileFilter, generateSecureFilename, MAX_FILE_SIZE } = require("./middlew
 const { sanitizeRequestBody, sanitizeQueryParams } = require("./middleware/validation");
 const { detectMaliciousPayload, securityLogger } = require("./middleware/security");
 const { canAccessRef } = require("./controllers/fileController");
+const { classifyUploadPath } = require("./utils/uploadPath");
 const presenceService = require("./services/presenceService");
 const { startEmailOutboxWorker } = require("./services/emailOutboxService");
 const logger = require("./utils/logger");
@@ -288,15 +289,19 @@ app.post("/api/v1/users/upload-resume", uploadLimiter, (req, res, next) => {
 });
 
 app.use("/uploads", async (req, res, next) => {
-  const requestedPath = path.normalize(req.path);
-  if (requestedPath.includes("..")) {
+  // Decode once and check the same path express.static will serve: an earlier
+  // version tested ".." after normalising (too late to see it) and matched the
+  // public folders with includes() on the raw path, so
+  // /uploads/profiles/%2e%2e/ids/<file> skipped every check below.
+  const classified = classifyUploadPath(req.path);
+  if (!classified.ok) {
     return res.status(403).json({ message: "Invalid file path" });
   }
+  const requestedPath = classified.normalized;
 
   // Profile pictures, news announcement images and employer cover images are
   // public assets (an <img> tag cannot send a Bearer token).
-  const isPublicImage = req.path.includes("/profiles/") || req.path.includes("/news/") || req.path.startsWith("/covers/") || req.path.startsWith("/banner-templates/") || req.path.startsWith("/avatar-presets/");
-  if (isPublicImage) {
+  if (classified.isPublic) {
     return next();
   }
 
