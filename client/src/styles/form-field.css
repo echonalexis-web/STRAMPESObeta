@@ -1,0 +1,115 @@
+/* Shared field error pattern (WP2).
+   An invalid control gets a red border, a soft red ring, an error icon and a
+   specific message under the field. Colour is never the only signal: the icon
+   and the text always appear with the ring. No animation, so reduced motion
+   needs nothing special. Tokens: design-system.css (--ds-danger, --ds-danger-ring). */
+
+.ds-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1, 4px);
+  min-width: 0;
+}
+
+.ds-field__label {
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+.ds-field__required {
+  color: var(--ds-danger);
+  margin-left: 2px;
+}
+
+.ds-field__hint {
+  color: var(--ds-muted);
+  font-size: var(--ds-text-sm, 0.875rem);
+}
+
+.ds-field__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--ds-danger);
+  font-size: var(--ds-text-sm, 0.875rem);
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.ds-field__error-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+
+/* Baseline: any control marked aria-invalid is styled, so older markup that only
+   sets the attribute needs no rewrite. */
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"],
+[role="combobox"][aria-invalid="true"] {
+  border-color: var(--ds-danger) !important;
+  box-shadow: 0 0 0 3px var(--ds-danger-ring) !important;
+  outline: none;
+}
+
+input[aria-invalid="true"]:focus-visible,
+select[aria-invalid="true"]:focus-visible,
+textarea[aria-invalid="true"]:focus-visible,
+[role="combobox"][aria-invalid="true"]:focus-visible {
+  /* Keep a focus ring that differs from the error ring. */
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 2px;
+}
+
+/* Composite widgets (autosuggest, location pickers) whose inputs are rendered by
+   a component that does not forward aria-invalid: the wrapper carries the state. */
+.ds-invalid-wrap input,
+.ds-invalid-wrap select,
+.ds-invalid-wrap textarea {
+  border-color: var(--ds-danger) !important;
+  box-shadow: 0 0 0 3px var(--ds-danger-ring) !important;
+}
+
+/* Group of checkboxes, radios or pill buttons. */
+[role="group"][aria-invalid="true"],
+[role="radiogroup"][aria-invalid="true"] {
+  border: 1px solid var(--ds-danger);
+  box-shadow: 0 0 0 3px var(--ds-danger-ring);
+  border-radius: var(--ds-radius-md, 12px);
+  padding: var(--ds-space-2, 8px);
+}
+
+/* Composite controls (phone input, combobox wrappers) put the ring on the wrapper. */
+.ds-field--invalid .ds-field__control {
+  border-color: var(--ds-danger);
+  box-shadow: 0 0 0 3px var(--ds-danger-ring);
+}
+
+.ds-field-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (forced-colors: active) {
+  input[aria-invalid="true"],
+  select[aria-invalid="true"],
+  textarea[aria-invalid="true"],
+  [role="combobox"][aria-invalid="true"],
+  [role="group"][aria-invalid="true"],
+  [role="radiogroup"][aria-invalid="true"],
+  .ds-field--invalid .ds-field__control {
+    border-color: CanvasText !important;
+    outline: 2px solid CanvasText;
+    box-shadow: none !important;
+  }
+}
