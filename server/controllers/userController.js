@@ -9,6 +9,7 @@ const { validateDobInput } = require("../utils/age");
 const { DOB_ERROR_MESSAGES } = require("../utils/dobPolicy");
 const { logAuditEvent } = require("../services/auditService");
 const { normalizeHeightUnit, normalizeWeightUnit } = require("../utils/unitFields");
+const { canonicalPhone, allowLandlineForRole } = require("../utils/phone");
 
 // Same exclusions as authController: the owner never needs backup codes, the
 // recovery-email token or the raw ID OCR text back from these endpoints.
@@ -73,7 +74,7 @@ exports.completeOnboarding = async (req, res) => {
     // 1. Build common updates (fields that belong to User model)
     const commonUpdates = {
       name: req.body.name,
-      phone: req.body.phone,
+      phone: canonicalPhone(req.body.phone, { allowLandline: allowLandlineForRole(user.role) }),
       about: req.body.about,
       address: req.body.address,
       ...(dobUpdate || {}),
@@ -169,7 +170,7 @@ exports.completeOnboarding = async (req, res) => {
         weight: req.body.weight ? parseFloat(req.body.weight) : null,
         weightUnit: normalizeWeightUnit(req.body.weightUnit),
         landline: req.body.landline || null,
-        mobileSecondary: req.body.mobileSecondary || null,
+        mobileSecondary: canonicalPhone(req.body.mobileSecondary, { allowLandline: false }) || null,
         presentAddress: parseJSON(req.body.presentAddress, { street: "", barangay: "", municipality: "", province: "", region: "" }),
         permanentAddress: parseJSON(req.body.permanentAddress, { street: "", barangay: "", municipality: "", province: "", region: "" }),
         disability: parseJSON(req.body.disability, []),

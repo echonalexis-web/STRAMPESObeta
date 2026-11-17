@@ -359,6 +359,12 @@ const getApplicantExperienceYears = memoizeByApplicant(function getApplicantExpe
   return band === null ? history : Math.max(history, band);
 });
 
+// "Not applicable" is for students and people who have not graduated yet. It is
+// neutral: not missing data and not a penalty (see experienceScore).
+function isNotApplicableExperience(value) {
+  return normalizeText(value) === 'not applicable';
+}
+
 function experienceScore(job, applicant) {
   const structuredYears = finiteOrNull(job?.minExperienceYears);
   const hasStructured = structuredYears !== null;
@@ -368,6 +374,14 @@ function experienceScore(job, applicant) {
   const anyParseable = parsed.some((y) => y !== null);
 
   if (!hasStructured && !freeText.length) return null; // experience not a factor
+
+  // A "Not applicable" applicant with no work history has nothing to compare, so
+  // the experience dimension is skipped (same as a job with no requirement).
+  // With work history, the years come from the history as usual.
+  const declaredExperience = applicant?.user?.workExperience || applicant?.profile?.workExperience;
+  if (isNotApplicableExperience(declaredExperience) && yearsFromWorkHistory(applicant?.profile?.workHistory) === 0) {
+    return null;
+  }
 
   const applicantYears = getApplicantExperienceYears(applicant);
 
@@ -1069,7 +1083,7 @@ function buildApplicantText(applicant) {
     (profile.preferredOccupations || []).join(' '),
     positions.join(' '),
     skills.join(' '),
-    profile.workExperience || user.workExperience || '',
+    isNotApplicableExperience(profile.workExperience || user.workExperience) ? '' : (profile.workExperience || user.workExperience || ''),
     profile.educationalAttainment || user.educationalAttainment || '',
     profile.course || '',
   ];

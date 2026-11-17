@@ -1,6 +1,12 @@
 const xss = require('xss');
 const User = require('../models/User');
 const { enforce: enforcePasswordPolicy } = require('../utils/passwordPolicy');
+const { parsePhone, phoneMessage, allowLandlineForRole } = require('../utils/phone');
+const {
+  EMPLOYMENT_STATUS_VALUES,
+  EMPLOYMENT_TYPE_VALUES,
+  UNEMPLOYMENT_REASON_VALUES,
+} = require('../utils/enumValues');
 
 // ============ SANITIZATION ============
 const sanitizeInput = (value) => {
@@ -78,6 +84,14 @@ const validateUserUpdate = (req, res, next) => {
     totalWorkforceSize, companySize, ownerName, contactPersonName, contactPersonPosition, fax
   } = req.body;
   const errors = [];
+  // Set when the first problem is a coded field problem, so the client can mark
+  // the field. Additive: `errors` and `message` keep their existing meaning.
+  let firstCode = null;
+  let firstField = null;
+  const addCoded = (code, field, text) => {
+    if (!firstCode) { firstCode = code; firstField = field; }
+    errors.push(text || phoneMessage(code));
+  };
 
   if (name !== undefined) {
     if (name.length < 2 || name.length > 50) {
@@ -94,10 +108,11 @@ const validateUserUpdate = (req, res, next) => {
     errors.push('Please provide a valid email');
   }
   
-  if (phone !== undefined && phone && !/^[0-9+\-\s()]{10,20}$/.test(phone)) {
-    errors.push('Invalid phone number format');
+  if (phone !== undefined && phone) {
+    const parsed = parsePhone(phone, { allowLandline: allowLandlineForRole(req.user?.role) });
+    if (!parsed.ok) addCoded(parsed.code, 'phone');
   }
-  
+
   if (address !== undefined && address && address.length > 200) {
     errors.push('Address is too long');
   }
@@ -140,8 +155,9 @@ const validateUserUpdate = (req, res, next) => {
     if (landline !== undefined && landline && landline.replace(/\D/g, '') && !/^[0-9+\-\s()]{7,15}$/.test(landline)) {
       errors.push('Invalid landline format');
     }
-    if (mobileSecondary !== undefined && mobileSecondary && mobileSecondary.replace(/\D/g, '') && !/^[0-9+\-\s()]{10,20}$/.test(mobileSecondary)) {
-      errors.push('Invalid secondary mobile format');
+    if (mobileSecondary !== undefined && mobileSecondary && String(mobileSecondary).replace(/\D/g, '')) {
+      const parsed = parsePhone(mobileSecondary, { allowLandline: false });
+      if (!parsed.ok) addCoded(parsed.code, 'mobileSecondary');
     }
     if (disability !== undefined && !Array.isArray(disability)) {
       errors.push('Disability must be an array');
@@ -169,16 +185,15 @@ const validateUserUpdate = (req, res, next) => {
     if (repatriationIntent !== undefined && repatriationIntent && repatriationIntent.length > 200) {
       errors.push('Repatriation intent too long');
     }
-    if (employmentStatus !== undefined && !["employed", "unemployed"].includes(employmentStatus)) {
-      errors.push('Invalid employment status');
+    if (employmentStatus !== undefined && !EMPLOYMENT_STATUS_VALUES.includes(employmentStatus)) {
+      addCoded('ENUM_INVALID', 'employmentStatus', 'Invalid employment status');
     }
-    if (employmentType !== undefined && employmentType && !["wage", "self"].includes(employmentType)) {
-      errors.push('Invalid employment type');
+    if (employmentType !== undefined && employmentType && !EMPLOYMENT_TYPE_VALUES.includes(employmentType)) {
+      addCoded('ENUM_INVALID', 'employmentType', 'Invalid employment type');
     }
     if (unemploymentReason !== undefined && unemploymentReason) {
-      const reasons = ["fresh_grad", "finished_contract", "resigned", "retired", "laidoff_local", "laidoff_abroad", "lost_informal_work"];
-      if (!reasons.includes(unemploymentReason)) {
-        errors.push('Invalid unemployment reason');
+      if (!UNEMPLOYMENT_REASON_VALUES.includes(unemploymentReason)) {
+        addCoded('ENUM_INVALID', 'unemploymentReason', 'Invalid unemployment reason');
       }
     }
     if (laidoffCountry !== undefined && laidoffCountry && laidoffCountry.length > 50) {
@@ -255,7 +270,11 @@ const validateUserUpdate = (req, res, next) => {
     // for its error toast — without this, only `.errors` (the full list)
     // was sent back, so every one of those callers silently fell through to
     // a generic "something went wrong" message instead of the real reason.
-    return res.status(400).json({ errors, message: errors[0] });
+    return res.status(400).json({
+      errors,
+      message: errors[0],
+      ...(firstCode ? { code: firstCode, field: firstField } : {}),
+    });
   }
 
   next();
@@ -328,10 +347,11 @@ const validateUserRegistration = (req, res, next) => {
     errors.push('Password must contain uppercase, lowercase, number, and special character');
   }
   
-  if (phone && !/^[0-9+\-\s()]{10,20}$/.test(phone)) {
-    errors.push('Invalid phone number format');
+  if (phone) {
+    const parsed = parsePhone(phone, { allowLandline: true });
+    if (!parsed.ok) errors.push(phoneMessage(parsed.code));
   }
-  
+
   // Shared password policy (blocklist, not the username or date of birth, and a
   // 10-character minimum without an email). Inert while the flag is off.
   let policyCode;

@@ -56,10 +56,11 @@ describe("finishing onboarding (flag on)", () => {
     expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 
-  test("an invalid phone in the same request -> 400 PHONE_INVALID", async () => {
+  test("an invalid phone in the same request -> 400 with the specific phone code (field phone)", async () => {
     const res = await finish({ phone: "12345" });
     expect(res.status).toBe(400);
-    expect(res.body.code).toBe("PHONE_INVALID");
+    expect(res.body.code).toBe("PHONE_PH_FORMAT");
+    expect(res.body.field).toBe("phone");
     expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 

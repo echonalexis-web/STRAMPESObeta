@@ -3,6 +3,7 @@ const path = require("path");
 const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 const fieldMaps = require("./nsrpFormFieldMaps");
 const NsrpTemplate = require("../models/NsrpTemplate");
+const { nsrpPhone } = require("../utils/phone");
 
 const TEMPLATE_DIR = path.join(__dirname, "..", "assets", "templates");
 const FORM1_TEMPLATE = path.join(TEMPLATE_DIR, "NSRP-Form-1-Jobseeker-Reg-Form.pdf");
@@ -185,7 +186,7 @@ async function fillForm1(jobseekerProfile, user, templateBytes) {
   drawTextSafe(page1, profile.pagibigNo, p1.pagibigNo, font);
   drawTextSafe(page1, profile.landline, p1.landline, font);
   drawTextSafe(page1, profile.philhealthNo, p1.philhealthNo, font);
-  drawTextSafe(page1, user.phone, p1.mobile, font);
+  drawTextSafe(page1, nsrpPhone(user.phone), p1.mobile, font);
 
   const disability = Array.isArray(profile.disability) ? profile.disability : [];
   drawCheckMark(page1, disability.includes("Visual"), p1.disabilityVisualBox, font);
@@ -322,7 +323,7 @@ async function fillForm2(employerProfile, user, templateBytes) {
 
   drawTextSafe(page1, profile.contactPersonName, p1.contactPersonName, font);
   drawTextSafe(page1, profile.contactPersonPosition, p1.contactPersonPosition, font);
-  drawTextSafe(page1, user.phone, p1.telephone, font);
+  drawTextSafe(page1, nsrpPhone(user.phone), p1.telephone, font);
   drawTextSafe(page1, profile.fax, p1.fax, font);
   drawTextSafe(page1, user.email, p1.email, font);
 

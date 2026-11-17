@@ -35,7 +35,12 @@ const { sessionUserPayload } = require("../utils/sessionUser");
 const loginLock = require("../services/loginLockService");
 const accountAlerts = require("../services/accountAlertService");
 const passwordPolicy = require("../utils/passwordPolicy");
-const { phoneProblem } = require("../utils/phone");
+const { phoneProblem, parsePhone, canonicalPhone, phoneMessage, allowLandlineForRole } = require("../utils/phone");
+const {
+  EMPLOYMENT_STATUS_VALUES,
+  EMPLOYMENT_TYPE_VALUES,
+  UNEMPLOYMENT_REASON_VALUES,
+} = require("../utils/enumValues");
 
 // Applies the shared password policy for a known account. Returns true when it
 // already answered the request (400), so callers can `if (rejectWeakPassword(...)) return;`.
@@ -2042,6 +2047,24 @@ exports.updateProfile = async (req, res) => {
       about: req.body.about,
       address: req.body.address,
     };
+    // Phone: validated here (this route has no validator middleware). New values
+    // are stored as E.164. A phone that did not change is never re-validated, so a
+    // legacy value cannot block an unrelated save; if it parses it is upgraded.
+    if (commonUpdates.phone !== undefined && commonUpdates.phone !== null) {
+      const submittedPhone = String(commonUpdates.phone).trim();
+      const phoneOptions = { allowLandline: allowLandlineForRole(currentUser.role) };
+      if (submittedPhone === "") {
+        commonUpdates.phone = "";
+      } else if (submittedPhone === String(currentUser.phone ?? "").trim()) {
+        commonUpdates.phone = canonicalPhone(submittedPhone, phoneOptions);
+      } else {
+        const parsedPhone = parsePhone(submittedPhone, phoneOptions);
+        if (!parsedPhone.ok) {
+          return res.status(400).json({ code: parsedPhone.code, message: phoneMessage(parsedPhone.code), field: "phone", params: parsedPhone.params });
+        }
+        commonUpdates.phone = parsedPhone.e164;
+      }
+    }
     // The date of birth is locked once set: only an admin with documentary
     // proof can change it. An unchanged value echoed back by a full-form save
     // is ignored; a different value is refused. Employers never store one.
@@ -2297,7 +2320,41 @@ exports.updateProfile = async (req, res) => {
       if (allFields.weight !== undefined) profileData.weight = allFields.weight ? parseFloat(allFields.weight) : null;
       if (allFields.weightUnit !== undefined) profileData.weightUnit = normalizeWeightUnit(allFields.weightUnit);
       if (allFields.landline !== undefined) profileData.landline = allFields.landline || null;
-      if (allFields.mobileSecondary !== undefined) profileData.mobileSecondary = allFields.mobileSecondary || null;
+      // The stored profile is read only when a submitted value fails a check, to
+      // let an unchanged legacy value through (it must not block an unrelated save).
+      let existingProfileForCompare;
+      const unchangedOnProfile = async (field, value) => {
+        if (existingProfileForCompare === undefined) {
+          existingProfileForCompare = await JobseekerProfile.findOne({ userId }).select(`${field} mobileSecondary employmentStatus employmentType unemploymentReason`).lean();
+        }
+        return String(existingProfileForCompare?.[field] ?? "") === String(value ?? "");
+      };
+      if (allFields.mobileSecondary !== undefined) {
+        const secondary = String(allFields.mobileSecondary || "").trim();
+        if (!secondary || !secondary.replace(/\D/g, "")) {
+          profileData.mobileSecondary = null;
+        } else {
+          const parsedSecondary = parsePhone(secondary, { allowLandline: false });
+          if (parsedSecondary.ok) {
+            profileData.mobileSecondary = parsedSecondary.e164;
+          } else if (await unchangedOnProfile("mobileSecondary", secondary)) {
+            profileData.mobileSecondary = secondary;
+          } else {
+            return res.status(400).json({ code: parsedSecondary.code, message: phoneMessage(parsedSecondary.code), field: "mobileSecondary", params: parsedSecondary.params });
+          }
+        }
+      }
+      for (const [field, allowed] of [
+        ["employmentStatus", EMPLOYMENT_STATUS_VALUES],
+        ["employmentType", EMPLOYMENT_TYPE_VALUES],
+        ["unemploymentReason", UNEMPLOYMENT_REASON_VALUES],
+      ]) {
+        const submitted = allFields[field];
+        if (submitted === undefined || submitted === null || submitted === "") continue;
+        if (!allowed.includes(submitted) && !(await unchangedOnProfile(field, submitted))) {
+          return res.status(400).json({ code: "ENUM_INVALID", message: "That choice is not allowed.", field });
+        }
+      }
       if (allFields.presentAddress !== undefined) {
         profileData.presentAddress = parseJSON(allFields.presentAddress, { street: "", barangay: "", municipality: "", province: "", region: "" });
       }

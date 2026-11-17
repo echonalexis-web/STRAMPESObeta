@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const { getActiveValues } = require("../services/systemOptionService");
 const governmentIdOcrSchema = require("./schemas/governmentIdOcr");
+const { WORK_EXPERIENCE_VALUES } = require("../utils/enumValues");
 
 const emptyToUndefined = (value) => {
   if (typeof value !== "string") return value;
@@ -223,13 +224,7 @@ const userSchema = new mongoose.Schema(
 
     workExperience: {
       type: String,
-      enum: [
-        "Fresh Graduate",
-        "Less than 1 year",
-        "1–3 years",
-        "3–5 years",
-        "5+ years",
-      ],
+      enum: WORK_EXPERIENCE_VALUES,
       default: null,
     },
     educationalAttainment: {

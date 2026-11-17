@@ -268,3 +268,33 @@ describe("§B.2 employer-side industry scoring (background vs preference)", () =
     expect(result.items[0].matchBreakdown.industry).toBeUndefined();
   });
 });
+
+describe("experience dimension: 'Not applicable' is neutral (profile forms overhaul)", () => {
+  const needsExperience = () => baseJob({ minExperienceYears: 3 });
+  const withBand = (workExperience, workHistory = []) => {
+    const applicant = baseApplicant({ workHistory });
+    applicant.user.workExperience = workExperience;
+    return applicant;
+  };
+
+  test("Not applicable with no work history skips the dimension (no penalty, no zero)", () => {
+    const res = computeUnifiedScore(needsExperience(), withBand("Not applicable"));
+    expect(res.breakdown.experience).toBeUndefined();
+  });
+
+  test("Fresh Graduate still scores against a job that needs experience", () => {
+    const res = computeUnifiedScore(needsExperience(), withBand("Fresh Graduate"));
+    expect(res.breakdown.experience).toBe(0);
+  });
+
+  test("Not applicable WITH work history uses the history", () => {
+    const history = [{ position: "Helper", dateFrom: "2018", dateTo: "2023" }];
+    const res = computeUnifiedScore(needsExperience(), withBand("Not applicable", history));
+    expect(res.breakdown.experience).toBe(1);
+  });
+
+  test("a job with no experience requirement is unchanged (skipped either way)", () => {
+    const res = computeUnifiedScore(baseJob(), withBand("Not applicable"));
+    expect(res.breakdown.experience).toBeUndefined();
+  });
+});

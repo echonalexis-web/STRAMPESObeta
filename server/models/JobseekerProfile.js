@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { getActiveValues } = require("../services/systemOptionService");
+const { EMPLOYMENT_STATUS_VALUES, EMPLOYMENT_TYPE_VALUES, UNEMPLOYMENT_REASON_VALUES } = require("../utils/enumValues");
 
 const jobseekerProfileSchema = new mongoose.Schema(
   {
@@ -78,25 +79,17 @@ const jobseekerProfileSchema = new mongoose.Schema(
     // Current Status
     employmentStatus: {
       type: String,
-      enum: ["employed", "unemployed", "Prefer not to say"],
+      enum: EMPLOYMENT_STATUS_VALUES,
       default: null,
     },
     employmentType: {
       type: String,
-      enum: ["wage", "self"],
+      enum: EMPLOYMENT_TYPE_VALUES,
       default: null,
     },
     unemploymentReason: {
       type: String,
-      enum: [
-        "fresh_grad",
-        "finished_contract",
-        "resigned",
-        "retired",
-        "laidoff_local",
-        "laidoff_abroad",
-        "lost_informal_work",
-      ],
+      enum: UNEMPLOYMENT_REASON_VALUES,
       default: null,
     },
     laidoffCountry: { type: String, default: null },
