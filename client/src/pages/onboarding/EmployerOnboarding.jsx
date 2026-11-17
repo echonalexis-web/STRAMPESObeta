@@ -1,5 +1,10 @@
 import { useContext, useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import PhoneInput from "../../components/PhoneInput";
+import { FieldError, FieldGroup } from "../../components/FormField";
+import { ariaFor, mapServerError } from "../../utils/formErrors";
+import { getEmployerStepErrors, employerReachability } from "../../utils/employerWizardSteps";
 import { AuthContext } from "../../context/AuthContext";
 import { authAPI, usersAPI, employerAccountAPI } from "../../services/api";
 import "../../styles/onboarding.css";
@@ -51,6 +56,7 @@ export default function EmployerOnboarding() {
   const { user, login, setUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useTranslation();
 
   // Admin-maintainable catalog (item 11) — live from the server, with the
   // old hardcoded list as a fallback for first paint / offline. This list
@@ -106,6 +112,8 @@ export default function EmployerOnboarding() {
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [errors, setErrors] = useState({});
+  // Polite status line for the step list ("Complete Company Information first.").
+  const [navNotice, setNavNotice] = useState("");
   // Set once onboarding is submitted so the required photo step (4) can render
   // without the "already completed" guard below bouncing the user to the dashboard.
   const [finished, setFinished] = useState(false);
@@ -141,36 +149,57 @@ export default function EmployerOnboarding() {
     }));
   };
 
-  const validateStep1 = () => {
-    const nextErrors = {};
-    if (!form.companyName.trim()) nextErrors.companyName = "Company name is required";
-    if (!form.industry.trim()) nextErrors.industry = "Please select an industry";
-    if (!form.companySize.trim()) nextErrors.companySize = "Please select a company size";
-    if (!form.businessAddress.trim()) nextErrors.businessAddress = "Business address is required";
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+  const FIELD_ORDER = {
+    1: ["companyName", "industry", "companySize", "businessAddress"],
+    2: ["phone", "website", "companyDescription"],
   };
 
-  const validateStep2 = () => {
-    const nextErrors = {};
-    if (!form.phone.trim()) nextErrors.phone = "Phone number is required";
-    if (!form.companyDescription.trim()) nextErrors.companyDescription = "Please add a short company description";
-    else if (form.companyDescription.trim().length < 10) nextErrors.companyDescription = "Description must be at least 10 characters";
-    if (form.website.trim() && !/^https?:\/\/[^\s]+$/.test(form.website.trim())) nextErrors.website = "Please enter a valid URL (e.g., https://example.com)";
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+  // Shows the step's errors on the fields and focuses the first one.
+  const showStepErrors = (target) => {
+    const found = getEmployerStepErrors(target, form);
+    setErrors(found);
+    const first = (FIELD_ORDER[target] || []).find((name) => found[name]);
+    if (first) {
+      window.requestAnimationFrame(() => {
+        const el = document.getElementById(first);
+        if (el) {
+          el.scrollIntoView({ block: "center" });
+          el.focus({ preventScroll: true });
+        }
+      });
+    }
+    return Object.keys(found).length > 0;
   };
 
   const handleNext = () => {
-    if (step === 1 && !validateStep1()) return;
-    if (step === 2 && !validateStep2()) return;
+    setNavNotice("");
+    if ((step === 1 || step === 2) && showStepErrors(step)) return;
     setSubmitError("");
+    setErrors({});
     setStep(prev => Math.min(prev + 1, 3));
   };
 
   const handleBack = () => {
     setSubmitError("");
+    setNavNotice("");
+    setErrors({});
     setStep(prev => Math.max(prev - 1, 1));
+  };
+
+  // Free movement (same rule as the jobseeker wizard): a step opens when every
+  // required step before it is complete; after the submit only the photo is left.
+  const navInfo = employerReachability(step, form, finished);
+  const goToStep = (target) => {
+    if (target === step) return;
+    const info = navInfo[target - 1];
+    if (!info.reachable) {
+      setNavNotice(info.submitted ? t("wizardNav.submittedLocked") : t("wizardNav.lockedReason", { step: STEP_LABELS[(info.blockedBy || 1) - 1] }));
+      return;
+    }
+    setSubmitError("");
+    setNavNotice("");
+    setErrors({});
+    setStep(target);
   };
 
   const submitOnboarding = async () => {
@@ -218,9 +247,17 @@ export default function EmployerOnboarding() {
       setStep(4);
       setSaving(false);
     } catch (err) {
-      const message = err.response?.data?.message || "Failed to complete onboarding. Please try again.";
-      setSubmitError(message);
-      toast.error(message);
+      // A field-level answer ({ code, field }) goes back onto its field; anything
+      // else keeps the banner and the toast.
+      const mapped = mapServerError(err);
+      if (mapped.field === "phone" || mapped.field === "mobileSecondary") {
+        setErrors({ phone: { key: mapped.key, params: mapped.params, message: mapped.message } });
+        setStep(2);
+      } else {
+        const message = mapped.message || "Failed to complete onboarding. Please try again.";
+        setSubmitError(message);
+        toast.error(message);
+      }
       setSaving(false);
     }
   };
@@ -241,16 +278,35 @@ export default function EmployerOnboarding() {
         <ol className="onboarding-steps">
           {STEP_LABELS.map((label, i) => {
             const idx = i + 1;
-            const state = step > idx ? "done" : step === idx ? "current" : "upcoming";
+            const info = navInfo[i];
+            const locked = info.status === "locked";
+            const state = info.status === "done" || (finished && idx < step) ? "done" : info.status === "current" ? "current" : locked ? "locked" : "upcoming";
+            const reasonId = `employer-step-reason-${idx}`;
+            const reason = info.submitted ? t("wizardNav.submittedLocked") : locked ? t("wizardNav.lockedReason", { step: STEP_LABELS[(info.blockedBy || 1) - 1] }) : "";
             return (
               <li key={label} className={`onboarding-step-item ${state}`}>
-                <span className="onboarding-step-index">{state === "done" ? "✓" : idx}</span>
-                <span className="onboarding-step-label">{label}</span>
+                <button
+                  type="button"
+                  className="onboarding-step-button"
+                  onClick={() => goToStep(idx)}
+                  aria-current={state === "current" ? "step" : undefined}
+                  aria-disabled={locked || state === "current" ? "true" : undefined}
+                  aria-describedby={locked ? reasonId : undefined}
+                  disabled={saving}
+                  aria-label={t("wizardNav.goTo", { label })}
+                >
+                  <span className="onboarding-step-index" aria-hidden="true">{state === "done" ? "✓" : idx}</span>
+                  <span className="onboarding-step-label">
+                    {label}
+                    {locked && <span id={reasonId} className="sr-only"> ({t("wizardNav.stateLocked")}. {reason})</span>}
+                  </span>
+                </button>
               </li>
             );
           })}
         </ol>
-        <div className="onboarding-rail-autosave">Draft saved automatically</div>
+        <p className="onboarding-rail-notice" role="status" aria-live="polite">{navNotice}</p>
+        <div className="onboarding-rail-autosave">{t("wizardNav.draftLocal")}</div>
       </aside>
 
       <div className="onboarding-panel">
@@ -271,28 +327,25 @@ export default function EmployerOnboarding() {
           <p className="onboarding-subtitle">This helps job seekers learn about who you are.</p>
           <div className="onboarding-fields">
             <label>Company Name *
-              <input type="text" value={form.companyName} onChange={e => updateField("companyName", e.target.value)} disabled={saving} placeholder="e.g. ABC Corporation" />
-              {errors.companyName && <span className="onboarding-field-error">{errors.companyName}</span>}
+              <input type="text" {...ariaFor(errors, "companyName")} value={form.companyName} onChange={e => updateField("companyName", e.target.value)} disabled={saving} placeholder="e.g. ABC Corporation" />
+              <FieldError id="companyName" error={errors.companyName} />
             </label>
             <label>Industry / Sector *
-              <select value={form.industry} onChange={e => updateField("industry", e.target.value)} disabled={saving}>
+              <select {...ariaFor(errors, "industry")} value={form.industry} onChange={e => updateField("industry", e.target.value)} disabled={saving}>
                 <option value="">Select industry</option>
                 {industries.map(ind => <option key={ind} value={ind}>{ind}</option>)}
               </select>
-              {errors.industry && <span className="onboarding-field-error">{errors.industry}</span>}
+              <FieldError id="industry" error={errors.industry} />
             </label>
-            <div>
-              <span className="onboarding-label">Company Size *</span>
+            <FieldGroup id="companySize" legend={<span className="onboarding-label">Company Size *</span>} error={errors.companySize}>
               <div className="pill-row">
                 {WORKFORCE_SIZE_OPTIONS.map(({ value, label }) => (
-                  <button key={value} type="button" className={`pill-btn ${form.companySize === value ? "active" : ""}`} onClick={() => updateField("companySize", value)} disabled={saving}>{label}</button>
+                  <button key={value} type="button" aria-pressed={form.companySize === value} className={`pill-btn ${form.companySize === value ? "active" : ""}`} onClick={() => updateField("companySize", value)} disabled={saving}>{label}</button>
                 ))}
               </div>
-              {errors.companySize && <span className="onboarding-field-error">{errors.companySize}</span>}
-            </div>
+            </FieldGroup>
 
-            <div>
-              <span className="onboarding-label">Business Address *</span>
+            <FieldGroup id="businessAddress" legend={<span className="onboarding-label">Business Address *</span>} error={errors.businessAddress}>
               <LocationSelect
                 value={form.businessAddress}
                 onChange={(loc, structured) => {
@@ -317,8 +370,7 @@ export default function EmployerOnboarding() {
                 disabled={saving}
                 required
               />
-              {errors.businessAddress && <span className="onboarding-field-error">{errors.businessAddress}</span>}
-            </div>
+            </FieldGroup>
 
             <div className="onboarding-field-grid">
               <label>Trade Name (if any) <input type="text" value={form.tradeName} onChange={e => updateField("tradeName", e.target.value)} disabled={saving} /></label>
@@ -371,17 +423,14 @@ export default function EmployerOnboarding() {
         <div className="onboarding-step">
           <p className="onboarding-subtitle">Provide your contact details and optional online presence.</p>
           <div className="onboarding-fields">
-            <label>Phone Number *
-              <input type="tel" value={form.phone} onChange={e => updateField("phone", e.target.value)} disabled={saving} placeholder="e.g. 09171234567" />
-              {errors.phone && <span className="onboarding-field-error">{errors.phone}</span>}
-            </label>
+            <PhoneInput id="phone" name="phone" label="Phone Number" value={form.phone} onChange={(v) => updateField("phone", v)} error={errors.phone} required allowLandline disabled={saving} />
             <label>Website / Facebook Page
-              <input type="url" placeholder="https://facebook.com/yourcompany" value={form.website} onChange={e => updateField("website", e.target.value)} disabled={saving} />
-              {errors.website && <span className="onboarding-field-error">{errors.website}</span>}
+              <input type="url" {...ariaFor(errors, "website")} placeholder="https://facebook.com/yourcompany" value={form.website} onChange={e => updateField("website", e.target.value)} disabled={saving} />
+              <FieldError id="website" error={errors.website} />
             </label>
             <label>Company Description *
-              <textarea className="onboarding-textarea" placeholder="Briefly describe what your company does..." value={form.companyDescription} onChange={e => updateField("companyDescription", e.target.value.slice(0, 500))} disabled={saving} maxLength="500" />
-              {errors.companyDescription && <span className="onboarding-field-error">{errors.companyDescription}</span>}
+              <textarea className="onboarding-textarea" {...ariaFor(errors, "companyDescription")} placeholder="Briefly describe what your company does..." value={form.companyDescription} onChange={e => updateField("companyDescription", e.target.value.slice(0, 500))} disabled={saving} maxLength="500" />
+              <FieldError id="companyDescription" error={errors.companyDescription} />
               <span className="onboarding-char-counter">{form.companyDescription.length} / 500 characters</span>
             </label>
 

@@ -33,6 +33,18 @@ import { GENDER_OPTIONS } from "../constants/gender";
 import { CIVIL_STATUS_OPTIONS, CIVIL_STATUS_OTHER } from "../constants/civilStatus";
 import { UNEMPLOYMENT_REASON_OPTIONS } from "../constants/unemploymentReasons";
 import { WORK_HISTORY_STATUS_OPTIONS } from "../constants/workHistoryStatus";
+import LanguageProficiencyTable from "../components/LanguageProficiencyTable";
+import PhoneInput from "../components/PhoneInput";
+import { useFieldErrors } from "../hooks/useFieldErrors";
+import { mapServerError } from "../utils/formErrors";
+import { getProfileFormErrors, firstErrorTab, PROFILE_FIELD_ORDER, PROFILE_FIELD_TABS } from "../utils/profileFormErrors";
+import {
+  WORK_EXPERIENCE_OPTIONS,
+  EMPLOYMENT_STATUS_NOT_APPLICABLE,
+  EMPLOYMENT_STATUS_PREFER_NOT_TO_SAY,
+  optionLabel,
+} from "../constants/profileOptions";
+import { emptyLanguageRow } from "../utils/languageProficiency";
 import {
   OFFICE_TYPE_OPTIONS,
   CLASSIFICATION_TYPE_OPTIONS,
@@ -72,14 +84,7 @@ const VOCATIONAL_COURSES = COURSE_CATEGORIES["Technical-Vocational (TESDA) Progr
 const ALL_COURSES_FLAT = collegeCourses.all_courses_flat || [];
 const COURSE_UNKNOWN_VALUE = "Undecided / Not sure yet";
 const TECH_VOC_INSTITUTIONS = (marinduqueSchools.technical_vocational_schools || []).map((s) => s.name);
-const LANGUAGE_SKILLS = [
-  { key: "read", label: "Read" },
-  { key: "write", label: "Write" },
-  { key: "speak", label: "Speak" },
-  { key: "understand", label: "Understand" },
-];
 const OTHER_OPTION = "__other__";
-const emptyLanguageRow = () => ({ read: false, write: false, speak: false, understand: false });
 
 // Matches JobseekerProfile.preferredWorkNature's enum exactly.
 const WORK_NATURE_OPTIONS = ["Onsite", "Remote", "Hybrid"];
@@ -546,6 +551,8 @@ export default function EditProfile() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Field-level errors (shared error pattern): phone and secondary mobile today.
+  const { errors: fieldErrors, replaceErrors, clearFieldError, focusFirstInvalid } = useFieldErrors();
   const [verifySubmitting, setVerifySubmitting] = useState(false);
   const [verifyMsg, setVerifyMsg] = useState("");
   // Set to the new address after an email change succeeds, so we can remind the
@@ -582,14 +589,6 @@ export default function EditProfile() {
     return { ...prev, [field]: list };
   });
   const removeListItem = (field, index) => setFormData((prev) => ({ ...prev, [field]: (prev[field] || []).filter((_, i) => i !== index) }));
-
-  const toggleLanguageSkill = (language, skillKey) => setFormData((prev) => ({
-    ...prev,
-    languageProficiency: {
-      ...prev.languageProficiency,
-      [language]: { ...prev.languageProficiency[language], [skillKey]: !prev.languageProficiency[language][skillKey] },
-    },
-  }));
 
   // Merge profile data from API
   const mergeProfileData = (data) => {
@@ -693,6 +692,13 @@ export default function EditProfile() {
 
   const handleChange = (event) => {
     setFormData((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+    clearFieldError(event.target.name);
+  };
+
+  // Phone controls report a ready value (E.164, or partial text while typing).
+  const handlePhoneChange = (name) => (value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    clearFieldError(name);
   };
 
   const handleTextAreaChange = (event) => {
@@ -748,6 +754,28 @@ export default function EditProfile() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    // Check the fields first: a problem is shown on the field (and its tab is
+    // opened) instead of after the confirmation and a failed save.
+    let savedSecondary = "";
+    try {
+      savedSecondary = JSON.parse(baselineRef.current || "null")?.formData?.mobileSecondary || "";
+    } catch {
+      savedSecondary = "";
+    }
+    const found = getProfileFormErrors(formData, {
+      role: user?.role,
+      originalPhone: user?.phone,
+      originalSecondary: savedSecondary,
+    });
+    replaceErrors(found);
+    const problemCount = Object.keys(found).length;
+    if (problemCount > 0) {
+      const tab = firstErrorTab(found);
+      if (tab) setActiveTab(tab);
+      setError(t("formErrors.needsAttention", { count: problemCount }));
+      window.setTimeout(() => window.requestAnimationFrame(() => focusFirstInvalid(PROFILE_FIELD_ORDER, found)), 0);
+      return;
+    }
     const proceed = await confirm({
       title: "Save changes?",
       message: "This will update your profile with the changes you've made.",
@@ -952,6 +980,14 @@ export default function EditProfile() {
       });
     } catch (err) {
       const message = err.response?.data?.message || err.message || "Failed to update profile";
+      // A field-level answer ({ code, field }) also marks the field and opens its tab.
+      const mapped = mapServerError(err);
+      if (mapped.field && PROFILE_FIELD_TABS[mapped.field]) {
+        const entry = { key: mapped.key, params: mapped.params, message: mapped.message };
+        replaceErrors({ [mapped.field]: entry });
+        setActiveTab(PROFILE_FIELD_TABS[mapped.field]);
+        window.setTimeout(() => window.requestAnimationFrame(() => focusFirstInvalid(PROFILE_FIELD_ORDER, { [mapped.field]: entry })), 0);
+      }
       setError(message);
       toast.error(message);
     } finally {
@@ -1211,8 +1247,15 @@ export default function EditProfile() {
                   </>
                 )}
                 <div className="profile-field">
-                  <label htmlFor="phone"><FaPhone /> Phone</label>
-                  <input id="phone" type="text" name="phone" value={formData.phone} onChange={handleChange} />
+                  <PhoneInput
+                    id="phone"
+                    name="phone"
+                    label={<><FaPhone aria-hidden="true" /> Phone</>}
+                    value={formData.phone}
+                    onChange={handlePhoneChange("phone")}
+                    error={fieldErrors.phone}
+                    allowLandline={isEmployer || isAdmin}
+                  />
                 </div>
               </div>
 
@@ -1695,12 +1738,11 @@ export default function EditProfile() {
                   <label htmlFor="workExperience">Work Experience</label>
                   <select id="workExperience" name="workExperience" value={formData.workExperience} onChange={handleChange}>
                     <option value="">Select</option>
-                    <option value="Fresh Graduate">Fresh Graduate</option>
-                    <option value="Less than 1 year">Less than 1 year</option>
-                    <option value="1–3 years">1–3 years</option>
-                    <option value="3–5 years">3–5 years</option>
-                    <option value="5+ years">5+ years</option>
+                    {WORK_EXPERIENCE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{optionLabel(opt, t)}</option>
+                    ))}
                   </select>
+                  <small className="profile-field-hint">{t("profileOptions.workExperienceHint")}</small>
                 </div>
                 <div className="profile-field">
                   <label htmlFor="educationalAttainment"><FaUserGraduate /> Educational Attainment</label>
@@ -1759,42 +1801,12 @@ export default function EditProfile() {
               </div>
 
               <h3 className="profile-section-title">Language / Dialect Proficiency</h3>
-              <div className="lang-table-wrap">
-                <table className="lang-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Language</th>
-                      {LANGUAGE_SKILLS.map((s) => <th key={s.key} scope="col">{s.label}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {["English", "Filipino", "Others"].map((lang) => (
-                      <tr key={lang}>
-                        <th scope="row">
-                          {lang === "Others" ? (
-                            <input
-                              type="text"
-                              placeholder="Others, specify"
-                              value={formData.languageOthersLabel}
-                              onChange={(e) => setFormData((prev) => ({ ...prev, languageOthersLabel: e.target.value }))}
-                            />
-                          ) : lang}
-                        </th>
-                        {LANGUAGE_SKILLS.map((s) => (
-                          <td key={s.key}>
-                            <input
-                              type="checkbox"
-                              aria-label={`${lang} — ${s.label}`}
-                              checked={formData.languageProficiency[lang][s.key]}
-                              onChange={() => toggleLanguageSkill(lang, s.key)}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <LanguageProficiencyTable
+                value={formData.languageProficiency}
+                othersLabel={formData.languageOthersLabel || ""}
+                onChange={(next) => setFormData((prev) => ({ ...prev, languageProficiency: next }))}
+                onOthersLabelChange={(label) => setFormData((prev) => ({ ...prev, languageOthersLabel: label }))}
+              />
 
               <h3 className="profile-section-title">Work History</h3>
               {formData.workHistory.map((entry, i) => (
@@ -2251,8 +2263,14 @@ export default function EditProfile() {
                     <input id="landline" type="tel" name="landline" value={formData.landline} onChange={handleChange} />
                   </div>
                   <div className="profile-field">
-                    <label htmlFor="mobileSecondary">Secondary Mobile</label>
-                    <input id="mobileSecondary" type="tel" name="mobileSecondary" value={formData.mobileSecondary} onChange={handleChange} />
+                    <PhoneInput
+                      id="mobileSecondary"
+                      name="mobileSecondary"
+                      label="Secondary Mobile"
+                      value={formData.mobileSecondary}
+                      onChange={handlePhoneChange("mobileSecondary")}
+                      error={fieldErrors.mobileSecondary}
+                    />
                   </div>
 
                   <div className="profile-field">
@@ -2422,7 +2440,8 @@ export default function EditProfile() {
                     <div className="pill-row">
                       <button type="button" className={`pill-btn ${formData.employmentStatus === "employed" ? "active" : ""}`} onClick={() => setFormData((prev) => ({ ...prev, employmentStatus: "employed" }))}>Employed</button>
                       <button type="button" className={`pill-btn ${formData.employmentStatus === "unemployed" ? "active" : ""}`} onClick={() => setFormData((prev) => ({ ...prev, employmentStatus: "unemployed" }))}>Unemployed</button>
-                      <button type="button" className={`pill-btn ${formData.employmentStatus === "Prefer not to say" ? "active" : ""}`} onClick={() => setFormData((prev) => ({ ...prev, employmentStatus: "Prefer not to say" }))}>Prefer not to say</button>
+                      <button type="button" aria-pressed={formData.employmentStatus === EMPLOYMENT_STATUS_NOT_APPLICABLE} className={`pill-btn ${formData.employmentStatus === EMPLOYMENT_STATUS_NOT_APPLICABLE ? "active" : ""}`} onClick={() => setFormData((prev) => ({ ...prev, employmentStatus: EMPLOYMENT_STATUS_NOT_APPLICABLE, employmentType: "", unemploymentReason: "", laidoffCountry: "" }))}>{t("profileOptions.employmentStatusNotApplicable")}</button>
+                      <button type="button" aria-pressed={formData.employmentStatus === EMPLOYMENT_STATUS_PREFER_NOT_TO_SAY} className={`pill-btn ${formData.employmentStatus === EMPLOYMENT_STATUS_PREFER_NOT_TO_SAY ? "active" : ""}`} onClick={() => setFormData((prev) => ({ ...prev, employmentStatus: EMPLOYMENT_STATUS_PREFER_NOT_TO_SAY }))}>{t("profileOptions.preferNotToSay")}</button>
                     </div>
                   </div>
                   {formData.employmentStatus === "employed" && (
@@ -2440,8 +2459,8 @@ export default function EditProfile() {
                         <label htmlFor="unemploymentReason">Reason for Unemployment</label>
                         <select id="unemploymentReason" name="unemploymentReason" value={formData.unemploymentReason} onChange={handleChange}>
                           <option value="">Select</option>
-                          {UNEMPLOYMENT_REASON_OPTIONS.map(({ value, label }) => (
-                            <option key={value} value={value}>{label}</option>
+                          {UNEMPLOYMENT_REASON_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{optionLabel(opt, t)}</option>
                           ))}
                         </select>
                       </div>

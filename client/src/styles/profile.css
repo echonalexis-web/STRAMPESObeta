@@ -602,55 +602,6 @@
   background: #e8f5e9;
 }
 
-.lang-table-wrap {
-  overflow-x: auto;
-  margin-bottom: 16px;
-}
-
-.lang-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13.5px;
-}
-
-.lang-table th,
-.lang-table td {
-  border: 1px solid #e8ecf0;
-  padding: 8px 10px;
-  text-align: center;
-}
-
-.lang-table thead th {
-  background: #f8fafb;
-  color: #7a8a9a;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
-}
-
-.lang-table tbody th {
-  text-align: left;
-  font-weight: 600;
-  color: #1a2a3a;
-  background: #ffffff;
-}
-
-.lang-table tbody th input[type="text"] {
-  width: 100%;
-  border: 1px solid #e8ecf0;
-  border-radius: 6px;
-  padding: 6px 8px;
-  font-size: 13px;
-}
-
-.lang-table input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #2e7d32;
-  cursor: pointer;
-}
-
 .autosuggest-list li:hover,
 .autosuggest-list li.is-highlighted {
   background: #e8f5e9;
@@ -2416,8 +2367,7 @@ body:has(.ep-page) {
 .ep-page .profile-field input,
 .ep-page .profile-field textarea,
 .ep-page .profile-field select,
-.ep-page .skills-input-row input,
-.ep-page .lang-table tbody th input[type="text"] {
+.ep-page .skills-input-row input {
   font-size: 16px;
   min-height: 44px;
   padding: 10px 12px;
@@ -2544,26 +2494,6 @@ body:has(.ep-page) {
   min-height: 44px;
   font-size: 14px;
   border-radius: var(--ds-radius-md, 12px);
-}
-
-/* Language table scrolls inside its wrapper; bigger touch targets */
-.ep-page .lang-table-wrap {
-  -webkit-overflow-scrolling: touch;
-  max-width: 100%;
-}
-
-.ep-page .lang-table input[type="checkbox"] {
-  width: 24px;
-  height: 24px;
-}
-
-.ep-page .lang-table td,
-.ep-page .lang-table th {
-  padding: 8px;
-}
-
-.ep-page .lang-table tbody th input[type="text"] {
-  min-width: 110px;
 }
 
 /* File dropzone / avatar: large touch targets */

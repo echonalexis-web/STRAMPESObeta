@@ -1,3 +1,4 @@
+import { formatPhoneDisplay, phoneHref } from "../../utils/phoneIntl";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -254,7 +255,7 @@ export default function UserProfileView() {
             <dl className="aup-dl">
               <Field label="Email" value={user.email} />
               <Field label="Username" value={user.username} />
-              <Field label="Phone" value={user.phone} />
+              <Field label="Phone" value={formatPhoneDisplay(user.phone)} />
               <Field label="Role" value={user.role} />
               <Field label="Account status" value={isActive ? "Active" : "Inactive"} />
               <Field label="Joined" value={joined} />
@@ -331,7 +332,7 @@ export default function UserProfileView() {
                 {user.email ? <a href={`mailto:${user.email}`}>{user.email}</a> : <span className="is-empty">Not provided</span>}
               </Field>
               <Field label="Phone">
-                {user.phone ? <a href={`tel:${user.phone}`}>{user.phone}</a> : <span className="is-empty">Not provided</span>}
+                {user.phone ? <a href={`tel:${phoneHref(user.phone)}`}>{formatPhoneDisplay(user.phone)}</a> : <span className="is-empty">Not provided</span>}
               </Field>
               <Field label="Resume">
                 {resumeRef ? <DocLink value={resumeRef} label="View resume" /> : "Not uploaded"}

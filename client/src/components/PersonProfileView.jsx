@@ -1,3 +1,4 @@
+import { formatPhoneDisplay } from "../utils/phoneIntl";
 import { FaArrowLeft } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
 import Avatar from "./Avatar";
@@ -28,7 +29,7 @@ export default function PersonProfileView({ data, onBack }) {
   const profile = data?.profile || {};
   const { about, skills, work, place } = personSections({ user, profile });
   // Present only when the person shared it with this employer, or applied to them.
-  const contact = [user.phone, user.email].filter(Boolean).join(" · ");
+  const contact = [formatPhoneDisplay(user.phone), user.email].filter(Boolean).join(" · ");
   const name = user.name || "";
   // About shows what this viewer's response carries: the bio, the desired positions, the
   // job search status and the coarse place. Preferred work locations are only in the

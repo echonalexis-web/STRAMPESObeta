@@ -1,3 +1,4 @@
+import { formatPhoneDisplay } from "../utils/phoneIntl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -239,7 +240,7 @@ export default function ResumeStudio() {
         const derivedName = fullNameOf(loadedUser);
         const derivedContact = [
           loadedUser?.email,
-          loadedUser?.phone,
+          formatPhoneDisplay(loadedUser?.phone),
           formatStructuredAddress(loadedProfile?.presentAddress) || loadedUser?.address,
         ]
           .filter(Boolean)
@@ -295,7 +296,7 @@ export default function ResumeStudio() {
   const name = useMemo(() => fullNameOf(user), [user]);
   const contactLine = useMemo(
     () =>
-      [user?.email, user?.phone, formatStructuredAddress(profile?.presentAddress) || user?.address]
+      [user?.email, formatPhoneDisplay(user?.phone), formatStructuredAddress(profile?.presentAddress) || user?.address]
         .filter(Boolean)
         .join("  ·  "),
     [user, profile],

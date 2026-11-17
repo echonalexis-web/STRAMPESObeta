@@ -1,3 +1,4 @@
+import { formatPhoneDisplay } from "../utils/phoneIntl";
 import { useEffect, useMemo, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { employerAPI, messageAPI } from "../services/api";
@@ -185,7 +186,7 @@ const formatJobLocation = (value) => {
 
 const getApplicantContact = (application) => {
   const applicant = application?.applicant || {};
-  return applicant.phone || applicant.contactNumber || applicant.mobile || applicant.email || "N/A";
+  return formatPhoneDisplay(applicant.phone) || applicant.contactNumber || applicant.mobile || applicant.email || "N/A";
 };
 
 // Compact relative age used across the job / applicant tables.
@@ -2283,7 +2284,7 @@ export default function EmployerDashboard() {
                 <div className="applicant-info-row">
                   <span className="applicant-info-label">Phone</span>
                   <span className="applicant-info-value">
-                    {selectedApplication.applicant?.phone || "N/A"}
+                    {formatPhoneDisplay(selectedApplication.applicant?.phone) || "N/A"}
                   </span>
                 </div>
                 <div className="applicant-info-row">

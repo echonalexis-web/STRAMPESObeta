@@ -1458,59 +1458,6 @@
 }
 
 /* =============================================================
-   Language proficiency matrix
-   ============================================================= */
-.onboarding-lang-table-wrap {
-  overflow-x: auto;
-}
-
-.onboarding-lang-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--ob-font-sm);
-}
-
-.onboarding-lang-table th,
-.onboarding-lang-table td {
-  border: 1px solid var(--ob-neutral-200);
-  padding: 0.6rem 0.7rem;
-  text-align: center;
-}
-
-.onboarding-lang-table thead th {
-  background: var(--ob-neutral-50);
-  color: var(--ob-neutral-600);
-  font-size: var(--ob-font-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
-}
-
-.onboarding-lang-table tbody th {
-  text-align: left;
-  font-weight: 600;
-  color: var(--ob-neutral-900);
-  background: var(--ob-neutral-0);
-}
-
-.onboarding-lang-table tbody th input[type="text"] {
-  width: 100%;
-  min-height: 36px;
-  margin: 0;
-  border: 1px solid var(--ob-neutral-300);
-  border-radius: var(--ob-radius-sm);
-  padding: 6px 10px;
-  font-size: 0.85rem;
-}
-
-.onboarding-lang-table input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--ob-green-600);
-  cursor: pointer;
-}
-
-/* =============================================================
    Responsive
    ============================================================= */
 @media (max-width: 900px) {

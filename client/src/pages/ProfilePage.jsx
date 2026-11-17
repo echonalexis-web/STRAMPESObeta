@@ -51,6 +51,8 @@ import StateBlock from "../components/StateBlock";
 import Pagination from "../components/Pagination";
 import ProfileAbout from "../components/ProfileAbout";
 import { hasAboutContent } from "../utils/profileAbout";
+import { employmentStatusLabel, unemploymentReasonLabel, isNotApplicableExperience } from "../utils/profileLabels";
+import { formatPhoneDisplay, phoneHref } from "../utils/phoneIntl";
 import usePagination from "../hooks/usePagination";
 import "../styles/profile-redesign.css";
 
@@ -712,10 +714,10 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
   };
 
   let employmentLabel = profile?.employmentStatus
-    ? profile.employmentStatus.charAt(0).toUpperCase() + profile.employmentStatus.slice(1)
+    ? employmentStatusLabel(profile.employmentStatus, t)
     : "Not specified";
   if (profile?.employmentStatus === "unemployed" && profile?.unemploymentReason) {
-    employmentLabel += ` — ${UNEMPLOYMENT_LABELS[profile.unemploymentReason] || profile.unemploymentReason.replace(/_/g, " ")}`;
+    employmentLabel += ` — ${profile.unemploymentReason === "not_applicable" ? unemploymentReasonLabel(profile.unemploymentReason, t).toLowerCase() : (UNEMPLOYMENT_LABELS[profile.unemploymentReason] || profile.unemploymentReason.replace(/_/g, " "))}`;
   } else if (profile?.employmentStatus === "employed" && profile?.employmentType) {
     employmentLabel += ` — ${profile.employmentType === "wage" ? "wage employment" : "self-employed"}`;
   }
@@ -873,7 +875,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
 
               <div className="rd2-contact">
                 {profile?.email ? <a href={`mailto:${profile.email}`}><FaEnvelope aria-hidden="true" /> {profile.email}</a> : null}
-                {profile?.phone ? <a href={`tel:${profile.phone}`}><FaPhone aria-hidden="true" /> {profile.phone}</a> : null}
+                {profile?.phone ? <a href={`tel:${phoneHref(profile.phone)}`}><FaPhone aria-hidden="true" /> {formatPhoneDisplay(profile.phone)}</a> : null}
                 {contactLocation ? <span><FaMapMarkerAlt aria-hidden="true" /> {contactLocation}</span> : null}
               </div>
             </div>
@@ -1108,7 +1110,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
             <Section id="sec-account" icon={<FaUser />} title="Account">
               <div className="rd2-rows">
                 <DataItem label="Email" value={profile?.email || t("common.emailNotAdded")} />
-                <DataItem label="Phone" value={profile?.phone} />
+                <DataItem label="Phone" value={formatPhoneDisplay(profile?.phone)} />
                 <DataItem label="Role" value={isSuperadmin ? "System Superadmin" : "Administrator"} />
                 <DataItem label="Account status" value={profile?.isActive === false ? "Inactive" : "Active"} />
               </div>
@@ -1211,7 +1213,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
               <Section id="sec-contact" icon={<FaIdCard />} title="Contact & identity">
                 <div className="rd2-rows">
                   <DataItem label="Email" value={profile?.email || t("common.emailNotAdded")} />
-                  <DataItem label="Phone" value={profile?.phone} />
+                  <DataItem label="Phone" value={formatPhoneDisplay(profile?.phone)} />
                   <DataItem label="Landline" value={profile?.landline} />
                   <DataItem label="Secondary mobile" value={profile?.mobileSecondary} />
                   <DataItem label="Present address" value={presentAddressText} />
@@ -1255,7 +1257,7 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                 <strong className="rd2-warn">{employmentLabel}</strong>
                 <span className="rd2-status-sub">
                   {workHistory.length ? `${workHistory.length} previous employer${workHistory.length > 1 ? "s" : ""}` : "No previous work history"}
-                  {profile?.workExperience ? ` · years of experience: ${profile.workExperience}` : ""}
+                  {profile?.workExperience && !isNotApplicableExperience(profile.workExperience) ? ` · years of experience: ${profile.workExperience}` : ""}
                 </span>
               </div>
 

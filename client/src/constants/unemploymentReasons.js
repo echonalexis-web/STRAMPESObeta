@@ -10,4 +10,6 @@ export const UNEMPLOYMENT_REASON_OPTIONS = [
   { value: "lost_informal_work", label: "Lost informal work (e.g. vendor, odd jobs, day labor)" },
   { value: "resigned", label: "Resigned" },
   { value: "retired", label: "Retired" },
+  // For students and people who have not graduated yet (label: profileOptions.unemploymentReasonNotApplicable).
+  { value: "not_applicable", label: "Not applicable (not yet graduated)", labelKey: "profileOptions.unemploymentReasonNotApplicable" },
 ];

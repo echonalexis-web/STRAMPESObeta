@@ -1,3 +1,4 @@
+import { formatPhoneDisplay } from "../utils/phoneIntl";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FaAddressCard } from "react-icons/fa";
@@ -113,7 +114,7 @@ export default function ShareContactButton({ conversationId, participantRole }) 
               <>
                 <p>{t("contactShare.sharedWith", { name: data.employerName })}</p>
                 <ul className="share-contact__list">
-                  {share.fields.phone ? <li>{t("contactShare.phoneLabel")}: {data.values.phone || "—"}</li> : null}
+                  {share.fields.phone ? <li>{t("contactShare.phoneLabel")}: {formatPhoneDisplay(data.values.phone) || "—"}</li> : null}
                   {share.fields.email ? <li>{t("contactShare.emailLabel")}: {data.values.email || "—"}</li> : null}
                 </ul>
                 <p className="cover-picker__note">{t("contactShare.revokeNote")}</p>
@@ -128,7 +129,7 @@ export default function ShareContactButton({ conversationId, participantRole }) 
                     <label className="share-contact__field">
                       <input type="checkbox" checked={choice.phone} onChange={(e) => setChoice((c) => ({ ...c, phone: e.target.checked }))} />
                       <span>
-                        {t("contactShare.phoneLabel")}: <strong>{data.values.phone}</strong>
+                        {t("contactShare.phoneLabel")}: <strong>{formatPhoneDisplay(data.values.phone)}</strong>
                       </span>
                     </label>
                   ) : null}

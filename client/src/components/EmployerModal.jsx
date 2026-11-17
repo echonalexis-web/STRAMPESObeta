@@ -1,3 +1,4 @@
+import { formatPhoneDisplay } from "../utils/phoneIntl";
 import React, { useContext, useId, useRef } from "react";
 import { FaStar, FaUsers, FaEnvelope, FaPhone, FaGlobe, FaMapMarkerAlt, FaBriefcase, FaRegClock, FaTimes } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
@@ -99,7 +100,7 @@ export default function EmployerModal({ isOpen, onClose, employer }) {
           <h3 className="employer-section-title">Contact Information</h3>
           <div className="employer-contact-grid">
             {employer.email && <div className="contact-item"><FaEnvelope className="contact-icon" /><div><span className="contact-label">Email</span><span className="contact-value">{employer.email}</span></div></div>}
-            {employer.phone && <div className="contact-item"><FaPhone className="contact-icon" /><div><span className="contact-label">Phone</span><span className="contact-value">{employer.phone}</span></div></div>}
+            {employer.phone && <div className="contact-item"><FaPhone className="contact-icon" /><div><span className="contact-label">Phone</span><span className="contact-value">{formatPhoneDisplay(employer.phone)}</span></div></div>}
             {employer.website && <div className="contact-item"><FaGlobe className="contact-icon" /><div><span className="contact-label">Website</span><a href={employer.website} target="_blank" rel="noopener noreferrer" className="contact-link">{employer.website.replace(/^https?:\/\//, '')}</a></div></div>}
             {employer.businessAddress && (
               <div className="contact-item">

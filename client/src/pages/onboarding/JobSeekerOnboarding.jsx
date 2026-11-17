@@ -20,20 +20,22 @@ import PH_JOB_TITLES from "../../data/ph_job_titles_complete.json";
 import countriesData from "../../data/countries.json";
 import { ALL_LOCATIONS } from "../../utils/philippineLocations";
 import HeightInput from "../../components/HeightInput";
+import LanguageProficiencyTable from "../../components/LanguageProficiencyTable";
+import { emptyLanguageRow } from "../../utils/languageProficiency";
 import WeightInput from "../../components/WeightInput";
 import { useSystemOptions } from "../../hooks/useSystemOptions";
 import { useUsernameAvailability } from "../../hooks/useUsernameAvailability";
 import { VALID_INDUSTRIES as INDUSTRY_OPTIONS_FALLBACK } from "../../constants/industries";
 import { GENDER_OPTIONS } from "../../constants/gender";
 import { CIVIL_STATUS_OPTIONS, CIVIL_STATUS_OTHER } from "../../constants/civilStatus";
-import { meetsMinimumAccountAge } from "../../utils/age";
+import PhoneInput from "../../components/PhoneInput";
+import { FieldError, FieldGroup } from "../../components/FormField";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
+import { ariaFor, mapServerError } from "../../utils/formErrors";
+import { getStepErrors, reachability, firstIncompleteStep, earlierStepNeedingAttention } from "../../utils/wizardSteps";
+import { WORK_EXPERIENCE_OPTIONS, EMPLOYMENT_STATUS_OPTIONS, EMPLOYMENT_STATUS_NOT_APPLICABLE, optionLabel } from "../../constants/profileOptions";
 import { UNEMPLOYMENT_REASON_OPTIONS } from "../../constants/unemploymentReasons";
 import { WORK_HISTORY_STATUS_OPTIONS } from "../../constants/workHistoryStatus";
-
-// STRAM PESO accounts are for ages 15 and up (SPES applicants may be 15–30).
-const MIN_AGE = 15;
-// Same Asia/Manila date-only rule as the server (utils/age.js). Display only.
-const isOldEnough = meetsMinimumAccountAge;
 
 const RELIGIONS = [
   "Roman Catholic", "Islam", "Iglesia ni Cristo", "Evangelical", "Aglipayan (Philippine Independent Church)",
@@ -83,15 +85,7 @@ const ALL_COURSES_FLAT = collegeCourses.all_courses_flat || [];
 const COURSE_UNKNOWN_VALUE = "Undecided / Not sure yet";
 const TECH_VOC_INSTITUTIONS = (marinduqueSchools.technical_vocational_schools || []).map((s) => s.name);
 const COUNTRY_OPTIONS = countriesData.countries || [];
-const LANGUAGE_SKILLS = [
-  { key: "read", label: "Read" },
-  { key: "write", label: "Write" },
-  { key: "speak", label: "Speak" },
-  { key: "understand", label: "Understand" },
-];
 const OTHER_OPTION = "__other__";
-
-const emptyLanguageRow = () => ({ read: false, write: false, speak: false, understand: false });
 
 const getInitialForm = (user) => ({
   surname: user?.surname || "",
@@ -365,6 +359,11 @@ export default function JobSeekerOnboarding() {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // Field-level errors (shared error pattern). The blocking modal below stays only
+  // for failures that are not about one field, such as the final submit failing.
+  const { errors, replaceErrors, clearFieldError, clearAll, focusFirstInvalid } = useFieldErrors();
+  // Polite status line for the step list ("Complete Personal Details first.").
+  const [navNotice, setNavNotice] = useState("");
   const [skillInput, setSkillInput] = useState("");
   // Set once the profile is submitted so the success screen isn't pre-empted by
   // the "already completed" redirect below once the auth context updates.
@@ -431,10 +430,25 @@ export default function JobSeekerOnboarding() {
 
   const progress = useMemo(() => (Math.min(step, LAST_STEP) / LAST_STEP) * 100, [step]);
 
-  const handleStepJump = (targetStep) => {
-    if (targetStep < 1 || targetStep > LAST_STEP) return;
-    if (targetStep > step) return;
+  // Free movement: step N opens when every required step before N is complete
+  // (utils/wizardSteps.js). The draft already saves on every change, so leaving
+  // a step needs no save and shows no validation errors.
+  const stepState = useMemo(() => ({ form, preferredIndustries, skills }), [form, preferredIndustries, skills]);
+  const stepOpts = useMemo(() => ({ originalPhone: user?.phone || "" }), [user?.phone]);
+  const onWizardStep = Math.min(step, LAST_STEP);
+  const navInfo = useMemo(() => reachability(onWizardStep, stepState, stepOpts, LAST_STEP), [onWizardStep, stepState, stepOpts]);
+  const attentionStep = step <= LAST_STEP ? earlierStepNeedingAttention(step, stepState, stepOpts, LAST_STEP) : null;
+
+  const goToStep = (targetStep) => {
+    if (targetStep < 1 || targetStep > LAST_STEP || targetStep === step) return;
+    const info = navInfo[targetStep - 1];
+    if (!info.reachable) {
+      setNavNotice(t("wizardNav.lockedReason", { step: STEP_LABELS[(info.blockedBy || 1) - 1] }));
+      return;
+    }
     setError("");
+    setNavNotice("");
+    clearAll();
     setStep(targetStep);
   };
 
@@ -448,13 +462,18 @@ export default function JobSeekerOnboarding() {
   const toggleCourseUnknown = (checked) => setForm(prev => ({ ...prev, course: checked ? COURSE_UNKNOWN_VALUE : "" }));
 
 
-  const updateField = (name, value) => setForm(prev => ({ ...prev, [name]: value }));
+  // Editing a field clears its own error straight away.
+  const updateField = (name, value) => {
+    setForm(prev => ({ ...prev, [name]: value }));
+    clearFieldError(name);
+  };
 
   const updateAddress = (type, field, value) => {
     setForm(prev => ({
       ...prev,
       [type]: { ...prev[type], [field]: value }
     }));
+    if (type === "presentAddress") clearFieldError("presentAddress");
   };
 
   const addListItem = (field, template) => setForm(prev => ({ ...prev, [field]: [...(prev[field] || []), template] }));
@@ -465,18 +484,14 @@ export default function JobSeekerOnboarding() {
   });
   const removeListItem = (field, index) => setForm(prev => ({ ...prev, [field]: (prev[field] || []).filter((_, i) => i !== index) }));
 
-  const addToCappedList = (field, value) => setForm(prev => ({ ...prev, [field]: [...(prev[field] || []), value] }));
+  const addToCappedList = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: [...(prev[field] || []), value] }));
+    clearFieldError(field);
+  };
   const removeFromCappedList = (field, value) => setForm(prev => ({ ...prev, [field]: (prev[field] || []).filter(v => v !== value) }));
 
-  const toggleLanguageSkill = (language, skillKey) => setForm(prev => ({
-    ...prev,
-    languageProficiency: {
-      ...prev.languageProficiency,
-      [language]: { ...prev.languageProficiency[language], [skillKey]: !prev.languageProficiency[language][skillKey] },
-    },
-  }));
-
   const toggleIndustry = (industry) => {
+    clearFieldError("preferredIndustries");
     setPreferredIndustries(prev =>
       prev.includes(industry)
         ? prev.filter(i => i !== industry)
@@ -488,6 +503,7 @@ export default function JobSeekerOnboarding() {
     const trimmed = value.trim();
     if (!trimmed) return;
     if (skills.some(skill => skill.toLowerCase() === trimmed.toLowerCase())) return;
+    clearFieldError("skills");
     setSkills(prev => [...prev, trimmed]);
   };
 
@@ -533,76 +549,51 @@ export default function JobSeekerOnboarding() {
     else { setValidIdFile(null); e.target.value = ''; }
   };
 
-  const handleNext = () => {
-    setError("");
-    if (step === 1) {
-      if (!form.surname?.trim()) return setError("Please enter your surname.");
-      if (!form.firstName?.trim()) return setError("Please enter your first name.");
-      if (!form.phone?.trim()) return setError("Please enter your phone number.");
-      if (!form.dateOfBirth) return setError("Please enter your date of birth.");
-      if (!isOldEnough(form.dateOfBirth)) return setError(`You must be at least ${MIN_AGE} years old to use STRAM PESO.`);
-      if (!form.gender) return setError("Please select your gender.");
-      if (!form.address?.trim()) return setError("Please enter your home address.");
-    }
-    if (step === 2 && preferredIndustries.length < 1) {
-      setError("Please select at least one preferred industry.");
-      return;
-    }
-    if (step === 3 && skills.length < 1) {
-      setError("Please add at least one skill before continuing.");
-      return;
-    }
-    if (step === 4) {
-      if (form.preferredOccupations.length < 1) return setError("Please add at least one preferred occupation.");
-      if (!form.availabilityStatus) return setError("Please select your availability status.");
-    }
-    if (step === 5) {
-      if (!form.educationalAttainment) return setError("Please select your educational attainment.");
-      if (!form.workExperience) return setError("Please select your work experience.");
-    }
-    // Step 6 (Training & Eligibility) is fully optional / skippable.
-    if (step === 7) {
-      if (!form.civilStatus) return setError("Please select your civil status.");
-      if (form.civilStatus === CIVIL_STATUS_OTHER && !form.civilStatusOther?.trim()) {
-        return setError("Please specify your civil status.");
-      }
-      if (!form.citizenship?.trim()) return setError("Please enter your citizenship.");
-      if (!form.placeOfBirth?.trim()) return setError("Please enter your place of birth.");
-      const pa = form.presentAddress;
-      if (!pa.region || !pa.province || !pa.municipality || !pa.barangay) {
-        return setError("Please complete your present address.");
-      }
-    }
-    if (step === 8) {
-      const finalStepError = validateFinalStep();
-      if (finalStepError) return setError(finalStepError);
-    }
-    // Step 9 (Profile Photo) is optional.
-    setStep(prev => Math.min(prev + 1, SUCCESS_STEP));
+  // Shows this step's errors on the fields, focuses the first one, and returns
+  // true when there were any. Order is the on-screen order of each step.
+  const FIELD_ORDER = {
+    1: ["surname", "firstName", "phone", "dateOfBirth", "gender", "address"],
+    2: ["preferredIndustries"],
+    3: ["skills"],
+    4: ["preferredOccupations", "availabilityStatus"],
+    5: ["educationalAttainment", "workExperience"],
+    7: ["civilStatus", "civilStatusOther", "citizenship", "placeOfBirth", "presentAddress"],
+    8: ["employmentStatus", "employmentType", "unemploymentReason", "laidoffCountry"],
+  };
+  const showStepErrors = (target) => {
+    const found = getStepErrors(target, stepState, stepOpts);
+    replaceErrors(found);
+    if (Object.keys(found).length === 0) return false;
+    // Wait one frame so the error markup (and aria-invalid) is in the page first.
+    window.requestAnimationFrame(() => focusFirstInvalid(FIELD_ORDER[target] || [], found));
+    return true;
   };
 
-  const validateFinalStep = () => {
-    if (!form.employmentStatus) return "Please select your employment status.";
-    if (form.employmentStatus === "employed" && !form.employmentType) return "Please select your employment type.";
-    if (form.employmentStatus === "unemployed") {
-      if (!form.unemploymentReason) return "Please select your reason for unemployment.";
-      if (form.unemploymentReason === "laidoff_abroad" && !form.laidoffCountry?.trim()) {
-        return "Please enter the country where you were laid off.";
-      }
-    }
-    return "";
+  const handleNext = () => {
+    setError("");
+    setNavNotice("");
+    // Steps 6 and 9 are optional; every other step must be complete to continue.
+    if (showStepErrors(step)) return;
+    setStep(prev => Math.min(prev + 1, SUCCESS_STEP));
   };
 
   const handleBack = () => {
     setError("");
+    setNavNotice("");
+    clearAll();
     setStep(prev => Math.max(prev - 1, 1));
   };
 
   const submitProfile = async () => {
     setError("");
-    const finalStepError = validateFinalStep();
-    if (finalStepError) {
-      setError(finalStepError);
+    // Finish re-checks EVERY required step (not only the last one), because
+    // steps can now be visited in any order. The first gap is opened.
+    const gap = firstIncompleteStep(stepState, stepOpts, LAST_STEP);
+    if (gap !== null) {
+      if (gap !== step) setStep(gap);
+      const found = getStepErrors(gap, stepState, stepOpts);
+      replaceErrors(found);
+      window.requestAnimationFrame(() => focusFirstInvalid(FIELD_ORDER[gap] || [], found));
       return;
     }
     setSaving(true);
@@ -715,7 +706,19 @@ export default function JobSeekerOnboarding() {
       setFinished(true);
       setStep(SUCCESS_STEP);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to complete onboarding. Please try again.");
+      // A field-level server answer ({ code, field }) marks that field and returns the
+      // person to the step that holds it; anything else uses the blocking message.
+      const data = err.response?.data || {};
+      const stepOfField = Object.entries(FIELD_ORDER).find(([, fields]) => fields.includes(data.field));
+      if (data.field && stepOfField) {
+        const mapped = mapServerError(err);
+        setStep(Number(stepOfField[0]));
+        const entry = mapped.key ? { key: mapped.key, params: data.params || {}, message: mapped.message } : { message: mapped.message };
+        replaceErrors({ [data.field]: entry });
+        window.requestAnimationFrame(() => focusFirstInvalid(FIELD_ORDER[Number(stepOfField[0])], { [data.field]: entry }));
+      } else {
+        setError(data.message || t("wizardErrors.submitFailed"));
+      }
     } finally {
       setSaving(false);
     }
@@ -733,29 +736,39 @@ export default function JobSeekerOnboarding() {
         <ol className="onboarding-steps">
           {STEP_LABELS.map((label, i) => {
             const idx = i + 1;
-            const state = step > idx || step === SUCCESS_STEP ? "done" : step === idx ? "current" : "upcoming";
-            const canJump = idx <= step && step <= LAST_STEP;
+            const info = navInfo[i];
+            const locked = step <= LAST_STEP && info.status === "locked";
+            const state = step === SUCCESS_STEP || info.status === "done" ? "done" : info.status === "current" ? "current" : locked ? "locked" : "upcoming";
+            const reasonId = `wizard-step-reason-${idx}`;
+            const lockedReason = locked ? t("wizardNav.lockedReason", { step: STEP_LABELS[(info.blockedBy || 1) - 1] }) : "";
             return (
               <li key={label} className={`onboarding-step-item ${state}`}>
                 <button
                   type="button"
                   className="onboarding-step-button"
-                  onClick={() => handleStepJump(idx)}
+                  onClick={() => goToStep(idx)}
                   aria-current={state === "current" ? "step" : undefined}
-                  disabled={!canJump || saving}
-                  aria-label={`Go to ${label}`}
+                  aria-disabled={locked || state === "current" ? "true" : undefined}
+                  aria-describedby={locked ? reasonId : undefined}
+                  disabled={saving || step === SUCCESS_STEP}
+                  aria-label={t("wizardNav.goTo", { label })}
                 >
                   <span className="onboarding-step-index" aria-hidden="true">{state === "done" ? "✓" : idx}</span>
                   <span className="onboarding-step-label">
                     {label}
-                    {state === "done" && <span className="sr-only"> (completed)</span>}
+                    {state === "done" && <span className="sr-only"> ({t("wizardNav.stateDone")})</span>}
+                    {locked && <span className="onboarding-step-lock" aria-hidden="true">{t("wizardNav.stateLocked")}</span>}
+                    {locked && <span id={reasonId} className="sr-only"> ({t("wizardNav.stateLocked")}. {lockedReason})</span>}
                   </span>
                 </button>
               </li>
             );
           })}
         </ol>
-        {step <= LAST_STEP && <div className="onboarding-rail-autosave">Draft saved automatically</div>}
+        <p className="onboarding-rail-notice" role="status" aria-live="polite">
+          {navNotice || (attentionStep ? t("wizardNav.needsAttention", { step: STEP_LABELS[attentionStep - 1] }) : "")}
+        </p>
+        {step <= LAST_STEP && <div className="onboarding-rail-autosave">{t("wizardNav.draftLocal")}</div>}
       </aside>
 
       <div className="onboarding-panel">
@@ -765,25 +778,39 @@ export default function JobSeekerOnboarding() {
               <div className="onboarding-progress-meta">Step {step} of {LAST_STEP}</div>
               <h1 className="onboarding-topbar-title">{STEP_LABELS[step - 1]}</h1>
               <div className="onboarding-progress-track"><div className="onboarding-progress-fill" style={{ width: `${progress}%` }}></div></div>
-              <div className="onboarding-mobile-step-pills" aria-label="Jump to setup step">
+              <div className="onboarding-mobile-step-pills" aria-label={t("wizardNav.jumpMenu")}>
                 {STEP_LABELS.map((label, i) => {
                   const idx = i + 1;
-                  const isCurrent = idx === step;
-                  const isDone = idx < step;
-                  const disabled = idx > step || saving;
+                  const info = navInfo[i];
+                  const isCurrent = info.status === "current";
+                  const isDone = info.status === "done";
+                  const locked = info.status === "locked";
+                  const stateText = isCurrent ? t("wizardNav.stateCurrent") : isDone ? t("wizardNav.stateDone") : locked ? `${t("wizardNav.stateLocked")}. ${t("wizardNav.lockedReason", { step: STEP_LABELS[(info.blockedBy || 1) - 1] })}` : t("wizardNav.stateAvailable");
                   return (
                     <button
                       key={label}
                       type="button"
-                      className={`onboarding-mobile-step-pill ${isCurrent ? "current" : ""} ${isDone ? "done" : ""}`}
-                      onClick={() => handleStepJump(idx)}
-                      disabled={disabled}
-                      aria-label={`Jump to ${label}`}
+                      className={`onboarding-mobile-step-pill ${isCurrent ? "current" : ""} ${isDone ? "done" : ""} ${locked ? "locked" : ""}`}
+                      onClick={() => goToStep(idx)}
+                      aria-current={isCurrent ? "step" : undefined}
+                      aria-disabled={locked || isCurrent ? "true" : undefined}
+                      disabled={saving}
+                      aria-label={`${t("wizardNav.stepOf", { current: idx, total: LAST_STEP, label })}, ${stateText}`}
                     >
                       {idx}
                     </button>
                   );
                 })}
+              </div>
+              <div className="onboarding-mobile-jump">
+                <label htmlFor="wizard-jump" className="sr-only">{t("wizardNav.jumpMenu")}</label>
+                <select id="wizard-jump" value={step} onChange={(e) => goToStep(Number(e.target.value))} disabled={saving}>
+                  {STEP_LABELS.map((label, i) => (
+                    <option key={label} value={i + 1} disabled={navInfo[i].status === "locked"}>
+                      {`${i + 1}. ${label}${navInfo[i].status === "locked" ? ` (${t("wizardNav.stateLocked")})` : ""}`}
+                    </option>
+                  ))}
+                </select>
               </div>
             </>
           )}
@@ -791,35 +818,39 @@ export default function JobSeekerOnboarding() {
 
         <div className="onboarding-scroll">
           <div className="onboarding-canvas">
+      {attentionStep ? (
+        <div className="onboarding-attention" role="status">
+          <span>{t("wizardNav.attentionBanner", { step: STEP_LABELS[attentionStep - 1] })}</span>
+          <button type="button" className="onboarding-secondary" onClick={() => goToStep(attentionStep)}>{t("wizardNav.goThere", { step: STEP_LABELS[attentionStep - 1] })}</button>
+        </div>
+      ) : null}
       {step === 1 && (
         <div className="onboarding-step">
           <p className="onboarding-subtitle">Tell us about yourself so employers can get to know you.</p>
           <div className="onboarding-fields">
             <div className="onboarding-field-grid-4">
-              <label>Surname <input type="text" value={form.surname || ""} onChange={e => updateField("surname", e.target.value)} disabled={saving} /></label>
-              <label>First Name <input type="text" value={form.firstName || ""} onChange={e => updateField("firstName", e.target.value)} disabled={saving} /></label>
+              <label>Surname <input type="text" {...ariaFor(errors, "surname")} value={form.surname || ""} onChange={e => updateField("surname", e.target.value)} disabled={saving} /><FieldError id="surname" error={errors.surname} /></label>
+              <label>First Name <input type="text" {...ariaFor(errors, "firstName")} value={form.firstName || ""} onChange={e => updateField("firstName", e.target.value)} disabled={saving} /><FieldError id="firstName" error={errors.firstName} /></label>
               <label>Middle Name <span className="onboarding-optional">(optional)</span><input type="text" value={form.middleName || ""} onChange={e => updateField("middleName", e.target.value)} disabled={saving} /></label>
               <label>Suffix <span className="onboarding-optional">(optional)</span><input type="text" placeholder="Jr., III, etc." value={form.suffix || ""} onChange={e => updateField("suffix", e.target.value)} disabled={saving} /></label>
-              <label>Phone Number <input type="tel" value={form.phone || ""} onChange={e => updateField("phone", e.target.value)} disabled={saving} /></label>
-              <label>Date of Birth <input type="date" value={form.dateOfBirth || ""} onChange={e => updateField("dateOfBirth", e.target.value)} disabled={saving} readOnly={Boolean(user?.dateOfBirth)} aria-readonly={Boolean(user?.dateOfBirth)} />{user?.dateOfBirth ? <small className="onboarding-optional">{t("ageGate.dobLockedProfile")}</small> : null}</label>
+              <PhoneInput id="phone" name="phone" value={form.phone || ""} onChange={(v) => updateField("phone", v)} error={errors.phone} required disabled={saving} />
+              <label>Date of Birth <input type="date" value={form.dateOfBirth || ""} onChange={e => updateField("dateOfBirth", e.target.value)} {...ariaFor(errors, "dateOfBirth")} disabled={saving} readOnly={Boolean(user?.dateOfBirth)} aria-readonly={Boolean(user?.dateOfBirth)} />{user?.dateOfBirth ? <small className="onboarding-optional">{t("ageGate.dobLockedProfile")}</small> : null}<FieldError id="dateOfBirth" error={errors.dateOfBirth} /></label>
             </div>
-            <div>
-              <span className="onboarding-label">Gender</span>
+            <FieldGroup id="gender" legend={<span className="onboarding-label">Gender</span>} error={errors.gender}>
               <div className="pill-row">
                 {GENDER_OPTIONS.map(opt => (
                   <button key={opt} type="button" className={`pill-btn ${form.gender === opt ? "active" : ""}`} onClick={() => updateField("gender", opt)} disabled={saving}>{opt}</button>
                 ))}
               </div>
-            </div>
-            <div>
-              <span className="onboarding-label">Home Address / Municipality</span>
+            </FieldGroup>
+            <FieldGroup id="address" legend={<span className="onboarding-label">Home Address / Municipality</span>} error={errors.address}>
               <LocationSelect
                 value={form.address || ""}
                 onChange={(loc) => updateField("address", loc)}
                 disabled={saving}
                 required
               />
-            </div>
+            </FieldGroup>
             <div>
               <label htmlFor="onboarding-username">
                 Username <span className="onboarding-optional">(optional)</span>
@@ -851,6 +882,7 @@ export default function JobSeekerOnboarding() {
       {step === 2 && (
         <div className="onboarding-step">
           <p className="onboarding-subtitle">Select the industries you are most interested in working in.</p>
+          <FieldGroup id="preferredIndustries" error={errors.preferredIndustries}>
           <div className="industry-pills-grid">
             {INDUSTRY_OPTIONS.map(ind => (
               <button
@@ -864,6 +896,7 @@ export default function JobSeekerOnboarding() {
               </button>
             ))}
           </div>
+          </FieldGroup>
 
           {INDUSTRY_OPTIONS.length === 0 && (
             <p className="onboarding-catalog-empty" role="status">
@@ -899,9 +932,10 @@ export default function JobSeekerOnboarding() {
         <div className="onboarding-step">
           <p className="onboarding-subtitle">Add skills that showcase your abilities and experience.</p>
           <div className="skills-entry-row">
-            <input type="text" value={skillInput} placeholder="Type a skill and press Enter" onChange={e => setSkillInput(e.target.value)} onKeyDown={handleSkillKeyDown} disabled={saving} />
+            <input type="text" {...ariaFor(errors, "skills")} value={skillInput} placeholder="Type a skill and press Enter" onChange={e => setSkillInput(e.target.value)} onKeyDown={handleSkillKeyDown} disabled={saving} />
             <button type="button" className="onboarding-add-btn" onClick={handleAddSkill} disabled={saving}>Add</button>
           </div>
+          <FieldError id="skills" error={errors.skills} />
           <div className="skills-tags-wrap">
             {skills.map(skill => (
               <span key={skill} className="skill-pill">{skill} <button type="button" onClick={() => setSkills(prev => prev.filter(s => s !== skill))} disabled={saving}>×</button></span>
@@ -935,6 +969,7 @@ export default function JobSeekerOnboarding() {
               <span className="onboarding-section-icon" aria-hidden="true">1</span>
               Preferred Occupations
             </h3>
+            <FieldGroup id="preferredOccupations" error={errors.preferredOccupations}>
             <CappedChipField
               label="Occupations"
               hint="List up to 4, in order of preference."
@@ -946,6 +981,7 @@ export default function JobSeekerOnboarding() {
               onRemove={(v) => removeFromCappedList("preferredOccupations", v)}
               disabled={saving}
             />
+            </FieldGroup>
           </div>
 
           <div className="onboarding-section">
@@ -996,14 +1032,13 @@ export default function JobSeekerOnboarding() {
               Availability
             </h3>
             <div className="onboarding-fields">
-              <div>
-                <span className="onboarding-label">Availability Status</span>
+              <FieldGroup id="availabilityStatus" legend={<span className="onboarding-label">Availability Status</span>} error={errors.availabilityStatus}>
                 <div className="pill-row">
                   {["Actively Looking", "Open to Offers", "Currently Employed"].map(opt => (
                     <button key={opt} type="button" className={`pill-btn ${form.availabilityStatus === opt ? "active" : ""}`} onClick={() => updateField("availabilityStatus", opt)} disabled={saving}>{opt}</button>
                   ))}
                 </div>
-              </div>
+              </FieldGroup>
             </div>
           </div>
         </div>
@@ -1021,7 +1056,7 @@ export default function JobSeekerOnboarding() {
             <div className="onboarding-fields">
               <div className="onboarding-field-grid">
                 <label>Educational Attainment
-                  <select value={form.educationalAttainment || ""} onChange={e => { updateField("educationalAttainment", e.target.value); updateField("schoolAttended", ""); updateField("course", ""); }} disabled={saving}>
+                  <select {...ariaFor(errors, "educationalAttainment")} value={form.educationalAttainment || ""} onChange={e => { updateField("educationalAttainment", e.target.value); updateField("schoolAttended", ""); updateField("course", ""); }} disabled={saving}>
                     <option value="">Select</option>
                     <option value="Elementary Graduate">Elementary Graduate</option>
                     <option value="High School Graduate">High School Graduate</option>
@@ -1032,16 +1067,17 @@ export default function JobSeekerOnboarding() {
                     <option value="Master's Degree">Master's Degree</option>
                     <option value="Doctorate">Doctorate</option>
                   </select>
+                  <FieldError id="educationalAttainment" error={errors.educationalAttainment} />
                 </label>
                 <label>Work Experience
-                  <select value={form.workExperience || ""} onChange={e => updateField("workExperience", e.target.value)} disabled={saving}>
+                  <select {...ariaFor(errors, "workExperience")} value={form.workExperience || ""} onChange={e => updateField("workExperience", e.target.value)} disabled={saving}>
                     <option value="">Select</option>
-                    <option value="Fresh Graduate">Fresh Graduate</option>
-                    <option value="Less than 1 year">Less than 1 year</option>
-                    <option value="1–3 years">1–3 years</option>
-                    <option value="3–5 years">3–5 years</option>
-                    <option value="5+ years">5+ years</option>
+                    {WORK_EXPERIENCE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{optionLabel(opt, t)}</option>
+                    ))}
                   </select>
+                  <small className="onboarding-optional">{t("profileOptions.workExperienceHint")}</small>
+                  <FieldError id="workExperience" error={errors.workExperience} />
                 </label>
               </div>
 
@@ -1089,44 +1125,13 @@ export default function JobSeekerOnboarding() {
               <span className="onboarding-section-icon" aria-hidden="true">2</span>
               Language / Dialect Proficiency <span className="onboarding-optional">(optional)</span>
             </h3>
-            <div className="onboarding-lang-table-wrap">
-              <table className="onboarding-lang-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Language</th>
-                    {LANGUAGE_SKILLS.map(s => <th key={s.key} scope="col">{s.label}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {["English", "Filipino", "Others"].map(lang => (
-                    <tr key={lang}>
-                      <th scope="row">
-                        {lang === "Others" ? (
-                          <input
-                            type="text"
-                            placeholder="Others, specify"
-                            value={form.languageOthersLabel || ""}
-                            onChange={e => updateField("languageOthersLabel", e.target.value)}
-                            disabled={saving}
-                          />
-                        ) : lang}
-                      </th>
-                      {LANGUAGE_SKILLS.map(s => (
-                        <td key={s.key}>
-                          <input
-                            type="checkbox"
-                            aria-label={`${lang} — ${s.label}`}
-                            checked={form.languageProficiency[lang][s.key]}
-                            onChange={() => toggleLanguageSkill(lang, s.key)}
-                            disabled={saving}
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <LanguageProficiencyTable
+              value={form.languageProficiency}
+              othersLabel={form.languageOthersLabel || ""}
+              onChange={(next) => updateField("languageProficiency", next)}
+              onOthersLabelChange={(label) => updateField("languageOthersLabel", label)}
+              disabled={saving}
+            />
           </div>
 
           <div className="onboarding-section">
@@ -1286,39 +1291,47 @@ export default function JobSeekerOnboarding() {
             <div className="onboarding-fields">
               <div className="onboarding-field-grid">
                 <label>Civil Status
-                  <select value={form.civilStatus || ""} onChange={e => updateField("civilStatus", e.target.value)} disabled={saving}>
+                  <select {...ariaFor(errors, "civilStatus")} value={form.civilStatus || ""} onChange={e => updateField("civilStatus", e.target.value)} disabled={saving}>
                     <option value="">Select</option>
                     {CIVIL_STATUS_OPTIONS.map((cs) => (
                       <option key={cs} value={cs}>{cs === CIVIL_STATUS_OTHER ? t("profile.civilStatus.other") : cs}</option>
                     ))}
                   </select>
+                  <FieldError id="civilStatus" error={errors.civilStatus} />
                 </label>
                 <label>Citizenship
-                  <Autosuggest
-                    id="citizenship"
-                    enhanced
-                    value={form.citizenship || ""}
-                    onChange={(v) => updateField("citizenship", v)}
-                    options={NATIONALITIES}
-                    placeholder={t("suggest.placeholder")}
-                    maxLength={50}
-                    disabled={saving}
-                  />
+                  <div className={errors.citizenship ? "ds-invalid-wrap" : undefined}>
+                    <Autosuggest
+                      id="citizenship"
+                      enhanced
+                      value={form.citizenship || ""}
+                      onChange={(v) => updateField("citizenship", v)}
+                      options={NATIONALITIES}
+                      placeholder={t("suggest.placeholder")}
+                      maxLength={50}
+                      disabled={saving}
+                    />
+                  </div>
+                  <FieldError id="citizenship" error={errors.citizenship} />
                 </label>
               </div>
               {form.civilStatus === CIVIL_STATUS_OTHER && (
                 <label>{t("profile.civilStatus.specifyLabel")}
-                  <input type="text" value={form.civilStatusOther || ""} onChange={e => updateField("civilStatusOther", e.target.value)} disabled={saving} required />
+                  <input type="text" {...ariaFor(errors, "civilStatusOther")} value={form.civilStatusOther || ""} onChange={e => updateField("civilStatusOther", e.target.value)} disabled={saving} required />
+                  <FieldError id="civilStatusOther" error={errors.civilStatusOther} />
                 </label>
               )}
               <label>Place of Birth
-                <LocationAutosuggest
-                  id="placeOfBirth"
-                  value={form.placeOfBirth || ""}
-                  onChange={(v) => updateField("placeOfBirth", v)}
-                  placeholder="Start typing a city or municipality..."
-                  disabled={saving}
-                />
+                <div className={errors.placeOfBirth ? "ds-invalid-wrap" : undefined}>
+                  <LocationAutosuggest
+                    id="placeOfBirth"
+                    value={form.placeOfBirth || ""}
+                    onChange={(v) => updateField("placeOfBirth", v)}
+                    placeholder="Start typing a city or municipality..."
+                    disabled={saving}
+                  />
+                </div>
+                <FieldError id="placeOfBirth" error={errors.placeOfBirth} />
               </label>
               <label>Religion <span className="onboarding-optional">(optional)</span>
                 <Autosuggest
@@ -1389,7 +1402,7 @@ export default function JobSeekerOnboarding() {
             <div className="onboarding-fields">
               <div className="onboarding-field-grid">
                 <label>Landline <input type="tel" value={form.landline || ""} onChange={e => updateField("landline", e.target.value)} disabled={saving} /></label>
-                <label>Secondary Mobile <input type="tel" value={form.mobileSecondary || ""} onChange={e => updateField("mobileSecondary", e.target.value)} disabled={saving} /></label>
+                <PhoneInput id="mobileSecondary" name="mobileSecondary" label="Secondary Mobile" value={form.mobileSecondary || ""} onChange={(v) => updateField("mobileSecondary", v)} disabled={saving} />
               </div>
             </div>
           </div>
@@ -1399,7 +1412,16 @@ export default function JobSeekerOnboarding() {
               <span className="onboarding-section-icon" aria-hidden="true">5</span>
               Present Address
             </h3>
-            <div className="onboarding-address-group">
+            <FieldError id="presentAddress" error={errors.presentAddress} />
+            <div
+              className="onboarding-address-group"
+              id="presentAddress"
+              role="group"
+              aria-label="Present Address"
+              aria-invalid={errors.presentAddress ? "true" : undefined}
+              aria-describedby={errors.presentAddress ? "presentAddress-error" : undefined}
+              tabIndex={errors.presentAddress ? -1 : undefined}
+            >
               {form.address && (
                 <div style={{ marginBottom: '0.75rem' }}>
                   <label className="checkbox-label">
@@ -1587,34 +1609,51 @@ export default function JobSeekerOnboarding() {
               Employment Status
             </h3>
             <div className="onboarding-fields">
-              <div>
-                <span className="onboarding-label">Employment Status</span>
+              <FieldGroup id="employmentStatus" legend={<span className="onboarding-label">Employment Status</span>} error={errors.employmentStatus}>
                 <div className="pill-row">
-                  <button type="button" className={`pill-btn ${form.employmentStatus === "employed" ? "active" : ""}`} onClick={() => updateField("employmentStatus", "employed")} disabled={saving}>Employed</button>
-                  <button type="button" className={`pill-btn ${form.employmentStatus === "unemployed" ? "active" : ""}`} onClick={() => updateField("employmentStatus", "unemployed")} disabled={saving}>Unemployed</button>
+                  {EMPLOYMENT_STATUS_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      aria-pressed={form.employmentStatus === opt.value}
+                      className={`pill-btn ${form.employmentStatus === opt.value ? "active" : ""}`}
+                      onClick={() => {
+                        // Not applicable (student) needs no type or reason: clear them.
+                        setForm(prev => ({
+                          ...prev,
+                          employmentStatus: opt.value,
+                          ...(opt.value === EMPLOYMENT_STATUS_NOT_APPLICABLE ? { employmentType: "", unemploymentReason: "", laidoffCountry: "" } : {}),
+                        }));
+                        clearFieldError("employmentStatus");
+                      }}
+                      disabled={saving}
+                    >
+                      {optionLabel(opt, t)}
+                    </button>
+                  ))}
                 </div>
-              </div>
+              </FieldGroup>
               {form.employmentStatus === "employed" && (
-                <div>
-                  <span className="onboarding-label">Employment Type</span>
+                <FieldGroup id="employmentType" legend={<span className="onboarding-label">Employment Type</span>} error={errors.employmentType}>
                   <div className="pill-row">
-                    <button type="button" className={`pill-btn ${form.employmentType === "wage" ? "active" : ""}`} onClick={() => updateField("employmentType", "wage")} disabled={saving}>Wage</button>
-                    <button type="button" className={`pill-btn ${form.employmentType === "self" ? "active" : ""}`} onClick={() => updateField("employmentType", "self")} disabled={saving}>Self</button>
+                    <button type="button" aria-pressed={form.employmentType === "wage"} className={`pill-btn ${form.employmentType === "wage" ? "active" : ""}`} onClick={() => updateField("employmentType", "wage")} disabled={saving}>Wage</button>
+                    <button type="button" aria-pressed={form.employmentType === "self"} className={`pill-btn ${form.employmentType === "self" ? "active" : ""}`} onClick={() => updateField("employmentType", "self")} disabled={saving}>Self</button>
                   </div>
-                </div>
+                </FieldGroup>
               )}
               {form.employmentStatus === "unemployed" && (
                 <>
                   <label>Reason for Unemployment
-                    <select value={form.unemploymentReason || ""} onChange={e => updateField("unemploymentReason", e.target.value)} disabled={saving}>
+                    <select {...ariaFor(errors, "unemploymentReason")} value={form.unemploymentReason || ""} onChange={e => updateField("unemploymentReason", e.target.value)} disabled={saving}>
                       <option value="">Select</option>
-                      {UNEMPLOYMENT_REASON_OPTIONS.map(({ value, label }) => (
-                        <option key={value} value={value}>{label}</option>
+                      {UNEMPLOYMENT_REASON_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{optionLabel(opt, t)}</option>
                       ))}
                     </select>
+                    <FieldError id="unemploymentReason" error={errors.unemploymentReason} />
                   </label>
                   {form.unemploymentReason === "laidoff_abroad" && (
-                    <label>Country <input type="text" value={form.laidoffCountry || ""} onChange={e => updateField("laidoffCountry", e.target.value)} disabled={saving} /></label>
+                    <label>Country <input type="text" {...ariaFor(errors, "laidoffCountry")} value={form.laidoffCountry || ""} onChange={e => updateField("laidoffCountry", e.target.value)} disabled={saving} /><FieldError id="laidoffCountry" error={errors.laidoffCountry} /></label>
                   )}
                 </>
               )}

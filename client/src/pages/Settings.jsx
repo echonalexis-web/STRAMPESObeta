@@ -1,3 +1,4 @@
+import { formatPhoneDisplay } from "../utils/phoneIntl";
 import { useCallback, useContext, useEffect, useState, useSyncExternalStore } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -1009,7 +1010,7 @@ function AccountSection({ role, user, displayName, toast, confirm, onPasswordAdd
         </div>
         <div>
           <dt>{t("settings.account.phone")}</dt>
-          <dd>{user?.phone || "—"}</dd>
+          <dd>{user?.phone ? formatPhoneDisplay(user.phone) : "—"}</dd>
         </div>
         {role === "employer" && (
           <div>

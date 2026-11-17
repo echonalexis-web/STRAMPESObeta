@@ -1,0 +1,128 @@
+/* Language / Dialect Proficiency table, shared by onboarding and Edit profile
+   (replaces .onboarding-lang-table and .lang-table). Tokens: design-system.css. */
+
+.lang-prof {
+  width: 100%;
+}
+
+.lang-prof__caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.lang-prof__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ds-text-sm);
+}
+
+.lang-prof__table th,
+.lang-prof__table td {
+  border: 1px solid var(--ds-border);
+  padding: var(--ds-space-1) var(--ds-space-2);
+  text-align: center;
+}
+
+.lang-prof__table thead th {
+  background: var(--ds-bg);
+  color: var(--ds-muted);
+  font-size: var(--ds-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.lang-prof__table tbody th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ds-text);
+  background: var(--ds-surface);
+}
+
+.lang-prof__name input[type="text"] {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  padding: 6px 10px;
+  font-size: var(--ds-text-sm);
+}
+
+/* The label is the 44px tap area; the native checkbox stays 20px inside it. */
+.lang-prof__hit {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0 auto;
+  cursor: pointer;
+}
+
+.lang-prof__hit input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--ds-green-secondary);
+  cursor: pointer;
+}
+
+.lang-prof__hit input[type="checkbox"]:focus-visible {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 2px;
+}
+
+/* Narrow screens: each language is a card, so no sideways scroll at 320px. */
+@media (max-width: 480px) {
+  .lang-prof__table,
+  .lang-prof__table tbody,
+  .lang-prof__table tr,
+  .lang-prof__table th,
+  .lang-prof__table td {
+    display: block;
+  }
+
+  .lang-prof__table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .lang-prof__table tr {
+    border: 1px solid var(--ds-border);
+    border-radius: var(--ds-radius-md);
+    margin-bottom: var(--ds-space-3);
+    padding: var(--ds-space-2);
+    background: var(--ds-surface);
+  }
+
+  .lang-prof__table th,
+  .lang-prof__table td {
+    border: 0;
+  }
+
+  .lang-prof__table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+    padding: 0 var(--ds-space-2);
+  }
+
+  .lang-prof__table td::before {
+    content: attr(data-label);
+    font-size: var(--ds-text-sm);
+    color: var(--ds-text);
+    font-weight: 600;
+  }
+
+  .lang-prof__hit {
+    margin: 0;
+  }
+}
