@@ -51,7 +51,7 @@
   pointer-events: none;
 }
 
-.job-search-filters .filter-keyword {
+.job-search-filters .ds-input.filter-keyword {
   padding-left: calc(var(--ds-space-3) + 28px);
   max-width: none;
   margin: 0;
