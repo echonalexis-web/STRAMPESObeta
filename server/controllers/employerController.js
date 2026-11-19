@@ -1,5 +1,6 @@
 const JobVacancy = require("../models/JobVacancy");
 const JobApplication = require("../models/JobApplication");
+const { setApplicationStatus } = require("../services/applicationStatusService");
 const Message = require("../models/Message");
 const { ensureConversationBetweenUsers } = require("./messageController");
 const JobseekerProfile = require("../models/JobseekerProfile");
@@ -733,11 +734,10 @@ exports.updateApplicationStatus = async (req, res) => {
       return res.status(403).json({ message: "You can only update applications for your own jobs" });
     }
 
-    application.status = status;
+    setApplicationStatus(application, status);
     if (typeof employerNote === "string") {
       application.employerNote = employerNote;
     }
-    application.statusUpdatedAt = new Date();
 
     await application.save();
 
@@ -1062,8 +1062,7 @@ exports.markInterviewNoShow = async (req, res) => {
       return res.status(400).json({ message: `This application is already ${application.status}` });
     }
 
-    application.status = "rejected";
-    application.statusUpdatedAt = new Date();
+    setApplicationStatus(application, "rejected");
     application.interview.noShow = true;
     application.interview.updatedAt = new Date();
     await application.save();
@@ -1201,11 +1200,10 @@ exports.bulkUpdateApplicationStatuses = async (req, res) => {
 
     // Update all valid applications
     const updatePromises = validApplications.map(async (application) => {
-      application.status = status;
+      setApplicationStatus(application, status);
       if (typeof employerNote === "string") {
         application.employerNote = employerNote;
       }
-      application.statusUpdatedAt = new Date();
       await application.save();
 
       // Create notification for each applicant

@@ -31,8 +31,8 @@ Rule: never run a backfill, migration, index creation or deletion script against
 | 1 | Foundations: config, Manila periods, privacy helpers, filter object, shared municipality module | done: server 110 suites 3284 tests pass, client 604 + 29 pass, lint 46 (= baseline), build OK |
 | 2 | Job Monitoring fixes | done: server 111 suites 3299 tests pass, client 604 + 29 pass, lint 46 (= baseline), build OK, en/fil parity 0/0 |
 | 3 | Hotfix for client exports | done: server 111 suites 3299 pass (unchanged), client 610 + 29 pass, lint 46, build OK |
-| 4 | Data additions (shared helper, backfill script, index script) | next |
-| 5 | Analytics refactor with identical numbers | |
+| 4 | Data additions (shared helper, backfill script, index script) | done: server 114 suites 3325 pass; client untouched (610 + 29, lint 46, build OK from commit 3) |
+| 5 | Analytics refactor with identical numbers | next |
 | 6 | Analytics bug fixes | |
 | 7 | Dashboard filtering (server then client) | |
 | 8 | Employer performance server | |
@@ -51,3 +51,6 @@ Rule: never run a backfill, migration, index creation or deletion script against
 - Commit 3: `utils/csvText.js` (formula-injection neutralization, BOM) now backs `exportUtils.csvCell/toCsv`, so Reports AND Job Monitoring CSVs are protected; Reports exports no longer carry the email and username columns (the on-screen table is unchanged).
 - Found while preparing commit 4: hired is NOT terminal in the single-update path (`employerController.updateApplicationStatus` allows any status, even back to pending), so `statusUpdatedAt` can move after a hire. Five runtime paths write JobApplication.status, not four: employer single update, employer no-show reject, employer bulk update, applicant withdraw (`jobController.deleteMyApplication`), and applicant re-apply reactivation (`jobController.applyToJob`, resets a withdrawn row to pending).
 - Mongoose autoIndex is not disabled anywhere (User.js comment implies it is on), so the new indexes are NOT declared with `schema.index`; they live in `server/config/reportIndexes.js` and are created only by `scripts/createReportIndexes.js` (written, not run).
+- Commit 4: `services/applicationStatusService.js` (`setApplicationStatus`, `reactivationFields`) wired into all five status-change paths; `JobApplication` gains `hiredAt`, `hiredAtApproximate`, `firstResponseAt` (no new schema indexes). Tests: helper unit tests, the real handlers for the four employer/applicant paths, and a source scan that fails if anything assigns `application.status` or bulk-writes JobApplication directly.
+- Scripts written, NOT run: `server/scripts/backfillApplicationDates.js` (dry run default; sets `hiredAt` from `statusUpdatedAt`, marks it approximate; does not backfill `firstResponseAt` on purpose), `server/scripts/createReportIndexes.js` (dry run default). Expected indexes are listed in `server/config/reportIndexes.js`: jobapplications {createdAt}, {vacancy,status}, {status,hiredAt}; jobvacancies {employer,createdAt}; reportexports {reportId} unique, {preparedBy,createdAt}, {createdAt}.
+- Un-hiring is possible in the single-update path, so the helper clears `hiredAt` when a hire is undone.

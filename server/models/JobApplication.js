@@ -46,6 +46,13 @@ const jobApplicationSchema = new mongoose.Schema({
   // this application is active. Read-side rules live in services/profileProjection.js.
   includePhoto: { type: Boolean, default: false },
   statusUpdatedAt: { type: Date, default: null },
+  // When the application became "hired". Set only by services/applicationStatusService.js on
+  // the transition, cleared if the hire is undone. hiredAtApproximate marks a value filled in
+  // from statusUpdatedAt by scripts/backfillApplicationDates.js; reports say "approximate".
+  hiredAt: { type: Date, default: null },
+  hiredAtApproximate: { type: Boolean, default: false },
+  // When the employer first acted on the application (the first move out of pending). Set once.
+  firstResponseAt: { type: Date, default: null },
   appliedAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now },
   interview: {

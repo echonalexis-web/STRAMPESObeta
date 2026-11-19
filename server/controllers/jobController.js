@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const JobVacancy = require("../models/JobVacancy");
 const JobApplication = require("../models/JobApplication");
+const { setApplicationStatus, reactivationFields } = require("../services/applicationStatusService");
 const JobseekerDocument = require("../models/JobseekerDocument");
 const JobseekerProfile = require("../models/JobseekerProfile");
 const User = require("../models/User");
@@ -465,8 +466,7 @@ exports.applyToJob = async (req, res) => {
       const previousCoverLetterWasLibrary = Boolean(existingApplication.coverLetterDocumentId);
 
       existingApplication.set({
-        status: "pending",
-        statusUpdatedAt: null,
+        ...reactivationFields(),
         employerNote: "",
         resume: resumeUpload ? resumeUpload.storedValue : resumeDocument.storedValue,
         resumeDocumentId: resumeDocument ? resumeDocument._id : null,
@@ -935,8 +935,7 @@ exports.deleteMyApplication = async (req, res) => {
     // same row rather than needing a second one. Stored files are no longer
     // removed here for the same reason: the record they belong to still
     // exists.
-    application.status = "withdrawn";
-    application.statusUpdatedAt = new Date();
+    setApplicationStatus(application, "withdrawn");
     await application.save();
     logger.info(`Application withdrawn: ${req.params.id} by user ${req.user.id}`);
 
