@@ -477,6 +477,8 @@ export const adminAPI = {
   deleteUser: (id, payload = {}) => api.delete(`/admin/users/${id}`, { ...getAuthHeader(), data: payload }),
   getDeletePreview: (id) => api.get(`/admin/users/${id}/delete-preview`, getAuthHeader()),
   restoreUser: (id) => api.post(`/admin/users/${id}/restore`, {}, getAuthHeader()),
+  getUserInsights: (id) => api.get(`/admin/users/${id}/insights`, getAuthHeader()),
+  saveUserNotes: (id, notes) => api.put(`/admin/users/${id}/notes`, { notes }, getAuthHeader()),
   generateInvite: () => api.post('/auth/invite', {}, getAuthHeader()),
   // Platform-default job-matching weight profile (§C.1) — the reset target
   // and starting point for every employer who hasn't customised their own.

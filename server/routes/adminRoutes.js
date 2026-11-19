@@ -17,6 +17,8 @@ const {
   deleteUser,
   restoreUser,
   previewDeleteUser,
+  getUserInsights,
+  updateUserAdminNotes,
   toggleHomepageFeature,
   changeUserDateOfBirth,
 } = require("../controllers/adminController");
@@ -90,6 +92,9 @@ router.put("/users/:id/reactivate", isSuperadmin, validateMongoId("id"), sanitiz
 // confirmation) and restore inside the grace period. Superadmin only, budgeted.
 router.delete("/users/:id", isSuperadmin, userDeleteBudget, validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, deleteUser);
 router.get("/users/:id/delete-preview", isSuperadmin, validateMongoId("id"), previewDeleteUser);
+// Account insights (read-only, computed on the server) and the internal notes.
+router.get("/users/:id/insights", isSuperadmin, validateMongoId("id"), getUserInsights);
+router.put("/users/:id/notes", isSuperadmin, validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, updateUserAdminNotes);
 router.post("/users/:id/restore", isSuperadmin, userDeleteBudget, validateMongoId("id"), restoreUser);
 router.get("/audit-logs", isSuperadmin, sanitizeQueryParams, getAuditLogs);
 

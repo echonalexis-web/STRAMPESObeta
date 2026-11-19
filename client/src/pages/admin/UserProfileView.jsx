@@ -1,6 +1,8 @@
 import { formatPhoneDisplay, phoneHref } from "../../utils/phoneIntl";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { AuthContext } from "../../context/AuthContext";
+import AccountInsights from "../../components/AccountInsights";
 import { useTranslation } from "react-i18next";
 import {
   FaArrowLeft,
@@ -82,6 +84,9 @@ export default function UserProfileView() {
   const { t } = useTranslation();
   const { userId } = useParams();
   const navigate = useNavigate();
+  // The insights endpoint is superadmin-only (the server enforces it); admins
+  // simply do not get the section.
+  const { user: viewer } = useContext(AuthContext);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -355,6 +360,10 @@ export default function UserProfileView() {
             </dl>
           </section>
         </main>
+
+        {viewer?.role === "superadmin" && (isEmployer || isJobseeker) ? (
+          <AccountInsights userId={String(user._id || userId)} />
+        ) : null}
       </div>
     </div>
   );

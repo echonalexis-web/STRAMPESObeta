@@ -8,29 +8,32 @@
 // input.
 const FIELDS = [
   // User-side
-  { check: (user) => Boolean(user?.dateOfBirth) },
-  { check: (user) => Boolean(user?.gender) },
-  { check: (user) => Boolean(user?.phone) },
-  { check: (user) => Boolean(user?.address) },
-  { check: (user) => Boolean(user?.educationalAttainment) },
-  { check: (user) => Boolean(user?.desiredJobTitle) },
-  { check: (user) => Array.isArray(user?.skills) && user.skills.length > 0 },
-  { check: (user) => Boolean(user?.resumeFile) },
-  { check: (user) => Boolean(user?.validIdFile) },
+  { section: "personal", check: (user) => Boolean(user?.dateOfBirth) },
+  { section: "personal", check: (user) => Boolean(user?.gender) },
+  { section: "contact", check: (user) => Boolean(user?.phone) },
+  { section: "contact", check: (user) => Boolean(user?.address) },
+  { section: "education", check: (user) => Boolean(user?.educationalAttainment) },
+  { section: "education", check: (user) => Boolean(user?.desiredJobTitle) },
+  { section: "skills", check: (user) => Array.isArray(user?.skills) && user.skills.length > 0 },
+  { section: "documents", check: (user) => Boolean(user?.resumeFile) },
+  { section: "documents", check: (user) => Boolean(user?.validIdFile) },
   // JobseekerProfile-side
-  { check: (_user, profile) => Boolean(profile?.civilStatus) },
+  { section: "personal", check: (_user, profile) => Boolean(profile?.civilStatus) },
   {
+    section: "preferences",
     check: (_user, profile) =>
       Boolean(profile?.presentAddress?.municipality) && Boolean(profile?.presentAddress?.province),
   },
   {
+    section: "education",
     check: (_user, profile) =>
       Number.isFinite(profile?.expectedSalaryMin) || Number.isFinite(profile?.expectedSalaryMax),
   },
-  { check: (_user, profile) => Array.isArray(profile?.preferredIndustries) && profile.preferredIndustries.length > 0 },
-  { check: (_user, profile) => Array.isArray(profile?.preferredJobTypes) && profile.preferredJobTypes.length > 0 },
-  { check: (_user, profile) => Array.isArray(profile?.workHistory) && profile.workHistory.length > 0 },
+  { section: "contact", check: (_user, profile) => Array.isArray(profile?.preferredIndustries) && profile.preferredIndustries.length > 0 },
+  { section: "preferences", check: (_user, profile) => Array.isArray(profile?.preferredJobTypes) && profile.preferredJobTypes.length > 0 },
+  { section: "preferences", check: (_user, profile) => Array.isArray(profile?.workHistory) && profile.workHistory.length > 0 },
   {
+    section: "languages",
     // languageProficiency is a fixed-shape sub-document (English/Filipino/
     // Others, each {read,write,speak,understand}) that Mongoose populates
     // with default `false` flags even when the applicant never touched it —
@@ -52,4 +55,14 @@ function computeProfileCompleteness(user, profile) {
   return { percent: Math.round((filled / total) * 100), filled, total };
 }
 
-module.exports = { computeProfileCompleteness };
+// Sections that still have at least one empty item (names only, never values),
+// for the superadmin "Account insights". Same checks as the percentage above.
+function listMissingSections(user, profile) {
+  const missing = [];
+  for (const field of FIELDS) {
+    if (!field.check(user, profile) && !missing.includes(field.section)) missing.push(field.section);
+  }
+  return missing;
+}
+
+module.exports = { computeProfileCompleteness, listMissingSections };

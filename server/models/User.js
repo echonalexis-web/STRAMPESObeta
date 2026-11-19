@@ -346,6 +346,12 @@ const userSchema = new mongoose.Schema(
     deleteReason: { type: String, default: null },
     deleteNote: { type: String, default: null },
     purgeAfter: { type: Date, default: null },
+    // Internal note about the account, written by a superadmin (see
+    // updateUserAdminNotes). select:false so no ordinary read of a user ever
+    // returns it; only the insights endpoint asks for it by name.
+    adminNotes: { type: String, default: "", maxlength: 2000, select: false },
+    adminNotesUpdatedAt: { type: Date, default: null, select: false },
+    adminNotesUpdatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null, select: false },
     // Set by the purge job once personal data is gone; the document stays as an
     // anonymized stub so applications, reports and counts keep their meaning.
     purgedAt: { type: Date, default: null },

@@ -15,6 +15,7 @@ const { forceLogout } = require("../services/sessionService");
 const { escapeRegex } = require("../utils/sanitize");
 const { sendError } = require("../utils/sendError");
 const { isEmployerUnlisted } = require("../utils/jobVisibility");
+const { buildInsights } = require("../services/userInsightsService");
 const {
   softDeleteUser,
   restoreUser: restoreDeletedUser,
@@ -1306,6 +1307,53 @@ exports.restoreUser = async (req, res) => {
       return res.status(error.status).json({ message: error.message, code: error.code });
     }
     return sendError(res, error, "Failed to restore user");
+  }
+};
+
+// Superadmin-only, read-only "Account insights" (see services/userInsightsService).
+exports.getUserInsights = async (req, res) => {
+  try {
+    const insights = await buildInsights(req.params.id);
+    if (!insights) return res.status(404).json({ message: "User not found" });
+    // Never cache: lock and status information must always be current.
+    res.set("Cache-Control", "no-store");
+    return res.json({ insights });
+  } catch (error) {
+    return sendError(res, error, "Failed to load account insights");
+  }
+};
+
+// Internal admin-only note on an employer or jobseeker account. Audited by
+// length only (the note text is not copied into the audit trail).
+exports.updateUserAdminNotes = async (req, res) => {
+  try {
+    const raw = req.body && req.body.notes;
+    if (typeof raw !== "string") return res.status(400).json({ message: "Notes must be text." });
+    const notes = raw.trim();
+    if (notes.length > 2000) return res.status(400).json({ message: "Notes can be up to 2000 characters." });
+
+    const user = await User.findOneAndUpdate(
+      { _id: req.params.id, role: { $in: ["employer", "jobseeker"] } },
+      { $set: { adminNotes: notes, adminNotesUpdatedAt: new Date(), adminNotesUpdatedBy: req.user.id } },
+      { new: true, projection: "_id role" }
+    );
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    await runPostCommit("user_notes.audit", { req, resourceType: "user", resourceId: req.params.id }, () => logAuditEvent({
+      req,
+      actorId: req.user.id,
+      actorRole: "superadmin",
+      action: "admin.user.notes_updated",
+      targetUserId: req.params.id,
+      targetType: "user",
+      targetId: String(req.params.id),
+      severity: "info",
+      metadata: { length: notes.length },
+    }));
+
+    return res.json({ message: "Notes saved.", notes });
+  } catch (error) {
+    return sendError(res, error, "Failed to save notes");
   }
 };
 

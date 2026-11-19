@@ -1,0 +1,73 @@
+/* Account insights panel on the superadmin user detail page. */
+.ai { margin-top: 24px; }
+.ai h2 { margin: 0 0 4px; }
+.ai-sub { margin: 0 0 16px; color: #4b5563; }
+.ai-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+}
+.ai-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  min-width: 0;
+}
+.ai-card--wide { grid-column: 1 / -1; }
+.ai-card h3 { margin: 0 0 10px; font-size: 1rem; }
+.ai dl { margin: 0; display: grid; gap: 10px; }
+.ai-row { display: grid; grid-template-columns: minmax(110px, 38%) 1fr; gap: 8px; align-items: start; }
+.ai-row dt { color: #4b5563; font-weight: 600; }
+.ai-row dd { margin: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.ai-row small, .ai-list small { display: block; width: 100%; color: #4b5563; }
+.ai-list { margin: 0 0 8px; padding-left: 18px; display: grid; gap: 8px; }
+.ai-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+.ai-pill--protected { color: #1b5e20; background: #e8f5e9; }
+.ai-pill--basic { color: #8a4b00; background: #fff4e0; }
+.ai-meter {
+  width: 120px;
+  height: 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+.ai-meter span { display: block; height: 100%; background: #1b5e20; }
+.ai-notes { margin-top: 16px; display: grid; gap: 8px; }
+.ai-notes h3 { margin: 0; font-size: 1rem; }
+.ai-notes textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 96px;
+  padding: 10px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 10px;
+  font: inherit;
+}
+.ai-notes textarea:focus-visible,
+.ai-btn:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }
+.ai-notes small { color: #4b5563; }
+.ai-notes__actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.ai-btn {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ai-btn--primary { background: #1b5e20; border-color: #1b5e20; color: #fff; }
+.ai-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+@media (max-width: 480px) {
+  .ai-row { grid-template-columns: 1fr; gap: 2px; }
+}
