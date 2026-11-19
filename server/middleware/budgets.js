@@ -83,4 +83,15 @@ const staffResetBudget = buildAccountBudget({
   alwaysOn: true,
 });
 
-module.exports = { conversationBudget, uploadBudget, uploadBudgetForFiles, coverUploadBudget, profileViewBudget, backupCodesBudget, staffResetBudget };
+// Superadmin soft delete / restore: per-superadmin hourly cap. USER_DELETE_HOURLY_CAP, default 30.
+const userDeleteBudget = buildAccountBudget({
+  name: "user-delete",
+  windowMs: HOUR_MS,
+  envName: "USER_DELETE_HOURLY_CAP",
+  defaultMax: 30,
+  code: "RATE_LIMITED",
+  message: "Too many delete or restore actions in the last hour. Try again later.",
+  alwaysOn: true,
+});
+
+module.exports = { conversationBudget, uploadBudget, uploadBudgetForFiles, coverUploadBudget, profileViewBudget, backupCodesBudget, staffResetBudget, userDeleteBudget };

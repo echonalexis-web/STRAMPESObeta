@@ -473,6 +473,8 @@
       "autoCloseSuffix": "days with no new applications",
       "appealWindowLabel": "Appeal window",
       "appealWindowSuffix": "days to appeal a suspension",
+      "deletedGraceLabel": "Restore window for deleted accounts",
+      "deletedGraceSuffix": "days (7 to 365) before personal data is permanently removed",
       "requireVerification": "Require employer verification before posting",
       "requireVerificationHint": "Employers must be verified by the PESO office before a vacancy goes live."
     },
@@ -1396,6 +1398,65 @@
         "employersTitle": "No employers found",
         "jobseekersTitle": "No jobseekers found",
         "description": "New accounts appear here as soon as they register."
+      },
+      "columns": {
+        "name": "Name",
+        "contact": "Email or username",
+        "status": "Status",
+        "joined": "Joined",
+        "actions": "Actions"
+      },
+      "status": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "banned": "Banned",
+        "deactivated": "Deactivated",
+        "deleted": "Deleted"
+      },
+      "actions": {
+        "view": "View Profile",
+        "deactivate": "Deactivate",
+        "reactivate": "Reactivate",
+        "delete": "Delete",
+        "restore": "Restore"
+      },
+      "showDeleted": "Show deleted accounts",
+      "deletedUntil": "Restorable until {{date}}",
+      "delete": {
+        "title": "Delete {{name}}?",
+        "intro": "This account is deactivated. Deleting it is a two-step process: it is hidden and locked now, and its personal data is removed for good after a grace period.",
+        "effectsHeading": "What will happen",
+        "effectLogin": "They can no longer sign in, and every open session ends now.",
+        "effectGrace": "You can restore the account for {{days}} days. After that, their profile, documents, files, contact details and messages are permanently removed.",
+        "effectKept": "Applications, hires and report counts are kept and shown as “Deleted user”. Employer postings stay unlisted.",
+        "summaryJobseeker": "{{applications}} application(s), {{inProgress}} still in progress, {{hires}} hire(s).",
+        "summaryEmployer": "{{postings}} posting(s) ({{open}} open), {{received}} application(s) received, {{inProgress}} in progress, {{hires}} hire(s).",
+        "inProgressWarning": "This account has work in progress. It stops now, and nothing is erased until the grace period ends.",
+        "previewLoading": "Checking what this affects…",
+        "previewError": "Could not load the summary. You can still continue, but the counts are not shown.",
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Choose a reason",
+        "reasons": {
+          "policy_violation": "Policy violation",
+          "fraud_or_fake": "Fraud or fake account",
+          "duplicate_account": "Duplicate account",
+          "user_request": "The user asked for it",
+          "inactive": "Inactive account",
+          "other": "Other"
+        },
+        "noteLabel": "Note (optional)",
+        "noteHint": "Saved in the audit trail. Not shown to the user.",
+        "confirmLabel": "Type {{target}} to confirm",
+        "confirmHint": "Type the account’s username or email exactly.",
+        "cancel": "Cancel",
+        "confirm": "Delete account",
+        "deleting": "Deleting…",
+        "success": "{{name}} was deleted. It can be restored for {{days}} days.",
+        "error": "Could not delete this account."
+      },
+      "restore": {
+        "success": "{{name}} was restored. It stays deactivated until you reactivate it.",
+        "error": "Could not restore this account."
       }
     },
     "moderation": {

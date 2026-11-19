@@ -9,6 +9,7 @@ exports.getSystemSettings = async (req, res) => {
       autoCloseDays: settings.autoCloseDays,
       appealWindowDays: settings.appealWindowDays,
       requireEmployerVerification: settings.requireEmployerVerification,
+      deletedAccountGraceDays: settings.deletedAccountGraceDays ?? 30,
       updatedAt: settings.updatedAt,
     });
   } catch (error) {
@@ -18,7 +19,7 @@ exports.getSystemSettings = async (req, res) => {
 
 exports.updateSystemSettings = async (req, res) => {
   try {
-    const { autoCloseDays, appealWindowDays, requireEmployerVerification } = req.body || {};
+    const { autoCloseDays, appealWindowDays, requireEmployerVerification, deletedAccountGraceDays } = req.body || {};
 
     const $set = {};
 
@@ -36,6 +37,14 @@ exports.updateSystemSettings = async (req, res) => {
         return res.status(400).json({ message: "Appeal window must be between 1 and 90 days." });
       }
       $set.appealWindowDays = Math.round(days);
+    }
+
+    if (deletedAccountGraceDays !== undefined) {
+      const days = Number(deletedAccountGraceDays);
+      if (!Number.isFinite(days) || days < 7 || days > 365) {
+        return res.status(400).json({ message: "Deleted-account grace period must be between 7 and 365 days." });
+      }
+      $set.deletedAccountGraceDays = Math.round(days);
     }
 
     if (requireEmployerVerification !== undefined) {
@@ -73,6 +82,7 @@ exports.updateSystemSettings = async (req, res) => {
       autoCloseDays: settings.autoCloseDays,
       appealWindowDays: settings.appealWindowDays,
       requireEmployerVerification: settings.requireEmployerVerification,
+      deletedAccountGraceDays: settings.deletedAccountGraceDays ?? 30,
       updatedAt: settings.updatedAt,
     });
   } catch (error) {

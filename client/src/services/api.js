@@ -473,7 +473,10 @@ export const adminAPI = {
   resolveAppeal: (id, payload) => api.patch(`/appeals/admin/${id}/resolve`, payload, getAuthHeader()),
   getAuditLogs: (params = {}) =>
     api.get('/admin/audit-logs', { ...getAuthHeader(), params }),
-  deleteUser: (id) => api.delete(`/admin/users/${id}`, getAuthHeader()),
+  // Soft delete: needs { reason, note?, confirm } (the typed username or email).
+  deleteUser: (id, payload = {}) => api.delete(`/admin/users/${id}`, { ...getAuthHeader(), data: payload }),
+  getDeletePreview: (id) => api.get(`/admin/users/${id}/delete-preview`, getAuthHeader()),
+  restoreUser: (id) => api.post(`/admin/users/${id}/restore`, {}, getAuthHeader()),
   generateInvite: () => api.post('/auth/invite', {}, getAuthHeader()),
   // Platform-default job-matching weight profile (§C.1) — the reset target
   // and starting point for every employer who hasn't customised their own.

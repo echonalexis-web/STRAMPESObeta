@@ -1,0 +1,153 @@
+/* Superadmin User Management additions: account-state badges, the guarded
+   delete dialog and the "Show deleted" toggle. Hand-written, --ds-* tokens. */
+
+/* Status badges: always a text label plus a shape cue, never colour alone. */
+.um-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.um-badge::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: currentColor;
+}
+.um-badge--active { color: #1b5e20; background: #e8f5e9; }
+.um-badge--active::before { border-radius: 50%; }
+.um-badge--suspended { color: #8a4b00; background: #fff4e0; }
+.um-badge--suspended::before { border-radius: 1px; transform: rotate(45deg); }
+.um-badge--banned { color: #8c1d18; background: #fdecea; }
+.um-badge--banned::before { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); border-radius: 0; }
+.um-badge--deactivated { color: #374151; background: #eef0f3; }
+.um-badge--deactivated::before { border-radius: 50%; background: transparent; border: 2px solid currentColor; box-sizing: border-box; }
+.um-badge--deleted { color: #5b1a6e; background: #f5e9fa; }
+.um-badge--deleted::before { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+
+.um-until {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+/* Row actions: 44px targets. */
+.um-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.um-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.um-btn:focus-visible {
+  outline: 3px solid #1d4ed8;
+  outline-offset: 2px;
+}
+.um-btn--danger {
+  background: #b3261e;
+  border-color: #b3261e;
+  color: #fff;
+}
+.um-btn--danger:hover:not(:disabled) { background: #8c1d18; }
+.um-btn--danger:disabled {
+  background: #e5c9c7;
+  border-color: #e5c9c7;
+  color: #5f2b28;
+  cursor: not-allowed;
+}
+.um-btn--ghost { background: transparent; }
+
+.um-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  margin: 0 0 12px;
+}
+.um-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.um-check input {
+  width: 20px;
+  height: 20px;
+}
+
+/* Delete dialog */
+.um-delete-modal { max-width: 560px; }
+.um-delete { display: grid; gap: 16px; }
+.um-delete__intro {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  color: #7a1c16;
+}
+.um-delete__intro svg { flex: none; margin-top: 2px; }
+.um-delete__effects h4 { margin: 0 0 6px; font-size: 1rem; }
+.um-delete__effects ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.um-delete__warn { font-weight: 600; color: #8a4b00; }
+.um-field { display: grid; gap: 6px; }
+.um-field label { font-weight: 600; }
+.um-field input,
+.um-field select,
+.um-field textarea {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 10px;
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+.um-field input:focus-visible,
+.um-field select:focus-visible,
+.um-field textarea:focus-visible {
+  outline: 3px solid #1d4ed8;
+  outline-offset: 1px;
+}
+.um-field small { color: #4b5563; }
+.um-delete__error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fdecea;
+  color: #8c1d18;
+  font-weight: 600;
+}
+.um-delete__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .um-delete__actions { flex-direction: column-reverse; }
+  .um-delete__actions .um-btn { width: 100%; }
+}
+
+.um-btn--danger-outline {
+  border-color: #b3261e;
+  color: #8c1d18;
+}
+.um-btn--danger-outline:hover { background: #fdecea; }

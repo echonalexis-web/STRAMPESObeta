@@ -75,6 +75,7 @@ const SYSTEM_DEFAULTS = {
   autoCloseDays: 30,
   appealWindowDays: 14,
   requireEmployerVerification: true,
+  deletedAccountGraceDays: 30,
 };
 
 const SECTIONS_BY_ROLE = {
@@ -1413,6 +1414,19 @@ function SystemSection({ role, navbarStyle, onNavbarStyleChange, system, loading
     setAppealWindowDraft(String(system.appealWindowDays));
   }
 
+  const [graceDraft, setGraceDraft] = useState(String(system.deletedAccountGraceDays ?? 30));
+  const [syncedGrace, setSyncedGrace] = useState(system.deletedAccountGraceDays);
+  if (system.deletedAccountGraceDays !== syncedGrace) {
+    setSyncedGrace(system.deletedAccountGraceDays);
+    setGraceDraft(String(system.deletedAccountGraceDays ?? 30));
+  }
+  const commitGrace = () => {
+    const current = system.deletedAccountGraceDays ?? 30;
+    const clamped = Math.min(365, Math.max(7, Math.round(Number(graceDraft)) || current));
+    setGraceDraft(String(clamped));
+    if (clamped !== current) onSave({ deletedAccountGraceDays: clamped });
+  };
+
   const commitAutoClose = () => {
     const clamped = Math.min(365, Math.max(1, Math.round(Number(autoCloseDraft)) || system.autoCloseDays));
     setAutoCloseDraft(String(clamped));
@@ -1508,6 +1522,22 @@ function SystemSection({ role, navbarStyle, onNavbarStyleChange, system, loading
                 onBlur={commitAppealWindow}
               />
               <span>{t("settings.system.appealWindowSuffix")}</span>
+            </div>
+          </label>
+
+          <label className="set-field">
+            <span className="set-field__label">{t("settings.system.deletedGraceLabel")}</span>
+            <div className="set-field__inline">
+              <input
+                type="number"
+                min="7"
+                max="365"
+                value={graceDraft}
+                disabled={loading}
+                onChange={(e) => setGraceDraft(e.target.value)}
+                onBlur={commitGrace}
+              />
+              <span>{t("settings.system.deletedGraceSuffix")}</span>
             </div>
           </label>
 

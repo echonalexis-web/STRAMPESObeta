@@ -15,6 +15,12 @@ const { forceLogout } = require("../services/sessionService");
 const { escapeRegex } = require("../utils/sanitize");
 const { sendError } = require("../utils/sendError");
 const { isEmployerUnlisted } = require("../utils/jobVisibility");
+const {
+  softDeleteUser,
+  restoreUser: restoreDeletedUser,
+  getGraceDays,
+  DeletionError,
+} = require("../services/userDeletionService");
 
 const monthBuckets = () => Array.from({ length: 12 }, () => 0);
 
@@ -518,6 +524,15 @@ exports.getAllUsers = async (req, res) => {
     // in listings, counts, or moderation targets.
     const filter = { role: { $ne: "superadmin" } };
 
+    // Soft-deleted accounts are hidden by default. Only a superadmin can look at
+    // them ("deleted=include" or "deleted=only"); admins always get the default.
+    const deletedMode = String(req.query.deleted || "").trim();
+    if (req.user.role === "superadmin" && deletedMode === "only") {
+      filter.deletedAt = { $ne: null };
+    } else if (!(req.user.role === "superadmin" && deletedMode === "include")) {
+      filter.deletedAt = null;
+    }
+
     if (["employer", "jobseeker", "admin"].includes(role)) {
       filter.role = role;
     }
@@ -543,7 +558,7 @@ exports.getAllUsers = async (req, res) => {
       User.countDocuments(filter),
       User.find(filter)
         .select(
-          "name email username role createdAt hasCompletedOnboarding verificationStatus isActive companyName businessPermitUrl registrationDocUrl verificationNote verificationSubmittedAt"
+          "name email username role createdAt hasCompletedOnboarding verificationStatus isActive accountStatus companyName businessPermitUrl registrationDocUrl verificationNote verificationSubmittedAt deletedAt purgeAfter"
         )
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
@@ -1069,6 +1084,9 @@ exports.deactivateUser = async (req, res) => {
     if (user.role === "superadmin") {
       return res.status(403).json({ message: "Superadmin accounts cannot be modified here." });
     }
+    if (user.deletedAt) {
+      return res.status(409).json({ message: "This account is deleted. Restore it first.", code: "ACCOUNT_DELETED" });
+    }
 
     const permanent = req.body.permanent === true || req.body.permanent === "true";
     const reason = String(req.body.reason || "").trim() || null;
@@ -1138,6 +1156,11 @@ exports.reactivateUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+    // A deleted account must be restored first: reactivating it would bring a
+    // scheduled-for-purge account back by accident.
+    if (user.deletedAt) {
+      return res.status(409).json({ message: "This account is deleted. Restore it first.", code: "ACCOUNT_DELETED" });
+    }
 
     user.isActive = true;
     user.accountStatus = "active";
@@ -1178,52 +1201,28 @@ exports.reactivateUser = async (req, res) => {
   }
 };
 
+// Soft delete (replaces the old hard delete, whose logic now lives only in the
+// purge job: services/userDeletionService.purgeUser). Two steps for the client:
+// GET-style preview via { dryRun: true } returns the "what will happen" summary;
+// the real call needs the typed confirmation and a reason.
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
+    const body = req.body || {};
+    const dryRun = body.dryRun === true || body.dryRun === "true";
 
-    if (String(req.user.id) === String(id)) {
-      return res.status(400).json({ message: "Admin cannot delete themselves" });
-    }
+    const result = await softDeleteUser({
+      actorId: req.user.id,
+      targetId: id,
+      reason: String(body.reason || ""),
+      note: body.note,
+      confirm: body.confirm,
+      dryRun,
+    });
 
-    const user = await User.findById(id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    if (user.role === "superadmin" || user.role === "admin") {
-      return res.status(403).json({
-        message: "Staff accounts are managed by the system superadmin and cannot be deleted here.",
-      });
-    }
-
-    // The stored cover image files go with the account (best effort).
-    const coverImage = user.cover && user.cover.image;
-
-    const jobs = await JobVacancy.find({ employer: id }).select("_id");
-    const jobIds = jobs.map((job) => job._id);
-
-    const conversations = await Conversation.find({ participants: id }).select("_id");
-    const conversationIds = conversations.map((item) => item._id);
-
-    await Promise.all([
-      JobApplication.deleteMany({
-        $or: [{ applicant: id }, ...(jobIds.length ? [{ vacancy: { $in: jobIds } }] : [])],
-      }),
-      jobIds.length ? JobVacancy.deleteMany({ _id: { $in: jobIds } }) : Promise.resolve(),
-      conversationIds.length
-        ? Message.deleteMany({
-            $or: [{ conversationId: { $in: conversationIds } }, { sender: id }],
-          })
-        : Message.deleteMany({ sender: id }),
-      Conversation.deleteMany({ participants: id }),
-      User.findByIdAndDelete(id),
-    ]);
-
-    if (coverImage) {
-      await Promise.allSettled(
-        [coverImage.storedValue, coverImage.thumbStoredValue].filter(Boolean).map((value) => require("../services/storageService").remove(value))
-      );
+    if (dryRun) {
+      const graceDays = await getGraceDays();
+      return res.json({ dryRun: true, graceDays, summary: result.summary });
     }
 
     forceLogout(req.app.get("io"), id, {
@@ -1231,23 +1230,82 @@ exports.deleteUser = async (req, res) => {
       message: "This account has been deleted by an administrator.",
     });
 
-    await logAuditEvent({
+    await runPostCommit("user_delete.audit", { req, resourceType: "user", resourceId: id }, () => logAuditEvent({
       req,
       actorId: req.user.id,
-      actorRole: "admin",
-      action: "admin.user.deleted",
-      targetUserId: user._id,
+      actorRole: "superadmin",
+      action: "admin.user.soft_deleted",
+      targetUserId: id,
       targetType: "user",
-      targetId: String(user._id),
+      targetId: String(id),
       severity: "critical",
       metadata: {
-        role: user.role,
+        role: result.user.role,
+        reason: result.reason,
+        note: result.note || undefined,
+        purgeAfter: result.purgeAfter,
+        graceDays: result.graceDays,
+        affected: result.summary,
       },
-    });
+    }));
 
-    return res.json({ message: "User deleted successfully" });
+    return res.json({
+      message: "User deleted. It can be restored until the grace period ends.",
+      deletedAt: result.deletedAt,
+      purgeAfter: result.purgeAfter,
+      graceDays: result.graceDays,
+      summary: result.summary,
+    });
   } catch (error) {
+    if (error instanceof DeletionError) {
+      return res.status(error.status).json({ message: error.message, code: error.code });
+    }
     return sendError(res, error, "Failed to delete user");
+  }
+};
+
+// Read-only "what will happen" summary for the confirmation step (same guards
+// as the real delete, nothing is written, not counted against the delete budget).
+exports.previewDeleteUser = async (req, res) => {
+  try {
+    const result = await softDeleteUser({ actorId: req.user.id, targetId: req.params.id, dryRun: true });
+    const graceDays = await getGraceDays();
+    return res.json({
+      graceDays,
+      summary: result.summary,
+      account: { role: result.user.role, name: result.user.name, username: result.user.username || null, email: result.user.email || null },
+    });
+  } catch (error) {
+    if (error instanceof DeletionError) {
+      return res.status(error.status).json({ message: error.message, code: error.code });
+    }
+    return sendError(res, error, "Failed to preview delete");
+  }
+};
+
+exports.restoreUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await restoreDeletedUser({ targetId: id });
+
+    await runPostCommit("user_restore.audit", { req, resourceType: "user", resourceId: id }, () => logAuditEvent({
+      req,
+      actorId: req.user.id,
+      actorRole: "superadmin",
+      action: "admin.user.restored",
+      targetUserId: id,
+      targetType: "user",
+      targetId: String(id),
+      severity: "warning",
+      metadata: { note: "Restored to the deactivated state; reactivate separately." },
+    }));
+
+    return res.json({ message: "User restored. The account is still deactivated until you reactivate it." });
+  } catch (error) {
+    if (error instanceof DeletionError) {
+      return res.status(error.status).json({ message: error.message, code: error.code });
+    }
+    return sendError(res, error, "Failed to restore user");
   }
 };
 

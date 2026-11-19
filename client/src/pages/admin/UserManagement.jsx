@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Building2, TriangleAlert, UserRound } from "lucide-react";
 import { adminAPI } from "../../services/api";
 import MetricCard from "../../components/MetricCard";
 import StateBlock from "../../components/StateBlock";
+import DeleteUserModal from "../../components/DeleteUserModal";
 import "../../styles/admin.css";
+import "../../styles/user-management.css";
 import AdminHeader from "./AdminHeader";
 import AccountSecuritySummary from "../../components/AccountSecuritySummary";
 import { userContactLabel } from "../../utils/usernameSignup";
+import { getAccountState, getAvailableActions } from "../../utils/userStatus";
 
 const tabMeta = {
   employers: {
@@ -60,7 +63,54 @@ function UserDirectoryEmpty({ role }) {
   );
 }
 
-function UserDirectoryCards({ title, role, data, onToggleStatus, onViewProfile }) {
+// Text label plus a shape cue (see user-management.css): never colour alone.
+function StatusBadge({ user }) {
+  const { t } = useTranslation();
+  const state = getAccountState(user);
+  return (
+    <>
+      <span className={`um-badge um-badge--${state}`}>{t(`superadmin.users.status.${state}`)}</span>
+      {state === "deleted" && user.purgeAfter ? (
+        <span className="um-until">{t("superadmin.users.deletedUntil", { date: formatDate(user.purgeAfter) })}</span>
+      ) : null}
+    </>
+  );
+}
+
+function RowActions({ user, onViewProfile, onToggleStatus, onDelete, onRestore }) {
+  const { t } = useTranslation();
+  const actions = getAvailableActions(user);
+  return (
+    <div className="um-actions">
+      <button className="um-btn" type="button" onClick={() => onViewProfile(user)}>
+        {t("superadmin.users.actions.view")}
+      </button>
+      {actions.deactivate && (
+        <button className="um-btn" type="button" onClick={() => onToggleStatus(user)}>
+          {t("superadmin.users.actions.deactivate")}
+        </button>
+      )}
+      {actions.reactivate && (
+        <button className="um-btn" type="button" onClick={() => onToggleStatus(user)}>
+          {t("superadmin.users.actions.reactivate")}
+        </button>
+      )}
+      {actions.delete && (
+        <button className="um-btn um-btn--danger-outline" type="button" onClick={() => onDelete(user)}>
+          {t("superadmin.users.actions.delete")}
+        </button>
+      )}
+      {actions.restore && (
+        <button className="um-btn" type="button" onClick={() => onRestore(user)}>
+          {t("superadmin.users.actions.restore")}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function UserDirectoryCards({ title, role, data, handlers }) {
+  const { t } = useTranslation();
   return (
     <div className="admin-mobile-user-list" aria-label={`${title} mobile directory`}>
       {data.length === 0 ? (
@@ -70,29 +120,22 @@ function UserDirectoryCards({ title, role, data, onToggleStatus, onViewProfile }
           <article key={user._id} className="admin-mobile-user-card">
             <div className="admin-mobile-user-card__header">
               <h4>{user.name}</h4>
-              <span className={`admin-status-badge ${user.isActive === false ? "inactive" : "active"}`}>
-                {user.isActive === false ? "Inactive" : "Active"}
-              </span>
+              <div><StatusBadge user={user} /></div>
             </div>
 
             <div className="admin-mobile-user-card__meta">
               <div>
-                <label>Email</label>
+                <label>{t("superadmin.users.columns.contact")}</label>
                 <p>{userContactLabel(user)}</p>
               </div>
               <div>
-                <label>Joined</label>
+                <label>{t("superadmin.users.columns.joined")}</label>
                 <p>{formatDate(user.createdAt)}</p>
               </div>
             </div>
 
             <div className="admin-mobile-user-card__actions">
-              <button type="button" className="admin-inline-btn admin-inline-btn--primary" onClick={() => onViewProfile(user)}>
-                View Profile
-              </button>
-              <button type="button" className="admin-inline-btn admin-inline-btn--secondary" onClick={() => onToggleStatus(user)}>
-                {user.isActive === false ? "Reactivate" : "Deactivate"}
-              </button>
+              <RowActions user={user} {...handlers} />
             </div>
           </article>
         ))
@@ -101,110 +144,44 @@ function UserDirectoryCards({ title, role, data, onToggleStatus, onViewProfile }
   );
 }
 
-function EmployersDirectory({ data, onToggleStatus, onViewProfile }) {
+function UserDirectory({ title, role, data, handlers }) {
+  const { t } = useTranslation();
   return (
     <div className="admin-panel-card">
       <div className="admin-card-header">
-        <h3>Employers Directory</h3>
+        <h3>{title}</h3>
       </div>
       <div className="admin-table-wrap">
         <table className="admin-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Status</th>
-              <th>Joined</th>
-              <th>Actions</th>
+              <th>{t("superadmin.users.columns.name")}</th>
+              <th>{t("superadmin.users.columns.contact")}</th>
+              <th>{t("superadmin.users.columns.status")}</th>
+              <th>{t("superadmin.users.columns.joined")}</th>
+              <th>{t("superadmin.users.columns.actions")}</th>
             </tr>
           </thead>
           <tbody>
             {data.length === 0 ? (
               <tr>
-                <td colSpan={5} className="um-empty-cell"><UserDirectoryEmpty role="employers" /></td>
+                <td colSpan={5} className="um-empty-cell"><UserDirectoryEmpty role={role} /></td>
               </tr>
             ) : (
               data.map((user) => (
                 <tr key={user._id}>
                   <td>{user.name}</td>
                   <td>{userContactLabel(user)}</td>
-                  <td>
-                    <span className={`admin-status-badge ${user.isActive === false ? "inactive" : "active"}`}>
-                      {user.isActive === false ? "Inactive" : "Active"}
-                    </span>
-                  </td>
+                  <td><StatusBadge user={user} /></td>
                   <td>{formatDate(user.createdAt)}</td>
-                  <td>
-                    <div className="admin-inline-actions">
-                      <button className="admin-inline-btn" type="button" onClick={() => onViewProfile(user)}>
-                        View Profile
-                      </button>
-                      <button className="admin-inline-btn" type="button" onClick={() => onToggleStatus(user)}>
-                        {user.isActive === false ? "Reactivate" : "Deactivate"}
-                      </button>
-                    </div>
-                  </td>
+                  <td><RowActions user={user} {...handlers} /></td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
-      <UserDirectoryCards title="Employers" role="employers" data={data} onToggleStatus={onToggleStatus} onViewProfile={onViewProfile} />
-    </div>
-  );
-}
-
-function JobseekersDirectory({ data, onToggleStatus, onViewProfile }) {
-  return (
-    <div className="admin-panel-card">
-      <div className="admin-card-header">
-        <h3>Jobseekers Directory</h3>
-      </div>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Status</th>
-              <th>Joined</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="um-empty-cell"><UserDirectoryEmpty role="jobseekers" /></td>
-              </tr>
-            ) : (
-              data.map((user) => (
-                <tr key={user._id}>
-                  <td>{user.name}</td>
-                  <td>{userContactLabel(user)}</td>
-                  <td>
-                    <span className={`admin-status-badge ${user.isActive === false ? "inactive" : "active"}`}>
-                      {user.isActive === false ? "Inactive" : "Active"}
-                    </span>
-                  </td>
-                  <td>{formatDate(user.createdAt)}</td>
-                  <td>
-                    <div className="admin-inline-actions">
-                      <button className="admin-inline-btn" type="button" onClick={() => onViewProfile(user)}>
-                        View Profile
-                      </button>
-                      <button className="admin-inline-btn" type="button" onClick={() => onToggleStatus(user)}>
-                        {user.isActive === false ? "Reactivate" : "Deactivate"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      <UserDirectoryCards title="Jobseekers" role="jobseekers" data={data} onToggleStatus={onToggleStatus} onViewProfile={onViewProfile} />
+      <UserDirectoryCards title={title} role={role} data={data} handlers={handlers} />
     </div>
   );
 }
@@ -244,25 +221,30 @@ export default function UserManagement() {
   // per role, not just how many rows happen to be on the current page.
   const [counts, setCounts] = useState({ employerCount: 0, jobseekerCount: 0 });
   const [selectedUser, setSelectedUser] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [actionToast, setActionToast] = useState(null);
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendPermanent, setSuspendPermanent] = useState(false);
+
+  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
   useEffect(() => {
     if (!actionToast) return;
 
     const timer = window.setTimeout(() => {
       setActionToast(null);
-    }, 2600);
+    }, 4200);
 
     return () => window.clearTimeout(timer);
   }, [actionToast]);
 
-  // Resets back to page 1 whenever the tab changes, so switching from a deep
-  // page on one tab doesn't leave the other tab stranded on an out-of-range page.
+  // Resets back to page 1 whenever the tab or the deleted toggle changes, so
+  // switching from a deep page doesn't leave the list on an out-of-range page.
   useEffect(() => {
     setPage(1);
-  }, [activeTab]);
+  }, [activeTab, showDeleted]);
 
   useEffect(() => {
     let isMounted = true;
@@ -271,7 +253,10 @@ export default function UserManagement() {
       setLoading(true);
       try {
         const role = activeTab === "jobseekers" ? "jobseeker" : "employer";
-        const { data } = await adminAPI.getUsers({ role, page, limit: PAGE_SIZE });
+        const params = { role, page, limit: PAGE_SIZE };
+        // Deleted accounts only appear when asked for (server: superadmin only).
+        if (showDeleted) params.deleted = "include";
+        const { data } = await adminAPI.getUsers(params);
         if (!isMounted) return;
         setUsers(Array.isArray(data?.users) ? data.users : []);
         setTotalPages(Math.max(Number(data?.totalPages) || 1, 1));
@@ -291,10 +276,10 @@ export default function UserManagement() {
     return () => {
       isMounted = false;
     };
-  }, [activeTab, page]);
+  }, [activeTab, page, showDeleted, reloadKey]);
 
-  // Total counts for the tab badges — fetched once (role never changes from
-  // this page's own actions, so these never go stale during a session).
+  // Total counts for the tab badges. Deleted accounts are not counted, and the
+  // numbers refresh after every delete or restore.
   useEffect(() => {
     let isMounted = true;
 
@@ -319,9 +304,9 @@ export default function UserManagement() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [reloadKey]);
 
-  const directoryLabel = activeTab === "jobseekers" ? "Jobseekers" : "Employers";
+  const directoryTitle = activeTab === "jobseekers" ? "Jobseekers Directory" : "Employers Directory";
 
   const performToggleUserStatus = async (user) => {
     const nextStatus = user.isActive === false;
@@ -337,11 +322,9 @@ export default function UserManagement() {
         });
       }
 
-      setUsers((prev) =>
-        prev.map((item) =>
-          item._id === user._id ? { ...item, isActive: nextStatus } : item
-        )
-      );
+      // Reload so the row shows the real state (suspended or banned) and the
+      // right buttons (Delete appears once an account is inactive).
+      reload();
 
       setActionToast({
         type: "success",
@@ -371,6 +354,35 @@ export default function UserManagement() {
     navigate(`/admin/users/${user._id}`);
   };
 
+  const handleDeleted = (user, data) => {
+    setDeleteTarget(null);
+    reload();
+    setActionToast({
+      type: "success",
+      message: t("superadmin.users.delete.success", { name: user.name, days: data?.graceDays ?? 30 }),
+    });
+  };
+
+  const handleRestore = async (user) => {
+    try {
+      await adminAPI.restoreUser(user._id);
+      reload();
+      setActionToast({ type: "success", message: t("superadmin.users.restore.success", { name: user.name }) });
+    } catch (error) {
+      setActionToast({
+        type: "error",
+        message: error.response?.data?.message || t("superadmin.users.restore.error"),
+      });
+    }
+  };
+
+  const handlers = {
+    onViewProfile: handleViewProfile,
+    onToggleStatus: handleToggleUserStatus,
+    onDelete: setDeleteTarget,
+    onRestore: handleRestore,
+  };
+
   const renderTabContent = () => {
     if (loading) {
       return (
@@ -380,8 +392,14 @@ export default function UserManagement() {
       );
     }
 
-    if (activeTab === "jobseekers") return <JobseekersDirectory data={users} onToggleStatus={handleToggleUserStatus} onViewProfile={handleViewProfile} />;
-    return <EmployersDirectory data={users} onToggleStatus={handleToggleUserStatus} onViewProfile={handleViewProfile} />;
+    return (
+      <UserDirectory
+        title={directoryTitle}
+        role={activeTab === "jobseekers" ? "jobseekers" : "employers"}
+        data={users}
+        handlers={handlers}
+      />
+    );
   };
 
   return (
@@ -416,6 +434,17 @@ export default function UserManagement() {
       </div>
 
       {activeTab === "jobseekers" && <AccountSecuritySummary />}
+
+      <div className="um-toolbar">
+        <label className="um-check">
+          <input
+            type="checkbox"
+            checked={showDeleted}
+            onChange={(event) => setShowDeleted(event.target.checked)}
+          />
+          <span>{t("superadmin.users.showDeleted")}</span>
+        </label>
+      </div>
 
       <div className="tab-content">{renderTabContent()}</div>
 
@@ -523,6 +552,14 @@ export default function UserManagement() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {deleteTarget ? (
+        <DeleteUserModal
+          user={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={handleDeleted}
+        />
       ) : null}
 
       {actionToast && (

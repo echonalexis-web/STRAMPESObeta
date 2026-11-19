@@ -16,6 +16,10 @@ const systemSettingsSchema = new mongoose.Schema(
     // true to preserve the behavior that was previously hardcoded in
     // middleware/auth.js's isVerifiedEmployer.
     requireEmployerVerification: { type: Boolean, default: true },
+    // How long a soft-deleted account can be restored before the purge job
+    // removes its personal data. Read at delete time and stored on the account
+    // as purgeAfter (see services/userDeletionService.js).
+    deletedAccountGraceDays: { type: Number, default: 30, min: 7, max: 365 },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true }

@@ -567,6 +567,16 @@ exports.login = async (req, res) => {
       void accountAlerts.checkNewDevice(user._id, req.headers && req.headers["user-agent"], req);
     }
 
+    // Soft-deleted by a superadmin. Checked before the self-deactivation
+    // auto-reactivation below, which would otherwise bring a deleted account
+    // back to life with a correct password.
+    if (user.deletedAt) {
+      return res.status(403).json({
+        code: "ACCOUNT_DELETED",
+        message: "This account no longer exists.",
+      });
+    }
+
     if (user.isActive === false && (user.role === "admin" || user.role === "superadmin")) {
       // Staff accounts are disabled by a superadmin, not moderated — no appeal
       // path, just a plain rejection.
@@ -1722,6 +1732,13 @@ async function createGoogleAccount(req, { email, googleId, displayName, signupRo
 // Reactivation, suspension check, JWT, audit and the login response shared by
 // googleAuth (existing account / employer) and googleComplete (new jobseeker).
 async function finishGoogleLogin(req, res, user, isNewUser) {
+    // Soft-deleted: block before the self-deactivation auto-reactivation below.
+    if (user.deletedAt) {
+      return res.status(403).json({
+        code: "ACCOUNT_DELETED",
+        message: "This account no longer exists.",
+      });
+    }
     // Self-deactivated — a successful Google sign-in already proves identity
     // ownership the same way a correct password would, so it reactivates the
     // account here too (see the matching comment in login()).

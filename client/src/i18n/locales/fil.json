@@ -473,6 +473,8 @@
       "autoCloseSuffix": "araw na walang bagong aplikante",
       "appealWindowLabel": "Palugit sa pag-apela",
       "appealWindowSuffix": "araw para mag-apela sa suspensyon",
+      "deletedGraceLabel": "Palugit sa pagbalik ng binurang account",
+      "deletedGraceSuffix": "araw (7 hanggang 365) bago permanenteng mabura ang personal na datos",
       "requireVerification": "Kailanganin ang beripikasyon ng employer bago mag-post",
       "requireVerificationHint": "Dapat ma-verify ng opisina ng PESO ang employer bago mabuhay ang isang bakante."
     },
@@ -1396,6 +1398,65 @@
         "employersTitle": "Walang nahanap na employer",
         "jobseekersTitle": "Walang nahanap na jobseeker",
         "description": "Lalabas dito ang mga bagong account sa sandaling mag-register sila."
+      },
+      "columns": {
+        "name": "Pangalan",
+        "contact": "Email o username",
+        "status": "Katayuan",
+        "joined": "Sumali",
+        "actions": "Mga aksyon"
+      },
+      "status": {
+        "active": "Aktibo",
+        "suspended": "Suspendido",
+        "banned": "Na-ban",
+        "deactivated": "Naka-deactivate",
+        "deleted": "Binura"
+      },
+      "actions": {
+        "view": "Tingnan ang Profile",
+        "deactivate": "I-deactivate",
+        "reactivate": "I-reactivate",
+        "delete": "Burahin",
+        "restore": "Ibalik"
+      },
+      "showDeleted": "Ipakita ang mga binurang account",
+      "deletedUntil": "Maibabalik hanggang {{date}}",
+      "delete": {
+        "title": "Burahin si {{name}}?",
+        "intro": "Naka-deactivate ang account na ito. Dalawang hakbang ang pagbura: itinatago at isinasara ito ngayon, at permanenteng buburahin ang personal na datos pagkatapos ng palugit.",
+        "effectsHeading": "Ano ang mangyayari",
+        "effectLogin": "Hindi na sila makakapag-sign in, at magtatapos ngayon ang lahat ng bukas na session.",
+        "effectGrace": "Maibabalik mo ang account sa loob ng {{days}} araw. Pagkatapos nito, permanenteng buburahin ang kanilang profile, dokumento, file, contact details at mga mensahe.",
+        "effectKept": "Mananatili ang mga aplikasyon, hire at bilang sa report, at ipapakitang “Deleted user”. Mananatiling hindi nakalista ang mga job posting ng employer.",
+        "summaryJobseeker": "{{applications}} aplikasyon, {{inProgress}} ang nagpapatuloy pa, {{hires}} hire.",
+        "summaryEmployer": "{{postings}} posting ({{open}} bukas), {{received}} aplikasyong natanggap, {{inProgress}} ang nagpapatuloy, {{hires}} hire.",
+        "inProgressWarning": "May mga nagpapatuloy na gawain ang account na ito. Hihinto ang mga ito ngayon, at walang buburahin hangga’t hindi natatapos ang palugit.",
+        "previewLoading": "Sinusuri kung ano ang maaapektuhan…",
+        "previewError": "Hindi ma-load ang buod. Maaari ka pa ring magpatuloy, pero hindi ipapakita ang mga bilang.",
+        "reasonLabel": "Dahilan",
+        "reasonPlaceholder": "Pumili ng dahilan",
+        "reasons": {
+          "policy_violation": "Paglabag sa patakaran",
+          "fraud_or_fake": "Panloloko o pekeng account",
+          "duplicate_account": "Dobleng account",
+          "user_request": "Hiniling ng user",
+          "inactive": "Hindi aktibong account",
+          "other": "Iba pa"
+        },
+        "noteLabel": "Tala (opsyonal)",
+        "noteHint": "Mase-save sa audit trail. Hindi ito ipapakita sa user.",
+        "confirmLabel": "I-type ang {{target}} para kumpirmahin",
+        "confirmHint": "I-type nang eksakto ang username o email ng account.",
+        "cancel": "Kanselahin",
+        "confirm": "Burahin ang account",
+        "deleting": "Binubura…",
+        "success": "Binura si {{name}}. Maibabalik ito sa loob ng {{days}} araw.",
+        "error": "Hindi nabura ang account na ito."
+      },
+      "restore": {
+        "success": "Naibalik si {{name}}. Mananatili itong naka-deactivate hangga’t hindi mo ito ire-reactivate.",
+        "error": "Hindi naibalik ang account na ito."
       }
     },
     "moderation": {

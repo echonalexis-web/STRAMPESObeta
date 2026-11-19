@@ -334,6 +334,22 @@ const userSchema = new mongoose.Schema(
     // Set when the user deactivates their own account (see authController.deactivateAccount).
     deactivatedAt: { type: Date, default: null },
 
+    // ===== Soft delete (superadmin, see services/userDeletionService.js) =====
+    // A deleted account ALSO keeps isActive:false (so every existing gate still
+    // blocks it) and leaves accountStatus alone, so a restore returns it to the
+    // deactivated state it was in. `deletedAt` is the one marker that tells a
+    // deleted account apart from a suspended or self-deactivated one.
+    // `purgeAfter` is fixed at delete time from the grace period then in effect,
+    // so changing the setting later never moves accounts already scheduled.
+    deletedAt: { type: Date, default: null },
+    deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    deleteReason: { type: String, default: null },
+    deleteNote: { type: String, default: null },
+    purgeAfter: { type: Date, default: null },
+    // Set by the purge job once personal data is gone; the document stays as an
+    // anonymized stub so applications, reports and counts keep their meaning.
+    purgedAt: { type: Date, default: null },
+
     // ===== Settings: notification preferences =====
     // Every field defaults to true (opted in), matching the front-end draft
     // defaults that existed before this was wired to the server. A missing
@@ -534,6 +550,8 @@ userSchema.pre("validate", function normaliseCompanySize(next) {
 userSchema.index({ "cover.templateId": 1 }, { sparse: true });
 // Employer account gate for public job queries (utils/jobVisibility.js): finds locked employers.
 userSchema.index({ role: 1, isActive: 1, accountStatus: 1 });
+// Directory filter and the purge job's "due" lookup.
+userSchema.index({ deletedAt: 1, purgeAfter: 1 });
 
 userSchema.index(
   { email: 1 },

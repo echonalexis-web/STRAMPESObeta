@@ -15,6 +15,8 @@ const {
   reactivateUser,
   getAuditLogs,
   deleteUser,
+  restoreUser,
+  previewDeleteUser,
   toggleHomepageFeature,
   changeUserDateOfBirth,
 } = require("../controllers/adminController");
@@ -44,7 +46,7 @@ const {
 const { detectMaliciousPayload } = require("../middleware/security");
 const { getSecuritySummary, unlockLogin } = require("../controllers/accountSecurityAdminController");
 const { resetPasswordAtCounter } = require("../controllers/officeResetController");
-const { staffResetBudget } = require("../middleware/budgets");
+const { staffResetBudget, userDeleteBudget } = require("../middleware/budgets");
 
 // All admin routes require authentication and admin role
 router.use(protect, isAdmin);
@@ -84,7 +86,11 @@ router.put("/users/:id/role", isSuperadmin, validateMongoId("id"), sanitizeReque
 router.put("/users/:id/dob", validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, changeUserDateOfBirth);
 router.put("/users/:id/deactivate", isSuperadmin, validateMongoId("id"), sanitizeRequestBody, deactivateUser);
 router.put("/users/:id/reactivate", isSuperadmin, validateMongoId("id"), sanitizeRequestBody, reactivateUser);
-router.delete("/users/:id", isSuperadmin, validateMongoId("id"), deleteUser);
+// Soft delete (preview with { dryRun: true }, real call needs reason + typed
+// confirmation) and restore inside the grace period. Superadmin only, budgeted.
+router.delete("/users/:id", isSuperadmin, userDeleteBudget, validateMongoId("id"), sanitizeRequestBody, detectMaliciousPayload, deleteUser);
+router.get("/users/:id/delete-preview", isSuperadmin, validateMongoId("id"), previewDeleteUser);
+router.post("/users/:id/restore", isSuperadmin, userDeleteBudget, validateMongoId("id"), restoreUser);
 router.get("/audit-logs", isSuperadmin, sanitizeQueryParams, getAuditLogs);
 
 // Employer verification — id-scoped approve/reject matching the documented

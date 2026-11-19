@@ -70,7 +70,7 @@ exports.verifyToken = async (req, res, next) => {
     }
 
     const user = await User.findById(decoded.id).select(
-      "isActive role verificationStatus accountStatus suspensionReason suspendedAt tokenVersion dateOfBirth ageReviewRequired staffRecoveryPending"
+      "isActive role verificationStatus accountStatus suspensionReason suspendedAt tokenVersion dateOfBirth ageReviewRequired staffRecoveryPending deletedAt"
     );
 
     if (!user) {
@@ -92,6 +92,15 @@ exports.verifyToken = async (req, res, next) => {
       return res.status(403).json({
         code: "SESSION_EXPIRED",
         message: "Your session has expired. Please sign in again.",
+      });
+    }
+
+    // Soft-deleted by a superadmin: same shape as a deleted-and-gone account.
+    // Checked before isActive so it never reads as a suspension (no appeal).
+    if (user.deletedAt) {
+      return res.status(403).json({
+        code: "ACCOUNT_DELETED",
+        message: "This account no longer exists.",
       });
     }
 
