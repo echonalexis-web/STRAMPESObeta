@@ -32,8 +32,8 @@ Rule: never run a backfill, migration, index creation or deletion script against
 | 2 | Job Monitoring fixes | done: server 111 suites 3299 tests pass, client 604 + 29 pass, lint 46 (= baseline), build OK, en/fil parity 0/0 |
 | 3 | Hotfix for client exports | done: server 111 suites 3299 pass (unchanged), client 610 + 29 pass, lint 46, build OK |
 | 4 | Data additions (shared helper, backfill script, index script) | done: server 114 suites 3325 pass; client untouched (610 + 29, lint 46, build OK from commit 3) |
-| 5 | Analytics refactor with identical numbers | next |
-| 6 | Analytics bug fixes | |
+| 5 | Analytics refactor with identical numbers | done: server 115 suites 3332 pass; client untouched |
+| 6 | Analytics bug fixes | next |
 | 7 | Dashboard filtering (server then client) | |
 | 8 | Employer performance server | |
 | 9 | Employer performance client | |
@@ -54,3 +54,5 @@ Rule: never run a backfill, migration, index creation or deletion script against
 - Commit 4: `services/applicationStatusService.js` (`setApplicationStatus`, `reactivationFields`) wired into all five status-change paths; `JobApplication` gains `hiredAt`, `hiredAtApproximate`, `firstResponseAt` (no new schema indexes). Tests: helper unit tests, the real handlers for the four employer/applicant paths, and a source scan that fails if anything assigns `application.status` or bulk-writes JobApplication directly.
 - Scripts written, NOT run: `server/scripts/backfillApplicationDates.js` (dry run default; sets `hiredAt` from `statusUpdatedAt`, marks it approximate; does not backfill `firstResponseAt` on purpose), `server/scripts/createReportIndexes.js` (dry run default). Expected indexes are listed in `server/config/reportIndexes.js`: jobapplications {createdAt}, {vacancy,status}, {status,hiredAt}; jobvacancies {employer,createdAt}; reportexports {reportId} unique, {preparedBy,createdAt}, {createdAt}.
 - Un-hiring is possible in the single-update path, so the helper clears `hiredAt` when a hire is undone.
+- Commit 5: `services/analytics/dashboardStats.js` now computes the dashboard and provincial numbers (controllers are thin). Monthly buckets, status buckets and applicant municipalities run in the database; `LOCAL_TIME_ZONE` keeps the old server-local month and year edges so no number moves. Golden test (`dashboardStatsGolden.test.js`) runs the old code as a reference against the new pipelines through a small evaluator (`server/testSupport/pipelineEval.js`) and passes under TZ Asia/Manila, America/New_York, Pacific/Auckland and UTC. No dashboard number changes in this commit.
+- Commit 6 will change these numbers (before to after, each listed in its commit message and the final report): account and employer and jobseeker totals and the registration series exclude soft-deleted accounts; activeJobs uses the visibility rule (a new additive activeJobsAll keeps the old count); the status chart gains under_review, approved and withdrawn; topSectors stops counting blank industries ($$ind fix); default year is the current Manila year; year and month edges and "audit events today" use Asia/Manila; audit-log date filters use Manila days. Left as is on purpose: avgDaysToFill (closed minus created, differs from the Archived tab definition), because it is not on the approved fix list.
