@@ -84,6 +84,10 @@ const TABS = [
   { key: "employers", label: "Employers", icon: <FaBuilding /> },
 ];
 
+// Contact details stay out of every file this page exports (the table on screen is unchanged).
+const EXPORT_EXCLUDED_COLUMNS = new Set(["email", "username"]);
+const exportable = (cols) => cols.filter((col) => !EXPORT_EXCLUDED_COLUMNS.has(col.key));
+
 const PAGE_SIZE = 15;
 const EXPORT_LIMIT = 500;
 
@@ -318,7 +322,7 @@ export default function Reports() {
       setExporting(true);
       const result = await fetchRows(1, EXPORT_LIMIT);
       const stamp = new Date().toISOString().slice(0, 10);
-      exportCsv({ filename: `report-${tab}-${stamp}.csv`, columns, rows: result.rows });
+      exportCsv({ filename: `report-${tab}-${stamp}.csv`, columns: exportable(columns), rows: result.rows });
       if (result.total > result.rows.length) toast.info(t("admin.reports.exportTruncated", { shown: result.rows.length, total: result.total }));
     } catch (error) {
       /* no-op: export failure leaves the table intact */
@@ -335,7 +339,7 @@ export default function Reports() {
       exportPdfTable({
         title: TAB_TITLES[tab],
         filters: activeFilterPairs,
-        columns,
+        columns: exportable(columns),
         rows: result.rows,
         filename: `report-${tab}-${stamp}.pdf`,
       });

@@ -1,20 +1,13 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
+import { toCsv, CSV_BOM } from "./csvText";
 
 const BRAND_NAME = "STRAM PESO";
 const BRAND_COLOR = [6, 95, 70]; // matches TREND_COLORS.registrations used across admin charts
 
-export const csvCell = (value) => {
-  const text = value === null || value === undefined ? "" : String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-};
-
-export const toCsv = (columns, rows) => {
-  const header = columns.map((col) => csvCell(col.label)).join(",");
-  const body = rows.map((row) => columns.map((col) => csvCell(col.get(row))).join(",")).join("\n");
-  return `${header}\n${body}`;
-};
+// CSV text lives in csvText.js (formula-injection neutralization, tested on its own).
+export { csvCell, toCsv } from "./csvText";
 
 export const downloadBlob = (filename, blob) => {
   const url = URL.createObjectURL(blob);
@@ -28,7 +21,7 @@ export const downloadBlob = (filename, blob) => {
 };
 
 export const exportCsv = ({ filename, columns, rows }) => {
-  const blob = new Blob([toCsv(columns, rows)], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob([CSV_BOM, toCsv(columns, rows)], { type: "text/csv;charset=utf-8;" });
   downloadBlob(filename, blob);
 };
 
