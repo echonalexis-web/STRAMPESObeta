@@ -60,7 +60,7 @@ test("API params: role from the tab, flags as true, paging only when asked", () 
 test("active filter detection ignores sort and page", () => {
   assert.equal(hasActiveFilters({ sort: "name", page: 4 }), false);
   assert.equal(hasActiveFilters({ q: "x" }), true);
-  assert.equal(hasActiveFilters({ lockedNow: true }), true);
+  assert.equal(hasActiveFilters({ tab: "jobseekers", lockedNow: true }), true);
 });
 
 test("the merged sort select maps to the existing sort and order params, and back", () => {
@@ -146,4 +146,16 @@ test("page size and details are passed through to the API", () => {
   assert.equal(toApiParams({ tab: "employers", page: 2 }, { pageSize: MOBILE_PAGE_SIZE, details: true }).limit, 4);
   assert.equal(toApiParams({ tab: "employers" }, { details: true }).details, "true");
   assert.equal(toApiParams({ tab: "employers" }).details, undefined);
+});
+
+test("filters from the other tab neither count nor show as active, whatever built the state", () => {
+  const employers = { ...DEFAULT_STATE, tab: "employers", noEmail: true, lockedNow: true };
+  assert.equal(hasActiveFilters(employers), false);
+  assert.equal(activeFilterCount(employers), 0);
+  assert.equal(isChipActive(employers, "noEmail"), false);
+  const jobseekers = { ...DEFAULT_STATE, tab: "jobseekers", verification: "pending" };
+  assert.equal(hasActiveFilters(jobseekers), false);
+  assert.equal(activeFilterCount(jobseekers), 0);
+  assert.equal(isChipActive({ ...jobseekers, verification: VERIFICATION_PENDING_REVIEW }, "pendingReview"), false);
+  assert.equal(isChipActive({ tab: "employers", verification: VERIFICATION_PENDING_REVIEW }, "pendingReview"), true);
 });

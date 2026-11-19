@@ -131,6 +131,26 @@ describe("tabs and chips", () => {
   });
 });
 
+describe("review follow-ups", () => {
+  test("switching tab while a search is still pending keeps the box and the list in step", async () => {
+    renderPage("/admin/users?tab=jobseekers");
+    const box = await screen.findByLabelText("Search");
+    fireEvent.change(box, { target: { value: "maria" } });
+    fireEvent.click(screen.getByRole("tab", { name: /Employers/ }));
+    await waitFor(() => expect(lastParams()).toMatchObject({ role: "employer", search: "maria" }));
+    expect(screen.getByLabelText("Search").value).toBe("maria");
+  });
+
+  test("the tab counts are left out, not shown as 0, when the counts request fails", async () => {
+    adminAPI.getUserDirectoryCounts.mockRejectedValue(new Error("down"));
+    renderPage();
+    await screen.findByText("Ana Cruz");
+    const tab = screen.getByRole("tab", { name: /Jobseekers/ });
+    expect(tab.textContent).not.toMatch(/d/);
+    expect(screen.getByRole("button", { name: "No email" })).toBeTruthy();
+  });
+});
+
 describe("toolbar", () => {
   test("the merged sort select maps to the existing sort and order params", async () => {
     renderPage();

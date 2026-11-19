@@ -48,11 +48,25 @@ export default function UserManagement() {
   const isMobile = useMediaQuery(MOBILE_QUERY);
   const pageSize = isMobile ? MOBILE_PAGE_SIZE : PAGE_SIZE;
   const [searchText, setSearchText] = useState(state.q);
+  // The search text this page last wrote to the URL. A different q arriving in
+  // the URL came from outside (a link, a cleaned-up URL), so the box follows it.
+  // Typing never trips this: what the debounce writes is what was just typed.
+  const [writtenQ, setWrittenQ] = useState(state.q);
+  const [seenQ, setSeenQ] = useState(state.q);
+  if (state.q !== seenQ) {
+    setSeenQ(state.q);
+    if (state.q !== writtenQ) {
+      setWrittenQ(state.q);
+      setSearchText(state.q);
+    }
+  }
   const searchDebouncer = useRef(createDebouncer(300));
   const [exporting, setExporting] = useState(false);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalMatching, setTotalMatching] = useState(0);
+  // Which request the rows on screen belong to (see the page clamp below).
+  const [loadedKey, setLoadedKey] = useState(null);
   // Server counts for the tab labels and the filter chips. They ignore the
   // search box and the other filters, so the numbers stay stable.
   const [counts, setCounts] = useState(null);
@@ -114,12 +128,16 @@ export default function UserManagement() {
 
   const onSearchChange = (value) => {
     setSearchText(value);
-    searchDebouncer.current.schedule(() => updateState({ q: value }));
+    searchDebouncer.current.schedule(() => {
+      setWrittenQ(value.trim().slice(0, 100));
+      updateState({ q: value });
+    });
   };
 
   const clearFilters = () => {
     searchDebouncer.current.cancel();
     setSearchText("");
+    setWrittenQ("");
     updateState(CLEAR_PATCH);
   };
 
@@ -143,6 +161,7 @@ export default function UserManagement() {
         }
       } finally {
         if (isMounted) {
+          setLoadedKey(`${stateKey}|${pageSize}`);
           setLoading(false);
         }
       }
@@ -156,10 +175,12 @@ export default function UserManagement() {
 
   // A shorter page size (a phone) or a removed row can leave the URL on a page
   // that no longer exists: go to the last one that does.
+  // Only judged against the response for the current URL, never a stale one.
   useEffect(() => {
-    if (loading || users.length > 0 || totalMatching === 0 || page <= 1) return;
+    if (loading || loadedKey !== `${stateKey}|${pageSize}`) return;
+    if (users.length > 0 || totalMatching === 0 || page <= 1) return;
     updateState({ page: Math.max(1, Math.ceil(totalMatching / pageSize)) });
-  }, [loading, users.length, totalMatching, page, pageSize, updateState]);
+  }, [loading, loadedKey, stateKey, users.length, totalMatching, page, pageSize, updateState]);
 
   // Tab totals and chip counts: deleted accounts are not counted, and the
   // numbers refresh after every delete or restore.
@@ -302,13 +323,15 @@ export default function UserManagement() {
             aria-selected={activeTab === key}
             className={`ds-tab um-tab ${activeTab === key ? "is-active" : ""}`}
             onClick={() => {
+              // Write what is typed now, so the box and the list never disagree.
               searchDebouncer.current.cancel();
-              updateState({ tab: key });
+              setWrittenQ(searchText.trim().slice(0, 100));
+              updateState({ tab: key, q: searchText });
             }}
           >
             <meta.Icon size={18} aria-hidden="true" />
             <span>{t(meta.labelKey)}</span>
-            <span className="ds-tab__count">{counts?.[key]?.total ?? 0}</span>
+            {Number.isFinite(counts?.[key]?.total) ? <span className="ds-tab__count">{counts[key].total}</span> : null}
           </button>
         ))}
       </div>

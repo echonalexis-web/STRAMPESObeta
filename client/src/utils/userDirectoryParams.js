@@ -122,14 +122,27 @@ export function toApiParams(state, { withPaging = true, pageSize = PAGE_SIZE, de
   return params;
 }
 
-export function hasActiveFilters(state) {
+// The state as this tab sees it: a filter whose control is not on the tab does
+// not count (and is never sent), however the state was built.
+const forTab = (state) => {
   const s = { ...DEFAULT_STATE, ...state };
+  const jobseekers = s.tab === "jobseekers";
+  return {
+    ...s,
+    verification: jobseekers ? "" : s.verification,
+    noEmail: jobseekers && s.noEmail,
+    lockedNow: jobseekers && s.lockedNow,
+  };
+};
+
+export function hasActiveFilters(state) {
+  const s = forTab(state);
   return Boolean(s.q.trim() || s.status || s.verification || s.noEmail || s.idle90 || s.lockedNow);
 }
 
 // Filters inside the collapsible panel on a phone (the search box is outside it).
 export function activeFilterCount(state) {
-  const s = { ...DEFAULT_STATE, ...state };
+  const s = forTab(state);
   return [s.status, s.verification, s.noEmail, s.idle90, s.lockedNow].filter(Boolean).length;
 }
 
@@ -154,7 +167,7 @@ export function sortPatchFor(choice) {
 // ---- chips ---------------------------------------------------------------
 
 export function isChipActive(state, chip) {
-  const s = { ...DEFAULT_STATE, ...state };
+  const s = forTab(state);
   if (chip === "pendingReview") return s.verification === VERIFICATION_PENDING_REVIEW;
   return Boolean(s[chip]);
 }
