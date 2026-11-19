@@ -11,6 +11,13 @@ const VERIFICATION_STATUSES = ["unverified", "pending", "under_review", "verifie
 const STATUS_FILTERS = ["active", "suspended", "banned", "deactivated", "deleted"];
 const SORT_FIELDS = { joined: "createdAt", lastActive: "lastActiveAt", name: "name" };
 
+const parseVerificationList = (value) => {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== "string") return [];
+  const wanted = raw.split(",").slice(0, VERIFICATION_STATUSES.length * 2).map((v) => v.trim());
+  return VERIFICATION_STATUSES.filter((status) => wanted.includes(status));
+};
+
 const flag = (value) => String(value || "").trim().toLowerCase() === "true";
 const text = (value) => String(Array.isArray(value) ? value[0] : value || "").trim();
 
@@ -40,8 +47,12 @@ const buildDirectoryQuery = (query = {}, { isSuperadmin = false, now = Date.now(
   const role = text(query.role);
   if (["employer", "jobseeker", "admin"].includes(role)) filter.role = role;
 
-  const verification = text(query.verificationStatus);
-  if (VERIFICATION_STATUSES.includes(verification)) filter.verificationStatus = verification;
+  // One status, or a comma-separated list ("pending,under_review"). Each value
+  // is checked against the enum, repeats are dropped and the list is capped, so
+  // nothing from the query string reaches Mongo except known status names.
+  const verification = parseVerificationList(query.verificationStatus);
+  if (verification.length === 1) filter.verificationStatus = verification[0];
+  else if (verification.length > 1) filter.verificationStatus = { $in: verification };
 
   const isActiveRaw = text(query.isActive);
   if (["true", "false"].includes(isActiveRaw)) filter.isActive = isActiveRaw === "true";
@@ -97,4 +108,4 @@ const buildDirectoryQuery = (query = {}, { isSuperadmin = false, now = Date.now(
   return { filter, sort, sortKey, caseInsensitiveSort: sortKey === "name" };
 };
 
-module.exports = { buildDirectoryQuery, VERIFICATION_STATUSES, STATUS_FILTERS, IDLE_DAYS };
+module.exports = { buildDirectoryQuery, parseVerificationList, VERIFICATION_STATUSES, STATUS_FILTERS, IDLE_DAYS };

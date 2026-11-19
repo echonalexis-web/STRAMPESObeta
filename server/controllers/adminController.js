@@ -17,6 +17,7 @@ const { sendError } = require("../utils/sendError");
 const { isEmployerUnlisted } = require("../utils/jobVisibility");
 const { buildInsights } = require("../services/userInsightsService");
 const { buildDirectoryQuery } = require("../utils/userDirectoryQuery");
+const { getDirectoryCounts, getRowDetails } = require("../services/userDirectoryService");
 const { toCsv } = require("../utils/csv");
 const {
   softDeleteUser,
@@ -526,16 +527,27 @@ exports.getAllUsers = async (req, res) => {
       isSuperadmin: req.user.role === "superadmin",
     });
 
+    // details=1 (superadmin only): the User Management page also wants the
+    // avatar and a few per-row figures. Other callers of this route (Reports,
+    // Find account) get exactly what they got before.
+    const wantsDetails = req.user.role === "superadmin" && String(req.query.details || "").toLowerCase() === "true";
     let listQuery = User.find(filter)
       .select(
-        "name email username role createdAt lastActiveAt hasCompletedOnboarding verificationStatus isActive accountStatus companyName businessPermitUrl registrationDocUrl verificationNote verificationSubmittedAt deletedAt purgeAfter loginLock.lockedUntil"
+        "name email username role createdAt lastActiveAt hasCompletedOnboarding verificationStatus isActive accountStatus companyName businessPermitUrl registrationDocUrl verificationNote verificationSubmittedAt deletedAt purgeAfter loginLock.lockedUntil" +
+          (wantsDetails ? " profileImage" : "")
       )
       .sort(sort)
       .skip((page - 1) * limit)
       .limit(limit);
     if (caseInsensitiveSort) listQuery = listQuery.collation({ locale: "en", strength: 2 });
 
-    const [total, users] = await Promise.all([User.countDocuments(filter), listQuery]);
+    const [total, rawUsers] = await Promise.all([User.countDocuments(filter), listQuery]);
+
+    let users = rawUsers;
+    if (wantsDetails) {
+      const details = await getRowDetails(rawUsers);
+      users = rawUsers.map((user) => ({ ...user.toJSON(), details: details.get(String(user._id)) || null }));
+    }
 
     return res.json({
       users,
@@ -545,6 +557,17 @@ exports.getAllUsers = async (req, res) => {
     });
   } catch (error) {
     return sendError(res, error, "Failed to fetch users");
+  }
+};
+
+// GET /admin/users-counts (superadmin): tab totals and filter-chip counts for
+// both directories in one call. See services/userDirectoryService.js.
+exports.getUserDirectoryCounts = async (req, res) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(await getDirectoryCounts());
+  } catch (error) {
+    return sendError(res, error, "Failed to load directory counts");
   }
 };
 

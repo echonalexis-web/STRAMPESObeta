@@ -20,6 +20,7 @@ const {
   getUserInsights,
   updateUserAdminNotes,
   exportUsersCsv,
+  getUserDirectoryCounts,
   toggleHomepageFeature,
   changeUserDateOfBirth,
 } = require("../controllers/adminController");
@@ -67,6 +68,8 @@ router.get("/analytics/provincial", sanitizeQueryParams, getProvincialAnalytics)
 router.get("/users", sanitizeQueryParams, getAllUsers);
 // CSV of the filtered directory (superadmin only, audited). A separate path, not
 // /users/export, so it can never be read as a user id by /users/:id.
+// Tab totals and filter-chip counts for the User Management page (superadmin only).
+router.get("/users-counts", isSuperadmin, getUserDirectoryCounts);
 router.get("/users-export", isSuperadmin, userExportBudget, sanitizeQueryParams, exportUsersCsv);
 // Username-only accounts: counts only, and unlocking a locked-out jobseeker.
 router.get("/accounts/security-summary", getSecuritySummary);
