@@ -565,9 +565,17 @@ exports.exportUsersCsv = async (req, res) => {
     let listQuery = User.find(filter)
       .select("name role createdAt lastActiveAt verificationStatus isActive accountStatus deletedAt")
       .sort(sort)
-      .limit(EXPORT_MAX_ROWS);
+      .limit(EXPORT_MAX_ROWS + 1);
     if (caseInsensitiveSort) listQuery = listQuery.collation({ locale: "en", strength: 2 });
     const users = await listQuery.lean();
+    // One more row than the limit was fetched: more accounts matched than a
+    // single file may hold, so say so instead of silently handing over a partial list.
+    if (users.length > EXPORT_MAX_ROWS) {
+      return res.status(422).json({
+        code: "EXPORT_TOO_LARGE",
+        message: `More than ${EXPORT_MAX_ROWS} accounts match. Narrow the filters and export again.`,
+      });
+    }
 
     const jobseekerIds = users.filter((u) => u.role === "jobseeker").map((u) => u._id);
     const employerIds = users.filter((u) => u.role === "employer").map((u) => u._id);
@@ -612,7 +620,7 @@ exports.exportUsersCsv = async (req, res) => {
       severity: "warning",
       metadata: {
         rows: users.length,
-        truncated: users.length >= EXPORT_MAX_ROWS,
+
         // the filters used, so the report can be traced to what was exported
         filters: Object.fromEntries(
           ["role", "status", "verificationStatus", "noEmail", "idle90", "lockedNow", "search", "sort", "order"]
@@ -1257,14 +1265,13 @@ exports.reactivateUser = async (req, res) => {
 };
 
 // Soft delete (replaces the old hard delete, whose logic now lives only in the
-// purge job: services/userDeletionService.purgeUser). Two steps for the client:
-// GET-style preview via { dryRun: true } returns the "what will happen" summary;
-// the real call needs the typed confirmation and a reason.
+// purge job: services/userDeletionService.purgeUser). The "what will happen"
+// summary comes from GET /users/:id/delete-preview (previewDeleteUser); this
+// real call needs the typed confirmation and a reason, and is budgeted.
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
     const body = req.body || {};
-    const dryRun = body.dryRun === true || body.dryRun === "true";
 
     const result = await softDeleteUser({
       actorId: req.user.id,
@@ -1272,13 +1279,7 @@ exports.deleteUser = async (req, res) => {
       reason: String(body.reason || ""),
       note: body.note,
       confirm: body.confirm,
-      dryRun,
     });
-
-    if (dryRun) {
-      const graceDays = await getGraceDays();
-      return res.json({ dryRun: true, graceDays, summary: result.summary });
-    }
 
     forceLogout(req.app.get("io"), id, {
       code: "ACCOUNT_DELETED",

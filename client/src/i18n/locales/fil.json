@@ -1459,6 +1459,7 @@
         "exporting": "Inihahanda…",
         "hint": "Ie-export ang naka-filter na listahan nang walang contact details.",
         "success": "Na-download ang CSV.",
+        "tooLarge": "Mahigit 10,000 account ang tugma. Paliitin ang mga filter at i-export muli.",
         "error": "Hindi ma-export ang listahan."
       },
       "deletedUntil": "Maibabalik hanggang {{date}}",

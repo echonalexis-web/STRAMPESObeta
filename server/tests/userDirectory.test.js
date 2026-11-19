@@ -153,10 +153,18 @@ describe("GET users-export and the list route", () => {
       expect(res.text).not.toContain(secret);
     }
     const audit = logAuditEvent.mock.calls.find(([e]) => e.action === "admin.user.exported")[0];
-    expect(audit.metadata).toMatchObject({ rows: 2, truncated: false, filters: { role: "jobseeker", status: "suspended" } });
+    expect(audit.metadata).toMatchObject({ rows: 2, filters: { role: "jobseeker", status: "suspended" } });
     // two grouped queries for the counts, not one per user
     expect(JobApplication.aggregate).toHaveBeenCalledTimes(1);
     expect(JobVacancy.aggregate).toHaveBeenCalledTimes(1);
+  });
+
+  test("an export larger than the limit is refused with 422 instead of being cut short", async () => {
+    User.find.mockImplementation(() => query(Array.from({ length: 10001 }, (_, i) => ({ _id: `u${i}`, name: "x", role: "jobseeker", createdAt: new Date() }))));
+    const res = await request(app).get("/api/admin/users-export").set("Authorization", as("superadmin"));
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe("EXPORT_TOO_LARGE");
+    expect(res.text).not.toContain("jobseeker\",");
   });
 
   test("the export never selects contact fields from the database", async () => {

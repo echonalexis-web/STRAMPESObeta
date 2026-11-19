@@ -230,47 +230,72 @@ const purgeUser = async (userId, { storage, dryRun = false, log = () => {} } = {
 
   const counts = { files: 0, conversations: 0, messages: 0 };
   if (dryRun) return { status: "would_purge", counts };
+  if (!storage || typeof storage.remove !== "function") {
+    throw new Error("purgeUser needs a storage service to remove files.");
+  }
 
-  // Files first (best effort, a failed removal is logged and does not block the
-  // data purge: storage clean-up can be re-run, the personal data cannot be un-leaked).
-  const storedValues = PURGE_FILE_FIELDS.map((f) => user[f]).filter(Boolean);
-  if (user.cover && user.cover.image) storedValues.push(user.cover.image.storedValue, user.cover.image.thumbStoredValue);
+  // Any failure below leaves the account NOT marked as purged (and its file
+  // references intact), so the next run retries the steps that still have work.
+  // Every step is safe to repeat: deleting rows that are gone deletes nothing,
+  // and removing a file that is already gone is not an error.
+  let failures = 0;
+  const fail = (message) => {
+    failures += 1;
+    log(message);
+  };
+
+  // Files first: the document rows hold the stored references, so a row is
+  // deleted only after its file was removed.
+  const removeFile = async (value) => {
+    try {
+      await storage.remove(value, { strict: true });
+      counts.files += 1;
+      return true;
+    } catch (error) {
+      fail(`file removal failed for ${userId}: ${error.message}`);
+      return false;
+    }
+  };
+
   try {
     const docs = await JobseekerDocument.find({ owner: userId }).select("storedValue").lean();
-    docs.forEach((d) => d.storedValue && storedValues.push(d.storedValue));
-    await JobseekerDocument.deleteMany({ owner: userId });
-  } catch (error) {
-    log(`documents for ${userId}: ${error.message}`);
-  }
-  if (storage && typeof storage.remove === "function") {
-    for (const value of storedValues.filter(Boolean)) {
-      try {
-        await storage.remove(value, { strict: true });
-        counts.files += 1;
-      } catch (error) {
-        log(`file removal failed for ${userId}: ${error.message}`);
-      }
+    const removable = [];
+    for (const doc of docs) {
+      if (!doc.storedValue || (await removeFile(doc.storedValue))) removable.push(doc._id);
     }
+    if (removable.length) await JobseekerDocument.deleteMany({ _id: { $in: removable } });
+  } catch (error) {
+    fail(`documents for ${userId}: ${error.message}`);
   }
 
+  const storedValues = PURGE_FILE_FIELDS.map((f) => user[f]).filter(Boolean);
+  if (user.cover && user.cover.image) storedValues.push(user.cover.image.storedValue, user.cover.image.thumbStoredValue);
+  for (const value of storedValues.filter(Boolean)) await removeFile(value);
+
   // Messages and conversations the user took part in.
-  const conversations = await Conversation.find({ participants: userId }).select("_id").lean();
-  const conversationIds = conversations.map((c) => c._id);
-  const messageResult = await Message.deleteMany(
-    conversationIds.length ? { $or: [{ conversationId: { $in: conversationIds } }, { sender: userId }] } : { sender: userId }
-  );
-  counts.messages = messageResult.deletedCount || 0;
-  const conversationResult = await Conversation.deleteMany({ participants: userId });
-  counts.conversations = conversationResult.deletedCount || 0;
+  try {
+    const conversations = await Conversation.find({ participants: userId }).select("_id").lean();
+    const conversationIds = conversations.map((c) => c._id);
+    const messageResult = await Message.deleteMany(
+      conversationIds.length ? { $or: [{ conversationId: { $in: conversationIds } }, { sender: userId }] } : { sender: userId }
+    );
+    counts.messages = messageResult.deletedCount || 0;
+    const conversationResult = await Conversation.deleteMany({ participants: userId });
+    counts.conversations = conversationResult.deletedCount || 0;
+  } catch (error) {
+    fail(`conversations for ${userId}: ${error.message}`);
+  }
 
   for (const [name, field] of personalCollections()) {
     try {
       const result = await PERSONAL_MODELS[name].deleteMany({ [field]: userId });
       counts[name] = (counts[name] || 0) + (result.deletedCount || 0);
     } catch (error) {
-      log(`${name}.${field} for ${userId}: ${error.message}`);
+      fail(`${name}.${field} for ${userId}: ${error.message}`);
     }
   }
+
+  if (failures > 0) return { status: "partial", counts, failures };
 
   // Anonymize the User stub. updateOne skips validators on purpose: required
   // fields (password, email) are being removed.

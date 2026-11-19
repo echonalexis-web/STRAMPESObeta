@@ -559,22 +559,21 @@ exports.login = async (req, res) => {
       }
       return res.status(400).json({ message: "Invalid username/email or password" });
     }
+    // Soft-deleted by a superadmin: answered before anything else happens, so a
+    // deleted account triggers no lock clearing, no new-device alert and, above
+    // all, no self-deactivation auto-reactivation further down.
+    if (user.deletedAt) {
+      return res.status(403).json({
+        code: "ACCOUNT_DELETED",
+        message: "This account no longer exists.",
+      });
+    }
     if (lockable) {
       const failedBefore = (user.loginLock && user.loginLock.failures) || 0;
       if (user.loginLock) await loginLock.clearLock(user._id);
       // In-app alerts (they need no mailbox). Never awaited into the response path.
       if (failedBefore >= 3) void accountAlerts.notifyFailedAttempts(user._id, req);
       void accountAlerts.checkNewDevice(user._id, req.headers && req.headers["user-agent"], req);
-    }
-
-    // Soft-deleted by a superadmin. Checked before the self-deactivation
-    // auto-reactivation below, which would otherwise bring a deleted account
-    // back to life with a correct password.
-    if (user.deletedAt) {
-      return res.status(403).json({
-        code: "ACCOUNT_DELETED",
-        message: "This account no longer exists.",
-      });
     }
 
     if (user.isActive === false && (user.role === "admin" || user.role === "superadmin")) {

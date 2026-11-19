@@ -1459,6 +1459,7 @@
         "exporting": "Preparing…",
         "hint": "Exports the filtered list without contact details.",
         "success": "The CSV was downloaded.",
+        "tooLarge": "More than 10,000 accounts match. Narrow the filters and export again.",
         "error": "Could not export the list."
       },
       "deletedUntil": "Restorable until {{date}}",

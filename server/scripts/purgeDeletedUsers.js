@@ -72,6 +72,10 @@ async function run() {
           metadata: { role: row.role, counts: result.counts },
         });
         console.log(`  purged ${id} (${row.role}) ${JSON.stringify(result.counts)}`);
+      } else if (result.status === "partial") {
+        // Not marked as purged: the next run retries what is left.
+        totals.failed += 1;
+        console.error(`  PARTIAL ${id} (${row.role}): ${result.failures} step(s) failed, will retry next run`);
       } else {
         totals.skipped += 1;
         console.log(`  ${result.status} ${id} (${row.role})`);

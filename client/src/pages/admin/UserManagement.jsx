@@ -412,8 +412,11 @@ export default function UserManagement() {
       const { data } = await adminAPI.exportUsersCsv(toApiParams(state, { withPaging: false }));
       downloadBlob(`users-${new Date().toISOString().slice(0, 10)}.csv`, data);
       setActionToast({ type: "success", message: t("superadmin.users.export.success") });
-    } catch {
-      setActionToast({ type: "error", message: t("superadmin.users.export.error") });
+    } catch (error) {
+      setActionToast({
+        type: "error",
+        message: t(error.response?.status === 422 ? "superadmin.users.export.tooLarge" : "superadmin.users.export.error"),
+      });
     } finally {
       setExporting(false);
     }

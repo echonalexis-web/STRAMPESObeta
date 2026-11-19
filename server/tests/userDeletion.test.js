@@ -194,11 +194,14 @@ describe("purgeUser", () => {
   });
   const wire = (user) => {
     User.findById.mockImplementation(() => query(user));
-    JobseekerDocument.find.mockReturnValue(query([{ storedValue: "doc1" }]));
+    JobseekerDocument.find.mockReturnValue(query([{ _id: "d1", storedValue: "doc1" }]));
     JobseekerDocument.deleteMany.mockResolvedValue({ deletedCount: 1 });
     Conversation.find.mockReturnValue(query([{ _id: "c1" }]));
     Message.deleteMany.mockResolvedValue({ deletedCount: 4 });
     Conversation.deleteMany.mockResolvedValue({ deletedCount: 1 });
+    ["JobseekerProfile", "EmployerProfile", "NewsLike", "NewsComment", "Follow", "Notification", "ContactShare", "EmailOutbox", "QualificationTemplate", "MatchWeightProfile"].forEach((name) => {
+      require(`../models/${name}`).deleteMany.mockResolvedValue({ deletedCount: 0 });
+    });
     JobLike.deleteMany.mockResolvedValue({ deletedCount: 2 });
     User.updateOne.mockResolvedValue({ modifiedCount: 1 });
   };
@@ -241,21 +244,55 @@ describe("purgeUser", () => {
     expect(JobVacancy.find).not.toHaveBeenCalled();
   });
 
-  test("dryRun changes nothing; a failing file removal is logged and does not stop the purge", async () => {
+  test("dryRun changes nothing", async () => {
     wire(due());
     expect((await svc.purgeUser(TARGET, { storage: storage(), dryRun: true })).status).toBe("would_purge");
     expect(User.updateOne).not.toHaveBeenCalled();
+  });
 
+  test("a failed file removal leaves the account unpurged, keeps the document rows, and a re-run can retry", async () => {
+    wire(due());
     const logs = [];
     const failing = { remove: jest.fn().mockRejectedValue(new Error("cloud down")) };
     const result = await svc.purgeUser(TARGET, { storage: failing, log: (m) => logs.push(m) });
-    expect(result.status).toBe("purged");
+    expect(result.status).toBe("partial");
+    expect(result.failures).toBeGreaterThan(0);
     expect(logs.length).toBeGreaterThan(0);
-    expect(User.updateOne).toHaveBeenCalled();
+    // the file references must survive for the retry
+    expect(User.updateOne).not.toHaveBeenCalled();
+    expect(JobseekerDocument.deleteMany).not.toHaveBeenCalled();
+
+    // storage recovers: the same call now finishes
+    const retry = await svc.purgeUser(TARGET, { storage: storage() });
+    expect(retry.status).toBe("purged");
+    expect(JobseekerDocument.deleteMany).toHaveBeenCalledWith({ _id: { $in: ["d1"] } });
+    expect(User.updateOne).toHaveBeenCalledTimes(1);
+  });
+
+  test("a failed deletion in any personal collection also leaves the account unpurged", async () => {
+    wire(due());
+    JobLike.deleteMany.mockRejectedValue(new Error("mongo blip"));
+    const result = await svc.purgeUser(TARGET, { storage: storage(), log: () => {} });
+    expect(result.status).toBe("partial");
+    expect(User.updateOne).not.toHaveBeenCalled();
+  });
+
+  test("it refuses to run without a storage service", async () => {
+    wire(due());
+    await expect(svc.purgeUser(TARGET, {})).rejects.toThrow(/storage/);
   });
 });
 
 describe("a deleted account is refused", () => {
+  test("login() answers ACCOUNT_DELETED before the lock clearing, alerts and self-reactivation", () => {
+    const src = require("fs").readFileSync(require("path").join(__dirname, "../controllers/authController.js"), "utf8");
+    const login = src.slice(src.indexOf("exports.login = async"));
+    const deleted = login.indexOf("if (user.deletedAt)");
+    expect(deleted).toBeGreaterThan(-1);
+    expect(deleted).toBeLessThan(login.indexOf("if (lockable) {"));
+    expect(deleted).toBeLessThan(login.indexOf("user.accountStatus === \"deactivated\""));
+  });
+
   const jwt = require("jsonwebtoken");
 
   test("verifyToken answers 403 ACCOUNT_DELETED (not a suspension) for a valid token", async () => {
