@@ -5,6 +5,8 @@ import { FaSearch, FaSlidersH } from 'react-icons/fa';
 import { useSystemOptions } from '../hooks/useSystemOptions';
 import { JOB_TYPES as JOB_TYPES_FALLBACK } from '../constants/jobTypes';
 import { VALID_INDUSTRIES as INDUSTRIES_FALLBACK } from '../constants/industries';
+import IndustriesFilterModal from './IndustriesFilterModal';
+import { normalizeIndustries } from '../utils/industrySelection';
 
 const SORT_OPTIONS = [
   { value: '', label: 'Best match' },
@@ -154,21 +156,18 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
     if (onChange) onChange({ ...filters, [key]: value });
   };
 
-  // `filters.industry` is an array (a job can be tagged with more than
-  // one) — tolerate a stale single-string value left over from an older
-  // session's persisted filters.
-  const selectedIndustries = Array.isArray(filters.industry)
-    ? filters.industry
-    : (filters.industry ? [filters.industry] : []);
+  const selectedIndustries = normalizeIndustries(filters.industry);
+  const [industriesOpen, setIndustriesOpen] = useState(false);
 
-  const toggleIndustryFilter = (ind) => {
-    const next = selectedIndustries.includes(ind)
-      ? selectedIndustries.filter((item) => item !== ind)
-      : [...selectedIndustries, ind];
-    updateFilter('industry', next);
+  // Apply takes effect straight away (like the must-haves switch), so the
+  // chosen industries are never left half-applied behind a closed dialog.
+  const applyIndustries = (next) => {
+    const nextFilters = { ...filters, industry: next };
+    if (onChange) onChange(nextFilters);
+    setIndustriesOpen(false);
+    if (panelOpen) setPanelOpen(false);
+    if (onSearch) onSearch(nextFilters);
   };
-
-  const clearIndustryFilter = () => updateFilter('industry', []);
 
   const handleLocationChange = (e) => {
     const val = e.target.value;
@@ -232,6 +231,7 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
   ].filter(Boolean).length;
 
   return (
+    <>
     <form
       className="job-search-filters"
       role="search"
@@ -335,6 +335,17 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
             ))}
           </select>
 
+          <button
+            type="button"
+            className="ds-btn ds-btn--secondary filter-industries-btn"
+            aria-haspopup="dialog"
+            onClick={() => setIndustriesOpen(true)}
+          >
+            {selectedIndustries.length > 0
+              ? t('jobBoard.industries.buttonCount', { count: selectedIndustries.length })
+              : t('jobBoard.industries.button')}
+          </button>
+
           <SalaryRangeSlider
             min={filters.salaryMin !== undefined && filters.salaryMin !== '' ? Number(filters.salaryMin) : SALARY_MIN_BOUND}
             max={filters.salaryMax !== undefined && filters.salaryMax !== '' ? Number(filters.salaryMax) : SALARY_MAX_BOUND}
@@ -349,54 +360,6 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
             }}
           />
         </div>
-
-        {/* Industries (multi-select: a job can be tagged with more
-            than one, and a seeker may want to see more than one at a time) */}
-        <div className="filter-row industries-row">
-          <span className="preferred-label" id="jsf-industries-label">Industries</span>
-          <div className="industry-chips" role="group" aria-labelledby="jsf-industries-label">
-            <button
-              type="button"
-              className={`industry-chip ${selectedIndustries.length === 0 ? 'active' : ''}`}
-              aria-pressed={selectedIndustries.length === 0}
-              onClick={clearIndustryFilter}
-            >
-              All Industries
-            </button>
-            {INDUSTRIES.map((ind) => (
-              <button
-                key={ind}
-                type="button"
-                className={`industry-chip ${selectedIndustries.includes(ind) ? 'active' : ''}`}
-                aria-pressed={selectedIndustries.includes(ind)}
-                onClick={() => toggleIndustryFilter(ind)}
-              >
-                {ind}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Industry Preferences (quick picks from the seeker's own
-            preferred industries, set in Edit Profile) */}
-        {preferredIndustries.length > 0 && (
-          <div className="filter-row preferred-industries-row">
-            <span className="preferred-label" id="jsf-your-industries-label">Your Industries</span>
-            <div className="industry-chips" role="group" aria-labelledby="jsf-your-industries-label">
-              {preferredIndustries.map((ind) => (
-                <button
-                  key={ind}
-                  type="button"
-                  className={`industry-chip ${selectedIndustries.includes(ind) ? 'active' : ''}`}
-                  aria-pressed={selectedIndustries.includes(ind)}
-                  onClick={() => toggleIndustryFilter(ind)}
-                >
-                  {ind}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Only jobs I fully qualify for */}
         <div className="filter-row must-haves-row">
@@ -441,6 +404,15 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
         </div>
       </div>
     </form>
+    <IndustriesFilterModal
+      isOpen={industriesOpen}
+      onClose={() => setIndustriesOpen(false)}
+      selected={selectedIndustries}
+      preferred={preferredIndustries}
+      options={INDUSTRIES}
+      onApply={applyIndustries}
+    />
+    </>
   );
 };
 

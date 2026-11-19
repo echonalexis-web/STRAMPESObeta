@@ -1,0 +1,120 @@
+/* Industries filter dialog (Browse Jobs). Scrolls inside the card with a
+   sticky footer; AppModal supplies the sheet / centered-dialog shell. */
+.app-modal-card.am-card.ifm-card {
+  padding-bottom: 0;
+}
+
+.ifm-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-5);
+  padding-bottom: var(--ds-space-4);
+}
+
+.ifm-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.ifm-legend {
+  padding: 0;
+  margin-bottom: var(--ds-space-2);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  color: var(--ds-text);
+}
+
+.ifm-group .ifm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+
+.ifm-group .ifm-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-tap);
+  max-width: 100%;
+  padding: 0 var(--ds-space-4);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-family: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ifm-group .ifm-chip:hover {
+  border-color: var(--ds-green-secondary);
+  background: var(--ds-mint);
+}
+
+/* Selected is also exposed as aria-pressed and a check glyph, not colour alone. */
+.ifm-group .ifm-chip.active {
+  background: var(--ds-green);
+  border-color: var(--ds-green);
+  color: #fff;
+}
+
+.ifm-group .ifm-chip.active::before {
+  content: "\2713";
+  margin-right: var(--ds-space-2);
+  font-weight: 800;
+}
+
+.ifm-group .ifm-chip:focus-visible,
+.ifm-link:focus-visible {
+  outline: 2px solid var(--ds-green);
+  outline-offset: 2px;
+}
+
+.ifm-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-tap);
+  margin-top: var(--ds-space-1);
+  padding: 0 var(--ds-space-1);
+  border: 0;
+  background: none;
+  color: var(--ds-green);
+  font-family: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ifm-hint {
+  margin: 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-muted);
+}
+
+.ifm-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: var(--ds-space-2);
+  margin: 0 -16px;
+  padding: var(--ds-space-3) 16px calc(var(--ds-space-3) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+}
+
+.ifm-footer .ds-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--ds-tap);
+}
+
+@media (min-width: 768px) {
+  .ifm-footer {
+    margin: 0 -24px;
+    padding-inline: 24px;
+  }
+}

@@ -263,63 +263,13 @@
   outline: none;
 }
 
-/* ─── Chip rows, must-haves ─── */
+/* ─── Must-haves row, industries button ─── */
 .job-search-filters .filter-row {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: var(--ds-space-2);
   margin-top: var(--ds-space-4);
-}
-
-.preferred-label {
-  font-size: var(--ds-text-sm);
-  font-weight: 700;
-  color: var(--ds-text);
-}
-
-.job-search-filters .industry-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ds-space-2);
-}
-
-.job-search-filters .industry-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--ds-tap);
-  max-width: 100%;
-  border: 1px solid var(--ds-border);
-  background: var(--ds-surface);
-  color: var(--ds-text);
-  border-radius: var(--ds-radius-pill);
-  gap: 0;
-  padding: 0 var(--ds-space-4);
-  font-family: inherit;
-  font-size: var(--ds-text-sm);
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color var(--ds-dur-base) var(--ds-ease), border-color var(--ds-dur-base) var(--ds-ease);
-}
-
-.job-search-filters .industry-chip:hover {
-  border-color: var(--ds-green-secondary);
-  background: var(--ds-mint);
-}
-
-/* Selected state is also exposed as aria-pressed and a check glyph, not
-   colour alone. */
-.job-search-filters .industry-chip.active {
-  background: var(--ds-green);
-  color: #fff;
-  border-color: var(--ds-green);
-}
-
-.job-search-filters .industry-chip.active::before {
-  content: "\2713";
-  margin-right: var(--ds-space-2);
-  font-weight: 800;
 }
 
 .must-haves-switch {
@@ -459,4 +409,12 @@ body.app-with-sidebar .job-search-filters .salary-range-field {
 
 body.app-with-sidebar .job-search-filters .must-haves-hidden-count {
   color: var(--ds-warning);
+}
+
+/* "Filter industries" opens the industries dialog; sits in the fields grid. */
+.job-search-filters .filter-industries-btn {
+  width: 100%;
+  min-height: var(--ds-tap);
+  justify-content: center;
+  white-space: nowrap;
 }
