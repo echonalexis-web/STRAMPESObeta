@@ -63,6 +63,8 @@ const matches = (doc, condition) =>
   Object.entries(condition).every(([field, want]) => {
     if (field === "$and") return want.every((sub) => matches(doc, sub));
     const have = getPath(doc, field);
+    // MongoDB: matching null also matches a missing field
+    if (want === null) return have === undefined || have === null;
     if (want !== null && typeof want === "object" && !(want instanceof Date)) {
       return Object.entries(want).every(([op, value]) => {
         switch (op) {

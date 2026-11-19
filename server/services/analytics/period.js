@@ -228,3 +228,17 @@ module.exports = {
   periodBounds,
   parsePeriodQuery,
 };
+
+// One Manila calendar day from "YYYY-MM-DD": { start, end } where end is the last millisecond
+// of that day. Returns null for anything that is not a real date (callers ignore it, as before).
+const manilaDayBounds = (text) => {
+  const match = typeof text === "string" ? text.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/) : null;
+  if (!match) return null;
+  const [, y, m, d] = match.map(Number);
+  const check = new Date(Date.UTC(y, m - 1, d));
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== m - 1 || check.getUTCDate() !== d) return null;
+  const start = startOfManilaDay(y, m, d);
+  const end = new Date(startOfManilaDay(y, m, d + 1).getTime() - 1);
+  return { start, end };
+};
+module.exports.manilaDayBounds = manilaDayBounds;

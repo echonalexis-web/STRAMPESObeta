@@ -308,3 +308,19 @@ describe("municipality helpers (moved from adminController, unchanged)", () => {
     expect(typeof controller.escapeRegExp).toBe("function");
   });
 });
+
+describe("manilaDayBounds (audit trail date filters)", () => {
+  const { manilaDayBounds } = require("../services/analytics/period");
+
+  test("a day runs from Manila midnight to the last millisecond of that Manila day", () => {
+    const day = manilaDayBounds("2026-03-31");
+    expect(day.start.toISOString()).toBe("2026-03-30T16:00:00.000Z");
+    expect(day.end.toISOString()).toBe("2026-03-31T15:59:59.999Z");
+  });
+
+  test("anything that is not a real date is ignored, as the old parsing ignored it", () => {
+    for (const bad of ["nope", "", undefined, null, "2026-02-30", "2026-13-01", "26-1-1", { $gt: 1 }]) {
+      expect(manilaDayBounds(bad)).toBeNull();
+    }
+  });
+});

@@ -1,18 +1,20 @@
 // The numbers behind GET /admin/analytics and GET /admin/analytics/provincial.
 //
-// This is a pure refactor of what adminController used to compute inline: the same
-// answers, computed in the database instead of by loading whole collections into memory.
-// Behavior that looks like a defect is kept on purpose and listed in
-// REPORTS_BUILD_STATUS.md; the next commit fixes those and lists every number that changes:
-//   - all-time counts include soft-deleted accounts and postings the public cannot see
-//   - year and month boundaries use the SERVER's local time zone (kept via LOCAL_TIME_ZONE)
-//   - the status buckets only know pending, reviewed, shortlisted, rejected and hired
-//   - the provincial default year is 2026
+// Computed in the database (the golden tests compare the numbers with the old inline code).
+// Since the fix commit the rules are:
+//   - soft-deleted accounts are not counted
+//   - "active jobs" is what a jobseeker can see (the visibility rule); activeJobsAll keeps the old count
+//   - every application status is counted (under_review, approved and withdrawn used to be dropped)
+//   - year and month edges, and "today", are in Asia/Manila, not the server's time zone
+//   - the provincial default year is the current Manila year, not a fixed 2026
+//   - blank industries are no longer counted as a sector
 
 const User = require("../../models/User");
 const JobVacancy = require("../../models/JobVacancy");
 const JobApplication = require("../../models/JobApplication");
 const AuditLog = require("../../models/AuditLog");
+const { withListedEmployers } = require("../../utils/jobVisibility");
+const { MANILA_TZ, startOfManilaDay, manilaParts, currentManilaYear } = require("./period");
 const {
   MUNICIPALITY_LABELS,
   normalizeMunicipality,
@@ -20,9 +22,7 @@ const {
   normalizeApplicantMunicipality,
 } = require("./municipality");
 
-// The server's own time zone: month and year edges are drawn here exactly as the old
-// `new Date(year, 0, 1)` and `getMonth()` did, so the numbers do not move in this commit.
-const LOCAL_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+const TIME_ZONE = MANILA_TZ;
 
 const monthBuckets = () => Array.from({ length: 12 }, () => 0);
 
@@ -38,20 +38,24 @@ const normalizeSector = (value = "") => {
   return raw;
 };
 
+// Every status an application can have today, plus the legacy "reviewed" that older rows
+// may still carry. "accepted" is the legacy spelling of hired.
+const APPLICATION_STATUS_KEYS = Object.freeze(["pending", "under_review", "reviewed", "shortlisted", "approved", "rejected", "hired", "withdrawn"]);
+
 const normalizeApplicationStatus = (status = "") => {
   const value = String(status || "").toLowerCase();
   if (value === "accepted") return "hired";
-  if (["pending", "reviewed", "shortlisted", "rejected", "hired"].includes(value)) {
-    return value;
-  }
+  if (APPLICATION_STATUS_KEYS.includes(value)) return value;
   return null;
 };
 
-// 12 monthly counts of the documents of one collection created in [from, to).
-const monthlyCounts = async (Model, from, to) => {
+const emptyStatusCounts = () => Object.fromEntries(APPLICATION_STATUS_KEYS.map((key) => [key, 0]));
+
+// 12 monthly counts of the documents of one collection created in [from, to) (Manila months).
+const monthlyCounts = async (Model, from, to, extraMatch = {}) => {
   const rows = await Model.aggregate([
-    { $match: { createdAt: { $gte: from, $lt: to } } },
-    { $group: { _id: { $month: { date: "$createdAt", timezone: LOCAL_TIME_ZONE } }, count: { $sum: 1 } } },
+    { $match: { createdAt: { $gte: from, $lt: to }, ...extraMatch } },
+    { $group: { _id: { $month: { date: "$createdAt", timezone: TIME_ZONE } }, count: { $sum: 1 } } },
   ]);
   const buckets = monthBuckets();
   for (const row of rows) {
@@ -62,9 +66,20 @@ const monthlyCounts = async (Model, from, to) => {
 };
 
 const getDashboardAnalytics = async (now = new Date()) => {
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const startOfNextYear = new Date(now.getFullYear() + 1, 0, 1);
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = manilaParts(now);
+  const startOfYear = startOfManilaDay(today.year, 1, 1);
+  const startOfNextYear = startOfManilaDay(today.year + 1, 1, 1);
+  const startOfDay = startOfManilaDay(today.year, today.month, today.day);
+
+  // What a jobseeker can see right now: active, not archived, not past its deadline, and the
+  // employer's account is in good standing (utils/jobVisibility is the one definition).
+  const visibleJobFilter = await withListedEmployers({
+    isActive: true,
+    status: "active",
+    archived: { $ne: true },
+    $or: [{ applicationDeadline: null }, { applicationDeadline: { $gt: now } }],
+  });
+  const notDeleted = { deletedAt: null };
 
   const [
     totalAccounts,
@@ -75,28 +90,30 @@ const getDashboardAnalytics = async (now = new Date()) => {
     verifiedEmployers,
     pendingVerification,
     activeJobs,
+    activeJobsAll,
     closedJobs,
     applicationsThisMonth,
     registrationsThisMonth,
     statusRows,
     auditEventsToday,
   ] = await Promise.all([
-    User.countDocuments({ role: { $ne: "superadmin" } }),
-    User.countDocuments({ role: "employer" }),
-    User.countDocuments({ role: "jobseeker" }),
+    User.countDocuments({ role: { $ne: "superadmin" }, ...notDeleted }),
+    User.countDocuments({ role: "employer", ...notDeleted }),
+    User.countDocuments({ role: "jobseeker", ...notDeleted }),
     JobVacancy.countDocuments(),
     JobApplication.countDocuments(),
-    User.countDocuments({ role: "employer", verificationStatus: "verified" }),
-    User.countDocuments({ role: "employer", verificationStatus: "pending" }),
+    User.countDocuments({ role: "employer", verificationStatus: "verified", ...notDeleted }),
+    User.countDocuments({ role: "employer", verificationStatus: "pending", ...notDeleted }),
+    JobVacancy.countDocuments(visibleJobFilter),
     JobVacancy.countDocuments({ status: "active" }),
     JobVacancy.countDocuments({ status: "closed" }),
     monthlyCounts(JobApplication, startOfYear, startOfNextYear),
-    monthlyCounts(User, startOfYear, startOfNextYear),
+    monthlyCounts(User, startOfYear, startOfNextYear, notDeleted),
     JobApplication.aggregate([{ $group: { _id: { $toLower: { $ifNull: ["$status", ""] } }, count: { $sum: 1 } } }]),
     AuditLog.countDocuments({ createdAt: { $gte: startOfDay } }),
   ]);
 
-  const applicationsByStatus = { pending: 0, reviewed: 0, shortlisted: 0, rejected: 0, hired: 0 };
+  const applicationsByStatus = emptyStatusCounts();
   for (const row of statusRows) {
     const normalized = normalizeApplicationStatus(row._id);
     if (normalized) applicationsByStatus[normalized] += Number(row.count || 0);
@@ -111,6 +128,9 @@ const getDashboardAnalytics = async (now = new Date()) => {
     verifiedEmployers,
     pendingVerification,
     activeJobs,
+    // The old definition (status "active", whatever the deadline, archive flag or employer
+    // standing): kept so staff can see how many postings are hidden from the public.
+    activeJobsAll,
     closedJobs,
     applicationsThisMonth,
     registrationsThisMonth,
@@ -148,8 +168,8 @@ const applicantMunicipalityCounts = async (yearStart, yearEnd) => {
 
 const getProvincialAnalytics = async ({ year, municipality = "ALL" } = {}) => {
   const selectedMunicipality = String(municipality || "ALL").trim();
-  const yearStart = new Date(year, 0, 1);
-  const yearEnd = new Date(year + 1, 0, 1);
+  const yearStart = startOfManilaDay(year, 1, 1);
+  const yearEnd = startOfManilaDay(year + 1, 1, 1);
   const municipalityMatch = selectedMunicipality && selectedMunicipality !== "ALL"
     ? normalizeMunicipality(selectedMunicipality)
     : "ALL";
@@ -161,11 +181,12 @@ const getProvincialAnalytics = async ({ year, municipality = "ALL" } = {}) => {
       $match: {
         createdAt: { $gte: yearStart, $lt: yearEnd },
         role: { $in: ["jobseeker", "employer"] },
+        deletedAt: null,
       },
     },
     {
       $group: {
-        _id: { month: { $month: "$createdAt" } },
+        _id: { month: { $month: { date: "$createdAt", timezone: TIME_ZONE } } },
         registered: { $sum: 1 },
       },
     },
@@ -179,7 +200,7 @@ const getProvincialAnalytics = async ({ year, municipality = "ALL" } = {}) => {
     },
     {
       $group: {
-        _id: { month: { $month: "$createdAt" } },
+        _id: { month: { $month: { date: "$createdAt", timezone: TIME_ZONE } } },
         applied: { $sum: 1 },
         hired: { $sum: { $cond: [{ $eq: ["$status", "hired"] }, 1, 0] } },
       },
@@ -274,7 +295,7 @@ const getProvincialAnalytics = async ({ year, municipality = "ALL" } = {}) => {
             $filter: {
               input: { $cond: [{ $isArray: "$industry" }, "$industry", ["$industry"]] },
               as: "ind",
-              cond: { $and: [{ $ne: ["$ind", null] }, { $ne: ["$ind", ""] }] },
+              cond: { $and: [{ $ne: ["$$ind", null] }, { $ne: ["$$ind", ""] }] },
             },
           },
         },
@@ -415,7 +436,9 @@ const getProvincialAnalytics = async ({ year, municipality = "ALL" } = {}) => {
 };
 
 module.exports = {
-  LOCAL_TIME_ZONE,
+  TIME_ZONE,
+  APPLICATION_STATUS_KEYS,
+  currentManilaYear,
   monthBuckets,
   normalizeSector,
   normalizeApplicationStatus,

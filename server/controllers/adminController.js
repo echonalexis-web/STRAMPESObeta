@@ -27,6 +27,7 @@ const {
   municipalityBucketExpression,
 } = require("../services/analytics/municipality");
 const { getDashboardAnalytics, getProvincialAnalytics } = require("../services/analytics/dashboardStats");
+const { currentManilaYear, manilaDayBounds } = require("../services/analytics/period");
 const {
   CLOSED_STATUS_VALUES,
   REJECTED_STATUS_VALUES,
@@ -57,7 +58,7 @@ exports.getAdminAnalytics = async (req, res) => {
 
 exports.getProvincialAnalytics = async (req, res) => {
   try {
-    const year = Number(req.query.year) || 2026;
+    const year = Number(req.query.year) || currentManilaYear();
     return res.json(await getProvincialAnalytics({ year, municipality: req.query.municipality || "ALL" }));
   } catch (error) {
     return sendError(res, error, "Failed to fetch provincial analytics");
@@ -258,15 +259,12 @@ exports.getAuditLogs = async (req, res) => {
     }
 
     if (fromDate || toDate) {
+      // Calendar days in Asia/Manila (a day starts at Manila midnight), whatever the server's own time zone.
       const createdAt = {};
-      if (fromDate) {
-        const start = new Date(`${fromDate}T00:00:00`);
-        if (!Number.isNaN(start.getTime())) createdAt.$gte = start;
-      }
-      if (toDate) {
-        const end = new Date(`${toDate}T23:59:59.999`);
-        if (!Number.isNaN(end.getTime())) createdAt.$lte = end;
-      }
+      const fromDay = manilaDayBounds(fromDate);
+      if (fromDay) createdAt.$gte = fromDay.start;
+      const toDay = manilaDayBounds(toDate);
+      if (toDay) createdAt.$lte = toDay.end;
       if (Object.keys(createdAt).length > 0) {
         andConditions.push({ createdAt });
       }
