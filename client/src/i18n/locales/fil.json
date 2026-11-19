@@ -1221,7 +1221,8 @@
       "statusLabel": "Status",
       "verificationLabel": "Status ng beripikasyon",
       "emptyTitle": "Walang nahanap na record",
-      "emptyDescription": "Walang record na tugma sa kasalukuyang filter. Subukang i-clear ang paghahanap o pumili ng ibang status."
+      "emptyDescription": "Walang record na tugma sa kasalukuyang filter. Subukang i-clear ang paghahanap o pumili ng ibang status.",
+      "exportTruncated": "Ang unang {{shown}} lamang sa {{total}} na tala ang na-export. Paliitin ang mga filter para ma-export ang iba."
     },
     "verification": {
       "tabsLabel": "Status ng beripikasyon",

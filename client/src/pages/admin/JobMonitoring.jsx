@@ -320,7 +320,15 @@ export default function JobMonitoring() {
       municipality: selectedMunicipality === "All Marinduque" ? "all" : selectedMunicipality,
       status: selectedStatus === "All Statuses" ? "all" : selectedStatus,
     });
-    return Array.isArray(data?.jobs) ? data.jobs.map(normalizeJobMonitoringRecord) : [];
+    return {
+      rows: Array.isArray(data?.jobs) ? data.jobs.map(normalizeJobMonitoringRecord) : [],
+      total: Number(data?.total) || 0,
+    };
+  };
+
+  // The list endpoint caps a page, so an export can be shorter than the list: say so.
+  const warnIfTruncated = ({ rows, total }) => {
+    if (total > rows.length) toast.info(t("admin.reports.exportTruncated", { shown: rows.length, total }));
   };
 
   const exportFilterPairs = [
@@ -332,9 +340,10 @@ export default function JobMonitoring() {
   const handleExportCsv = async () => {
     try {
       setExporting(true);
-      const rows = await fetchAllMatchingJobs();
+      const result = await fetchAllMatchingJobs();
       const stamp = new Date().toISOString().slice(0, 10);
-      exportCsv({ filename: `job-vacancy-directory-${stamp}.csv`, columns: JOB_EXPORT_COLUMNS, rows });
+      exportCsv({ filename: `job-vacancy-directory-${stamp}.csv`, columns: JOB_EXPORT_COLUMNS, rows: result.rows });
+      warnIfTruncated(result);
     } catch (error) {
       console.error("Failed to export job vacancy directory (CSV)", error);
       toast.error("Failed to export the job vacancy directory.");
@@ -346,15 +355,16 @@ export default function JobMonitoring() {
   const handleExportPdf = async () => {
     try {
       setExporting(true);
-      const rows = await fetchAllMatchingJobs();
+      const result = await fetchAllMatchingJobs();
       const stamp = new Date().toISOString().slice(0, 10);
       exportPdfTable({
         title: "Job Vacancy Directory",
         filters: exportFilterPairs,
         columns: JOB_EXPORT_COLUMNS,
-        rows,
+        rows: result.rows,
         filename: `job-vacancy-directory-${stamp}.pdf`,
       });
+      warnIfTruncated(result);
     } catch (error) {
       console.error("Failed to export job vacancy directory (PDF)", error);
       toast.error("Failed to export the job vacancy directory.");

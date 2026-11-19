@@ -29,8 +29,8 @@ Rule: never run a backfill, migration, index creation or deletion script against
 | # | Commit | Status |
 |---|---|---|
 | 1 | Foundations: config, Manila periods, privacy helpers, filter object, shared municipality module | done: server 110 suites 3284 tests pass, client 604 + 29 pass, lint 46 (= baseline), build OK |
-| 2 | Job Monitoring fixes | next |
-| 3 | Hotfix for client exports | |
+| 2 | Job Monitoring fixes | done: server 111 suites 3299 tests pass, client 604 + 29 pass, lint 46 (= baseline), build OK, en/fil parity 0/0 |
+| 3 | Hotfix for client exports | next |
 | 4 | Data additions (shared helper, backfill script, index script) | |
 | 5 | Analytics refactor with identical numbers | |
 | 6 | Analytics bug fixes | |
@@ -46,3 +46,5 @@ Rule: never run a backfill, migration, index creation or deletion script against
 ## Notes for resuming
 
 - Commit 1 files: `server/services/analytics/{config,errors,municipality,period,privacy,filters}.js`, `server/tests/analyticsFoundations.test.js`, municipality helpers moved out of `adminController.js` unchanged.
+- Commit 2: `status=pending` filter fixed (was OR-merged with search and matched active jobs; now its own condition, not active/closed/rejected). Stats rewritten as one aggregation + an id lookup for the application sum; expressions moved to `services/analytics/{municipality,jobStatus}.js` and proven equal to the JS rules by an evaluator test. Truncation notice on both client exports (toast + i18n key `admin.reports.exportTruncated`). Untracked whitebox tests WB-ADM-43/44/50/51 updated to the new behavior.
+- A vitest run once failed to start (no tests, 1 error) while the full server suite was running at the same time; re-running alone passed 29/29. Do not run them in parallel.

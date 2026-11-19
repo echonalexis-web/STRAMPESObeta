@@ -26,7 +26,14 @@ const {
   normalizeMunicipalityLabel,
   getMunicipalityFilterPattern,
   normalizeApplicantMunicipality,
+  municipalityBucketExpression,
 } = require("../services/analytics/municipality");
+const {
+  CLOSED_STATUS_VALUES,
+  REJECTED_STATUS_VALUES,
+  normalizeAdminJobStatus,
+  statusGroupExpression,
+} = require("../services/analytics/jobStatus");
 const {
   softDeleteUser,
   restoreUser: restoreDeletedUser,
@@ -35,17 +42,6 @@ const {
 } = require("../services/userDeletionService");
 
 const monthBuckets = () => Array.from({ length: 12 }, () => 0);
-
-const normalizeAdminJobStatus = (value = "") => {
-  const status = String(value || "").trim().toLowerCase();
-
-  if (status === "draft" || status === "pending" || status === "review") return "pending";
-  if (status === "active") return "active";
-  if (status === "closed" || status === "filled" || status === "hired" || status === "completed") return "closed";
-  if (status === "rejected" || status === "declined" || status === "denied") return "rejected";
-
-  return "pending";
-};
 
 if (typeof module !== "undefined") {
   module.exports = module.exports || {};
@@ -771,11 +767,10 @@ const buildAdminVacancyFilter = (query = {}) => {
   if (status !== "all") {
     const normalizedStatus = normalizeAdminJobStatus(status);
     if (normalizedStatus === "pending") {
-      filter.$or = [
-        ...(filter.$or || []),
-        { status: "draft" },
-        { status: "active" },
-      ];
+      // Pending is every posting that is neither active, closed nor rejected (a draft),
+      // the same grouping normalizeAdminJobStatus uses for the list and the stats. It is its
+      // own condition, so it combines with a search by AND.
+      filter.status = { $nin: ["active", ...CLOSED_STATUS_VALUES, ...REJECTED_STATUS_VALUES] };
     } else {
       filter.status = normalizedStatus;
     }
@@ -787,6 +782,7 @@ const buildAdminVacancyFilter = (query = {}) => {
 
   return filter;
 };
+exports.buildAdminVacancyFilter = buildAdminVacancyFilter;
 
 exports.getAdminVacancies = async (req, res) => {
   try {
@@ -863,45 +859,58 @@ exports.getAdminVacancyStats = async (req, res) => {
   try {
     const filter = buildAdminVacancyFilter(req.query);
 
-    const jobs = await JobVacancy.find(filter).select("location slots status").lean();
-    const jobIds = jobs.map((job) => job._id);
-    const applicationCountMap = await getApplicationCountMap(jobIds);
+    // One pass in the database: status group, municipality bucket and slots per posting,
+    // grouped three ways. Same grouping rules as the old per-document loop, so the numbers
+    // are unchanged; nothing is loaded into memory.
+    const [facets, applicationIds] = await Promise.all([
+      JobVacancy.aggregate([
+        { $match: filter },
+        {
+          $project: {
+            slots: { $ifNull: ["$slots", 0] },
+            municipality: municipalityBucketExpression("$location"),
+            statusGroup: statusGroupExpression("$status"),
+          },
+        },
+        {
+          $facet: {
+            totals: [{ $group: { _id: null, totalPostings: { $sum: 1 }, totalSlots: { $sum: "$slots" } } }],
+            byStatus: [{ $group: { _id: "$statusGroup", count: { $sum: 1 } } }],
+            byMunicipality: [{ $group: { _id: "$municipality", jobs: { $sum: 1 }, slots: { $sum: "$slots" } } }],
+          },
+        },
+      ]),
+      JobVacancy.distinct("_id", filter),
+    ]);
 
-    const municipalityMap = new Map(
-      MUNICIPALITY_LABELS.map((label) => [label, { label, jobs: 0, slots: 0 }])
-    );
-
+    const facet = (facets && facets[0]) || {};
+    const totalsRow = (facet.totals && facet.totals[0]) || { totalPostings: 0, totalSlots: 0 };
     const statusCounts = { active: 0, pending: 0, closed: 0, rejected: 0 };
-    let totalSlots = 0;
-
-    jobs.forEach((job) => {
-      const label = normalizeMunicipalityLabel(job.location || "");
-      const bucket = municipalityMap.get(label) || municipalityMap.get("Other / Outside Province");
-      const slots = Number(job.slots || 0);
-
-      bucket.jobs += 1;
-      bucket.slots += slots;
-      totalSlots += slots;
-
-      const normalizedStatus = normalizeAdminJobStatus(job.status);
-      if (statusCounts[normalizedStatus] !== undefined) {
-        statusCounts[normalizedStatus] += 1;
-      }
+    (facet.byStatus || []).forEach((row) => {
+      if (statusCounts[row._id] !== undefined) statusCounts[row._id] = Number(row.count || 0);
     });
 
-    const applications = Object.values(applicationCountMap).reduce(
-      (sum, count) => sum + Number(count || 0),
-      0
-    );
+    const municipalityMap = new Map(MUNICIPALITY_LABELS.map((label) => [label, { label, jobs: 0, slots: 0 }]));
+    (facet.byMunicipality || []).forEach((row) => {
+      const bucket = municipalityMap.get(row._id) || municipalityMap.get("Other / Outside Province");
+      bucket.jobs += Number(row.jobs || 0);
+      bucket.slots += Number(row.slots || 0);
+    });
+
+    let applications = 0;
+    if (applicationIds.length) {
+      const [counted] = await JobApplication.aggregate([{ $match: { vacancy: { $in: applicationIds } } }, { $count: "total" }]);
+      applications = Number((counted && counted.total) || 0);
+    }
 
     return res.json({
       totals: {
-        totalPostings: jobs.length,
+        totalPostings: Number(totalsRow.totalPostings || 0),
         active: statusCounts.active,
         pending: statusCounts.pending,
         closed: statusCounts.closed,
         rejected: statusCounts.rejected,
-        totalSlots,
+        totalSlots: Number(totalsRow.totalSlots || 0),
         applications,
       },
       municipalityBreakdown: Array.from(municipalityMap.values()),

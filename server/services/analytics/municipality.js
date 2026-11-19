@@ -76,7 +76,31 @@ const normalizeApplicantMunicipality = (municipality = "", province = "") => {
   return MUNICIPALITY_LABELS.includes(normalizedMunicipality) ? normalizedMunicipality : "Other";
 };
 
+// Aggregation expression that buckets a free-text location string into one of the
+// MUNICIPALITY_LABELS in the database, with exactly the rules of normalizeMunicipalityLabel
+// (including its order: an "other ... outside/province/marinduque" text is Other first).
+const municipalityBucketExpression = (field) => {
+  const text = { $toLower: { $trim: { input: { $ifNull: [field, ""] } } } };
+  const has = (pattern) => ({ $regexMatch: { input: text, regex: pattern } });
+  return {
+    $switch: {
+      branches: [
+        { case: { $eq: [text, ""] }, then: "Other / Outside Province" },
+        { case: { $and: [has("other"), has("outside|province|marinduque")] }, then: "Other / Outside Province" },
+        { case: has("boac|capital"), then: "Boac (Capital)" },
+        { case: has("santa cruz"), then: "Santa Cruz" },
+        { case: has("gasan"), then: "Gasan" },
+        { case: has("mogpog"), then: "Mogpog" },
+        { case: has("torrijos"), then: "Torrijos" },
+        { case: has("buenavista"), then: "Buenavista" },
+      ],
+      default: "Other / Outside Province",
+    },
+  };
+};
+
 module.exports = {
+  municipalityBucketExpression,
   MUNICIPALITY_LABELS,
   escapeRegExp,
   normalizeMunicipality,

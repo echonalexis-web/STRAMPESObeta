@@ -34,6 +34,7 @@ import {
   Users,
 } from "lucide-react";
 import { adminAPI } from "../../services/api";
+import { useToast } from "../../components/feedback/context";
 import { exportCsv, exportPdfTable } from "../../utils/exportUtils";
 import "../../styles/admin.css";
 import "../../styles/reports.css";
@@ -169,6 +170,7 @@ const JOB_COLUMNS = [
 
 export default function Reports() {
   const { t } = useTranslation();
+  const toast = useToast();
   const reduced = usePrefersReducedMotion();
   const [analytics, setAnalytics] = useState(fallbackAnalytics);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
@@ -317,6 +319,7 @@ export default function Reports() {
       const result = await fetchRows(1, EXPORT_LIMIT);
       const stamp = new Date().toISOString().slice(0, 10);
       exportCsv({ filename: `report-${tab}-${stamp}.csv`, columns, rows: result.rows });
+      if (result.total > result.rows.length) toast.info(t("admin.reports.exportTruncated", { shown: result.rows.length, total: result.total }));
     } catch (error) {
       /* no-op: export failure leaves the table intact */
     } finally {
@@ -336,6 +339,7 @@ export default function Reports() {
         rows: result.rows,
         filename: `report-${tab}-${stamp}.pdf`,
       });
+      if (result.total > result.rows.length) toast.info(t("admin.reports.exportTruncated", { shown: result.rows.length, total: result.total }));
     } catch (error) {
       console.error("Failed to export PDF report", error);
     } finally {
