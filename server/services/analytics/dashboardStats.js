@@ -202,7 +202,6 @@ const getProvincialAnalytics = async ({ year, municipality = "ALL" } = {}) => {
       $group: {
         _id: { month: { $month: { date: "$createdAt", timezone: TIME_ZONE } } },
         applied: { $sum: 1 },
-        hired: { $sum: { $cond: [{ $eq: ["$status", "hired"] }, 1, 0] } },
       },
     },
   ];
@@ -255,7 +254,8 @@ const getProvincialAnalytics = async ({ year, municipality = "ALL" } = {}) => {
         $group: {
           _id: null,
           totalApplications: { $sum: 1 },
-          hiredApplications: { $sum: { $cond: [{ $eq: ["$status", "hired"] }, 1, 0] } },
+          // "accepted" is the legacy spelling of hired, as everywhere else
+          hiredApplications: { $sum: { $cond: [{ $in: [{ $toLower: { $ifNull: ["$status", ""] } }, ["hired", "accepted"]] }, 1, 0] } },
         },
       },
     ]),

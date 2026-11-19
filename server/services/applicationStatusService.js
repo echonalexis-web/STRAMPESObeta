@@ -25,7 +25,10 @@ const setApplicationStatus = (application, nextStatus, { now = new Date() } = {}
   application.status = nextStatus;
   application.statusUpdatedAt = now;
 
-  if (!application.firstResponseAt && PENDING_VALUES.includes(previous) && RESPONSE_VALUES.includes(next)) {
+  // Any state that is not yet a response (pending, a legacy Applied, an empty status) can be
+  // answered; a withdrawn application is not answered by the employer.
+  const unanswered = !RESPONSE_VALUES.includes(previous) && previous !== "withdrawn";
+  if (!application.firstResponseAt && unanswered && RESPONSE_VALUES.includes(next)) {
     application.firstResponseAt = now;
   }
 

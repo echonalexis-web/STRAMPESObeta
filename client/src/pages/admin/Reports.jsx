@@ -324,8 +324,8 @@ export default function Reports() {
       const stamp = new Date().toISOString().slice(0, 10);
       exportCsv({ filename: `report-${tab}-${stamp}.csv`, columns: exportable(columns), rows: result.rows });
       if (result.total > result.rows.length) toast.info(t("admin.reports.exportTruncated", { shown: result.rows.length, total: result.total }));
-    } catch (error) {
-      /* no-op: export failure leaves the table intact */
+    } catch {
+      toast.error(t("admin.reports.exportFailed"));
     } finally {
       setExporting(false);
     }
@@ -346,6 +346,7 @@ export default function Reports() {
       if (result.total > result.rows.length) toast.info(t("admin.reports.exportTruncated", { shown: result.rows.length, total: result.total }));
     } catch (error) {
       console.error("Failed to export PDF report", error);
+      toast.error(t("admin.reports.exportFailed"));
     } finally {
       setExporting(false);
     }

@@ -142,7 +142,7 @@ const periodBounds = (input = {}, now = new Date()) => {
   } else {
     const rawYear = toInt(input.year);
     const year = rawYear === null ? thisYear : rawYear;
-    if (!Number.isInteger(year) || year < 2000 || year > thisYear + 1) throw invalidPeriod("Year is out of range.");
+    if (!Number.isInteger(year) || year < 2000 || year > thisYear) throw invalidPeriod("Year is out of range.");
     spec.year = year;
     if (type === "quarter") {
       const quarter = toInt(input.quarter);

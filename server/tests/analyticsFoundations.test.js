@@ -72,9 +72,12 @@ describe("period bounds in Asia/Manila", () => {
   });
 
   test("a future period is flagged and is not partial", () => {
-    const next = periodBounds({ type: "year", year: 2027 }, NOW);
-    expect(next.isFuture).toBe(true);
-    expect(next.isPartial).toBe(false);
+    const early = new Date("2026-02-10T06:00:00Z");
+    const later = periodBounds({ type: "quarter", year: 2026, quarter: 4 }, early);
+    expect(later.isFuture).toBe(true);
+    expect(later.isPartial).toBe(false);
+    // a whole year after this one is refused outright
+    expect(() => periodBounds({ type: "year", year: 2027 }, NOW)).toThrow(expect.objectContaining({ code: "INVALID_PERIOD" }));
   });
 
   test("custom range includes both days; the previous one is the same length just before", () => {

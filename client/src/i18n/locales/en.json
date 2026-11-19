@@ -1222,7 +1222,8 @@
       "verificationLabel": "Verification status",
       "emptyTitle": "No records found",
       "emptyDescription": "No records match the current filters. Try clearing the search or choosing a different status.",
-      "exportTruncated": "Only the first {{shown}} of {{total}} records were exported. Narrow the filters to export the rest."
+      "exportTruncated": "Only the first {{shown}} of {{total}} records were exported. Narrow the filters to export the rest.",
+      "exportFailed": "The export failed. Please try again."
     },
     "verification": {
       "tabsLabel": "Verification status",

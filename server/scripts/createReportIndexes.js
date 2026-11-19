@@ -35,7 +35,9 @@ async function run() {
   for (const spec of REPORT_INDEXES) {
     const exists = existingCollections.has(spec.collection);
     const current = exists ? await db.collection(spec.collection).indexes() : [];
-    const present = current.some((index) => index.name === spec.options.name);
+    // Present by name, or an equivalent index (same key, same uniqueness) under another name.
+    const sameKey = (index) => JSON.stringify(index.key) === JSON.stringify(spec.key) && Boolean(index.unique) === Boolean(spec.options.unique);
+    const present = current.some((index) => index.name === spec.options.name || sameKey(index));
     const label = `${spec.collection}.${spec.options.name} ${JSON.stringify(spec.key)}`;
     if (present) {
       console.log(`  ok       ${label}`);

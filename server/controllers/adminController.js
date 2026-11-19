@@ -58,7 +58,10 @@ exports.getAdminAnalytics = async (req, res) => {
 
 exports.getProvincialAnalytics = async (req, res) => {
   try {
-    const year = Number(req.query.year) || currentManilaYear();
+    // A whole year from 2000 to this year; anything else falls back to the current Manila year.
+    const requested = Number(req.query.year);
+    const thisYear = currentManilaYear();
+    const year = Number.isInteger(requested) && requested >= 2000 && requested <= thisYear ? requested : thisYear;
     return res.json(await getProvincialAnalytics({ year, municipality: req.query.municipality || "ALL" }));
   } catch (error) {
     return sendError(res, error, "Failed to fetch provincial analytics");

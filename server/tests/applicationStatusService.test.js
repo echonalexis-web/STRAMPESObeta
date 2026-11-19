@@ -89,3 +89,14 @@ describe("reactivationFields", () => {
     });
   });
 });
+
+describe("first response from unexpected prior states", () => {
+  test("an empty or missing status counts as unanswered, so the first move is a response", () => {
+    expect(setApplicationStatus({ ...fresh(""), status: "" }, "shortlisted", { now: T1 }).firstResponseAt).toBe(T1);
+    expect(setApplicationStatus({ ...fresh(), status: null }, "rejected", { now: T1 }).firstResponseAt).toBe(T1);
+  });
+
+  test("a legacy Reviewed row was already answered at some unknown time: no invented date", () => {
+    expect(setApplicationStatus(fresh("Reviewed"), "shortlisted", { now: T1 }).firstResponseAt).toBeNull();
+  });
+});
