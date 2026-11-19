@@ -1260,12 +1260,6 @@
       "notFoundDescription": "Maaaring natanggal na ang account na ito, o mali ang link."
     },
     "accounts": {
-      "title": "Mga account na walang email",
-      "emailLessCount": "Mga account na walang email",
-      "idleNoEmail": "Walang aktibidad nang {{days}} araw o higit pa, walang email",
-      "locksLast24h": "Mga lockout sa nakaraang 24 oras",
-      "locksLast7d": "Mga lockout sa nakaraang 7 araw",
-      "lockedNow": "Naka-lock ngayon",
       "unlock": "I-unlock ang sign-in",
       "unlockConfirm": "I-unlock ang account na ito? Sabihin kung bakit (mase-save ito sa audit log).",
       "unlockReason": "Dahilan",
@@ -1274,8 +1268,7 @@
       "nothingToUnlock": "Hindi naka-lock ang account na ito.",
       "unlockError": "Hindi ma-unlock ang account na ito.",
       "noEmail": "Walang email",
-      "username": "Username",
-      "loadError": "Hindi ma-load ang buod."
+      "username": "Username"
     },
     "reset": {
       "title": "I-reset ang password sa counter",
@@ -1386,12 +1379,10 @@
       "clearFilters": "I-clear ang mga filter"
     },
     "users": {
-      "subtitle": "Bantayan ang akreditasyon ng mga employer at ang mga profile ng jobseeker.",
-      "summaryLabel": "Buod ng kabuuang user",
       "tabsLabel": "Mga tab ng user management",
       "tabs": {
-        "employers": "Pamamahala ng Employer",
-        "jobseekers": "Pamamahala ng Jobseeker"
+        "employers": "Mga Employer",
+        "jobseekers": "Mga Jobseeker"
       },
       "loading": "Nilo-load ang mga user…",
       "empty": {
@@ -1400,11 +1391,12 @@
         "description": "Lalabas dito ang mga bagong account sa sandaling mag-register sila."
       },
       "columns": {
-        "name": "Pangalan",
-        "contact": "Email o username",
         "status": "Katayuan",
         "joined": "Sumali",
-        "actions": "Mga aksyon"
+        "actions": "Mga aksyon",
+        "user": "User",
+        "keyInfo": "Pangunahing impormasyon",
+        "lastActive": "Huling aktibo"
       },
       "status": {
         "active": "Aktibo",
@@ -1414,11 +1406,13 @@
         "deleted": "Binura"
       },
       "actions": {
-        "view": "Tingnan ang Profile",
+        "view": "Tingnan",
         "deactivate": "I-deactivate",
         "reactivate": "I-reactivate",
         "delete": "Burahin",
-        "restore": "Ibalik"
+        "restore": "Ibalik",
+        "viewFor": "Tingnan si {{name}}",
+        "moreFor": "Iba pang aksyon para kay {{name}}"
       },
       "filters": {
         "label": "I-filter at ayusin ang mga account",
@@ -1430,29 +1424,36 @@
         "verificationAll": "Lahat",
         "verificationOptions": {
           "unverified": "Hindi pa naisusumite",
-          "pending": "Naghihintay ng pagsusuri",
+          "pending": "Naghihintay",
           "under_review": "Sinusuri",
           "verified": "Na-verify",
           "resubmission_required": "Kailangan ng dagdag na impormasyon",
-          "rejected": "Tinanggihan"
+          "rejected": "Tinanggihan",
+          "pendingReview": "Naghihintay o sinusuri"
         },
-        "noEmail": "Walang email",
-        "idle90": "Walang aktibidad nang 90+ araw",
-        "lockedNow": "Naka-lock ngayon",
         "sort": "Ayusin ayon sa",
-        "sortOptions": {
-          "joined": "Petsa ng pagsali",
-          "lastActive": "Huling aktibo",
-          "name": "Pangalan"
-        },
-        "order": "Pagkakasunod",
-        "orderNewest": "Pinakabago o A hanggang Z muna",
-        "orderAsc": "Pataas",
-        "orderDesc": "Pababa",
         "clear": "I-clear ang mga filter",
         "results": "{{count}} account",
         "noMatchTitle": "Walang account na tugma sa mga filter",
-        "noMatchDescription": "Subukan ang ibang hanap o i-clear ang mga filter."
+        "noMatchDescription": "Subukan ang ibang hanap o i-clear ang mga filter.",
+        "toggle": "Mga filter",
+        "toggleActive_one": "Mga filter, {{count}} ang aktibo",
+        "toggleActive_other": "Mga filter, {{count}} ang aktibo",
+        "chipsLabel": "Mabilisang filter",
+        "chips": {
+          "noEmail": "Walang email",
+          "idle90": "Walang aktibidad nang 90+ araw",
+          "lockedNow": "Naka-lock ngayon",
+          "pendingReview": "Naghihintay ng pagsusuri"
+        },
+        "sortChoices": {
+          "newest": "Pinakabagong sumali",
+          "oldest": "Pinakamatagal nang sumali",
+          "nameAsc": "Pangalan A hanggang Z",
+          "nameDesc": "Pangalan Z hanggang A",
+          "recent": "Kamakailang aktibo",
+          "leastRecent": "Pinakamatagal nang hindi aktibo"
+        }
       },
       "export": {
         "button": "I-export ang CSV",
@@ -1462,7 +1463,6 @@
         "tooLarge": "Mahigit 10,000 account ang tugma. Paliitin ang mga filter at i-export muli.",
         "error": "Hindi ma-export ang listahan."
       },
-      "deletedUntil": "Maibabalik hanggang {{date}}",
       "delete": {
         "title": "Burahin si {{name}}?",
         "intro": "Naka-deactivate ang account na ito. Dalawang hakbang ang pagbura: itinatago at isinasara ito ngayon, at permanenteng buburahin ang personal na datos pagkatapos ng palugit.",
@@ -1601,7 +1601,23 @@
           "admin_user_notes_updated": "Na-update ang mga tala",
           "user_account_self_deactivated": "Na-deactivate ng user"
         }
-      }
+      },
+      "row": {
+        "noEmail": "Walang email",
+        "never": "Hindi pa",
+        "profile": "Profile {{percent}}%",
+        "applications_one": "{{count}} application",
+        "applications_other": "{{count}} na application",
+        "postings_one": "{{count}} posting",
+        "postings_other": "{{count}} na posting",
+        "hires_one": "{{count}} na-hire",
+        "hires_other": "{{count}} na-hire",
+        "removal_one": "Nakatakdang alisin sa loob ng {{count}} araw",
+        "removal_other": "Nakatakdang alisin sa loob ng {{count}} araw"
+      },
+      "lockoutLine": "Mga lockout: {{day}} sa nakaraang 24 oras, {{week}} sa nakaraang 7 araw",
+      "cardsLabel": "Mga account",
+      "tableLabel": "Mga account"
     },
     "moderation": {
       "subtitle": "Suriin ang mga report mula sa mga user at magpasya sa mga apela sa suspensyon.",
@@ -1900,7 +1916,7 @@
       "PHONE_WEAK": "Mukhang hindi totoo ang numerong ito. Suriin at subukan muli.",
       "PHONE_COUNTRY_UNKNOWN": "Pumili ng country code mula sa listahan.",
       "ENUM_INVALID": "Hindi pinapayagan ang pagpiling iyon.",
-      "GENERIC":"May nangyaring mali. Pakisubukang muli.",
+      "GENERIC": "May nangyaring mali. Pakisubukang muli.",
       "DOB_REQUIRED": "Ilagay ang iyong petsa ng kapanganakan.",
       "DOB_INVALID": "Maglagay ng wastong petsa ng kapanganakan.",
       "DOB_LOCKED": "Naka-lock ang iyong petsa ng kapanganakan. Makipag-ugnayan sa PESO staff dala ang patunay ng edad para baguhin ito.",

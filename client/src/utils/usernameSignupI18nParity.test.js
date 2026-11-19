@@ -129,7 +129,6 @@ const COMPONENT_FILES = [
   "../components/ResetPasswordControl.jsx",
   "../components/TemporaryPasswordPanel.jsx",
   "../components/CodeInput.jsx",
-  "../components/AccountSecuritySummary.jsx",
   "../pages/ForgotUsername.jsx",
   "../pages/ForgotPassword.jsx",
   "../pages/Login.jsx",

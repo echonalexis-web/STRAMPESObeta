@@ -1260,12 +1260,6 @@
       "notFoundDescription": "This account may have been removed, or the link is incorrect."
     },
     "accounts": {
-      "title": "Accounts without an email",
-      "emailLessCount": "Accounts with no email",
-      "idleNoEmail": "Idle {{days}} days or more, no email",
-      "locksLast24h": "Lockouts in the last 24 hours",
-      "locksLast7d": "Lockouts in the last 7 days",
-      "lockedNow": "Locked right now",
       "unlock": "Unlock sign-in",
       "unlockConfirm": "Unlock this account? Say why (it is saved in the audit log).",
       "unlockReason": "Reason",
@@ -1274,8 +1268,7 @@
       "nothingToUnlock": "This account was not locked.",
       "unlockError": "Could not unlock this account.",
       "noEmail": "No email",
-      "username": "Username",
-      "loadError": "Could not load the summary."
+      "username": "Username"
     },
     "reset": {
       "title": "Reset password at the counter",
@@ -1386,12 +1379,10 @@
       "clearFilters": "Clear filters"
     },
     "users": {
-      "subtitle": "Supervise employer accreditations and jobseeker profiles.",
-      "summaryLabel": "User totals summary",
       "tabsLabel": "User management tabs",
       "tabs": {
-        "employers": "Employers Management",
-        "jobseekers": "Jobseekers Management"
+        "employers": "Employers",
+        "jobseekers": "Jobseekers"
       },
       "loading": "Loading users…",
       "empty": {
@@ -1400,11 +1391,12 @@
         "description": "New accounts appear here as soon as they register."
       },
       "columns": {
-        "name": "Name",
-        "contact": "Email or username",
         "status": "Status",
         "joined": "Joined",
-        "actions": "Actions"
+        "actions": "Actions",
+        "user": "User",
+        "keyInfo": "Key info",
+        "lastActive": "Last active"
       },
       "status": {
         "active": "Active",
@@ -1414,11 +1406,13 @@
         "deleted": "Deleted"
       },
       "actions": {
-        "view": "View Profile",
+        "view": "View",
         "deactivate": "Deactivate",
         "reactivate": "Reactivate",
         "delete": "Delete",
-        "restore": "Restore"
+        "restore": "Restore",
+        "viewFor": "View {{name}}",
+        "moreFor": "More actions for {{name}}"
       },
       "filters": {
         "label": "Filter and sort accounts",
@@ -1430,29 +1424,36 @@
         "verificationAll": "All",
         "verificationOptions": {
           "unverified": "Not submitted",
-          "pending": "Pending review",
+          "pending": "Pending",
           "under_review": "Under review",
           "verified": "Verified",
           "resubmission_required": "Needs more info",
-          "rejected": "Rejected"
+          "rejected": "Rejected",
+          "pendingReview": "Pending or under review"
         },
-        "noEmail": "No email",
-        "idle90": "Idle 90+ days",
-        "lockedNow": "Locked now",
         "sort": "Sort by",
-        "sortOptions": {
-          "joined": "Joined",
-          "lastActive": "Last active",
-          "name": "Name"
-        },
-        "order": "Order",
-        "orderNewest": "Newest or A to Z first",
-        "orderAsc": "Ascending",
-        "orderDesc": "Descending",
         "clear": "Clear filters",
         "results": "{{count}} accounts",
         "noMatchTitle": "No accounts match these filters",
-        "noMatchDescription": "Try a different search or clear the filters."
+        "noMatchDescription": "Try a different search or clear the filters.",
+        "toggle": "Filters",
+        "toggleActive_one": "Filters, {{count}} active",
+        "toggleActive_other": "Filters, {{count}} active",
+        "chipsLabel": "Quick filters",
+        "chips": {
+          "noEmail": "No email",
+          "idle90": "Idle 90+ days",
+          "lockedNow": "Locked now",
+          "pendingReview": "Pending review"
+        },
+        "sortChoices": {
+          "newest": "Newest joined",
+          "oldest": "Oldest joined",
+          "nameAsc": "Name A to Z",
+          "nameDesc": "Name Z to A",
+          "recent": "Recently active",
+          "leastRecent": "Least recently active"
+        }
       },
       "export": {
         "button": "Export CSV",
@@ -1462,7 +1463,6 @@
         "tooLarge": "More than 10,000 accounts match. Narrow the filters and export again.",
         "error": "Could not export the list."
       },
-      "deletedUntil": "Restorable until {{date}}",
       "delete": {
         "title": "Delete {{name}}?",
         "intro": "This account is deactivated. Deleting it is a two-step process: it is hidden and locked now, and its personal data is removed for good after a grace period.",
@@ -1601,7 +1601,23 @@
           "admin_user_notes_updated": "Notes updated",
           "user_account_self_deactivated": "Deactivated by the user"
         }
-      }
+      },
+      "row": {
+        "noEmail": "No email",
+        "never": "Never",
+        "profile": "Profile {{percent}}%",
+        "applications_one": "{{count}} application",
+        "applications_other": "{{count}} applications",
+        "postings_one": "{{count}} posting",
+        "postings_other": "{{count}} postings",
+        "hires_one": "{{count}} hire",
+        "hires_other": "{{count}} hires",
+        "removal_one": "Scheduled for removal in {{count}} day",
+        "removal_other": "Scheduled for removal in {{count}} days"
+      },
+      "lockoutLine": "Lockouts: {{day}} in the last 24 hours, {{week}} in the last 7 days",
+      "cardsLabel": "Accounts",
+      "tableLabel": "Accounts"
     },
     "moderation": {
       "subtitle": "Review user-submitted reports and decide on suspension appeals.",
@@ -1900,7 +1916,7 @@
       "PHONE_WEAK": "That number does not look real. Check it and try again.",
       "PHONE_COUNTRY_UNKNOWN": "Choose a country code from the list.",
       "ENUM_INVALID": "That choice is not allowed.",
-      "GENERIC":"Something went wrong. Please try again.",
+      "GENERIC": "Something went wrong. Please try again.",
       "DOB_REQUIRED": "Enter your date of birth.",
       "DOB_INVALID": "Enter a valid date of birth.",
       "DOB_LOCKED": "Your date of birth is locked. Contact PESO staff with proof of age to change it.",

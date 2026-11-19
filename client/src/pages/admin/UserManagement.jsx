@@ -3,20 +3,19 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Building2, TriangleAlert, UserRound } from "lucide-react";
 import { adminAPI } from "../../services/api";
-import MetricCard from "../../components/MetricCard";
-import StateBlock from "../../components/StateBlock";
 import DeleteUserModal from "../../components/DeleteUserModal";
+import Pagination from "../../components/Pagination";
+import UserDirectoryList from "../../components/UserDirectoryList";
+import UserDirectoryToolbar from "../../components/UserDirectoryToolbar";
+import useMediaQuery from "../../hooks/useMediaQuery";
 import "../../styles/admin.css";
 import "../../styles/user-management.css";
-import AdminHeader from "./AdminHeader";
-import AccountSecuritySummary from "../../components/AccountSecuritySummary";
-import { userContactLabel } from "../../utils/usernameSignup";
-import { getAccountState, getAvailableActions } from "../../utils/userStatus";
 import {
-  STATUS_OPTIONS,
-  VERIFICATION_OPTIONS,
-  SORT_OPTIONS,
+  CLEAR_PATCH,
+  MOBILE_PAGE_SIZE,
+  PAGE_SIZE,
   hasActiveFilters,
+  isCanonicalQuery,
   parseDirectoryState,
   serializeDirectoryState,
   toApiParams,
@@ -28,205 +27,15 @@ const tabMeta = {
   employers: {
     labelKey: "superadmin.users.tabs.employers",
     Icon: Building2,
-    badgeKey: "employerCount",
   },
   jobseekers: {
     labelKey: "superadmin.users.tabs.jobseekers",
     Icon: UserRound,
-    badgeKey: "jobseekerCount",
   },
 };
 
-const formatDate = (value) => {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-};
-
-function UserStatCards({ employers, jobseekers }) {
-  const { t } = useTranslation();
-  const stats = [
-    { key: "employers", label: t("admin.kpi.employers"), value: employers, icon: <Building2 size={20} /> },
-    { key: "jobseekers", label: t("admin.kpi.jobSeekers"), value: jobseekers, icon: <UserRound size={20} /> },
-  ];
-
-  return (
-    <section className="admin-user-summary ds-metrics um-summary" aria-label={t("superadmin.users.summaryLabel")}>
-      {stats.map((stat) => (
-        <MetricCard key={stat.key} icon={stat.icon} value={stat.value} label={stat.label} />
-      ))}
-    </section>
-  );
-}
-
-function UserDirectoryEmpty({ role, filtered }) {
-  const { t } = useTranslation();
-  if (filtered) {
-    return (
-      <StateBlock
-        kind="empty"
-        className="um-state"
-        title={t("superadmin.users.filters.noMatchTitle")}
-        description={t("superadmin.users.filters.noMatchDescription")}
-      />
-    );
-  }
-  return (
-    <StateBlock
-      kind="empty"
-      className="um-state"
-      title={t(`superadmin.users.empty.${role}Title`)}
-      description={t("superadmin.users.empty.description")}
-    />
-  );
-}
-
-// Text label plus a shape cue (see user-management.css): never colour alone.
-function StatusBadge({ user }) {
-  const { t } = useTranslation();
-  const state = getAccountState(user);
-  return (
-    <>
-      <span className={`um-badge um-badge--${state}`}>{t(`superadmin.users.status.${state}`)}</span>
-      {state === "deleted" && user.purgeAfter ? (
-        <span className="um-until">{t("superadmin.users.deletedUntil", { date: formatDate(user.purgeAfter) })}</span>
-      ) : null}
-    </>
-  );
-}
-
-function RowActions({ user, onViewProfile, onToggleStatus, onDelete, onRestore }) {
-  const { t } = useTranslation();
-  const actions = getAvailableActions(user);
-  return (
-    <div className="um-actions">
-      <button className="um-btn" type="button" onClick={() => onViewProfile(user)}>
-        {t("superadmin.users.actions.view")}
-      </button>
-      {actions.deactivate && (
-        <button className="um-btn" type="button" onClick={() => onToggleStatus(user)}>
-          {t("superadmin.users.actions.deactivate")}
-        </button>
-      )}
-      {actions.reactivate && (
-        <button className="um-btn" type="button" onClick={() => onToggleStatus(user)}>
-          {t("superadmin.users.actions.reactivate")}
-        </button>
-      )}
-      {actions.delete && (
-        <button className="um-btn um-btn--danger-outline" type="button" onClick={() => onDelete(user)}>
-          {t("superadmin.users.actions.delete")}
-        </button>
-      )}
-      {actions.restore && (
-        <button className="um-btn" type="button" onClick={() => onRestore(user)}>
-          {t("superadmin.users.actions.restore")}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function UserDirectoryCards({ title, role, data, handlers, filtered }) {
-  const { t } = useTranslation();
-  return (
-    <div className="admin-mobile-user-list" aria-label={`${title} mobile directory`}>
-      {data.length === 0 ? (
-        <UserDirectoryEmpty role={role} filtered={filtered} />
-      ) : (
-        data.map((user) => (
-          <article key={user._id} className="admin-mobile-user-card">
-            <div className="admin-mobile-user-card__header">
-              <h4>{user.name}</h4>
-              <div><StatusBadge user={user} /></div>
-            </div>
-
-            <div className="admin-mobile-user-card__meta">
-              <div>
-                <label>{t("superadmin.users.columns.contact")}</label>
-                <p>{userContactLabel(user)}</p>
-              </div>
-              <div>
-                <label>{t("superadmin.users.columns.joined")}</label>
-                <p>{formatDate(user.createdAt)}</p>
-              </div>
-            </div>
-
-            <div className="admin-mobile-user-card__actions">
-              <RowActions user={user} {...handlers} />
-            </div>
-          </article>
-        ))
-      )}
-    </div>
-  );
-}
-
-function UserDirectory({ title, role, data, handlers, filtered }) {
-  const { t } = useTranslation();
-  return (
-    <div className="admin-panel-card">
-      <div className="admin-card-header">
-        <h3>{title}</h3>
-      </div>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>{t("superadmin.users.columns.name")}</th>
-              <th>{t("superadmin.users.columns.contact")}</th>
-              <th>{t("superadmin.users.columns.status")}</th>
-              <th>{t("superadmin.users.columns.joined")}</th>
-              <th>{t("superadmin.users.columns.actions")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="um-empty-cell"><UserDirectoryEmpty role={role} filtered={filtered} /></td>
-              </tr>
-            ) : (
-              data.map((user) => (
-                <tr key={user._id}>
-                  <td>{user.name}</td>
-                  <td>{userContactLabel(user)}</td>
-                  <td><StatusBadge user={user} /></td>
-                  <td>{formatDate(user.createdAt)}</td>
-                  <td><RowActions user={user} {...handlers} /></td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      <UserDirectoryCards title={title} role={role} data={data} handlers={handlers} filtered={filtered} />
-    </div>
-  );
-}
-
-// Builds a page-number list with "…" gap markers, e.g. [1, "…", 4, 5, 6, "…", 12].
-function buildPageList(current, total) {
-  const pages = [];
-  for (let i = 1; i <= total; i += 1) {
-    if (i === 1 || i === total || (i >= current - 1 && i <= current + 1)) {
-      pages.push(i);
-    }
-  }
-
-  const withEllipsis = [];
-  let previous = 0;
-  for (const i of pages) {
-    if (previous && i - previous > 1) {
-      withEllipsis.push("…");
-    }
-    withEllipsis.push(i);
-    previous = i;
-  }
-  return withEllipsis;
-}
+// A phone gets cards, a smaller page and the collapsible Filters panel.
+const MOBILE_QUERY = "(max-width: 600px)";
 
 export default function UserManagement() {
   const { t } = useTranslation();
@@ -236,16 +45,20 @@ export default function UserManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
   const state = useMemo(() => parseDirectoryState(searchParams), [searchParams]);
   const { tab: activeTab, page } = state;
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  const pageSize = isMobile ? MOBILE_PAGE_SIZE : PAGE_SIZE;
   const [searchText, setSearchText] = useState(state.q);
   const searchDebouncer = useRef(createDebouncer(300));
   const [exporting, setExporting] = useState(false);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [totalPages, setTotalPages] = useState(1);
   const [totalMatching, setTotalMatching] = useState(0);
-  // Independent of the current page/tab — the tab badges need the TRUE total
-  // per role, not just how many rows happen to be on the current page.
-  const [counts, setCounts] = useState({ employerCount: 0, jobseekerCount: 0 });
+  // Server counts for the tab labels and the filter chips. They ignore the
+  // search box and the other filters, so the numbers stay stable.
+  const [counts, setCounts] = useState(null);
+  const [lockouts, setLockouts] = useState(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -285,6 +98,15 @@ export default function UserManagement() {
 
   const stateKey = serializeDirectoryState(state).toString();
 
+  // A link that carries a filter this tab does not show (for example No email on
+  // Employers) is rewritten once without it, so an invisible filter can never
+  // be hiding rows.
+  useEffect(() => {
+    if (!isCanonicalQuery(searchParams)) {
+      setSearchParams(serializeDirectoryState(parseDirectoryState(searchParams)), { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   useEffect(() => {
     const debouncer = searchDebouncer.current;
     return () => debouncer.cancel();
@@ -298,7 +120,7 @@ export default function UserManagement() {
   const clearFilters = () => {
     searchDebouncer.current.cancel();
     setSearchText("");
-    updateState({ q: "", status: "", verification: "", noEmail: false, idle90: false, lockedNow: false });
+    updateState(CLEAR_PATCH);
   };
 
   useEffect(() => {
@@ -306,16 +128,18 @@ export default function UserManagement() {
 
     const loadUsers = async () => {
       setLoading(true);
+      setOpenMenuId(null);
       try {
-        const { data } = await adminAPI.getUsers(toApiParams(parseDirectoryState(new URLSearchParams(stateKey))));
+        const { data } = await adminAPI.getUsers(
+          toApiParams(parseDirectoryState(new URLSearchParams(stateKey)), { pageSize, details: true })
+        );
         if (!isMounted) return;
         setUsers(Array.isArray(data?.users) ? data.users : []);
-        setTotalPages(Math.max(Number(data?.totalPages) || 1, 1));
         setTotalMatching(Number(data?.total) || 0);
       } catch {
         if (isMounted) {
           setUsers([]);
-          setTotalPages(1);
+          setTotalMatching(0);
         }
       } finally {
         if (isMounted) {
@@ -328,37 +152,47 @@ export default function UserManagement() {
     return () => {
       isMounted = false;
     };
-  }, [stateKey, reloadKey]);
+  }, [stateKey, reloadKey, pageSize]);
 
-  // Total counts for the tab badges. Deleted accounts are not counted, and the
+  // A shorter page size (a phone) or a removed row can leave the URL on a page
+  // that no longer exists: go to the last one that does.
+  useEffect(() => {
+    if (loading || users.length > 0 || totalMatching === 0 || page <= 1) return;
+    updateState({ page: Math.max(1, Math.ceil(totalMatching / pageSize)) });
+  }, [loading, users.length, totalMatching, page, pageSize, updateState]);
+
+  // Tab totals and chip counts: deleted accounts are not counted, and the
   // numbers refresh after every delete or restore.
   useEffect(() => {
     let isMounted = true;
-
-    const loadCounts = async () => {
-      try {
-        const [employerRes, jobseekerRes] = await Promise.all([
-          adminAPI.getUsers({ role: "employer", page: 1, limit: 1 }),
-          adminAPI.getUsers({ role: "jobseeker", page: 1, limit: 1 }),
-        ]);
-        if (!isMounted) return;
-        setCounts({
-          employerCount: Number(employerRes.data?.total) || 0,
-          jobseekerCount: Number(jobseekerRes.data?.total) || 0,
-        });
-      } catch {
-        // Badge counts are a nice-to-have; leave them at 0 on failure rather
-        // than blocking the directory table itself.
-      }
-    };
-
-    loadCounts();
+    adminAPI
+      .getUserDirectoryCounts()
+      .then(({ data }) => {
+        if (isMounted) setCounts(data || null);
+      })
+      .catch(() => {
+        // Counts are a nice-to-have; the directory itself still works.
+      });
     return () => {
       isMounted = false;
     };
   }, [reloadKey]);
 
-  const directoryTitle = activeTab === "jobseekers" ? "Jobseekers Directory" : "Employers Directory";
+  // The 24 hour / 7 day lockout line beside the Jobseekers chips.
+  useEffect(() => {
+    let isMounted = true;
+    adminAPI
+      .getAccountSecuritySummary()
+      .then(({ data }) => {
+        if (isMounted && data) setLockouts({ locksLast24h: Number(data.locksLast24h) || 0, locksLast7d: Number(data.locksLast7d) || 0 });
+      })
+      .catch(() => {
+        // The line is simply left out.
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [reloadKey]);
 
   const performToggleUserStatus = async (user) => {
     const nextStatus = user.isActive === false;
@@ -451,37 +285,13 @@ export default function UserManagement() {
     onRestore: handleRestore,
   };
 
-  const renderTabContent = () => {
-    if (loading) {
-      return (
-        <div className="admin-panel-card">
-          <StateBlock kind="loading" className="um-state" title={t("superadmin.users.loading")} />
-        </div>
-      );
-    }
-
-    return (
-      <UserDirectory
-        title={directoryTitle}
-        role={activeTab === "jobseekers" ? "jobseekers" : "employers"}
-        data={users}
-        handlers={handlers}
-        filtered={hasActiveFilters(state)}
-      />
-    );
-  };
+  const filtered = hasActiveFilters(state);
+  const tabCounts = counts ? counts[activeTab] : null;
 
   return (
     <div className="admin-page-container um-page">
-      <AdminHeader
-        title={t("navbar.userManagement")}
-        description={t("superadmin.users.subtitle")}
-      />
-
-      <UserStatCards
-        employers={counts.employerCount}
-        jobseekers={counts.jobseekerCount}
-      />
+      {/* The top bar shows the page title; this keeps the page's own heading for screen readers. */}
+      <h1 className="ds-sr-only">{t("navbar.userManagement")}</h1>
 
       <div className="ds-tabs um-tabs" role="tablist" aria-label={t("superadmin.users.tabsLabel")}>
         {Object.entries(tabMeta).map(([key, meta]) => (
@@ -498,147 +308,64 @@ export default function UserManagement() {
           >
             <meta.Icon size={18} aria-hidden="true" />
             <span>{t(meta.labelKey)}</span>
-            <span className="ds-tab__count">
-              {counts[meta.badgeKey]}
-            </span>
+            <span className="ds-tab__count">{counts?.[key]?.total ?? 0}</span>
           </button>
         ))}
       </div>
 
-      {activeTab === "jobseekers" && <AccountSecuritySummary />}
+      <section className="um-card" aria-label={t(tabMeta[activeTab].labelKey)}>
+        <UserDirectoryToolbar
+          state={state}
+          searchText={searchText}
+          onSearchChange={onSearchChange}
+          updateState={updateState}
+          counts={tabCounts}
+          lockouts={activeTab === "jobseekers" ? lockouts : null}
+          isMobile={isMobile}
+          filtersOpen={filtersOpen}
+          onFiltersOpenChange={setFiltersOpen}
+          onExport={handleExport}
+          exporting={exporting}
+        />
 
-      <form
-        className="um-filters"
-        role="search"
-        aria-label={t("superadmin.users.filters.label")}
-        onSubmit={(event) => event.preventDefault()}
-      >
-        <div className="um-field um-field--grow">
-          <label htmlFor="um-search">{t("superadmin.users.filters.search")}</label>
-          <input
-            id="um-search"
-            type="search"
-            value={searchText}
-            maxLength={100}
-            placeholder={t("superadmin.users.filters.searchPlaceholder")}
-            onChange={(event) => onSearchChange(event.target.value)}
+        <div className="um-list">
+          <UserDirectoryList
+            users={users}
+            role={activeTab}
+            isMobile={isMobile}
+            loading={loading}
+            filtered={filtered}
+            onClear={clearFilters}
+            handlers={handlers}
+            openMenuId={openMenuId}
+            onOpenMenuChange={setOpenMenuId}
           />
         </div>
 
-        <div className="um-field">
-          <label htmlFor="um-status">{t("superadmin.users.filters.status")}</label>
-          <select id="um-status" value={state.status} onChange={(event) => updateState({ status: event.target.value })}>
-            <option value="">{t("superadmin.users.filters.statusAll")}</option>
-            {STATUS_OPTIONS.map((key) => (
-              <option key={key} value={key}>{t(`superadmin.users.status.${key}`)}</option>
-            ))}
-          </select>
-        </div>
+        <p className="ds-sr-only" role="status" aria-live="polite">
+          {loading ? "" : t("superadmin.users.filters.results", { count: totalMatching })}
+        </p>
 
-        {activeTab === "employers" && (
-          <div className="um-field">
-            <label htmlFor="um-verification">{t("superadmin.users.filters.verification")}</label>
-            <select
-              id="um-verification"
-              value={state.verification}
-              onChange={(event) => updateState({ verification: event.target.value })}
-            >
-              <option value="">{t("superadmin.users.filters.verificationAll")}</option>
-              {VERIFICATION_OPTIONS.map((key) => (
-                <option key={key} value={key}>{t(`superadmin.users.filters.verificationOptions.${key}`)}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="um-field">
-          <label htmlFor="um-sort">{t("superadmin.users.filters.sort")}</label>
-          <select id="um-sort" value={state.sort} onChange={(event) => updateState({ sort: event.target.value, order: "" })}>
-            {SORT_OPTIONS.map((key) => (
-              <option key={key} value={key}>{t(`superadmin.users.filters.sortOptions.${key}`)}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="um-field">
-          <label htmlFor="um-order">{t("superadmin.users.filters.order")}</label>
-          <select id="um-order" value={state.order} onChange={(event) => updateState({ order: event.target.value })}>
-            <option value="">{t("superadmin.users.filters.orderNewest")}</option>
-            <option value="asc">{t("superadmin.users.filters.orderAsc")}</option>
-            <option value="desc">{t("superadmin.users.filters.orderDesc")}</option>
-          </select>
-        </div>
-
-        <div className="um-checks">
-          <label className="um-check">
-            <input type="checkbox" checked={state.noEmail} onChange={(event) => updateState({ noEmail: event.target.checked })} />
-            <span>{t("superadmin.users.filters.noEmail")}</span>
-          </label>
-          <label className="um-check">
-            <input type="checkbox" checked={state.idle90} onChange={(event) => updateState({ idle90: event.target.checked })} />
-            <span>{t("superadmin.users.filters.idle90")}</span>
-          </label>
-          <label className="um-check">
-            <input type="checkbox" checked={state.lockedNow} onChange={(event) => updateState({ lockedNow: event.target.checked })} />
-            <span>{t("superadmin.users.filters.lockedNow")}</span>
-          </label>
-        </div>
-
-        <div className="um-filters__actions">
-          {hasActiveFilters(state) && (
-            <button type="button" className="um-btn" onClick={clearFilters}>{t("superadmin.users.filters.clear")}</button>
-          )}
-          <button type="button" className="um-btn" onClick={handleExport} disabled={exporting} aria-describedby="um-export-hint">
-            {exporting ? t("superadmin.users.export.exporting") : t("superadmin.users.export.button")}
-          </button>
-        </div>
-        <small id="um-export-hint" className="um-filters__hint">{t("superadmin.users.export.hint")}</small>
-      </form>
-
-      <p className="um-count" role="status" aria-live="polite">
-        {loading ? "" : t("superadmin.users.filters.results", { count: totalMatching })}
-      </p>
-
-      <div className="tab-content">{renderTabContent()}</div>
-
-      {(
-        <nav className="admin-pagination um-pagination" aria-label={t("superadmin.pagination.label")}>
-          <button
-            type="button"
-            disabled={page === 1}
-            onClick={() => updateState({ page: Math.max(1, page - 1) })}
-          >
-            Previous
-          </button>
-          <div className="um-pagination__pages">
-            {buildPageList(page, totalPages).map((item, index) =>
-              item === "…" ? (
-                <span key={`ellipsis-${index}`} className="um-pagination__ellipsis">
-                  …
-                </span>
-              ) : (
-                <button
-                  key={item}
-                  type="button"
-                  className={`um-pagination__page ${item === page ? "active" : ""}`}
-                  aria-current={item === page ? "page" : undefined}
-                  disabled={item === page}
-                  onClick={() => updateState({ page: item })}
-                >
-                  {item}
+        <div className="um-footer">
+          <Pagination
+            total={totalMatching}
+            page={page}
+            pageSize={pageSize}
+            showPageSize={false}
+            idPrefix="um-pager"
+            label={t("pagination.items.accounts")}
+            onPageChange={(next) => updateState({ page: next })}
+            summaryExtra={
+              filtered ? (
+                <button type="button" className="um-linkbtn" onClick={clearFilters}>
+                  {t("superadmin.users.filters.clear")}
                 </button>
-              )
-            )}
-          </div>
-          <button
-            type="button"
-            disabled={page >= totalPages}
-            onClick={() => updateState({ page: Math.min(totalPages, page + 1) })}
-          >
-            Next
-          </button>
-        </nav>
-      )}
+              ) : null
+            }
+          />
+          <p className="um-hint" id="um-export-hint">{t("superadmin.users.export.hint")}</p>
+        </div>
+      </section>
 
       {selectedUser ? (
         <div className="admin-warning-modal-backdrop" onClick={() => setSelectedUser(null)}>

@@ -27,6 +27,7 @@ export default function Pagination({
   scrollTargetRef,
   variant = "inline", // "card": a standalone bar under a list (inline sits inside a table card)
   showPageSize = true, // false for a list with one fixed page size
+  summaryExtra = null, // optional node shown right after the summary (for example a Clear filters button)
 }) {
   const { t } = useTranslation();
   const summaryRef = useRef(null);
@@ -83,6 +84,7 @@ export default function Pagination({
       <p className="pager__summary" ref={summaryRef} tabIndex={-1}>
         {summary}
       </p>
+      {summaryExtra ? <div className="pager__extra">{summaryExtra}</div> : null}
 
       <nav className="pager__nav" aria-label={t("pagination.label")}>
         <button type="button" className="pager__btn pager__btn--step" disabled={disabled || current <= 1} onClick={() => go(current - 1)}>
