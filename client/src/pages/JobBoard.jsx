@@ -34,7 +34,7 @@ export default function JobBoard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalJobs, setTotalJobs] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [jobsPerPage] = useState(6);
+  const [jobsPerPage] = useState(9);
   const [activeFilters, setActiveFilters] = useState({});
   const [applyModalJobId, setApplyModalJobId] = useState(null);
   // Phone compact cards: only one card's match and apply area is open at a time.
