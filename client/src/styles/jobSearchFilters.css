@@ -366,10 +366,6 @@
     margin-top: 0;
   }
 
-  .jsf-actions:empty {
-    display: none;
-  }
-
   .jsf-apply {
     display: none;
   }

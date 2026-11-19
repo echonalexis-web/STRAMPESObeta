@@ -230,6 +230,9 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
     mustHavesOn,
   ].filter(Boolean).length;
 
+  // The keyword counts for Clear filters, but not for the Filters badge.
+  const hasAnyFilter = activeFilterCount > 0 || Boolean(String(filters.q || '').trim());
+
   return (
     <>
     <form
@@ -387,7 +390,7 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
 
         <div className="jsf-actions">
           {/* Shown only while a refinement is set. */}
-          {activeFilterCount > 0 && (
+          {hasAnyFilter && (
             <button
               type="button"
               className="ds-btn ds-btn--secondary btn-reset"
