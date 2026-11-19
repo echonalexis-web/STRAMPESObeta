@@ -14,6 +14,7 @@ const { createNotificationForUser } = require("../services/notificationService")
 const { forceLogout } = require("../services/sessionService");
 const { escapeRegex } = require("../utils/sanitize");
 const { sendError } = require("../utils/sendError");
+const { isEmployerUnlisted } = require("../utils/jobVisibility");
 
 const monthBuckets = () => Array.from({ length: 12 }, () => 0);
 
@@ -763,7 +764,7 @@ exports.getAdminVacancies = async (req, res) => {
     const [total, jobs] = await Promise.all([
       JobVacancy.countDocuments(filter),
       JobVacancy.find(filter)
-        .populate("employer", "name email companyName verificationStatus")
+        .populate("employer", "name email companyName verificationStatus isActive accountStatus")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -805,6 +806,9 @@ exports.getAdminVacancies = async (req, res) => {
         applicantCount: Number(applicationCountMap[String(job._id)] || 0),
         qualifications: job.qualifications || [],
         severity,
+        // True while the employer account is suspended, banned or deactivated:
+        // the posting is hidden from the public but kept here for staff.
+        unlisted: isEmployerUnlisted(job.employer),
       };
     });
 

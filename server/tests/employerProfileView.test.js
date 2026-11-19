@@ -2,6 +2,12 @@
 // business address, owner and authorized person (name and position), and the open
 // postings (GET /profiles/:id/jobs). Forbidden fields must be ABSENT from the JSON.
 
+jest.mock("../utils/jobVisibility", () => ({
+  ...jest.requireActual("../utils/jobVisibility"),
+  // Employer gate stubbed to "nobody is locked": plain functions so resetAllMocks keeps them.
+  getUnlistedEmployerIds: async () => [],
+  withListedEmployers: async (filter) => filter,
+}));
 jest.mock("../models/User", () => ({ findById: jest.fn() }));
 jest.mock("../models/JobseekerProfile", () => ({ findOne: jest.fn() }));
 jest.mock("../models/EmployerProfile", () => ({ findOne: jest.fn() }));

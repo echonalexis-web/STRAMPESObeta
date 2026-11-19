@@ -3,6 +3,7 @@ const JobVacancy = require("../models/JobVacancy");
 const User = require("../models/User");
 const { notifyLike } = require("../services/notificationService");
 const { logAuditEvent } = require("../services/auditService");
+const { withListedEmployers } = require("../utils/jobVisibility");
 
 // Like a job
 exports.likeJob = async (req, res) => {
@@ -13,6 +14,11 @@ exports.likeJob = async (req, res) => {
     // Check if job exists
     const job = await JobVacancy.findById(jobId);
     if (!job) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    // A job of a suspended or deactivated employer is unlisted: same answer as a missing job.
+    const listed = await JobVacancy.countDocuments(await withListedEmployers({ _id: job._id }));
+    if (!listed) {
       return res.status(404).json({ error: "Job not found" });
     }
 
@@ -111,11 +117,19 @@ exports.getLikedJobs = async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 10, 100);
     const skip = (page - 1) * limit;
 
+    // Saved jobs of a suspended or deactivated employer are unlisted: they stay
+    // saved (nothing is deleted) and reappear when the account is reactivated.
+    const savedIds = await JobLike.find({ userId }).distinct("jobId");
+    const listedIds = savedIds.length
+      ? await JobVacancy.find(await withListedEmployers({ _id: { $in: savedIds } })).distinct("_id")
+      : [];
+    const likeFilter = { userId, jobId: { $in: listedIds } };
+
     // Get total liked jobs count
-    const totalLikes = await JobLike.countDocuments({ userId });
+    const totalLikes = await JobLike.countDocuments(likeFilter);
 
     // Get paginated liked jobs
-    const likedJobs = await JobLike.find({ userId })
+    const likedJobs = await JobLike.find(likeFilter)
       .populate({
         path: "jobId",
         select: "title description company location salary workNature industry qualifications postedAt employer",

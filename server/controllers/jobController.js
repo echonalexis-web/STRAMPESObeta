@@ -21,7 +21,7 @@ const logger = require("../utils/logger");
 const { runPostCommit } = require("../utils/postCommit");
 
 // Job visibility rules live in utils/jobVisibility.js (shared with the employer postings list).
-const { isJobVisibleToJobseekers } = require("../utils/jobVisibility");
+const { isJobVisibleToJobseekers, isEmployerUnlisted } = require("../utils/jobVisibility");
 
 // Helper to format qualifications for response
 const formatQualifications = (qualifications) => {
@@ -170,7 +170,7 @@ exports.getJobs = async (req, res) => {
     jobs = jobs.filter(job => isJobVisibleToJobseekers(job));
 
     // Hide jobs whose employer account is suspended/deactivated.
-    jobs = jobs.filter(job => job.employer && job.employer.isActive !== false);
+    jobs = jobs.filter(job => job.employer && !isEmployerUnlisted(job.employer));
 
     // If user is logged in as a jobseeker, filter out jobs where they've been hired
     if (req.user && req.user.role === "jobseeker") {
@@ -236,7 +236,7 @@ exports.getHomepageJobs = async (req, res) => {
     jobs = jobs.filter(job => isJobVisibleToJobseekers(job));
 
     // Hide jobs whose employer account is suspended/deactivated.
-    jobs = jobs.filter(job => job.employer && job.employer.isActive !== false);
+    jobs = jobs.filter(job => job.employer && !isEmployerUnlisted(job.employer));
 
     // If user is logged in as a jobseeker, filter out jobs where they've been hired
     if (req.user && req.user.role === "jobseeker") {
@@ -292,11 +292,10 @@ exports.getJobById = async (req, res) => {
     // Treat a suspended employer's posting as unavailable to the public.
     const viewerIsPrivileged =
       req.user && (req.user.role === "admin" || String(req.user.id) === String(job.employer?._id));
-    if (job.employer && job.employer.isActive === false && !viewerIsPrivileged) {
-      // The posting itself was never sensitive — surface its title so the
-      // "no longer available" page can still show a breadcrumb, without
-      // leaking anything about the suspended employer account.
-      return res.status(404).json({ message: "This job is no longer available", title: job.title });
+    if (job.employer && isEmployerUnlisted(job.employer) && !viewerIsPrivileged) {
+      // Identical to a missing job: no title, no hint that the employer account
+      // is suspended or deactivated.
+      return res.status(404).json({ message: "Job not found" });
     }
 
     // Attach employer profile
@@ -402,8 +401,8 @@ exports.applyToJob = async (req, res) => {
     if (job.status !== "active" || !isJobVisibleToJobseekers(job)) {
       return res.status(400).json({ message: "This job is no longer accepting applications." });
     }
-    const employer = job.employer && await User.findById(job.employer).select("isActive");
-    if (!employer || employer.isActive === false) {
+    const employer = job.employer && await User.findById(job.employer).select("isActive accountStatus");
+    if (!employer || isEmployerUnlisted(employer)) {
       return res.status(400).json({ message: "This job is no longer accepting applications." });
     }
 

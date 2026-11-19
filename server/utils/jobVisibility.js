@@ -28,4 +28,54 @@ const buildVisibleJobFilter = (employerId, now = new Date()) => ({
   $or: [{ applicationDeadline: null }, { applicationDeadline: { $gt: now } }],
 });
 
-module.exports = { isJobPastDeadline, isJobVisibleToJobseekers, buildVisibleJobFilter };
+// ---------------------------------------------------------------------------
+// Employer account gate: postings of a suspended, banned or deactivated employer
+// are unlisted everywhere public. Derived at query time from the employer's
+// CURRENT account status; jobs are never mutated, so reactivating the account
+// brings every posting back exactly as it was (a job closed before stays closed).
+//
+// Source of truth is User.isActive (the runtime gate) plus User.accountStatus
+// (the reason). The temporary failed-login lockout (User.loginLock) is a
+// separate mechanism and does NOT unlist anything.
+//
+// Chosen approach: a per-request lookup of the (small) set of locked employer ids,
+// applied as one `employer: { $nin }` clause. No per-job lookup, no denormalized
+// flag to keep in sync, so there is nothing to repair.
+// ---------------------------------------------------------------------------
+const UNLISTED_ACCOUNT_STATUSES = ["suspended", "banned", "deactivated"];
+
+const unlistedEmployerQuery = () => ({
+  role: "employer",
+  $or: [{ isActive: false }, { accountStatus: { $in: UNLISTED_ACCOUNT_STATUSES } }],
+});
+
+// Ids of every employer whose postings are currently unlisted.
+const getUnlistedEmployerIds = async () => {
+  const User = require("../models/User");
+  return User.find(unlistedEmployerQuery()).distinct("_id");
+};
+
+// Adds the employer gate to a JobVacancy filter (keeps any existing employer clause).
+const withListedEmployers = async (filter = {}, unlistedIds = null) => {
+  const ids = unlistedIds || (await getUnlistedEmployerIds());
+  if (!ids.length) return filter;
+  if (filter.employer === undefined) return { ...filter, employer: { $nin: ids } };
+  return { $and: [filter, { employer: { $nin: ids } }] };
+};
+
+// For an employer document (or populated ref) already in hand.
+const isEmployerUnlisted = (employer) => {
+  if (!employer || typeof employer !== "object") return false;
+  if (employer.isActive === false) return true;
+  return UNLISTED_ACCOUNT_STATUSES.includes(employer.accountStatus);
+};
+
+module.exports = {
+  isJobPastDeadline,
+  isJobVisibleToJobseekers,
+  buildVisibleJobFilter,
+  UNLISTED_ACCOUNT_STATUSES,
+  getUnlistedEmployerIds,
+  withListedEmployers,
+  isEmployerUnlisted,
+};

@@ -8,6 +8,8 @@ const { getApplicationCountMap, getHiredCountMap } = require('../utils/jobDispla
 const { escapeRegex } = require('../utils/sanitize');
 const { canPersonalizeRecommendations } = require('../utils/personalizationEligibility');
 const logger = require('../utils/logger');
+const User = require('../models/User');
+const { getUnlistedEmployerIds, withListedEmployers } = require('../utils/jobVisibility');
 
 exports.hybridSearch = async (req, res) => {
   try {
@@ -81,12 +83,25 @@ exports.hybridSearch = async (req, res) => {
       filter.salaryMin = { $ne: null, $lte: Number(salaryMax) };
     }
 
+    // Postings of a suspended, banned or deactivated employer are unlisted:
+    // one employer gate, shared with every other public job query.
+    const unlistedEmployerIds = await getUnlistedEmployerIds();
+    if (unlistedEmployerIds.length) filter.employer = { $nin: unlistedEmployerIds };
+
     if (q) {
-      const qRegex = escapeRegex(q);
+      const qRegex = escapeRegex(String(q).trim().slice(0, 100));
+      // Same fields the suggestions offer: title, description, a company name
+      // or a listed qualification/skill, so picking a suggestion finds its job.
+      const companyIds = await User.find({
+        role: 'employer',
+        companyName: { $regex: qRegex, $options: 'i' },
+      }).distinct('_id');
       filter.$or = [
         { title: { $regex: qRegex, $options: 'i' } },
         { description: { $regex: qRegex, $options: 'i' } },
+        { 'qualifications.value': { $regex: qRegex, $options: 'i' } },
       ];
+      if (companyIds.length) filter.$or.push({ employer: { $in: companyIds } });
     }
 
     // --- 2. Get user skills, preferred industries, and preference level ---
@@ -438,5 +453,75 @@ exports.hybridSearch = async (req, res) => {
   } catch (error) {
     console.error('[Job Board] ERROR:', error);
     res.status(500).json({ message: 'Server error during job search' });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// GET /recommendations/jobs/suggest?q=  — live search suggestions.
+// Minimum 2 characters after trimming, regex-escaped, at most 8 suggestions,
+// listed jobs only (same board rules and employer gate as the feed), deduplicated.
+// ---------------------------------------------------------------------------
+const SUGGEST_MIN_CHARS = 2;
+const SUGGEST_MAX = 8;
+const SUGGEST_MAX_QUERY = 60;
+
+exports.SUGGEST_MIN_CHARS = SUGGEST_MIN_CHARS;
+exports.SUGGEST_MAX = SUGGEST_MAX;
+
+exports.suggestJobs = async (req, res) => {
+  try {
+    const raw = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
+    const q = String(raw ?? '').trim().slice(0, SUGGEST_MAX_QUERY);
+    if (q.length < SUGGEST_MIN_CHARS) return res.json({ suggestions: [] });
+
+    const rx = new RegExp(escapeRegex(q), 'i');
+    const now = new Date();
+    const base = {
+      isActive: true,
+      status: { $ne: 'closed' },
+      archived: { $ne: true },
+      $or: [{ applicationDeadline: null }, { applicationDeadline: { $gt: now } }],
+    };
+    const listed = await withListedEmployers(base);
+
+    const companyIds = await User.find({ role: 'employer', companyName: { $regex: rx } }).distinct('_id');
+    const jobs = await JobVacancy.find({
+      $and: [
+        listed,
+        {
+          $or: [
+            { title: { $regex: rx } },
+            { 'qualifications.value': { $regex: rx } },
+            ...(companyIds.length ? [{ employer: { $in: companyIds } }] : []),
+          ],
+        },
+      ],
+    })
+      .select('title qualifications employer')
+      .populate('employer', 'companyName')
+      .sort({ createdAt: -1 })
+      .limit(60)
+      .lean();
+
+    const out = [];
+    const seen = new Set();
+    const push = (type, text) => {
+      const value = String(text || '').trim();
+      if (!value || !rx.test(value)) return;
+      const key = `${type}:${value.toLowerCase()}`;
+      if (seen.has(key) || out.length >= SUGGEST_MAX) return;
+      seen.add(key);
+      out.push({ type, text: value });
+    };
+    for (const job of jobs) {
+      push('title', job.title);
+      push('company', job.employer?.companyName);
+      for (const qual of job.qualifications || []) push('skill', qual?.value);
+      if (out.length >= SUGGEST_MAX) break;
+    }
+    res.json({ suggestions: out });
+  } catch (error) {
+    logger.error('Job suggestions error:', error.message);
+    res.status(500).json({ message: 'Failed to load suggestions' });
   }
 };

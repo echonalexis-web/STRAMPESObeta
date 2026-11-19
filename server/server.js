@@ -173,6 +173,15 @@ const adminLimiter = createLimiter({
   legacyHeaders: false,
 });
 
+// Search-suggestion limiter: fired while typing, so the budget is per-minute and generous
+const suggestLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: { message: "Too many search suggestions requested, please slow down." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Upload limiter
 const uploadLimiter = createLimiter({
   windowMs: 60 * 60 * 1000,
@@ -441,6 +450,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   const mountApiRoutes = (basePath) => {
     console.log(`📁 Mounting routes at ${basePath}...`);
     
+    app.use(`${basePath}/recommendations/jobs/suggest`, suggestLimiter);
     app.use(`${basePath}/auth/login`, authLimiter);
     app.use(`${basePath}/auth/register`, authLimiter);
     app.use(`${basePath}/auth/register`, registerLimiter);

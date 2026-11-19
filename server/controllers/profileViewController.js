@@ -13,7 +13,7 @@ const { resolveAvatarPreset } = require("../services/avatarPresetService");
 const { normalizeRole, projectJobseeker, projectEmployer, projectEmployerPosting, resolveRelationship, allowedContact, municipalityOf } = require("../services/profileProjection");
 const { sendError } = require("../utils/sendError");
 const { getAgeDenial, sendAgeDenial } = require("../utils/ageAccess");
-const { buildVisibleJobFilter } = require("../utils/jobVisibility");
+const { buildVisibleJobFilter, isEmployerUnlisted, withListedEmployers } = require("../utils/jobVisibility");
 
 const POSTINGS_DEFAULT_LIMIT = 10;
 const POSTINGS_MAX_LIMIT = 50;
@@ -151,7 +151,9 @@ exports.getEmployerJobs = async (req, res) => {
     const limit = Math.min(positiveInt(req.query.limit, POSTINGS_DEFAULT_LIMIT), POSTINGS_MAX_LIMIT);
     const page = positiveInt(req.query.page, 1);
 
-    const filter = buildVisibleJobFilter(ctx.target._id);
+    // A suspended or deactivated employer lists nothing (same empty answer as no postings).
+    if (isEmployerUnlisted(ctx.target)) return res.json({ items: [], total: 0, page, limit });
+    const filter = await withListedEmployers(buildVisibleJobFilter(ctx.target._id));
     // The board hides jobs the viewer was already hired for; so does this list.
     const hired = await JobApplication.find({ applicant: ctx.viewer.id, status: { $in: ["hired", "Accepted"] } }).select("vacancy");
     const hiredIds = (hired || []).map((a) => a.vacancy);

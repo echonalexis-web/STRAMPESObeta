@@ -532,6 +532,8 @@ userSchema.pre("validate", function normaliseCompanySize(next) {
 // existing database is done by scripts/swapUserEmailUsernameIndexes.js.
 // Usage counts for banner templates.
 userSchema.index({ "cover.templateId": 1 }, { sparse: true });
+// Employer account gate for public job queries (utils/jobVisibility.js): finds locked employers.
+userSchema.index({ role: 1, isActive: 1, accountStatus: 1 });
 
 userSchema.index(
   { email: 1 },
