@@ -2866,7 +2866,7 @@ button:disabled,
   line-height: 1.5;
 }
 
-.jb-toolbar { min-width: 0; }
+.jb-toolbar { min-width: 0; container: jbfilters / inline-size; }
 
 .jb-resultbar {
   margin: 0;

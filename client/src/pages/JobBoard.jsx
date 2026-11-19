@@ -205,7 +205,6 @@ export default function JobBoard() {
             filters={activeFilters}
             onChange={handleFilterChange}
             onSearch={handleSearch}
-            onReset={handleReset}
             phLocationsData={phLocationsRaw}
             preferredIndustries={preferredIndustries}
             mustHaveHiddenCount={hiddenByMustHaves}

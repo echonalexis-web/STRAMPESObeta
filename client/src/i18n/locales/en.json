@@ -779,6 +779,49 @@
     "emptyBody": "No jobs match right now. Try fewer filters or check back soon.",
     "clearFilters": "Clear filters",
     "filtersLabel": "Search and filter jobs",
+    "filters": {
+      "search": "Search Jobs",
+      "searchShort": "Search",
+      "keywordPlaceholder": "Search jobs, keywords, titles...",
+      "filtersButton": "Filters",
+      "selectedSr": "selected",
+      "location": "Location",
+      "locationPlaceholder": "City, province, or region",
+      "jobType": "Job type",
+      "allJobTypes": "All Job Types",
+      "sortBy": "Sort by",
+      "sort": {
+        "best": "Best match",
+        "newest": "Newest",
+        "salary": "Highest pay"
+      },
+      "industries": "Industries",
+      "salary": "Salary per month",
+      "min": "Min",
+      "max": "Max",
+      "to": "to",
+      "minAria": "Minimum salary per month in pesos",
+      "maxAria": "Maximum salary per month in pesos",
+      "summary": {
+        "any": "Any",
+        "from": "{{min}} and up",
+        "upTo": "Up to {{max}}",
+        "between": "{{min}} – {{max}}"
+      },
+      "ranges": {
+        "title": "Common salary ranges",
+        "any": "Any",
+        "under15": "Under ₱15k",
+        "15to30": "₱15k – ₱30k",
+        "30to50": "₱30k – ₱50k",
+        "over50": "₱50k and up"
+      },
+      "salaryInvalid": "Minimum salary is higher than the maximum",
+      "mustHaves": "Only show jobs where I meet every must-have",
+      "hiddenCount_one": "Hiding {{count}} job you don't fully qualify for",
+      "hiddenCount_other": "Hiding {{count}} jobs you don't fully qualify for",
+      "showResults": "Show results"
+    },
     "industries": {
       "button": "Filter industries",
       "buttonCount": "Filter industries ({{count}})",

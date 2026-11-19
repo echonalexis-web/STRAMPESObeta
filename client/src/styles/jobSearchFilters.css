@@ -1,19 +1,25 @@
 /* ============================================================ */
 /* Job Search Filters — STRAM PESO                               */
-/* Mobile-first: the keyword search + Search + Filters toggle are */
-/* always visible; every other refinement lives in a collapsible */
-/* panel (.jsf-panel) below 768px and is shown inline from 768px. */
+/* One labelled container above the Browse Jobs results. Layout  */
+/* follows the width of the container (.jb-toolbar is the        */
+/* "jbfilters" container), so it adapts when the app navigation  */
+/* expands or collapses:                                         */
+/*   < 600px   search row + Filters button; controls collapse    */
+/*   >= 600px  6-column grid                                     */
+/*   >= 960px  12-column grid                                    */
 /* ============================================================ */
 
 .job-search-filters {
+  --jsf-border: #7b8b84; /* about 3.6:1 against white */
   display: block;
   box-sizing: border-box;
   background: var(--ds-surface);
   border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-lg);
+  border-radius: var(--ds-radius-card, var(--ds-radius-lg));
   padding: var(--ds-space-3);
   font-family: var(--ds-font-body);
-  box-shadow: var(--ds-shadow-1);
+  margin: 0;
+  box-shadow: none;
   overflow: visible;
 }
 
@@ -26,13 +32,12 @@
 /* ─── Primary bar (always visible) ─── */
 .jsf-bar {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--ds-space-2);
 }
 
 .jsf-search {
   position: relative;
-  flex: 1 1 100%;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -52,19 +57,60 @@
   margin: 0;
 }
 
-.job-search-filters .filter-submit-btn,
-.job-search-filters .jsf-toggle {
-  flex: 1 1 0;
+.job-search-filters .filter-submit-btn {
+  flex: 0 0 auto;
   min-width: 0;
   white-space: nowrap;
+  padding: 0 var(--ds-space-5);
 }
 
-.jsf-toggle .jsf-count {
+.jsf-submit-long { display: none; }
+
+/* ─── Controls: one style for every input, select and button ─── */
+.job-search-filters .ds-input,
+.job-search-filters .filter-industries-btn,
+.job-search-filters .jsf-money {
+  width: 100%;
+  min-width: 0;
+  height: var(--ds-tap);
+  padding: 0 var(--ds-space-3);
+  border: 1px solid var(--jsf-border);
+  border-radius: var(--ds-radius-md);
+  background: #fff;
+  color: var(--ds-text);
+  box-shadow: none;
+  font-family: inherit;
+  font-size: var(--ds-text-md);
+}
+
+.job-search-filters .filter-select { cursor: pointer; }
+
+.job-search-filters .ds-input:focus-visible,
+.job-search-filters .filter-industries-btn:focus-visible,
+.job-search-filters .jsf-money:focus-within,
+.job-search-filters .jsf-chip:focus-visible,
+.job-search-filters .jsf-toggle:focus-visible,
+.job-search-filters .jsf-clear:focus-visible,
+.job-search-filters .must-haves-switch input:focus-visible {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 1px;
+}
+
+/* ─── Narrow: Filters toggle + collapsible panel ─── */
+.job-search-filters .jsf-toggle {
+  width: 100%;
+  margin-top: var(--ds-space-2);
+  min-height: var(--ds-tap);
+  justify-content: center;
+  gap: var(--ds-space-2);
+}
+
+.jsf-toggle .jsf-count,
+.filter-industries-btn .jsf-count {
   min-width: 22px;
   justify-content: center;
 }
 
-/* ─── Collapsible panel ─── */
 .jsf-panel {
   display: none;
   margin-top: var(--ds-space-3);
@@ -76,39 +122,159 @@
   display: block;
 }
 
-.jsf-fields {
+.jsf-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--ds-space-3);
 }
 
-.jsf-fields > * {
+.jsf-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
   min-width: 0;
 }
 
-/* ─── Inputs & selects (16px: no iOS zoom; 44px tall via .ds-input) ─── */
-.job-search-filters .filter-input,
-.job-search-filters .filter-select {
-  width: 100%;
-  font-size: var(--ds-text-md);
-}
-
-.job-search-filters .ds-input.filter-select {
-  min-width: 0;
-  height: var(--ds-tap);
-  padding: 0 var(--ds-space-3);
-  border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-surface);
+.jsf-label {
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
   color: var(--ds-text);
-  box-shadow: none;
+}
+
+.jsf-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+  flex-wrap: wrap;
+}
+
+.jsf-salary-summary {
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+  color: var(--ds-green);
+  font-variant-numeric: tabular-nums;
+}
+
+.filter-industries-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ─── Salary: Min to Max boxes ─── */
+.jsf-salary-boxes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.jsf-salary-to {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-muted);
+}
+
+.job-search-filters .jsf-money {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  padding: 0 var(--ds-space-3);
+}
+
+.jsf-money__sign {
+  flex: 0 0 auto;
+  color: var(--ds-muted);
+  font-weight: 600;
+}
+
+.job-search-filters .jsf-money__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ds-text);
+  font-family: inherit;
+  font-size: var(--ds-text-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.job-search-filters .jsf-money__input:focus-visible {
+  outline: none;
+}
+
+.job-search-filters .jsf-money__input::placeholder {
+  color: var(--ds-muted);
+}
+
+/* Min above Max: red border, soft glow and light red fill on both boxes. */
+.job-search-filters .jsf-money.is-invalid {
+  border-color: var(--ds-danger);
+  background: var(--ds-danger-bg);
+  box-shadow: 0 0 0 3px var(--ds-danger-ring);
+}
+
+.jsf-salary-error {
+  margin: var(--ds-space-1) 0 0;
+}
+
+/* ─── Common salary ranges ─── */
+.jsf-ranges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.jsf-ranges__label {
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  color: var(--ds-text);
+}
+
+.jsf-ranges__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+
+.job-search-filters .jsf-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-4);
+  border: 1px solid var(--jsf-border);
+  border-radius: var(--ds-radius-pill);
+  background: #fff;
+  color: var(--ds-text);
+  font-family: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
   cursor: pointer;
 }
 
-.job-search-filters .filter-input:focus-visible,
-.job-search-filters .filter-select:focus-visible {
-  outline: 3px solid var(--ds-focus);
-  outline-offset: 1px;
+.job-search-filters .jsf-chip:hover {
+  border-color: var(--ds-green-secondary);
+  background: var(--ds-mint);
+}
+
+/* Pressed is also exposed as aria-pressed and a check glyph, not colour alone. */
+.job-search-filters .jsf-chip.is-pressed {
+  background: var(--ds-green);
+  border-color: var(--ds-green);
+  color: #fff;
+}
+
+.job-search-filters .jsf-chip.is-pressed::before {
+  content: "\2713";
+  margin-right: var(--ds-space-2);
+  font-weight: 800;
 }
 
 /* ─── Location autocomplete ─── */
@@ -148,128 +314,15 @@
   background: var(--ds-mint);
 }
 
-/* ─── Salary range slider ─── */
-.salary-range-field {
-  background: var(--ds-surface);
-  border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-md);
-  padding: var(--ds-space-3) var(--ds-space-4) var(--ds-space-2);
-}
-
-.salary-range-header {
+/* ─── Footer: must-haves left, Clear filters right ─── */
+.jsf-footer {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--ds-space-1) var(--ds-space-2);
-}
-
-.salary-range-label {
-  font-size: var(--ds-text-sm);
-  font-weight: 600;
-  color: var(--ds-text);
-}
-
-.salary-range-value {
-  font-size: var(--ds-text-sm);
-  font-weight: 700;
-  color: var(--ds-green);
-  font-variant-numeric: tabular-nums;
-}
-
-/* 44px tall hit zone; the visible track stays a thin 4px line */
-.salary-range-track-wrap {
-  position: relative;
-  height: var(--ds-tap);
-  display: flex;
   align-items: center;
-}
-
-.salary-range-track {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--ds-border);
-}
-
-.salary-range-fill {
-  position: absolute;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--ds-green-secondary);
-}
-
-.salary-range-input {
-  position: absolute;
-  left: 0;
-  right: 0;
-  width: 100%;
-  height: var(--ds-tap);
-  margin: 0;
-  background: transparent;
-  pointer-events: none;
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.salary-range-input::-webkit-slider-runnable-track {
-  background: transparent;
-  height: 4px;
-}
-
-.salary-range-input::-moz-range-track {
-  background: transparent;
-  height: 4px;
-}
-
-.salary-range-input::-webkit-slider-thumb {
-  appearance: none;
-  -webkit-appearance: none;
-  pointer-events: auto;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--ds-green);
-  border: 3px solid var(--ds-surface);
-  box-shadow: var(--ds-shadow-2);
-  cursor: pointer;
-  margin-top: -12px;
-}
-
-.salary-range-input::-moz-range-thumb {
-  pointer-events: auto;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--ds-green);
-  border: 3px solid var(--ds-surface);
-  box-shadow: var(--ds-shadow-2);
-  cursor: pointer;
-}
-
-.salary-range-input:focus-visible::-webkit-slider-thumb {
-  outline: 3px solid var(--ds-focus);
-  outline-offset: 2px;
-}
-
-.salary-range-input:focus-visible::-moz-range-thumb {
-  outline: 3px solid var(--ds-focus);
-  outline-offset: 2px;
-}
-
-.salary-range-input:focus-visible {
-  outline: none;
-}
-
-/* ─── Must-haves row, industries button ─── */
-.job-search-filters .filter-row {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--ds-space-2);
+  gap: var(--ds-space-2) var(--ds-space-4);
   margin-top: var(--ds-space-4);
+  padding-top: var(--ds-space-3);
+  border-top: 1px solid var(--ds-border);
 }
 
 .must-haves-switch {
@@ -297,53 +350,45 @@
 .must-haves-hidden-count {
   display: block;
   font-size: var(--ds-text-sm);
-  color: #7a5b00;
+  color: var(--ds-warning);
   font-weight: 600;
 }
 
-/* ─── Panel actions (Reset + Show results) ─── */
-.jsf-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--ds-space-2);
-  margin-top: var(--ds-space-4);
-  padding-top: var(--ds-space-3);
-  border-top: 1px solid var(--ds-border);
+.job-search-filters .jsf-clear {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-tap);
+  padding: 0 var(--ds-space-2);
+  border: 0;
+  background: none;
+  color: var(--ds-green);
+  font-family: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
-/* ─── >=480px ─── */
-@media (min-width: 480px) {
+.job-search-filters .jsf-apply {
+  flex: 1 1 100%;
+  min-height: var(--ds-tap);
+}
+
+/* ─── Container >= 600px: 6-column grid, panel always shown ─── */
+@container jbfilters (min-width: 600px) {
   .job-search-filters {
     padding: var(--ds-space-4);
   }
 
-  .jsf-search {
-    flex-basis: 100%;
-  }
-}
-
-/* ─── >=768px: panel is static, toggle + second submit disappear ─── */
-@media (min-width: 768px) {
-  .job-search-filters {
-    padding: var(--ds-space-5);
-    border-radius: var(--ds-radius-xl);
-  }
-
-  .jsf-bar {
-    flex-wrap: nowrap;
-    gap: var(--ds-space-3);
-  }
-
-  .jsf-search {
-    flex: 1 1 auto;
-  }
+  .jsf-submit-long { display: inline; }
+  .jsf-submit-short { display: none; }
 
   .job-search-filters .filter-submit-btn {
-    flex: 0 0 auto;
     padding: 0 var(--ds-space-8);
   }
 
-  .jsf-toggle {
+  .job-search-filters .jsf-toggle,
+  .job-search-filters .jsf-apply {
     display: none;
   }
 
@@ -351,66 +396,38 @@
     display: block;
   }
 
-  /* Horizontal container: the refinements wrap into an auto-fit grid
-     under the search row, so it never needs horizontal scroll. */
-  .jsf-fields {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  .jsf-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     align-items: end;
   }
 
-  .jsf-actions {
-    display: flex;
-    justify-content: flex-end;
-    border-top: 0;
-    padding-top: 0;
-    margin-top: 0;
+  .jsf-field--location,
+  .jsf-field--jobtype,
+  .jsf-field--sort,
+  .jsf-field--industries { grid-column: span 3; }
+  .jsf-field--salary,
+  .jsf-ranges { grid-column: 1 / -1; }
+
+  .job-search-filters .jsf-clear { margin-left: auto; }
+}
+
+/* ─── Container >= 960px: 12-column grid ─── */
+@container jbfilters (min-width: 960px) {
+  .jsf-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
   }
 
-  .jsf-apply {
-    display: none;
-  }
+  .jsf-field--location { grid-column: span 3; }
+  .jsf-field--jobtype { grid-column: span 2; }
+  .jsf-field--sort { grid-column: span 2; }
+  .jsf-field--industries { grid-column: span 2; }
+  .jsf-field--salary { grid-column: span 3; }
+  .jsf-ranges { grid-column: 1 / -1; }
+
+  .jsf-salary-boxes { gap: var(--ds-space-1); }
+  .job-search-filters .jsf-money { padding: 0 var(--ds-space-2); }
 }
 
-/* ─── >=1024px ─── */
-@media (min-width: 1024px) {
-  .jsf-fields {
-    grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(0, 1fr)) minmax(0, 1.6fr) auto;
-  }
-}
-
-/* ─── Roles refresh (2a): border-first white surface (logged-in only;
-       the filters render on the protected /jobs board) ─── */
-body.app-with-sidebar .job-search-filters {
-  border-color: var(--ds-border);
-  border-radius: var(--ds-radius-card);
-  box-shadow: none;
-}
-
-body.app-with-sidebar .job-search-filters .filter-submit-btn,
-body.app-with-sidebar .job-search-filters .jsf-toggle,
-body.app-with-sidebar .job-search-filters .btn-reset,
-body.app-with-sidebar .job-search-filters .jsf-apply {
-  border-radius: var(--ds-radius-btn);
-}
-
-body.app-with-sidebar .job-search-filters .ds-input.filter-input,
-body.app-with-sidebar .job-search-filters .ds-input.filter-select {
-  border-radius: var(--ds-radius-btn);
-}
-
-body.app-with-sidebar .job-search-filters .salary-range-field {
-  border-color: var(--ds-ink-100);
-  background: var(--ds-ink-50);
-}
-
-body.app-with-sidebar .job-search-filters .must-haves-hidden-count {
-  color: var(--ds-warning);
-}
-
-/* "Filter industries" opens the industries dialog; sits in the fields grid. */
-.job-search-filters .filter-industries-btn {
-  width: 100%;
-  min-height: var(--ds-tap);
-  justify-content: center;
-  white-space: nowrap;
+@media (prefers-reduced-motion: reduce) {
+  .job-search-filters * { transition: none !important; }
 }

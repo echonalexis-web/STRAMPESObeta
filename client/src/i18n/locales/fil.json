@@ -779,6 +779,49 @@
     "emptyBody": "Walang tugmang trabaho sa ngayon. Bawasan ang filter o bumalik ulit mamaya.",
     "clearFilters": "I-clear ang filter",
     "filtersLabel": "Maghanap at mag-filter ng trabaho",
+    "filters": {
+      "search": "Maghanap ng Trabaho",
+      "searchShort": "Hanapin",
+      "keywordPlaceholder": "Maghanap ng trabaho, keyword, titulo...",
+      "filtersButton": "Mga Filter",
+      "selectedSr": "napili",
+      "location": "Lokasyon",
+      "locationPlaceholder": "Lungsod, probinsya, o rehiyon",
+      "jobType": "Uri ng trabaho",
+      "allJobTypes": "Lahat ng Uri ng Trabaho",
+      "sortBy": "Ayusin ayon sa",
+      "sort": {
+        "best": "Pinakaangkop",
+        "newest": "Pinakabago",
+        "salary": "Pinakamataas na sahod"
+      },
+      "industries": "Mga industriya",
+      "salary": "Sahod bawat buwan",
+      "min": "Min",
+      "max": "Max",
+      "to": "hanggang",
+      "minAria": "Pinakamababang sahod bawat buwan sa piso",
+      "maxAria": "Pinakamataas na sahod bawat buwan sa piso",
+      "summary": {
+        "any": "Kahit anong sahod",
+        "from": "{{min}} pataas",
+        "upTo": "Hanggang {{max}}",
+        "between": "{{min}} – {{max}}"
+      },
+      "ranges": {
+        "title": "Karaniwang saklaw ng sahod",
+        "any": "Kahit ano",
+        "under15": "Wala pang ₱15k",
+        "15to30": "₱15k – ₱30k",
+        "30to50": "₱30k – ₱50k",
+        "over50": "₱50k pataas"
+      },
+      "salaryInvalid": "Mas mataas ang minimum na sahod kaysa sa maximum",
+      "mustHaves": "Ipakita lang ang mga trabahong natutugunan ko ang lahat ng kailangan",
+      "hiddenCount_one": "{{count}} trabahong hindi mo lubos na natutugunan ang itinatago",
+      "hiddenCount_other": "{{count}} na trabahong hindi mo lubos na natutugunan ang itinatago",
+      "showResults": "Ipakita ang resulta"
+    },
     "industries": {
       "button": "I-filter ang industriya",
       "buttonCount": "I-filter ang industriya ({{count}})",

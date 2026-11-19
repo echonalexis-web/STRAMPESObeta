@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import '../styles/jobSearchFilters.css';
 import { FaSearch, FaSlidersH } from 'react-icons/fa';
@@ -7,78 +7,23 @@ import { JOB_TYPES as JOB_TYPES_FALLBACK } from '../constants/jobTypes';
 import { VALID_INDUSTRIES as INDUSTRIES_FALLBACK } from '../constants/industries';
 import IndustriesFilterModal from './IndustriesFilterModal';
 import { normalizeIndustries } from '../utils/industrySelection';
+import {
+  SALARY_CHIPS,
+  cleanSalaryInput,
+  salaryValue,
+  isSalaryRangeInvalid,
+  activeSalaryChip,
+  salarySummaryParts,
+} from '../utils/salaryRange';
+import { activeFilterKeys, clearedFilters } from '../utils/jobFilters';
 
 const SORT_OPTIONS = [
-  { value: '', label: 'Best match' },
-  { value: 'newest', label: 'Newest' },
-  { value: 'salary', label: 'Highest pay' },
+  { value: '', key: 'best' },
+  { value: 'newest', key: 'newest' },
+  { value: 'salary', key: 'salary' },
 ];
 
-const SALARY_MIN_BOUND = 0;
-const SALARY_MAX_BOUND = 100000;
-const SALARY_STEP = 1000;
-
-const formatSalaryTick = (value) => {
-  if (value >= SALARY_MAX_BOUND) return `₱${SALARY_MAX_BOUND.toLocaleString('en-PH')}+`;
-  return `₱${value.toLocaleString('en-PH')}`;
-};
-
-/* ─── Dual-handle salary range slider ─── */
-function SalaryRangeSlider({ min, max, onChange }) {
-  const currentMin = Number.isFinite(min) ? min : SALARY_MIN_BOUND;
-  const currentMax = Number.isFinite(max) ? max : SALARY_MAX_BOUND;
-
-  const handleMinChange = (e) => {
-    const next = Math.min(Number(e.target.value), currentMax);
-    onChange(next, currentMax);
-  };
-
-  const handleMaxChange = (e) => {
-    const next = Math.max(Number(e.target.value), currentMin);
-    onChange(currentMin, next);
-  };
-
-  const minPct = ((currentMin - SALARY_MIN_BOUND) / (SALARY_MAX_BOUND - SALARY_MIN_BOUND)) * 100;
-  const maxPct = ((currentMax - SALARY_MIN_BOUND) / (SALARY_MAX_BOUND - SALARY_MIN_BOUND)) * 100;
-
-  return (
-    <div className="salary-range-field">
-      <div className="salary-range-header">
-        <span className="salary-range-label">Salary Range (per month)</span>
-        <span className="salary-range-value">
-          {formatSalaryTick(currentMin)} – {formatSalaryTick(currentMax)}
-        </span>
-      </div>
-      <div className="salary-range-track-wrap">
-        <div className="salary-range-track" />
-        <div
-          className="salary-range-fill"
-          style={{ left: `${minPct}%`, right: `${100 - maxPct}%` }}
-        />
-        <input
-          type="range"
-          className="salary-range-input salary-range-input--min"
-          min={SALARY_MIN_BOUND}
-          max={SALARY_MAX_BOUND}
-          step={SALARY_STEP}
-          value={currentMin}
-          onChange={handleMinChange}
-          aria-label="Minimum salary"
-        />
-        <input
-          type="range"
-          className="salary-range-input salary-range-input--max"
-          min={SALARY_MIN_BOUND}
-          max={SALARY_MAX_BOUND}
-          step={SALARY_STEP}
-          value={currentMax}
-          onChange={handleMaxChange}
-          aria-label="Maximum salary"
-        />
-      </div>
-    </div>
-  );
-}
+const formatPeso = (value) => `₱${Number(value).toLocaleString('en-PH')}`;
 
 /* ─── Flatten PH locations JSON ─── */
 function flattenLocations(rawData) {
@@ -104,8 +49,89 @@ function flattenLocations(rawData) {
   return locations;
 }
 
+/* ─── Typed salary range: Min / Max boxes plus common-range chips ─── */
+function SalaryRangeSetter({ min, max, onChange, minRef }) {
+  const { t } = useTranslation();
+  const labelId = useId();
+  const chipsLabelId = useId();
+  const errorId = useId();
+  const lo = salaryValue(min);
+  const hi = salaryValue(max);
+  const invalid = isSalaryRangeInvalid(lo, hi);
+  const pressed = activeSalaryChip(lo, hi);
+  const parts = salarySummaryParts(lo, hi);
+  const summary = parts.kind === 'any'
+    ? t('jobBoard.filters.summary.any')
+    : parts.kind === 'from'
+      ? t('jobBoard.filters.summary.from', { min: formatPeso(parts.min) })
+      : parts.kind === 'upTo'
+        ? t('jobBoard.filters.summary.upTo', { max: formatPeso(parts.max) })
+        : t('jobBoard.filters.summary.between', { min: formatPeso(parts.min), max: formatPeso(parts.max) });
+
+  const box = (value, which, ariaKey, placeholderKey, ref) => (
+    <span className={`jsf-money ${invalid ? 'is-invalid' : ''}`}>
+      <span className="jsf-money__sign" aria-hidden="true">₱</span>
+      <input
+        ref={ref}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        maxLength={7}
+        className="jsf-money__input"
+        placeholder={t(placeholderKey)}
+        aria-label={t(ariaKey)}
+        aria-invalid={invalid ? 'true' : undefined}
+        aria-describedby={invalid ? errorId : undefined}
+        value={value}
+        onChange={(e) => onChange(
+          which === 'min' ? cleanSalaryInput(e.target.value) : lo,
+          which === 'max' ? cleanSalaryInput(e.target.value) : hi,
+        )}
+      />
+    </span>
+  );
+
+  return (
+    <>
+      <div className="jsf-field jsf-field--salary">
+        <div className="jsf-label-row">
+          <span className="jsf-label" id={labelId}>{t('jobBoard.filters.salary')}</span>
+          <span className="jsf-salary-summary">{summary}</span>
+        </div>
+        <div className="jsf-salary-boxes" role="group" aria-labelledby={labelId}>
+          {box(lo, 'min', 'jobBoard.filters.minAria', 'jobBoard.filters.min', minRef)}
+          <span className="jsf-salary-to">{t('jobBoard.filters.to')}</span>
+          {box(hi, 'max', 'jobBoard.filters.maxAria', 'jobBoard.filters.max')}
+        </div>
+        {invalid && (
+          <p className="ds-field__error jsf-salary-error" id={errorId} role="alert">
+            {t('jobBoard.filters.salaryInvalid')}
+          </p>
+        )}
+      </div>
+
+      <div className="jsf-ranges" role="group" aria-labelledby={chipsLabelId}>
+        <span className="jsf-ranges__label" id={chipsLabelId}>{t('jobBoard.filters.ranges.title')}</span>
+        <div className="jsf-ranges__chips">
+          {SALARY_CHIPS.map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              className={`jsf-chip ${pressed === chip.id ? 'is-pressed' : ''}`}
+              aria-pressed={pressed === chip.id}
+              onClick={() => onChange(chip.min, chip.max)}
+            >
+              {t(`jobBoard.filters.ranges.${chip.id}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* ─── Component ─── */
-const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocationsData, preferredIndustries = [], mustHaveHiddenCount = 0 }) => {
+const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, preferredIndustries = [], mustHaveHiddenCount = 0 }) => {
   const { t } = useTranslation();
   // Admin-maintainable catalogs (item 11) — live from the server, with the
   // old hardcoded lists as a fallback for first paint / offline.
@@ -117,14 +143,24 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
     [phLocationsData]
   );
 
+  const ids = {
+    keyword: useId(),
+    location: useId(),
+    jobType: useId(),
+    sort: useId(),
+    industriesLabel: useId(),
+    industriesBtn: useId(),
+    panel: useId(),
+  };
+
   const [locationQuery, setLocationQuery] = useState(filters.location || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const locationRef = useRef(null);
-  // Mobile: everything except the keyword search lives in a collapsible
-  // panel (always shown >=768px via CSS). Desktop ignores this state.
+  const minRef = useRef(null);
+  // Narrow containers: everything except the keyword search lives in a
+  // collapsible panel (always shown when wide, via CSS).
   const [panelOpen, setPanelOpen] = useState(false);
   const toggleRef = useRef(null);
-  const panelId = 'job-filters-panel';
 
   // Keep location input in sync when parent resets filters externally
   useEffect(() => {
@@ -159,14 +195,24 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
   const selectedIndustries = normalizeIndustries(filters.industry);
   const [industriesOpen, setIndustriesOpen] = useState(false);
 
+  // Every search goes through here: an inverted salary range never reaches
+  // the server (the error under the salary boxes explains why).
+  const runSearch = (nextFilters) => {
+    if (isSalaryRangeInvalid(nextFilters.salaryMin, nextFilters.salaryMax)) {
+      setPanelOpen(true);
+      minRef.current?.focus();
+      return;
+    }
+    if (onSearch) onSearch(nextFilters);
+  };
+
   // Apply takes effect straight away (like the must-haves switch), so the
   // chosen industries are never left half-applied behind a closed dialog.
   const applyIndustries = (next) => {
     const nextFilters = { ...filters, industry: next };
     if (onChange) onChange(nextFilters);
     setIndustriesOpen(false);
-    if (panelOpen) setPanelOpen(false);
-    if (onSearch) onSearch(nextFilters);
+    runSearch(nextFilters);
   };
 
   const handleLocationChange = (e) => {
@@ -182,9 +228,9 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
     setShowSuggestions(false);
   };
 
-  /* ─── Submit / Reset ─── */
+  /* ─── Submit / Clear ─── */
   // Return focus to the toggle after collapsing, but only when the toggle is
-  // actually on screen (it is display:none >=768px, where the panel is static).
+  // actually on screen (it is display:none when the container is wide).
   const closePanel = () => {
     setPanelOpen(false);
     const toggle = toggleRef.current;
@@ -193,8 +239,8 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (panelOpen) closePanel();
-    if (onSearch) onSearch();
+    if (panelOpen && !isSalaryRangeInvalid(filters.salaryMin, filters.salaryMax)) closePanel();
+    runSearch(filters);
   };
 
   // Esc: first dismiss the location suggestions, then collapse the panel.
@@ -210,28 +256,18 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
     }
   };
 
-  const handleResetClick = () => {
+  const handleClear = () => {
     setLocationQuery('');
     setShowSuggestions(false);
-    if (onReset) onReset();
+    const next = clearedFilters(filters);
+    if (onChange) onChange(next);
+    if (onSearch) onSearch(next);
   };
 
   const mustHavesOn = filters.onlyMeetsRequired === true || filters.onlyMeetsRequired === 'true';
-  const hasSalaryMin = filters.salaryMin !== undefined && filters.salaryMin !== '' && filters.salaryMin !== null;
-  const hasSalaryMax = filters.salaryMax !== undefined && filters.salaryMax !== '' && filters.salaryMax !== null;
-  // How many refinements are set (shown on the mobile toggle so a collapsed
-  // panel still tells the user filters are active).
-  const activeFilterCount = [
-    Boolean(String(filters.location || '').trim()),
-    Boolean(filters.jobType),
-    Boolean(filters.sortBy),
-    hasSalaryMin || hasSalaryMax,
-    selectedIndustries.length > 0,
-    mustHavesOn,
-  ].filter(Boolean).length;
-
-  // The keyword counts for Clear filters, but not for the Filters badge.
-  const hasAnyFilter = activeFilterCount > 0 || Boolean(String(filters.q || '').trim());
+  // How many refinements are set (the badge on the narrow Filters button, and
+  // whether Clear filters shows). The keyword and sort order are not filters.
+  const activeCount = activeFilterKeys(filters).length;
 
   return (
     <>
@@ -243,129 +279,143 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
       onKeyDown={handleKeyDown}
       autoComplete="off"
     >
-      <label htmlFor="q" className="ds-sr-only">Search Jobs</label>
+      <label htmlFor={ids.keyword} className="ds-sr-only">{t('jobBoard.filters.search')}</label>
 
       {/* Primary search — always visible, at every width */}
       <div className="jsf-bar">
         <div className="jsf-search">
           <FaSearch className="jsf-search-icon" aria-hidden="true" />
           <input
-            id="q"
+            id={ids.keyword}
             type="text"
             name="q"
             enterKeyHint="search"
             className="ds-input filter-input filter-keyword"
-            placeholder="Search jobs, keywords, titles..."
+            placeholder={t('jobBoard.filters.keywordPlaceholder')}
             value={filters.q || ''}
             onChange={(e) => updateFilter('q', e.target.value)}
           />
         </div>
 
         <button type="submit" className="ds-btn ds-btn--primary filter-submit-btn">
-          Search Jobs
-        </button>
-
-        <button
-          type="button"
-          ref={toggleRef}
-          className="ds-btn ds-btn--secondary jsf-toggle"
-          aria-expanded={panelOpen}
-          aria-controls={panelId}
-          onClick={() => setPanelOpen((open) => !open)}
-        >
-          <FaSlidersH aria-hidden="true" />
-          <span>Filters</span>
-          {activeFilterCount > 0 && (
-            <span className="ds-badge ds-badge--gold jsf-count">
-              {activeFilterCount}
-              <span className="ds-sr-only"> selected</span>
-            </span>
-          )}
+          <span className="jsf-submit-long">{t('jobBoard.filters.search')}</span>
+          <span className="jsf-submit-short">{t('jobBoard.filters.searchShort')}</span>
         </button>
       </div>
 
-      {/* Refinements — collapsible below 768px, static above */}
-      <div id={panelId} className={`jsf-panel ${panelOpen ? 'is-open' : ''}`}>
-        <div className="jsf-fields">
-          <div className="filter-location-wrapper" ref={locationRef}>
-            <input
-              type="text"
-              name="location"
-              className="ds-input filter-input filter-location"
-              placeholder="City, province, or region"
-              aria-label="Location"
-              value={locationQuery}
-              onChange={handleLocationChange}
-              onFocus={() => locationQuery.trim() && setShowSuggestions(true)}
-            />
-            {showSuggestions && suggestions.length > 0 && (
-              <ul className="location-suggestions">
-                {suggestions.map((loc, idx) => (
-                  <li key={idx} onMouseDown={() => pickLocation(loc)}>
-                    {loc}
-                  </li>
-                ))}
-              </ul>
-            )}
+      <button
+        type="button"
+        ref={toggleRef}
+        className="ds-btn ds-btn--secondary jsf-toggle"
+        aria-expanded={panelOpen}
+        aria-controls={ids.panel}
+        onClick={() => setPanelOpen((open) => !open)}
+      >
+        <FaSlidersH aria-hidden="true" />
+        <span>{t('jobBoard.filters.filtersButton')}</span>
+        {activeCount > 0 && (
+          <span className="ds-badge ds-badge--gold jsf-count">
+            {activeCount}
+            <span className="ds-sr-only"> {t('jobBoard.filters.selectedSr')}</span>
+          </span>
+        )}
+      </button>
+
+      {/* Refinements — collapsible in narrow containers, static when wide */}
+      <div id={ids.panel} className={`jsf-panel ${panelOpen ? 'is-open' : ''}`}>
+        <div className="jsf-grid">
+          <div className="jsf-field jsf-field--location" ref={locationRef}>
+            <label className="jsf-label" htmlFor={ids.location}>{t('jobBoard.filters.location')}</label>
+            <div className="filter-location-wrapper">
+              <input
+                id={ids.location}
+                type="text"
+                name="location"
+                className="ds-input filter-input filter-location"
+                placeholder={t('jobBoard.filters.locationPlaceholder')}
+                value={locationQuery}
+                onChange={handleLocationChange}
+                onFocus={() => locationQuery.trim() && setShowSuggestions(true)}
+              />
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="location-suggestions">
+                  {suggestions.map((loc) => (
+                    <li key={loc} onMouseDown={() => pickLocation(loc)}>
+                      {loc}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
 
-          <select
-            name="jobType"
-            className="ds-input filter-select"
-            aria-label="Job type"
-            value={filters.jobType || ''}
-            onChange={(e) => updateFilter('jobType', e.target.value)}
-          >
-            <option value="">All Job Types</option>
-            {JOB_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+          <div className="jsf-field jsf-field--jobtype">
+            <label className="jsf-label" htmlFor={ids.jobType}>{t('jobBoard.filters.jobType')}</label>
+            <select
+              id={ids.jobType}
+              name="jobType"
+              className="ds-input filter-select"
+              value={filters.jobType || ''}
+              onChange={(e) => updateFilter('jobType', e.target.value)}
+            >
+              <option value="">{t('jobBoard.filters.allJobTypes')}</option>
+              {JOB_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            name="sortBy"
-            className="ds-input filter-select"
-            value={filters.sortBy || ''}
-            onChange={(e) => updateFilter('sortBy', e.target.value)}
-            aria-label="Sort jobs by"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value || 'match'} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <div className="jsf-field jsf-field--sort">
+            <label className="jsf-label" htmlFor={ids.sort}>{t('jobBoard.filters.sortBy')}</label>
+            <select
+              id={ids.sort}
+              name="sortBy"
+              className="ds-input filter-select"
+              value={filters.sortBy || ''}
+              onChange={(e) => updateFilter('sortBy', e.target.value)}
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.key} value={opt.value}>
+                  {t(`jobBoard.filters.sort.${opt.key}`)}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <button
-            type="button"
-            className="ds-btn ds-btn--secondary filter-industries-btn"
-            aria-haspopup="dialog"
-            onClick={() => setIndustriesOpen(true)}
-          >
-            {selectedIndustries.length > 0
-              ? t('jobBoard.industries.buttonCount', { count: selectedIndustries.length })
-              : t('jobBoard.industries.button')}
-          </button>
+          <div className="jsf-field jsf-field--industries">
+            <span className="jsf-label" id={ids.industriesLabel}>{t('jobBoard.filters.industries')}</span>
+            <button
+              type="button"
+              id={ids.industriesBtn}
+              className="ds-btn ds-btn--secondary filter-industries-btn"
+              aria-haspopup="dialog"
+              aria-labelledby={`${ids.industriesLabel} ${ids.industriesBtn}`}
+              onClick={() => setIndustriesOpen(true)}
+            >
+              <FaSlidersH aria-hidden="true" />
+              <span>{t('jobBoard.industries.button')}</span>
+              {selectedIndustries.length > 0 && (
+                <span className="ds-badge ds-badge--gold jsf-count">
+                  {selectedIndustries.length}
+                  <span className="ds-sr-only"> {t('jobBoard.filters.selectedSr')}</span>
+                </span>
+              )}
+            </button>
+          </div>
 
-          <SalaryRangeSlider
-            min={filters.salaryMin !== undefined && filters.salaryMin !== '' ? Number(filters.salaryMin) : SALARY_MIN_BOUND}
-            max={filters.salaryMax !== undefined && filters.salaryMax !== '' ? Number(filters.salaryMax) : SALARY_MAX_BOUND}
+          <SalaryRangeSetter
+            min={filters.salaryMin}
+            max={filters.salaryMax}
+            minRef={minRef}
             onChange={(nextMin, nextMax) => {
-              if (onChange) {
-                onChange({
-                  ...filters,
-                  salaryMin: nextMin > SALARY_MIN_BOUND ? nextMin : '',
-                  salaryMax: nextMax < SALARY_MAX_BOUND ? nextMax : '',
-                });
-              }
+              if (onChange) onChange({ ...filters, salaryMin: nextMin, salaryMax: nextMax });
             }}
           />
         </div>
 
-        {/* Only jobs I fully qualify for */}
-        <div className="filter-row must-haves-row">
+        <div className="jsf-footer">
           <label className="must-haves-switch">
             <input
               type="checkbox"
@@ -376,33 +426,25 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
                 // A yes/no toggle reads as broken if it doesn't take effect
                 // immediately, unlike the other filters above which are still
                 // being composed until "Search Jobs" is pressed.
-                if (onSearch) onSearch(next);
+                runSearch(next);
               }}
             />
-            <span>Only show jobs where I meet every must-have</span>
+            <span>{t('jobBoard.filters.mustHaves')}</span>
           </label>
           {mustHavesOn && mustHaveHiddenCount > 0 && (
             <span className="must-haves-hidden-count">
-              Hiding {mustHaveHiddenCount} job{mustHaveHiddenCount === 1 ? "" : "s"} you don't fully qualify for
+              {t('jobBoard.filters.hiddenCount', { count: mustHaveHiddenCount })}
             </span>
           )}
-        </div>
-
-        <div className="jsf-actions">
-          {/* Shown only while a refinement is set. */}
-          {hasAnyFilter && (
-            <button
-              type="button"
-              className="ds-btn ds-btn--secondary btn-reset"
-              onClick={handleResetClick}
-            >
+          {activeCount > 0 && (
+            <button type="button" className="jsf-clear" onClick={handleClear}>
               {t('jobBoard.clearFilters')}
             </button>
           )}
-          {/* Second submit for the collapsed-panel layout, where the main
-              Search button may have scrolled out of view. Hidden >=768px. */}
+          {/* Second submit for the collapsed layout, where the main Search
+              button may have scrolled out of view. Hidden when wide. */}
           <button type="submit" className="ds-btn ds-btn--primary jsf-apply">
-            Show results
+            {t('jobBoard.filters.showResults')}
           </button>
         </div>
       </div>
