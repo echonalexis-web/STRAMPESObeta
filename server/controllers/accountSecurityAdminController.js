@@ -16,7 +16,9 @@ exports.getSecuritySummary = async (req, res) => {
   try {
     const now = Date.now();
     const idleBefore = new Date(now - IDLE_DAYS * DAY_MS);
-    const emailLess = { role: { $in: JOBSEEKER_ROLES }, email: { $exists: false } };
+    // Soft-deleted (and purged) accounts are not counted: purged ones have no
+    // email left and would otherwise inflate the email-less total.
+    const emailLess = { role: { $in: JOBSEEKER_ROLES }, email: { $exists: false }, deletedAt: null };
 
     const [emailLessCount, idleEmailLessCount, locksLast24h, locksLast7d, lockedNow] = await Promise.all([
       User.countDocuments(emailLess),
@@ -29,7 +31,7 @@ exports.getSecuritySummary = async (req, res) => {
       }),
       AuditLog.countDocuments({ action: "auth.account.locked", createdAt: { $gte: new Date(now - DAY_MS) } }),
       AuditLog.countDocuments({ action: "auth.account.locked", createdAt: { $gte: new Date(now - 7 * DAY_MS) } }),
-      User.countDocuments({ "loginLock.lockedUntil": { $gt: new Date(now) } }),
+      User.countDocuments({ "loginLock.lockedUntil": { $gt: new Date(now) }, deletedAt: null }),
     ]);
 
     res.json({

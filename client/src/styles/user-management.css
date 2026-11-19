@@ -151,3 +151,24 @@
   color: #8c1d18;
 }
 .um-btn--danger-outline:hover { background: #fdecea; }
+
+/* Filter bar */
+.um-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: flex-end;
+  margin: 0 0 8px;
+}
+.um-field--grow { flex: 1 1 240px; min-width: 0; }
+.um-filters .um-field { min-width: 150px; }
+.um-checks { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.um-filters__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.um-filters__hint { flex-basis: 100%; color: #4b5563; }
+.um-count { margin: 4px 0 12px; color: #374151; min-height: 1.4em; }
+
+@media (max-width: 480px) {
+  .um-filters .um-field { flex: 1 1 100%; }
+  .um-filters__actions { margin-left: 0; width: 100%; }
+  .um-filters__actions .um-btn { flex: 1 1 100%; }
+}

@@ -16,6 +16,8 @@ const { escapeRegex } = require("../utils/sanitize");
 const { sendError } = require("../utils/sendError");
 const { isEmployerUnlisted } = require("../utils/jobVisibility");
 const { buildInsights } = require("../services/userInsightsService");
+const { buildDirectoryQuery } = require("../utils/userDirectoryQuery");
+const { toCsv } = require("../utils/csv");
 const {
   softDeleteUser,
   restoreUser: restoreDeletedUser,
@@ -514,57 +516,26 @@ exports.getProvincialAnalytics = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
   try {
-    const role = String(req.query.role || "").trim();
-    const search = String(req.query.search || "").trim();
-    const verificationStatus = String(req.query.verificationStatus || "").trim();
-    const isActiveRaw = String(req.query.isActive || "").trim();
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
 
-    // Superadmin accounts are invisible to the admin surface — they never show
-    // in listings, counts, or moderation targets.
-    const filter = { role: { $ne: "superadmin" } };
+    // Filters (status, verification, no email, idle 90+, locked now, search) and
+    // sort (joined, last active, name) come from one shared builder, so the CSV
+    // export of a filtered list always matches what the list shows.
+    const { filter, sort, caseInsensitiveSort } = buildDirectoryQuery(req.query, {
+      isSuperadmin: req.user.role === "superadmin",
+    });
 
-    // Soft-deleted accounts are hidden by default. Only a superadmin can look at
-    // them ("deleted=include" or "deleted=only"); admins always get the default.
-    const deletedMode = String(req.query.deleted || "").trim();
-    if (req.user.role === "superadmin" && deletedMode === "only") {
-      filter.deletedAt = { $ne: null };
-    } else if (!(req.user.role === "superadmin" && deletedMode === "include")) {
-      filter.deletedAt = null;
-    }
+    let listQuery = User.find(filter)
+      .select(
+        "name email username role createdAt lastActiveAt hasCompletedOnboarding verificationStatus isActive accountStatus companyName businessPermitUrl registrationDocUrl verificationNote verificationSubmittedAt deletedAt purgeAfter loginLock.lockedUntil"
+      )
+      .sort(sort)
+      .skip((page - 1) * limit)
+      .limit(limit);
+    if (caseInsensitiveSort) listQuery = listQuery.collation({ locale: "en", strength: 2 });
 
-    if (["employer", "jobseeker", "admin"].includes(role)) {
-      filter.role = role;
-    }
-
-    if (["pending", "verified", "unverified"].includes(verificationStatus)) {
-      filter.verificationStatus = verificationStatus;
-    }
-
-    if (["true", "false"].includes(isActiveRaw)) {
-      filter.isActive = isActiveRaw === "true";
-    }
-
-    if (search) {
-      filter.$or = [
-        { name: { $regex: escapeRegex(search), $options: "i" } },
-        { email: { $regex: escapeRegex(search), $options: "i" } },
-        // Username-only accounts have no email: admins find them by username.
-        { username: { $regex: escapeRegex(search), $options: "i" } },
-      ];
-    }
-
-    const [total, users] = await Promise.all([
-      User.countDocuments(filter),
-      User.find(filter)
-        .select(
-          "name email username role createdAt hasCompletedOnboarding verificationStatus isActive accountStatus companyName businessPermitUrl registrationDocUrl verificationNote verificationSubmittedAt deletedAt purgeAfter"
-        )
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-    ]);
+    const [total, users] = await Promise.all([User.countDocuments(filter), listQuery]);
 
     return res.json({
       users,
@@ -574,6 +545,89 @@ exports.getAllUsers = async (req, res) => {
     });
   } catch (error) {
     return sendError(res, error, "Failed to fetch users");
+  }
+};
+
+const EXPORT_MAX_ROWS = 10000;
+
+// CSV of the filtered directory for PESO reports (superadmin only). Only
+// non-sensitive columns: no email, username, phone, address or date of birth,
+// so a minor's contact details can never be in the file. Counts come from two
+// grouped queries for the whole page of results, not one query per user.
+exports.exportUsersCsv = async (req, res) => {
+  try {
+    const { filter, sort, caseInsensitiveSort } = buildDirectoryQuery(req.query, { isSuperadmin: true });
+    // The export is for the employer and jobseeker directories only.
+    if (!["employer", "jobseeker"].includes(String(filter.role))) {
+      filter.role = { $in: ["employer", "jobseeker"] };
+    }
+
+    let listQuery = User.find(filter)
+      .select("name role createdAt lastActiveAt verificationStatus isActive accountStatus deletedAt")
+      .sort(sort)
+      .limit(EXPORT_MAX_ROWS);
+    if (caseInsensitiveSort) listQuery = listQuery.collation({ locale: "en", strength: 2 });
+    const users = await listQuery.lean();
+
+    const jobseekerIds = users.filter((u) => u.role === "jobseeker").map((u) => u._id);
+    const employerIds = users.filter((u) => u.role === "employer").map((u) => u._id);
+    const [applicationRows, postingRows] = await Promise.all([
+      jobseekerIds.length
+        ? JobApplication.aggregate([{ $match: { applicant: { $in: jobseekerIds } } }, { $group: { _id: "$applicant", count: { $sum: 1 } } }])
+        : [],
+      employerIds.length
+        ? JobVacancy.aggregate([{ $match: { employer: { $in: employerIds } } }, { $group: { _id: "$employer", count: { $sum: 1 } } }])
+        : [],
+    ]);
+    const applications = new Map(applicationRows.map((r) => [String(r._id), r.count]));
+    const postings = new Map(postingRows.map((r) => [String(r._id), r.count]));
+
+    const stateOf = (u) => {
+      if (u.deletedAt) return "deleted";
+      if (u.isActive === false) return u.accountStatus === "banned" ? "banned" : u.accountStatus === "deactivated" ? "deactivated" : "suspended";
+      return "active";
+    };
+
+    const csv = toCsv(
+      [
+        { label: "Name", key: "name" },
+        { label: "Role", key: "role" },
+        { label: "Status", value: stateOf },
+        { label: "Joined", key: "createdAt" },
+        { label: "Last active", key: "lastActiveAt" },
+        { label: "Verification", value: (u) => (u.role === "employer" ? u.verificationStatus || "unverified" : "") },
+        { label: "Applications", value: (u) => (u.role === "jobseeker" ? applications.get(String(u._id)) || 0 : "") },
+        { label: "Postings", value: (u) => (u.role === "employer" ? postings.get(String(u._id)) || 0 : "") },
+      ],
+      users
+    );
+
+    await runPostCommit("user_export.audit", { req, resourceType: "user" }, () => logAuditEvent({
+      req,
+      actorId: req.user.id,
+      actorRole: "superadmin",
+      action: "admin.user.exported",
+      targetType: "user_directory",
+      targetId: "export",
+      severity: "warning",
+      metadata: {
+        rows: users.length,
+        truncated: users.length >= EXPORT_MAX_ROWS,
+        // the filters used, so the report can be traced to what was exported
+        filters: Object.fromEntries(
+          ["role", "status", "verificationStatus", "noEmail", "idle90", "lockedNow", "search", "sort", "order"]
+            .filter((key) => req.query[key] !== undefined && req.query[key] !== "")
+            .map((key) => [key, String(req.query[key]).slice(0, 100)])
+        ),
+      },
+    }));
+
+    res.set("Content-Type", "text/csv; charset=utf-8");
+    res.set("Content-Disposition", `attachment; filename="users-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.set("Cache-Control", "no-store");
+    return res.send(csv);
+  } catch (error) {
+    return sendError(res, error, "Failed to export users");
   }
 };
 

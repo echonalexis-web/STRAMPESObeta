@@ -1420,7 +1420,47 @@
         "delete": "Delete",
         "restore": "Restore"
       },
-      "showDeleted": "Show deleted accounts",
+      "filters": {
+        "label": "Filter and sort accounts",
+        "search": "Search",
+        "searchPlaceholder": "Name, username or email",
+        "status": "Status",
+        "statusAll": "All (not deleted)",
+        "verification": "Verification",
+        "verificationAll": "All",
+        "verificationOptions": {
+          "unverified": "Not submitted",
+          "pending": "Pending review",
+          "under_review": "Under review",
+          "verified": "Verified",
+          "resubmission_required": "Needs more info",
+          "rejected": "Rejected"
+        },
+        "noEmail": "No email",
+        "idle90": "Idle 90+ days",
+        "lockedNow": "Locked now",
+        "sort": "Sort by",
+        "sortOptions": {
+          "joined": "Joined",
+          "lastActive": "Last active",
+          "name": "Name"
+        },
+        "order": "Order",
+        "orderNewest": "Newest or A to Z first",
+        "orderAsc": "Ascending",
+        "orderDesc": "Descending",
+        "clear": "Clear filters",
+        "results": "{{count}} accounts",
+        "noMatchTitle": "No accounts match these filters",
+        "noMatchDescription": "Try a different search or clear the filters."
+      },
+      "export": {
+        "button": "Export CSV",
+        "exporting": "Preparing…",
+        "hint": "Exports the filtered list without contact details.",
+        "success": "The CSV was downloaded.",
+        "error": "Could not export the list."
+      },
       "deletedUntil": "Restorable until {{date}}",
       "delete": {
         "title": "Delete {{name}}?",

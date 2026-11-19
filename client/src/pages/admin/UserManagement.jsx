@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Building2, TriangleAlert, UserRound } from "lucide-react";
 import { adminAPI } from "../../services/api";
@@ -12,6 +12,17 @@ import AdminHeader from "./AdminHeader";
 import AccountSecuritySummary from "../../components/AccountSecuritySummary";
 import { userContactLabel } from "../../utils/usernameSignup";
 import { getAccountState, getAvailableActions } from "../../utils/userStatus";
+import {
+  STATUS_OPTIONS,
+  VERIFICATION_OPTIONS,
+  SORT_OPTIONS,
+  hasActiveFilters,
+  parseDirectoryState,
+  serializeDirectoryState,
+  toApiParams,
+} from "../../utils/userDirectoryParams";
+import { createDebouncer } from "../../utils/liveSearch";
+import { downloadBlob } from "../../utils/exportUtils";
 
 const tabMeta = {
   employers: {
@@ -51,8 +62,18 @@ function UserStatCards({ employers, jobseekers }) {
   );
 }
 
-function UserDirectoryEmpty({ role }) {
+function UserDirectoryEmpty({ role, filtered }) {
   const { t } = useTranslation();
+  if (filtered) {
+    return (
+      <StateBlock
+        kind="empty"
+        className="um-state"
+        title={t("superadmin.users.filters.noMatchTitle")}
+        description={t("superadmin.users.filters.noMatchDescription")}
+      />
+    );
+  }
   return (
     <StateBlock
       kind="empty"
@@ -109,12 +130,12 @@ function RowActions({ user, onViewProfile, onToggleStatus, onDelete, onRestore }
   );
 }
 
-function UserDirectoryCards({ title, role, data, handlers }) {
+function UserDirectoryCards({ title, role, data, handlers, filtered }) {
   const { t } = useTranslation();
   return (
     <div className="admin-mobile-user-list" aria-label={`${title} mobile directory`}>
       {data.length === 0 ? (
-        <UserDirectoryEmpty role={role} />
+        <UserDirectoryEmpty role={role} filtered={filtered} />
       ) : (
         data.map((user) => (
           <article key={user._id} className="admin-mobile-user-card">
@@ -144,7 +165,7 @@ function UserDirectoryCards({ title, role, data, handlers }) {
   );
 }
 
-function UserDirectory({ title, role, data, handlers }) {
+function UserDirectory({ title, role, data, handlers, filtered }) {
   const { t } = useTranslation();
   return (
     <div className="admin-panel-card">
@@ -165,7 +186,7 @@ function UserDirectory({ title, role, data, handlers }) {
           <tbody>
             {data.length === 0 ? (
               <tr>
-                <td colSpan={5} className="um-empty-cell"><UserDirectoryEmpty role={role} /></td>
+                <td colSpan={5} className="um-empty-cell"><UserDirectoryEmpty role={role} filtered={filtered} /></td>
               </tr>
             ) : (
               data.map((user) => (
@@ -181,12 +202,10 @@ function UserDirectory({ title, role, data, handlers }) {
           </tbody>
         </table>
       </div>
-      <UserDirectoryCards title={title} role={role} data={data} handlers={handlers} />
+      <UserDirectoryCards title={title} role={role} data={data} handlers={handlers} filtered={filtered} />
     </div>
   );
 }
-
-const PAGE_SIZE = 20;
 
 // Builds a page-number list with "…" gap markers, e.g. [1, "…", 4, 5, 6, "…", 12].
 function buildPageList(current, total) {
@@ -212,17 +231,23 @@ function buildPageList(current, total) {
 export default function UserManagement() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("employers");
+  // Filters, sort, tab and page live in the URL (replace, never push) so a
+  // reload or a shared link shows the same list.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const state = useMemo(() => parseDirectoryState(searchParams), [searchParams]);
+  const { tab: activeTab, page } = state;
+  const [searchText, setSearchText] = useState(state.q);
+  const searchDebouncer = useRef(createDebouncer(300));
+  const [exporting, setExporting] = useState(false);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalMatching, setTotalMatching] = useState(0);
   // Independent of the current page/tab — the tab badges need the TRUE total
   // per role, not just how many rows happen to be on the current page.
   const [counts, setCounts] = useState({ employerCount: 0, jobseekerCount: 0 });
   const [selectedUser, setSelectedUser] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [showDeleted, setShowDeleted] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [actionToast, setActionToast] = useState(null);
   const [suspendReason, setSuspendReason] = useState("");
@@ -240,11 +265,41 @@ export default function UserManagement() {
     return () => window.clearTimeout(timer);
   }, [actionToast]);
 
-  // Resets back to page 1 whenever the tab or the deleted toggle changes, so
-  // switching from a deep page doesn't leave the list on an out-of-range page.
+  // Any change to a filter, the sort or the tab goes back to page 1; only the
+  // pager keeps the page.
+  // Functional update: a debounced search never overwrites a filter that was
+  // changed while it was waiting.
+  const updateState = useCallback(
+    (patch) => {
+      setSearchParams(
+        (previous) => {
+          const next = { ...parseDirectoryState(previous), ...patch };
+          if (!("page" in patch)) next.page = 1;
+          return serializeDirectoryState(next);
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const stateKey = serializeDirectoryState(state).toString();
+
   useEffect(() => {
-    setPage(1);
-  }, [activeTab, showDeleted]);
+    const debouncer = searchDebouncer.current;
+    return () => debouncer.cancel();
+  }, []);
+
+  const onSearchChange = (value) => {
+    setSearchText(value);
+    searchDebouncer.current.schedule(() => updateState({ q: value }));
+  };
+
+  const clearFilters = () => {
+    searchDebouncer.current.cancel();
+    setSearchText("");
+    updateState({ q: "", status: "", verification: "", noEmail: false, idle90: false, lockedNow: false });
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -252,14 +307,11 @@ export default function UserManagement() {
     const loadUsers = async () => {
       setLoading(true);
       try {
-        const role = activeTab === "jobseekers" ? "jobseeker" : "employer";
-        const params = { role, page, limit: PAGE_SIZE };
-        // Deleted accounts only appear when asked for (server: superadmin only).
-        if (showDeleted) params.deleted = "include";
-        const { data } = await adminAPI.getUsers(params);
+        const { data } = await adminAPI.getUsers(toApiParams(parseDirectoryState(new URLSearchParams(stateKey))));
         if (!isMounted) return;
         setUsers(Array.isArray(data?.users) ? data.users : []);
         setTotalPages(Math.max(Number(data?.totalPages) || 1, 1));
+        setTotalMatching(Number(data?.total) || 0);
       } catch {
         if (isMounted) {
           setUsers([]);
@@ -276,7 +328,7 @@ export default function UserManagement() {
     return () => {
       isMounted = false;
     };
-  }, [activeTab, page, showDeleted, reloadKey]);
+  }, [stateKey, reloadKey]);
 
   // Total counts for the tab badges. Deleted accounts are not counted, and the
   // numbers refresh after every delete or restore.
@@ -354,6 +406,19 @@ export default function UserManagement() {
     navigate(`/admin/users/${user._id}`);
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { data } = await adminAPI.exportUsersCsv(toApiParams(state, { withPaging: false }));
+      downloadBlob(`users-${new Date().toISOString().slice(0, 10)}.csv`, data);
+      setActionToast({ type: "success", message: t("superadmin.users.export.success") });
+    } catch {
+      setActionToast({ type: "error", message: t("superadmin.users.export.error") });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleDeleted = (user, data) => {
     setDeleteTarget(null);
     reload();
@@ -398,6 +463,7 @@ export default function UserManagement() {
         role={activeTab === "jobseekers" ? "jobseekers" : "employers"}
         data={users}
         handlers={handlers}
+        filtered={hasActiveFilters(state)}
       />
     );
   };
@@ -422,7 +488,10 @@ export default function UserManagement() {
             role="tab"
             aria-selected={activeTab === key}
             className={`ds-tab um-tab ${activeTab === key ? "is-active" : ""}`}
-            onClick={() => setActiveTab(key)}
+            onClick={() => {
+              searchDebouncer.current.cancel();
+              updateState({ tab: key });
+            }}
           >
             <meta.Icon size={18} aria-hidden="true" />
             <span>{t(meta.labelKey)}</span>
@@ -435,25 +504,106 @@ export default function UserManagement() {
 
       {activeTab === "jobseekers" && <AccountSecuritySummary />}
 
-      <div className="um-toolbar">
-        <label className="um-check">
+      <form
+        className="um-filters"
+        role="search"
+        aria-label={t("superadmin.users.filters.label")}
+        onSubmit={(event) => event.preventDefault()}
+      >
+        <div className="um-field um-field--grow">
+          <label htmlFor="um-search">{t("superadmin.users.filters.search")}</label>
           <input
-            type="checkbox"
-            checked={showDeleted}
-            onChange={(event) => setShowDeleted(event.target.checked)}
+            id="um-search"
+            type="search"
+            value={searchText}
+            maxLength={100}
+            placeholder={t("superadmin.users.filters.searchPlaceholder")}
+            onChange={(event) => onSearchChange(event.target.value)}
           />
-          <span>{t("superadmin.users.showDeleted")}</span>
-        </label>
-      </div>
+        </div>
+
+        <div className="um-field">
+          <label htmlFor="um-status">{t("superadmin.users.filters.status")}</label>
+          <select id="um-status" value={state.status} onChange={(event) => updateState({ status: event.target.value })}>
+            <option value="">{t("superadmin.users.filters.statusAll")}</option>
+            {STATUS_OPTIONS.map((key) => (
+              <option key={key} value={key}>{t(`superadmin.users.status.${key}`)}</option>
+            ))}
+          </select>
+        </div>
+
+        {activeTab === "employers" && (
+          <div className="um-field">
+            <label htmlFor="um-verification">{t("superadmin.users.filters.verification")}</label>
+            <select
+              id="um-verification"
+              value={state.verification}
+              onChange={(event) => updateState({ verification: event.target.value })}
+            >
+              <option value="">{t("superadmin.users.filters.verificationAll")}</option>
+              {VERIFICATION_OPTIONS.map((key) => (
+                <option key={key} value={key}>{t(`superadmin.users.filters.verificationOptions.${key}`)}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="um-field">
+          <label htmlFor="um-sort">{t("superadmin.users.filters.sort")}</label>
+          <select id="um-sort" value={state.sort} onChange={(event) => updateState({ sort: event.target.value, order: "" })}>
+            {SORT_OPTIONS.map((key) => (
+              <option key={key} value={key}>{t(`superadmin.users.filters.sortOptions.${key}`)}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="um-field">
+          <label htmlFor="um-order">{t("superadmin.users.filters.order")}</label>
+          <select id="um-order" value={state.order} onChange={(event) => updateState({ order: event.target.value })}>
+            <option value="">{t("superadmin.users.filters.orderNewest")}</option>
+            <option value="asc">{t("superadmin.users.filters.orderAsc")}</option>
+            <option value="desc">{t("superadmin.users.filters.orderDesc")}</option>
+          </select>
+        </div>
+
+        <div className="um-checks">
+          <label className="um-check">
+            <input type="checkbox" checked={state.noEmail} onChange={(event) => updateState({ noEmail: event.target.checked })} />
+            <span>{t("superadmin.users.filters.noEmail")}</span>
+          </label>
+          <label className="um-check">
+            <input type="checkbox" checked={state.idle90} onChange={(event) => updateState({ idle90: event.target.checked })} />
+            <span>{t("superadmin.users.filters.idle90")}</span>
+          </label>
+          <label className="um-check">
+            <input type="checkbox" checked={state.lockedNow} onChange={(event) => updateState({ lockedNow: event.target.checked })} />
+            <span>{t("superadmin.users.filters.lockedNow")}</span>
+          </label>
+        </div>
+
+        <div className="um-filters__actions">
+          {hasActiveFilters(state) && (
+            <button type="button" className="um-btn" onClick={clearFilters}>{t("superadmin.users.filters.clear")}</button>
+          )}
+          <button type="button" className="um-btn" onClick={handleExport} disabled={exporting} aria-describedby="um-export-hint">
+            {exporting ? t("superadmin.users.export.exporting") : t("superadmin.users.export.button")}
+          </button>
+        </div>
+        <small id="um-export-hint" className="um-filters__hint">{t("superadmin.users.export.hint")}</small>
+      </form>
+
+      <p className="um-count" role="status" aria-live="polite">
+        {loading ? "" : t("superadmin.users.filters.results", { count: totalMatching })}
+      </p>
 
       <div className="tab-content">{renderTabContent()}</div>
 
-      {!loading && (
+      {(
         <nav className="admin-pagination um-pagination" aria-label={t("superadmin.pagination.label")}>
           <button
             type="button"
             disabled={page === 1}
-            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            onClick={() => updateState({ page: Math.max(1, page - 1) })}
           >
             Previous
           </button>
@@ -470,7 +620,7 @@ export default function UserManagement() {
                   className={`um-pagination__page ${item === page ? "active" : ""}`}
                   aria-current={item === page ? "page" : undefined}
                   disabled={item === page}
-                  onClick={() => setPage(item)}
+                  onClick={() => updateState({ page: item })}
                 >
                   {item}
                 </button>
@@ -480,7 +630,7 @@ export default function UserManagement() {
           <button
             type="button"
             disabled={page >= totalPages}
-            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            onClick={() => updateState({ page: Math.min(totalPages, page + 1) })}
           >
             Next
           </button>

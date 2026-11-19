@@ -477,6 +477,9 @@ export const adminAPI = {
   deleteUser: (id, payload = {}) => api.delete(`/admin/users/${id}`, { ...getAuthHeader(), data: payload }),
   getDeletePreview: (id) => api.get(`/admin/users/${id}/delete-preview`, getAuthHeader()),
   restoreUser: (id) => api.post(`/admin/users/${id}/restore`, {}, getAuthHeader()),
+  // CSV of the filtered directory (superadmin). Returns a blob.
+  exportUsersCsv: (params = {}) =>
+    api.get('/admin/users-export', { ...getAuthHeader(), params, responseType: 'blob' }),
   getUserInsights: (id) => api.get(`/admin/users/${id}/insights`, getAuthHeader()),
   saveUserNotes: (id, notes) => api.put(`/admin/users/${id}/notes`, { notes }, getAuthHeader()),
   generateInvite: () => api.post('/auth/invite', {}, getAuthHeader()),

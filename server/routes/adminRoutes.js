@@ -19,6 +19,7 @@ const {
   previewDeleteUser,
   getUserInsights,
   updateUserAdminNotes,
+  exportUsersCsv,
   toggleHomepageFeature,
   changeUserDateOfBirth,
 } = require("../controllers/adminController");
@@ -48,7 +49,7 @@ const {
 const { detectMaliciousPayload } = require("../middleware/security");
 const { getSecuritySummary, unlockLogin } = require("../controllers/accountSecurityAdminController");
 const { resetPasswordAtCounter } = require("../controllers/officeResetController");
-const { staffResetBudget, userDeleteBudget } = require("../middleware/budgets");
+const { staffResetBudget, userDeleteBudget, userExportBudget } = require("../middleware/budgets");
 
 // All admin routes require authentication and admin role
 router.use(protect, isAdmin);
@@ -64,6 +65,9 @@ router.get("/analytics/provincial", sanitizeQueryParams, getProvincialAnalytics)
 // reachable from job monitoring. Employer verification lives on its own route
 // module (routes/verificationRoutes.js).
 router.get("/users", sanitizeQueryParams, getAllUsers);
+// CSV of the filtered directory (superadmin only, audited). A separate path, not
+// /users/export, so it can never be read as a user id by /users/:id.
+router.get("/users-export", isSuperadmin, userExportBudget, sanitizeQueryParams, exportUsersCsv);
 // Username-only accounts: counts only, and unlocking a locked-out jobseeker.
 router.get("/accounts/security-summary", getSecuritySummary);
 // Staff-assisted password reset at the counter (ID checked in person). Admin or

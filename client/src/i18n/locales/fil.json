@@ -1420,7 +1420,47 @@
         "delete": "Burahin",
         "restore": "Ibalik"
       },
-      "showDeleted": "Ipakita ang mga binurang account",
+      "filters": {
+        "label": "I-filter at ayusin ang mga account",
+        "search": "Hanapin",
+        "searchPlaceholder": "Pangalan, username o email",
+        "status": "Katayuan",
+        "statusAll": "Lahat (hindi binura)",
+        "verification": "Beripikasyon",
+        "verificationAll": "Lahat",
+        "verificationOptions": {
+          "unverified": "Hindi pa naisusumite",
+          "pending": "Naghihintay ng pagsusuri",
+          "under_review": "Sinusuri",
+          "verified": "Na-verify",
+          "resubmission_required": "Kailangan ng dagdag na impormasyon",
+          "rejected": "Tinanggihan"
+        },
+        "noEmail": "Walang email",
+        "idle90": "Walang aktibidad nang 90+ araw",
+        "lockedNow": "Naka-lock ngayon",
+        "sort": "Ayusin ayon sa",
+        "sortOptions": {
+          "joined": "Petsa ng pagsali",
+          "lastActive": "Huling aktibo",
+          "name": "Pangalan"
+        },
+        "order": "Pagkakasunod",
+        "orderNewest": "Pinakabago o A hanggang Z muna",
+        "orderAsc": "Pataas",
+        "orderDesc": "Pababa",
+        "clear": "I-clear ang mga filter",
+        "results": "{{count}} account",
+        "noMatchTitle": "Walang account na tugma sa mga filter",
+        "noMatchDescription": "Subukan ang ibang hanap o i-clear ang mga filter."
+      },
+      "export": {
+        "button": "I-export ang CSV",
+        "exporting": "Inihahanda…",
+        "hint": "Ie-export ang naka-filter na listahan nang walang contact details.",
+        "success": "Na-download ang CSV.",
+        "error": "Hindi ma-export ang listahan."
+      },
       "deletedUntil": "Maibabalik hanggang {{date}}",
       "delete": {
         "title": "Burahin si {{name}}?",

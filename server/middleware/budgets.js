@@ -94,4 +94,15 @@ const userDeleteBudget = buildAccountBudget({
   alwaysOn: true,
 });
 
-module.exports = { conversationBudget, uploadBudget, uploadBudgetForFiles, coverUploadBudget, profileViewBudget, backupCodesBudget, staffResetBudget, userDeleteBudget };
+// Superadmin directory CSV export: per-superadmin hourly cap. USER_EXPORT_HOURLY_CAP, default 20.
+const userExportBudget = buildAccountBudget({
+  name: "user-export",
+  windowMs: HOUR_MS,
+  envName: "USER_EXPORT_HOURLY_CAP",
+  defaultMax: 20,
+  code: "RATE_LIMITED",
+  message: "Too many exports in the last hour. Try again later.",
+  alwaysOn: true,
+});
+
+module.exports = { conversationBudget, uploadBudget, uploadBudgetForFiles, coverUploadBudget, profileViewBudget, backupCodesBudget, staffResetBudget, userDeleteBudget, userExportBudget };
