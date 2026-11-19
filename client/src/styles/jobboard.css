@@ -2962,7 +2962,7 @@ button:disabled,
   .jb-hero { padding: var(--ds-space-6) var(--ds-space-8); border-radius: var(--ds-radius-xl); }
   .jb-hero__ring--a { width: 300px; height: 300px; right: 40px; top: -150px; }
   .jb-hero__ring--b { width: 460px; height: 460px; right: -60px; top: -220px; }
-  .jb-list { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--ds-space-5); }
+  .jb-list { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--ds-space-5); }
   .jb .jb-close-matches__heading { font-size: var(--ds-text-xl); }
 }
 
@@ -3497,7 +3497,7 @@ button:disabled,
   .jb-hero { padding: var(--ds-space-6) var(--ds-space-8); border-radius: var(--ds-radius-xl); }
   .jb-hero__ring--a { width: 300px; height: 300px; right: 40px; top: -150px; }
   .jb-hero__ring--b { width: 460px; height: 460px; right: -60px; top: -220px; }
-  .jb-list { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--ds-space-5); }
+  .jb-list { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--ds-space-5); }
   .jb .jb-close-matches__heading { font-size: var(--ds-text-xl); }
 }
 
@@ -3810,5 +3810,13 @@ button:disabled,
 
   .jb-sk-card {
     min-height: 134px;
+  }
+}
+
+/* Tablet and desktop: keep the pager clear of the fixed help and chat
+   buttons (bottom right). Mitigation only: the buttons are global. */
+@media (min-width: 600px) {
+  .jb-main {
+    padding-bottom: calc(var(--ds-space-6, 24px) + 72px + env(safe-area-inset-bottom, 0px));
   }
 }
