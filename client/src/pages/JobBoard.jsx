@@ -6,7 +6,6 @@ import VacancyCard from "../components/VacancyCard";
 import JobSearchFilters from "../components/JobSearchFilters";
 import ApplyModal from "../components/ApplyModal";
 import { isJobVacancyEligibleAge } from "../utils/age";
-import PageHero from "../components/PageHero";
 import StateBlock from "../components/StateBlock";
 import { AuthContext } from "../context/AuthContext";
 import phLocationsRaw from "../data/philippine_provinces_cities_municipalities_and_barangays_2019v2.json";
@@ -174,12 +173,9 @@ export default function JobBoard() {
   return (
     <div className="jb">
       <div className="jb-inner">
-        <PageHero
-          className="jb-hero2"
-          title={t("jobBoard.heroTitle")}
-          accent={t("jobBoard.heroAccent")}
-          body={t("jobBoard.heroBody", { count: totalJobs })}
-        />
+        {/* The top bar shows the page title as a plain paragraph, so the
+            page's single h1 lives here, visible to assistive tech only. */}
+        <h1 className="ds-sr-only">{t("shell.topbar.titles.browseJobs")}</h1>
 
         {/* From 1101px the filters become a sticky left rail beside the
             results (jobboard.css); below that they stay stacked above. */}
