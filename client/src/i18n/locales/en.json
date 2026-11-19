@@ -778,6 +778,7 @@
     "emptyTitle": "No jobs found",
     "emptyBody": "No jobs match right now. Try fewer filters or check back soon.",
     "clearFilters": "Clear filters",
+    "filtersLabel": "Search and filter jobs",
     "closeMatches": "Close matches — 1 requirement away",
     "pagerLabel": "Job results pages",
     "previous": "Previous",

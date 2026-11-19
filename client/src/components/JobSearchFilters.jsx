@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import '../styles/jobSearchFilters.css';
 import { FaSearch, FaSlidersH } from 'react-icons/fa';
 import { useSystemOptions } from '../hooks/useSystemOptions';
@@ -103,6 +104,7 @@ function flattenLocations(rawData) {
 
 /* ─── Component ─── */
 const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocationsData, preferredIndustries = [], mustHaveHiddenCount = 0 }) => {
+  const { t } = useTranslation();
   // Admin-maintainable catalogs (item 11) — live from the server, with the
   // old hardcoded lists as a fallback for first paint / offline.
   const { options: JOB_TYPES } = useSystemOptions('jobType', { fallback: JOB_TYPES_FALLBACK, extra: ['Remote'] });
@@ -230,7 +232,14 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
   ].filter(Boolean).length;
 
   return (
-    <form className="job-search-filters" onSubmit={handleSubmit} onKeyDown={handleKeyDown} autoComplete="off">
+    <form
+      className="job-search-filters"
+      role="search"
+      aria-label={t('jobBoard.filtersLabel')}
+      onSubmit={handleSubmit}
+      onKeyDown={handleKeyDown}
+      autoComplete="off"
+    >
       <label htmlFor="q" className="ds-sr-only">Search Jobs</label>
 
       {/* Primary search — always visible, at every width */}
@@ -305,9 +314,9 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
             onChange={(e) => updateFilter('jobType', e.target.value)}
           >
             <option value="">All Job Types</option>
-            {JOB_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            {JOB_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
               </option>
             ))}
           </select>
@@ -414,13 +423,16 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, onReset, phLocatio
         </div>
 
         <div className="jsf-actions">
-          <button
-            type="button"
-            className="ds-btn ds-btn--secondary btn-reset"
-            onClick={handleResetClick}
-          >
-            Reset
-          </button>
+          {/* Shown only while a refinement is set. */}
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              className="ds-btn ds-btn--secondary btn-reset"
+              onClick={handleResetClick}
+            >
+              {t('jobBoard.clearFilters')}
+            </button>
+          )}
           {/* Second submit for the collapsed-panel layout, where the main
               Search button may have scrolled out of view. Hidden >=768px. */}
           <button type="submit" className="ds-btn ds-btn--primary jsf-apply">

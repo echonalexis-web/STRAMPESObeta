@@ -2997,6 +2997,541 @@ button:disabled,
 
 @media (min-width: 1101px) {
   .jb .jb-inner { max-width: var(--ds-page-max); }
+}
+
+/* ============================================================ */
+/* YOUR APPLICATIONS — status tabs + slim rows                   */
+/* ============================================================ */
+
+.app-status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 2px 20px;
+}
+
+.app-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid #d5dbe0;
+  background: #ffffff;
+  color: #4b5a4f;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.app-tab:hover {
+  border-color: #2e7d32;
+  color: #2e7d32;
+}
+
+.app-tab.is-active {
+  background: #2e7d32;
+  border-color: #2e7d32;
+  color: #ffffff;
+}
+
+.app-tab-n {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.app-status-select-wrap {
+  display: none;
+}
+
+.app-status-select {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid #d5dbe0;
+  background: #ffffff;
+  color: #2e7d32;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.app-list-empty {
+  margin: 24px 2px;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #2e7d32;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.applications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.app-row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 14px;
+  align-items: start;
+  background: #ffffff;
+  border: 1px solid #e6e9ec;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.app-row-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--heading);
+}
+
+.app-row-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.app-row-main-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a2a3a;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.3;
+}
+
+.app-row-title:hover:not(:disabled) {
+  color: #2e7d32;
+}
+
+.app-row-title:disabled {
+  cursor: default;
+}
+
+.app-row-sub {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: #5a6672;
+}
+
+.app-row-metaline {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: #7a8a7d;
+}
+
+.app-interview-card {
+  margin-top: 10px;
+  padding: 10px 12px;
+  width: 100%;
+  border: 1px solid #ede9fe;
+  border-radius: 10px;
+  background: #f5f3ff;
+}
+
+.app-interview-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #6d28d9;
+}
+
+.app-interview-card-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: #3f4a56;
+}
+
+.app-interview-card-row a {
+  color: #6d28d9;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.app-interview-card-notes {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #5a6672;
+  font-style: italic;
+}
+
+.app-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.app-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: 1px solid #d5dbe0;
+  background: #ffffff;
+  color: #3f4a56;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.app-act svg {
+  font-size: 11px;
+}
+
+.app-act:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.app-act-view {
+  background: #2e7d32;
+  border-color: #2e7d32;
+  color: #ffffff;
+}
+
+.app-act-view:hover:not(:disabled) {
+  background: #1b5e20;
+  border-color: #1b5e20;
+}
+
+.app-act-edit:hover:not(:disabled) {
+  border-color: #2e7d32;
+  color: #2e7d32;
+  background: #f0f7f1;
+}
+
+.app-act-withdraw {
+  color: #b03e2d;
+  border-color: #edc9c2;
+}
+
+.app-act-withdraw:hover:not(:disabled) {
+  background: #fdecea;
+  border-color: #e2a99f;
+}
+
+/* Status pill — shared shape with the job detail page */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.status-pill.tone-pending {
+  background: #eef2f0;
+  color: #566b60;
+}
+
+.status-pill.tone-shortlisted {
+  background: #fff4e2;
+  color: #a5601b;
+}
+
+.status-pill.tone-accepted {
+  background: #e4f5e9;
+  color: #1f7a3f;
+}
+
+.status-pill.tone-rejected {
+  background: #fdecea;
+  color: #b03e2d;
+}
+
+.status-pill.tone-under-review {
+  background: #e8f0fe;
+  color: #2c5aa0;
+}
+
+.status-pill.tone-approved {
+  background: #e1f6f3;
+  color: #0f7a6c;
+}
+
+.status-pill.tone-withdrawn {
+  background: #f1eef7;
+  color: #6b5b95;
+}
+
+@media (max-width: 640px) {
+  .app-status-tabs {
+    display: none;
+  }
+
+  .app-status-select-wrap {
+    display: block;
+    margin: 4px 2px 20px;
+  }
+
+  .app-row {
+    grid-template-columns: 36px 1fr;
+  }
+
+  .app-row-main-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-row-actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+    margin-top: 4px;
+    width: 100%;
+  }
+
+  .app-row-actions .app-act {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+/* ============================================================ */
+/* JOB BOARD — .jb-* (UI-04). Mobile-first: base = <=360px.      */
+/* Appended block; the legacy .jobboard-* rules above remain for */
+/* YourApplications and other shared pages. Visual precedent:    */
+/* the .jsd-* applicant dashboard in dashboard.css.              */
+/* ============================================================ */
+
+.jb {
+  min-height: 100dvh;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+  padding-block: var(--ds-space-4) var(--ds-space-10);
+  padding-inline: max(var(--ds-space-4), env(safe-area-inset-left, 0px)) max(var(--ds-space-4), env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+}
+.jb *, .jb *::before, .jb *::after { box-sizing: border-box; }
+
+.jb-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+  min-width: 0;
+}
+
+/* Hero — compact, single gradient surface with two ring outlines */
+.jb-hero {
+  position: relative;
+  overflow: hidden;
+  padding: var(--ds-space-5);
+  border-radius: var(--ds-radius-lg);
+  background: linear-gradient(160deg, var(--ds-green) 0%, var(--ds-green-deep) 100%);
+  color: #fff;
+  box-shadow: var(--ds-shadow-2);
+}
+.jb-hero__deco { position: absolute; inset: 0; pointer-events: none; }
+.jb-hero__ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.jb-hero__ring--a { width: 200px; height: 200px; right: -70px; top: -90px; }
+.jb-hero__ring--b { width: 320px; height: 320px; right: -140px; top: -150px; }
+.jb-hero__text { position: relative; }
+.jb .jb-hero__text h1 {
+  margin: 0 0 var(--ds-space-1);
+  color: #fff;
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-xl);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.jb .jb-hero__text p {
+  margin: 0;
+  max-width: 52ch;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: var(--ds-text-sm);
+  line-height: 1.5;
+}
+
+.jb-toolbar { min-width: 0; }
+
+.jb-resultbar {
+  margin: 0;
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  color: var(--ds-muted);
+}
+
+/* No-skills note */
+.jb-note {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-4);
+  background: var(--ds-warning-bg);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-sm);
+  line-height: 1.5;
+}
+.jb-note p { margin: 0; }
+
+/* Results: one column on phones, auto-fill grid from 768 */
+.jb-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ds-space-4);
+}
+.jb-list > * { min-width: 0; }
+
+.jb-close-matches {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  margin-bottom: var(--ds-space-2);
+}
+.jb .jb-close-matches__heading {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-lg);
+  font-weight: 800;
+  color: var(--ds-text);
+}
+
+/* Empty + error */
+.jb-empty p, .jb-error__text { margin: 0; max-width: 52ch; font-size: var(--ds-text-sm); line-height: 1.5; }
+.jb-empty__icon { font-size: 24px; color: var(--ds-gold); }
+.jb-error { border-style: solid; border-color: var(--ds-danger); background: var(--ds-danger-bg); color: var(--ds-danger); }
+.jb-error .ds-btn { margin-top: var(--ds-space-2); }
+.jb-error__text { color: var(--ds-text); overflow-wrap: anywhere; }
+
+/* Loading skeletons */
+.jb-sk-card { display: flex; flex-direction: column; gap: var(--ds-space-3); min-height: 200px; }
+.jb-sk-line { height: 14px; width: 80%; }
+.jb-sk-line--lg { height: 20px; width: 60%; }
+.jb-sk-line--sm { width: 40%; }
+.jb-sk-btn { height: 44px; margin-top: auto; border-radius: var(--ds-radius-md); }
+
+/* Pager: Previous/Next stack under the label on narrow screens */
+.jb-pager {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-3);
+  align-items: center;
+  margin-top: var(--ds-space-2);
+}
+.jb-pager__info {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  color: var(--ds-muted);
+}
+.jb-pager .ds-btn { width: 100%; grid-row: 2; }
+
+@media (min-width: 480px) {
+  .jb-hero { padding: var(--ds-space-6); }
+  .jb .jb-hero__text h1 { font-size: var(--ds-text-2xl); }
+  .jb-note { flex-direction: row; align-items: center; justify-content: space-between; }
+  .jb-note .ds-btn { flex-shrink: 0; }
+  .jb-pager { grid-template-columns: auto auto auto; justify-content: center; }
+  .jb-pager__info { grid-row: 1; grid-column: 2; min-width: 120px; }
+  .jb-pager .ds-btn { grid-row: 1; width: auto; }
+  .jb-pager .ds-btn:first-child { grid-column: 1; }
+  .jb-pager .ds-btn:last-child { grid-column: 3; }
+}
+
+@media (min-width: 768px) {
+  .jb { padding-block: var(--ds-space-6) var(--ds-space-12); padding-inline: var(--ds-space-6); }
+  .jb-inner { gap: var(--ds-space-5); }
+  .jb-hero { padding: var(--ds-space-6) var(--ds-space-8); border-radius: var(--ds-radius-xl); }
+  .jb-hero__ring--a { width: 300px; height: 300px; right: 40px; top: -150px; }
+  .jb-hero__ring--b { width: 460px; height: 460px; right: -60px; top: -220px; }
+  .jb-list { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--ds-space-5); }
+  .jb .jb-close-matches__heading { font-size: var(--ds-text-xl); }
+}
+
+@media (min-width: 1440px) {
+  .jb { padding-inline: var(--ds-space-8); }
+}
+
+/* ============================================================ */
+/* JOB BOARD — roles refresh (2a)                                */
+/* PageHero header; from 1101px a two-column composition with a  */
+/* sticky filter rail beside the results. Below 1101px the       */
+/* filters keep their stacked, collapsible mobile behaviour.     */
+/* All under `.jb` (only JobBoard renders it; /jobs is a         */
+/* logged-in route) and `body.app-with-sidebar` for the sticky.  */
+/* ============================================================ */
+
+.jb-layout,
+.jb-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+  min-width: 0;
+}
+
+.jb .jb-pager .ds-btn { border-radius: var(--ds-radius-btn); }
+.jb .jb-note { border-radius: var(--ds-radius-md); }
+
+@media (min-width: 768px) {
+  .jb-layout,
+  .jb-main { gap: var(--ds-space-5); }
+}
+
+@media (min-width: 1101px) {
+  .jb .jb-inner { max-width: var(--ds-page-max); }
 
   .jb-layout {
     display: grid;
