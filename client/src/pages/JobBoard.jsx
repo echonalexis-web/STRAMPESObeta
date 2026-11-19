@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { jobAPI } from "../services/api";
 import "../styles/jobboard.css";
 import VacancyCard from "../components/VacancyCard";
@@ -12,6 +12,14 @@ import phLocationsRaw from "../data/philippine_provinces_cities_municipalities_a
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { jobMatchesAnyIndustry } from "../utils/industries";
+import { isSalaryRangeInvalid } from "../utils/salaryRange";
+import {
+  TYPED_DEBOUNCE_MS,
+  createDebouncer,
+  createRequestGate,
+  parseFilters,
+  serializeFilters,
+} from "../utils/liveSearch";
 
 export default function JobBoard() {
   const navigate = useNavigate();
@@ -35,22 +43,32 @@ export default function JobBoard() {
   const [totalJobs, setTotalJobs] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [jobsPerPage] = useState(9);
-  const [activeFilters, setActiveFilters] = useState({});
+  // Filters live in the URL too (replace, never push, so Back does not step
+  // through every keystroke) and are restored from it on reload.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialUrlState = useRef(null);
+  if (initialUrlState.current === null) initialUrlState.current = parseFilters(searchParams);
+  const [activeFilters, setActiveFilters] = useState(initialUrlState.current.filters);
+  const filtersRef = useRef(activeFilters);
   const [applyModalJobId, setApplyModalJobId] = useState(null);
   // Phone compact cards: only one card's match and apply area is open at a time.
   const [openJobId, setOpenJobId] = useState(null);
   const toggleJob = (jobId) => setOpenJobId((current) => (current === jobId ? null : jobId));
-  // Tracks the in-flight request so a slower, superseded search (e.g. an
-  // earlier keystroke/click) can never overwrite state with stale results
-  // after a newer one has already started.
-  const abortControllerRef = useRef(null);
+  // One request at a time: starting a new search aborts the previous one, and
+  // a superseded (slower) response can never overwrite newer results.
+  const requestGate = useRef(createRequestGate());
+  const typedDebouncer = useRef(createDebouncer(TYPED_DEBOUNCE_MS));
+  const hasLoadedOnce = useRef(false);
+  const applicationsLoaded = useRef(false);
+  // After the first load, a new search keeps the current cards on screen and
+  // only dims them (no blank flash, no layout jump).
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchJobs = async (filters = activeFilters, page = 1) => {
-    abortControllerRef.current?.abort();
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+  const fetchJobs = async (filters = filtersRef.current, page = 1, { refreshApplications = false } = {}) => {
+    const request = requestGate.current.begin();
 
-    setLoading(true);
+    if (hasLoadedOnce.current) setRefreshing(true);
+    else setLoading(true);
     setError("");
     setOpenJobId(null);
     try {
@@ -68,16 +86,17 @@ export default function JobBoard() {
         limit: jobsPerPage
       };
 
-      setActiveFilters(sanitizedFilters);
-
+      // The applications list does not depend on the filters: load it once
+      // (and again after applying) instead of on every keystroke.
+      const needApplications = refreshApplications || !applicationsLoaded.current;
       const [jobsResponse, applicationsResponse] = await Promise.all([
-        jobAPI.searchJobsWithSemantic(params, { signal: controller.signal }),
-        jobAPI.getMyApplications({}, { signal: controller.signal }),
+        jobAPI.searchJobsWithSemantic(params, { signal: request.signal }),
+        needApplications ? jobAPI.getMyApplications({}, { signal: request.signal }) : Promise.resolve(null),
       ]);
 
-      // A newer fetchJobs call already started after this one — its own
-      // response (or its own catch/finally) owns state from here on.
-      if (abortControllerRef.current !== controller) return;
+      // A newer search already started after this one: its own response (or its
+      // own catch/finally) owns state from here on.
+      if (!request.isCurrent()) return;
 
       const responseJobs = Array.isArray(jobsResponse.data.jobs) ? jobsResponse.data.jobs : [];
       const responsePagination = jobsResponse.data.pagination;
@@ -106,7 +125,12 @@ export default function JobBoard() {
       const unfilteredTotal = Number(jobsResponse.data.unfilteredTotal ?? jobsResponse.data.total ?? 0);
       const visibleTotal = Number(jobsResponse.data.total ?? 0);
       setHiddenByMustHaves(Math.max(0, unfilteredTotal - visibleTotal));
-      setApplications(applicationsResponse.data || []);
+      if (applicationsResponse) {
+        setApplications(applicationsResponse.data || []);
+        applicationsLoaded.current = true;
+      }
+      hasLoadedOnce.current = true;
+      setSearchParams(serializeFilters(filters, page), { replace: true });
 
       // Sync preferredIndustries from backend to user context
       if (jobsResponse.data.preferredIndustries && Array.isArray(jobsResponse.data.preferredIndustries)) {
@@ -117,30 +141,57 @@ export default function JobBoard() {
         }
       }
     } catch (err) {
-      if (err.code === "ERR_CANCELED") return;
+      if (err.code === "ERR_CANCELED" || !request.isCurrent()) return;
       console.error("Error fetching jobs:", err);
       setError(err.response?.data?.message || "Failed to load jobs");
     } finally {
-      if (abortControllerRef.current === controller) setLoading(false);
+      if (request.isCurrent()) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchJobs();
+    fetchJobs(initialUrlState.current.filters, initialUrlState.current.page);
+    const debouncer = typedDebouncer.current;
+    const gate = requestGate.current;
+    return () => {
+      debouncer.cancel();
+      gate.abort();
+    };
   }, []);
 
+  // Typing (search text, location, salary boxes) waits 300ms after the last
+  // keystroke; anything that commits (Search button, Enter, selects, chips,
+  // modal Apply, Clear) goes through handleSearch and runs at once.
   const handleFilterChange = (newFilters) => {
+    filtersRef.current = newFilters;
     setActiveFilters(newFilters);
+    typedDebouncer.current.schedule(() => {
+      // An inverted salary range never triggers a request; the previous
+      // results stay and the red error under the salary boxes explains why.
+      const current = filtersRef.current;
+      if (isSalaryRangeInvalid(current.salaryMin, current.salaryMax)) return;
+      fetchJobs(current, 1);
+    });
   };
 
   // Accepts an optional override so a caller that just changed a filter
   // (e.g. the must-haves toggle) can search with the fresh value immediately
   // instead of racing React's async state update to `activeFilters`.
   const handleSearch = (overrideFilters) => {
-    fetchJobs(overrideFilters || activeFilters, 1);
+    typedDebouncer.current.cancel();
+    const next = overrideFilters || filtersRef.current;
+    if (isSalaryRangeInvalid(next.salaryMin, next.salaryMax)) return;
+    filtersRef.current = next;
+    setActiveFilters(next);
+    fetchJobs(next, 1);
   };
 
   const handleReset = () => {
+    typedDebouncer.current.cancel();
+    filtersRef.current = {};
     setActiveFilters({});
     fetchJobs({}, 1);
   };
@@ -263,13 +314,13 @@ export default function JobBoard() {
                 <h2 className="jb-close-matches__heading">
                   {t("jobBoard.closeMatches")}
                 </h2>
-                <div className="jb-list">
+                <div className={`jb-list${refreshing ? " is-refreshing" : ""}`} aria-busy={refreshing}>
                   {closeMatchJobs.map(renderCard)}
                 </div>
               </section>
             )}
 
-            <div className="jb-list">
+            <div className={`jb-list${refreshing ? " is-refreshing" : ""}`} aria-busy={refreshing}>
               {mainListJobs.map(renderCard)}
             </div>
 
@@ -280,7 +331,7 @@ export default function JobBoard() {
               job={jobs.find((j) => j._id === applyModalJobId) || null}
               onSuccess={() => {
                 setApplyModalJobId(null);
-                fetchJobs(activeFilters, currentPage);
+                fetchJobs(activeFilters, currentPage, { refreshApplications: true });
               }}
             />
 

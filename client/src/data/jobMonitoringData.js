@@ -73,5 +73,7 @@ export const normalizeJobMonitoringRecord = (job = {}) => {
     qualifications: qualificationValues,
     location: job.location || job.municipality || normalizedMunicipality,
     severity: job.severity || "Standard",
+    // Server flag: the employer account is suspended or deactivated, so the posting is hidden from the public.
+    unlisted: Boolean(job.unlisted),
   };
 };

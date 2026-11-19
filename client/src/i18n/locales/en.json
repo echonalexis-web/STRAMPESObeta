@@ -775,10 +775,22 @@
     "editProfile": "Edit Profile",
     "loading": "Loading jobs…",
     "errorTitle": "We couldn't load jobs",
-    "emptyTitle": "No jobs found",
-    "emptyBody": "No jobs match right now. Try fewer filters or check back soon.",
+    "emptyTitle": "No matching jobs",
+    "emptyBody": "Try removing a filter or changing your search.",
     "clearFilters": "Clear filters",
     "filtersLabel": "Search and filter jobs",
+    "unlistedBadge": "Unlisted: employer account suspended or deactivated",
+    "suggest": {
+      "label": "Search suggestions",
+      "count_one": "{{count}} suggestion available",
+      "count_other": "{{count}} suggestions available",
+      "error": "Suggestions are unavailable right now. You can still search.",
+      "types": {
+        "title": "Job title",
+        "company": "Company",
+        "skill": "Skill"
+      }
+    },
     "filters": {
       "search": "Search Jobs",
       "searchShort": "Search",
@@ -887,6 +899,7 @@
     "dismiss": "Dismiss"
   },
   "applications": {
+    "noLongerAvailable": "No longer available",
     "loading": "Loading your applications…",
     "emptyTitle": "You haven't applied to any jobs yet",
     "emptyBody": "Jobs you apply to will show up here so you can track their status.",

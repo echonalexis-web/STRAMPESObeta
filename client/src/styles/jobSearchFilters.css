@@ -431,3 +431,78 @@
 @media (prefers-reduced-motion: reduce) {
   .job-search-filters * { transition: none !important; }
 }
+
+/* ─── Live suggestions (combobox listbox under the keyword box) ─── */
+.jsf-suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: var(--ds-z-sticky);
+  margin: 0;
+  padding: var(--ds-space-1) 0;
+  list-style: none;
+  max-height: min(320px, 40dvh);
+  overflow-y: auto;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  box-shadow: var(--ds-shadow-3);
+}
+
+.jsf-suggest[hidden] {
+  display: none;
+}
+
+.jsf-suggest__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  min-height: var(--ds-tap);
+  padding: var(--ds-space-2) var(--ds-space-4);
+  cursor: pointer;
+  font-size: var(--ds-text-md);
+  color: var(--ds-text);
+}
+
+.jsf-suggest__option:hover,
+.jsf-suggest__option.is-active {
+  background: var(--ds-mint);
+}
+
+/* Keyboard highlight is an outline as well as a fill. */
+.jsf-suggest__option.is-active {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: -3px;
+}
+
+.jsf-suggest__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.jsf-suggest__text mark {
+  background: none;
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-color: var(--ds-gold);
+  text-underline-offset: 3px;
+}
+
+.jsf-suggest__type {
+  flex: 0 0 auto;
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+  color: var(--ds-muted);
+}
+
+.jsf-suggest-error {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: var(--ds-space-1);
+  margin: 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-muted);
+}

@@ -388,6 +388,7 @@ export const jobAPI = {
   getJobs: () => api.get('/jobs'),
   getHomepageJobs: () => api.get('/jobs/homepage'),
   searchJobsWithSemantic: (params, config = {}) => api.get('/recommendations/jobs', { params, ...config }),
+  suggestJobs: (q, config = {}) => api.get('/recommendations/jobs/suggest', { params: { q }, ...config }),
   getJobById: (id) => api.get(`/jobs/${id}`),
   applyToJob: (id, data) => api.post(`/jobs/${id}/apply`, data, getAuthFormHeader()),
   getApplicationsForJob: (id) => api.get(`/jobs/${id}/applications`, getAuthHeader()),

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import '../styles/jobSearchFilters.css';
-import { FaSearch, FaSlidersH } from 'react-icons/fa';
+import { FaSlidersH } from 'react-icons/fa';
+import JobSearchBox from './JobSearchBox';
 import { useSystemOptions } from '../hooks/useSystemOptions';
 import { JOB_TYPES as JOB_TYPES_FALLBACK } from '../constants/jobTypes';
 import { VALID_INDUSTRIES as INDUSTRIES_FALLBACK } from '../constants/industries';
@@ -119,7 +120,7 @@ function SalaryRangeSetter({ min, max, onChange, minRef }) {
               type="button"
               className={`jsf-chip ${pressed === chip.id ? 'is-pressed' : ''}`}
               aria-pressed={pressed === chip.id}
-              onClick={() => onChange(chip.min, chip.max)}
+              onClick={() => onChange(chip.min, chip.max, { immediate: true })}
             >
               {t(`jobBoard.filters.ranges.${chip.id}`)}
             </button>
@@ -197,22 +198,32 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, p
 
   // Every search goes through here: an inverted salary range never reaches
   // the server (the error under the salary boxes explains why).
-  const runSearch = (nextFilters) => {
+  const runSearch = (nextFilters, { focusOnInvalid = false } = {}) => {
     if (isSalaryRangeInvalid(nextFilters.salaryMin, nextFilters.salaryMax)) {
-      setPanelOpen(true);
-      minRef.current?.focus();
+      // Only an explicit Search press moves focus to the salary boxes; a select
+      // or chip change just leaves the error showing and the old results in place.
+      if (focusOnInvalid) {
+        setPanelOpen(true);
+        minRef.current?.focus();
+      }
       return;
     }
     if (onSearch) onSearch(nextFilters);
   };
 
+  // A change that applies at once (selects, chips, checkbox, modal Apply,
+  // suggestion pick): update the filters and search with the new values, no
+  // waiting for the typing debounce.
+  const commit = (nextFilters) => {
+    if (onChange) onChange(nextFilters);
+    runSearch(nextFilters);
+  };
+
   // Apply takes effect straight away (like the must-haves switch), so the
   // chosen industries are never left half-applied behind a closed dialog.
   const applyIndustries = (next) => {
-    const nextFilters = { ...filters, industry: next };
-    if (onChange) onChange(nextFilters);
     setIndustriesOpen(false);
-    runSearch(nextFilters);
+    commit({ ...filters, industry: next });
   };
 
   const handleLocationChange = (e) => {
@@ -224,8 +235,8 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, p
 
   const pickLocation = (loc) => {
     setLocationQuery(loc);
-    updateFilter('location', loc);
     setShowSuggestions(false);
+    commit({ ...filters, location: loc });
   };
 
   /* ─── Submit / Clear ─── */
@@ -237,10 +248,15 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, p
     if (toggle && toggle.offsetParent !== null) toggle.focus();
   };
 
+  // The Search button and Enter in the keyword box commit at once: no debounce,
+  // suggestions close, and the mobile keyboard is dismissed.
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
     if (panelOpen && !isSalaryRangeInvalid(filters.salaryMin, filters.salaryMax)) closePanel();
-    runSearch(filters);
+    runSearch(filters, { focusOnInvalid: true });
   };
 
   // Esc: first dismiss the location suggestions, then collapse the panel.
@@ -283,19 +299,13 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, p
 
       {/* Primary search — always visible, at every width */}
       <div className="jsf-bar">
-        <div className="jsf-search">
-          <FaSearch className="jsf-search-icon" aria-hidden="true" />
-          <input
-            id={ids.keyword}
-            type="text"
-            name="q"
-            enterKeyHint="search"
-            className="ds-input filter-input filter-keyword"
-            placeholder={t('jobBoard.filters.keywordPlaceholder')}
-            value={filters.q || ''}
-            onChange={(e) => updateFilter('q', e.target.value)}
-          />
-        </div>
+        <JobSearchBox
+          id={ids.keyword}
+          value={filters.q || ''}
+          placeholder={t('jobBoard.filters.keywordPlaceholder')}
+          onChange={(q) => updateFilter('q', q)}
+          onCommit={(q) => commit({ ...filters, q })}
+        />
 
         <button type="submit" className="ds-btn ds-btn--primary filter-submit-btn">
           <span className="jsf-submit-long">{t('jobBoard.filters.search')}</span>
@@ -356,7 +366,7 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, p
               name="jobType"
               className="ds-input filter-select"
               value={filters.jobType || ''}
-              onChange={(e) => updateFilter('jobType', e.target.value)}
+              onChange={(e) => commit({ ...filters, jobType: e.target.value })}
             >
               <option value="">{t('jobBoard.filters.allJobTypes')}</option>
               {JOB_TYPES.map((type) => (
@@ -374,7 +384,7 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, p
               name="sortBy"
               className="ds-input filter-select"
               value={filters.sortBy || ''}
-              onChange={(e) => updateFilter('sortBy', e.target.value)}
+              onChange={(e) => commit({ ...filters, sortBy: e.target.value })}
             >
               {SORT_OPTIONS.map((opt) => (
                 <option key={opt.key} value={opt.value}>
@@ -409,8 +419,10 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, p
             min={filters.salaryMin}
             max={filters.salaryMax}
             minRef={minRef}
-            onChange={(nextMin, nextMax) => {
-              if (onChange) onChange({ ...filters, salaryMin: nextMin, salaryMax: nextMax });
+            onChange={(nextMin, nextMax, { immediate = false } = {}) => {
+              const next = { ...filters, salaryMin: nextMin, salaryMax: nextMax };
+              if (immediate) commit(next);
+              else if (onChange) onChange(next);
             }}
           />
         </div>
@@ -421,12 +433,7 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, p
               type="checkbox"
               checked={mustHavesOn}
               onChange={(e) => {
-                const next = { ...filters, onlyMeetsRequired: e.target.checked };
-                if (onChange) onChange(next);
-                // A yes/no toggle reads as broken if it doesn't take effect
-                // immediately, unlike the other filters above which are still
-                // being composed until "Search Jobs" is pressed.
-                runSearch(next);
+                commit({ ...filters, onlyMeetsRequired: e.target.checked });
               }}
             />
             <span>{t('jobBoard.filters.mustHaves')}</span>

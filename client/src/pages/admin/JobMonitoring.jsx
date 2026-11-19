@@ -547,6 +547,7 @@ export default function JobMonitoring() {
                             <span className="jm-job-id">{job.id}</span>
                             <span className="jm-type-pill">{job.type}</span>
                             <span className={badge.cls}>{badge.label}</span>
+                            {job.unlisted && <span className="jm-type-pill">{t("jobBoard.unlistedBadge")}</span>}
                           </div>
                         </div>
                       </td>

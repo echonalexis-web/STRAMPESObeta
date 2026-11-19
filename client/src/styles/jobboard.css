@@ -2156,3 +2156,14 @@ button:disabled,
     padding-bottom: calc(var(--ds-space-6, 24px) + 72px + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* A new search keeps the current cards in place and dims them while it runs. */
+.jb-list.is-refreshing {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jb-list.is-refreshing { transition: none; }
+}

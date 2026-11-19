@@ -226,11 +226,14 @@ export default function YourApplications() {
                             type="button"
                             className="app-row-title"
                             onClick={() => jobId && navigate(`/jobs/${jobId}`)}
-                            disabled={!jobId}
+                            disabled={!jobId || job.employerUnavailable}
                           >
                             {job.title || "Untitled position"}
                           </button>
                           <span className={`status-pill tone-${meta.tone}`}>{meta.label}</span>
+                          {job.employerUnavailable && (
+                            <span className="status-pill tone-withdrawn">{t("applications.noLongerAvailable")}</span>
+                          )}
                         </div>
                         <div className="app-row-sub">
                           {(employer.companyName || employer.name || "Unknown employer")}

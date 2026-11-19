@@ -775,10 +775,22 @@
     "editProfile": "I-edit ang Profile",
     "loading": "Nilo-load ang mga trabaho…",
     "errorTitle": "Hindi ma-load ang mga trabaho",
-    "emptyTitle": "Walang nahanap na trabaho",
-    "emptyBody": "Walang tugmang trabaho sa ngayon. Bawasan ang filter o bumalik ulit mamaya.",
+    "emptyTitle": "Walang katugmang trabaho",
+    "emptyBody": "Subukang alisin ang isang filter o baguhin ang iyong hinahanap.",
     "clearFilters": "I-clear ang filter",
     "filtersLabel": "Maghanap at mag-filter ng trabaho",
+    "unlistedBadge": "Hindi nakalista: suspendido o naka-deactivate ang account ng employer",
+    "suggest": {
+      "label": "Mga mungkahi sa paghahanap",
+      "count_one": "{{count}} mungkahi ang available",
+      "count_other": "{{count}} mungkahi ang available",
+      "error": "Hindi available ang mga mungkahi ngayon. Maaari ka pa ring maghanap.",
+      "types": {
+        "title": "Titulo ng trabaho",
+        "company": "Kumpanya",
+        "skill": "Kasanayan"
+      }
+    },
     "filters": {
       "search": "Maghanap ng Trabaho",
       "searchShort": "Hanapin",
@@ -887,6 +899,7 @@
     "dismiss": "Isara"
   },
   "applications": {
+    "noLongerAvailable": "Hindi na available",
     "loading": "Nilo-load ang iyong mga aplikasyon…",
     "emptyTitle": "Wala ka pang ina-apply-an na trabaho",
     "emptyBody": "Makikita rito ang mga trabahong ina-apply-an mo para masubaybayan mo ang status nila.",

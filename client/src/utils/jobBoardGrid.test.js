@@ -15,7 +15,7 @@ test(".jb-list is an intrinsic auto-fit grid, not auto-fill or fixed columns", (
 });
 
 test("every results section shares the fluid .jb-list grid and wraps cards in .jb-cell", () => {
-  assert.equal((page.match(/className="jb-list"/g) || []).length, 2);
+  assert.equal((page.match(/className={`jb-list/g) || []).length, 2);
   assert.match(page, /className="jb-cell"/);
   assert.equal((page.match(/\.map\(renderCard\)/g) || []).length, 2);
 });
