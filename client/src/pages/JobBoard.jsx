@@ -170,6 +170,26 @@ export default function JobBoard() {
     [jobs, closeMatchIds]
   );
 
+  // Each card sits in a .jb-cell so it can size its inner layout to the
+  // width the fluid grid gives it (see jobboard.css).
+  const renderCard = (job) => (
+    <div key={job._id} className="jb-cell">
+      <VacancyCard
+        job={job}
+        applied={isJobAlreadyApplied(job._id)}
+        followed={Boolean(job.isFollowedEmployer)}
+        preferred={jobMatchesAnyIndustry(job, preferredIndustries)}
+        matchAvailable={hasSkills}
+        onOpen={() => navigate(`/jobs/${job._id}`)}
+        onApply={() => setApplyModalJobId(job._id)}
+        canApply={canApplyJobs}
+        compact
+        expanded={openJobId === job._id}
+        onToggle={() => toggleJob(job._id)}
+      />
+    </div>
+  );
+
   return (
     <div className="jb">
       <div className="jb-inner">
@@ -245,43 +265,13 @@ export default function JobBoard() {
                   {t("jobBoard.closeMatches")}
                 </h2>
                 <div className="jb-list">
-                  {closeMatchJobs.map((job) => (
-                    <VacancyCard
-                      key={job._id}
-                      job={job}
-                      applied={isJobAlreadyApplied(job._id)}
-                      followed={Boolean(job.isFollowedEmployer)}
-                      preferred={jobMatchesAnyIndustry(job, preferredIndustries)}
-                      matchAvailable={hasSkills}
-                      onOpen={() => navigate(`/jobs/${job._id}`)}
-                      onApply={() => setApplyModalJobId(job._id)}
-                      canApply={canApplyJobs}
-                      compact
-                      expanded={openJobId === job._id}
-                      onToggle={() => toggleJob(job._id)}
-                    />
-                  ))}
+                  {closeMatchJobs.map(renderCard)}
                 </div>
               </section>
             )}
 
             <div className="jb-list">
-              {mainListJobs.map((job) => (
-                <VacancyCard
-                  key={job._id}
-                  job={job}
-                  applied={isJobAlreadyApplied(job._id)}
-                  followed={Boolean(job.isFollowedEmployer)}
-                  preferred={jobMatchesAnyIndustry(job, preferredIndustries)}
-                  matchAvailable={hasSkills}
-                  onOpen={() => navigate(`/jobs/${job._id}`)}
-                  onApply={() => setApplyModalJobId(job._id)}
-                  canApply={canApplyJobs}
-                  compact
-                  expanded={openJobId === job._id}
-                  onToggle={() => toggleJob(job._id)}
-                />
-              ))}
+              {mainListJobs.map(renderCard)}
             </div>
 
             <ApplyModal

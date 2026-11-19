@@ -2890,13 +2890,50 @@ button:disabled,
 }
 .jb-note p { margin: 0; }
 
-/* Results: one column on phones, auto-fill grid from 768 */
+/* Results: fluid grid sized by the list's own width (not the viewport), so
+   it reacts when the app navigation expands or collapses. auto-fit drops
+   empty tracks, so a section with fewer cards than columns stretches them
+   across the row; a short last row keeps the column width. The column
+   minimum is max(340px, a third of the row), which also caps the grid at
+   three columns: 1 column below ~700px, 2 up to ~1060px, 3 above. */
 .jb-list {
+  --jb-gap: var(--ds-space-4);
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--ds-space-4);
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(max(min(100%, 340px), calc((100% - 2 * var(--jb-gap)) / 3 - 0.5px)), 1fr)
+  );
+  gap: var(--jb-gap);
 }
 .jb-list > * { min-width: 0; }
+
+/* Grid cell around each job card: gives the card an inline-size container
+   (for the wide card layout below) and lets it fill the row height. */
+.jb-cell {
+  display: flex;
+  min-width: 0;
+  container-type: inline-size;
+}
+.jb-cell > .vac-card { flex: 1 1 auto; }
+
+/* A card spanning a wide cell (a short section, or a wide screen): details
+   on the left, match box and skill chips on the right, actions along the
+   bottom. Narrower cells keep the stacked card exactly as is. */
+@container (min-width: 640px) {
+  .jb-cell > .vac-card:not(.vac-card--compact) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto 1fr;
+    column-gap: var(--ds-space-6);
+    align-content: start;
+  }
+  .jb-cell > .vac-card > .vac-card-top { grid-column: 1; grid-row: 1; }
+  .jb-cell > .vac-card > .vac-facts { grid-column: 1; grid-row: 2; }
+  .jb-cell > .vac-card > .vac-meta { grid-column: 1; grid-row: 3; }
+  .jb-cell > .vac-card > .vac-match-panel { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+  .jb-cell > .vac-card > .vac-req-pills { grid-column: 2; grid-row: 3; align-self: start; }
+  .jb-cell > .vac-card > .vac-footer { grid-column: 1 / -1; grid-row: 4; align-self: end; }
+}
 
 .jb-close-matches {
   display: flex;
@@ -2962,7 +2999,7 @@ button:disabled,
   .jb-hero { padding: var(--ds-space-6) var(--ds-space-8); border-radius: var(--ds-radius-xl); }
   .jb-hero__ring--a { width: 300px; height: 300px; right: 40px; top: -150px; }
   .jb-hero__ring--b { width: 460px; height: 460px; right: -60px; top: -220px; }
-  .jb-list { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--ds-space-5); }
+  .jb-list { --jb-gap: var(--ds-space-5); }
   .jb .jb-close-matches__heading { font-size: var(--ds-text-xl); }
 }
 
