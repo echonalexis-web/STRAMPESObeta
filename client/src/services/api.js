@@ -480,6 +480,8 @@ export const adminAPI = {
   // CSV of the filtered directory (superadmin). Returns a blob.
   exportUsersCsv: (params = {}) =>
     api.get('/admin/users-export', { ...getAuthHeader(), params, responseType: 'blob' }),
+  // Tab totals and filter-chip counts for both directories (superadmin).
+  getUserDirectoryCounts: () => api.get('/admin/users-counts', getAuthHeader()),
   getUserInsights: (id) => api.get(`/admin/users/${id}/insights`, getAuthHeader()),
   saveUserNotes: (id, notes) => api.put(`/admin/users/${id}/notes`, { notes }, getAuthHeader()),
   generateInvite: () => api.post('/auth/invite', {}, getAuthHeader()),

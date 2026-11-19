@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "chatbot:export": "node scripts/chatbot-export.mjs",
-    "test": "node --test \"src/chatbot/**/*.test.js\" \"src/data/**/*.test.js\" \"src/utils/**/*.test.js\" \"src/pages/superadmin/**/*.test.js\"",
+    "test": "node --test \"src/chatbot/**/*.test.js\" \"src/data/**/*.test.js\" \"src/utils/**/*.test.js\" \"src/pages/superadmin/**/*.test.js\" && npm run test:ui",
+    "test:ui": "vitest run",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -40,6 +41,9 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.13",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
@@ -47,7 +51,9 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
+    "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.3",
-    "vite": "^8.0.1"
+    "vite": "^8.0.1",
+    "vitest": "^5.1.1"
   }
 }
