@@ -96,79 +96,13 @@
 /* JOBS GRID */
 /* ============================================ */
 
-.job-card {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
-  border: 1px solid #e8ecf0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  flex-direction: column;
-  min-height: 470px;
-  position: relative;
-  overflow: hidden;
-}
-
-.job-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #2e7d32, #43a047);
-  transform: translateX(-100%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.job-card:hover::before {
-  transform: translateX(0);
-}
-
-.job-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
-  border-color: #d4e4d4;
-}
-
 /* Preferred Card Style */
-
-.job-card:hover .job-brand-logo {
-  transform: scale(1.1) rotate(5deg);
-  box-shadow: 0 5px 16px rgba(46, 125, 50, 0.25);
-}
 
 /* Preferred Badge */
 
 .job-status.status-open {
   background: #e8f5e9;
   color: #2e7d32;
-}
-
-.job-card:hover .job-card-location {
-  color: #2e7d32;
-}
-
-.job-card:hover .job-card-location svg {
-  transform: translateY(-2px);
-}
-
-.job-card:hover .job-card-description {
-  color: #1a2a3a;
-}
-
-.job-card:hover .job-card-applicants {
-  color: #2e7d32;
-}
-
-.job-card:hover .job-card-applicants svg {
-  transform: translateY(-2px);
-}
-
-.job-card:hover .job-requirements-box {
-  border-color: #d4e4d4;
-  background: linear-gradient(135deg, #e8f5e9 0%, #f0f9f0 100%);
 }
 
 .btn-apply {
@@ -262,13 +196,6 @@
 /* ============================================ */
 /* APPLICATIONS SECTION */
 /* ============================================ */
-
-.section-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: #1a2a3a;
-  margin: 40px 0 20px;
-}
 
 .application-status.status-open {
   background: #e8f5e9;
@@ -841,9 +768,7 @@
 
   
 
-  .job-card {
-    padding: 18px;
-  }
+  
 
   
 }
@@ -1503,17 +1428,6 @@ button:disabled,
   color: #2e7d32;
   font-size: 0.9rem;
   font-weight: 600;
-}
-
-.link-btn {
-  border: none;
-  background: none;
-  padding: 0;
-  color: #2e7d32;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
 }
 
 .applications-list {
