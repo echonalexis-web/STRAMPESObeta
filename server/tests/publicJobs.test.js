@@ -5,6 +5,7 @@
 
 jest.mock("../models/JobVacancy", () => ({ find: jest.fn(), findOne: jest.fn(), countDocuments: jest.fn() }));
 jest.mock("../models/User", () => ({ find: jest.fn(), findById: jest.fn() }));
+jest.mock("../models/EmployerProfile", () => ({ find: jest.fn() }));
 jest.mock("../services/systemOptionService", () => ({ getActiveValues: jest.fn() }));
 jest.mock("../utils/logger", () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
 
@@ -17,6 +18,7 @@ const express = require("express");
 const request = require("supertest");
 const JobVacancy = require("../models/JobVacancy");
 const User = require("../models/User");
+const EmployerProfile = require("../models/EmployerProfile");
 const { getActiveValues } = require("../services/systemOptionService");
 
 const router = require("../routes/jobRoutes");
@@ -83,7 +85,10 @@ const EMPLOYERS = [
   { _id: "e2", role: "employer", companyName: "Suspended Co", email: "s@x.test", isActive: false, accountStatus: "suspended" },
   { _id: "e3", role: "employer", companyName: "Gone Co", email: "g@x.test", isActive: false, accountStatus: "deactivated" },
   { _id: "e4", role: "employer", companyName: "Banned Co", email: "b@x.test", isActive: true, accountStatus: "banned" },
+  // Never set a company name, but has a business (trade) name on its profile.
+  { _id: "e5", role: "employer", companyName: "", name: "Lola Private", email: "l@x.test", isActive: true, accountStatus: "active" },
 ];
+const PROFILES = [{ userId: "e5", tradeName: "Marinduque Bakery", tin: "123-456" }, { userId: "e1", tradeName: "Acme Trading" }];
 const job = (n, over = {}) => ({
   _id: id(n), title: `Job ${n}`, description: "d", responsibilities: "r",
   qualifications: [{ type: "skill", value: "welding", optional: false, order: 1 }],
@@ -148,6 +153,10 @@ beforeEach(() => {
   User.find.mockImplementation((filter) => ({
     distinct: async () => EMPLOYERS.filter((e) => matches(e, filter)).map((e) => e._id),
   }));
+  EmployerProfile.find.mockImplementation((filter) => {
+    const q = { select: () => q, lean: async () => PROFILES.filter((p) => filter.userId.$in.includes(String(p.userId))).map(({ userId, tradeName }) => ({ userId, tradeName })) };
+    return q;
+  });
   JobVacancy.countDocuments.mockImplementation(async (filter) => JOBS.filter((j) => matches(j, filter)).length);
   JobVacancy.find.mockImplementation((filter) => runQuery(filter));
   JobVacancy.findOne.mockImplementation((filter) => {
@@ -193,6 +202,20 @@ describe.each(["/api/jobs", "/api/v1/jobs"])("%s public list", (prefix) => {
       ["_id", "applicationDeadline", "createdAt", "description", "employer", "industry", "jobType", "location", "qualifications", "responsibilities", "salary", "salaryMax", "salaryMin", "slots", "title", "workNature"].sort()
     );
     expect(first.employer).toEqual({ companyName: "Acme Marinduque", profileImage: "uploads/profiles/a.png" });
+  });
+});
+
+describe("employer name", () => {
+  test("an employer with no company name shows its business name; one with a company name keeps it; the account holder's name never appears", async () => {
+    JOBS = [job(1), job(2, { employer: "e5" })];
+    const res = await request(app).get("/api/jobs/public");
+    const byId = Object.fromEntries(res.body.jobs.map((j) => [j._id, j.employer.companyName]));
+    expect(byId[id(1)]).toBe("Acme Marinduque");
+    expect(byId[id(2)]).toBe("Marinduque Bakery");
+    const text = JSON.stringify(res.body);
+    ["Lola Private", "123-456", "l@x.test"].forEach((word) => expect(text).not.toContain(word));
+    const one = await request(app).get(`/api/v1/jobs/public/${id(2)}`);
+    expect(one.body.employer.companyName).toBe("Marinduque Bakery");
   });
 });
 

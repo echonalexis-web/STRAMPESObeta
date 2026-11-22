@@ -212,8 +212,8 @@ export default function PublicJobs() {
             ) : jobs.length === 0 ? (
               <StateBlock
                 kind="empty"
-                title={t("publicJobs.emptyTitle")}
-                description={t("publicJobs.emptyBody")}
+                title={hasFilters ? t("publicJobs.emptyTitle") : t("publicJobs.noneTitle")}
+                description={hasFilters ? t("publicJobs.emptyBody") : t("publicJobs.noneBody")}
                 action={
                   hasFilters ? (
                     <button type="button" className="ds-btn ds-btn--primary" onClick={handleReset}>

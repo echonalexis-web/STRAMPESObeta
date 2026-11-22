@@ -13,6 +13,7 @@
  */
 const JobVacancy = require("../models/JobVacancy");
 const User = require("../models/User");
+const EmployerProfile = require("../models/EmployerProfile");
 const { buildPublicJobFilter } = require("../utils/jobVisibility");
 const { escapeRegex } = require("../utils/sanitize");
 const { getActiveValues } = require("./systemOptionService");
@@ -144,7 +145,7 @@ const sortFor = (sortBy) =>
   sortBy === "salary" ? { salaryMax: -1, createdAt: -1, _id: -1 } : { createdAt: -1, _id: -1 };
 
 // Allow-list shape of one job. Built field by field, never by deleting from a document.
-const toPublicJob = (job) => {
+const toPublicJob = (job, tradeNames = {}) => {
   const employer = job.employer && typeof job.employer === "object" ? job.employer : null;
   return {
     _id: job._id,
@@ -165,12 +166,27 @@ const toPublicJob = (job) => {
     slots: job.slots,
     createdAt: job.createdAt,
     applicationDeadline: job.applicationDeadline,
-    // Company name and logo only. The account holder's own name is not a company field.
-    employer: employer ? { companyName: employer.companyName || "", profileImage: employer.profileImage || null } : null,
+    // Company name and logo only. The account holder's own name is not a company field. An
+    // employer that never set a company name shows its business (trade) name instead.
+    employer: employer
+      ? {
+          companyName: employer.companyName || tradeNames[String(employer._id)] || "",
+          profileImage: employer.profileImage || null,
+        }
+      : null,
   };
 };
 
 const withEmployer = (query) => query.populate("employer", "companyName profileImage");
+
+// Business names for the employers on this page of results, in one query. Only the name
+// is read; nothing else from the profile is touched.
+const tradeNamesFor = async (rows) => {
+  const ids = [...new Set(rows.map((row) => row.employer && row.employer._id).filter(Boolean).map(String))];
+  if (ids.length === 0) return {};
+  const profiles = await EmployerProfile.find({ userId: { $in: ids } }).select("userId tradeName").lean();
+  return Object.fromEntries(profiles.filter((p) => p.tradeName).map((p) => [String(p.userId), p.tradeName]));
+};
 
 const searchPublicJobs = async (parsed, now = new Date()) => {
   const emptyPage = { jobs: [], total: 0, pagination: { total: 0, page: parsed.page, pages: 1, limit: parsed.limit }, sortBy: parsed.sortBy };
@@ -185,8 +201,9 @@ const searchPublicJobs = async (parsed, now = new Date()) => {
       .limit(parsed.limit)
       .lean(),
   ]);
+  const tradeNames = await tradeNamesFor(rows);
   return {
-    jobs: rows.map(toPublicJob),
+    jobs: rows.map((row) => toPublicJob(row, tradeNames)),
     total,
     pagination: { total, page: parsed.page, pages: Math.max(1, Math.ceil(total / parsed.limit)), limit: parsed.limit },
     sortBy: parsed.sortBy,
@@ -199,7 +216,7 @@ const findPublicJob = async (id, now = new Date()) => {
   if (!/^[a-fA-F0-9]{24}$/.test(String(id || ""))) return null;
   const base = await buildPublicJobFilter(now);
   const job = await withEmployer(JobVacancy.findOne({ $and: [base, { _id: id }] }).select(PUBLIC_SELECT)).lean();
-  return job ? toPublicJob(job) : null;
+  return job ? toPublicJob(job, await tradeNamesFor([job])) : null;
 };
 
 module.exports = { LIMITS, PUBLIC_SELECT, parsePublicQuery, buildSearchFilter, searchPublicJobs, findPublicJob, toPublicJob };

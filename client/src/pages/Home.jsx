@@ -2,11 +2,9 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FaSearch } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
-import { jobAPI } from "../services/api";
-import VacancyCard from "../components/VacancyCard";
+import HomeJobsCarousel from "../components/HomeJobsCarousel";
 import useParallax from "../hooks/useParallax";
 import "../styles/home.css";
-import "../styles/jobboard.css";
 import heroVideo from "../assets/videos/hero-video.mp4";
 import pesoLogo from "../assets/images/peso-logo.png";
 import provincialSeal from "../assets/images/provincial-seal.png";
@@ -16,44 +14,6 @@ import carouselImage3 from "../assets/images/Picture 3.png";
 import carouselImage4 from "../assets/images/Picture 4.png";
 import provincialBuilding from "../assets/images/provincial-building.jpg";
 
-const HOME_FEATURED_JOBS = [
-  {
-    _id: "community-liaison-assistant",
-    title: "Community Liaison Assistant",
-    employer: "Marinduque Community Development Group",
-    location: "Boac, Marinduque",
-    jobType: "Full-time",
-    type: "Full-time",
-    description: "Support field coordination, community outreach, and documentation for local livelihood programs.",
-  },
-  {
-    _id: "admin-support-staff",
-    title: "Administrative Support Staff",
-    employer: "Island Cooperative Services",
-    location: "Gasan, Marinduque",
-    jobType: "Contract",
-    type: "Contract",
-    description: "Handle office coordination, records management, and front-line support for daily operations.",
-  },
-  {
-    _id: "field-encoder",
-    title: "Field Encoder",
-    employer: "Provincial Field Assistance Office",
-    location: "Santa Cruz, Marinduque",
-    jobType: "Project-Based",
-    type: "Project-Based",
-    description: "Encode beneficiary records, update reports, and assist in local employment program monitoring.",
-  },
-  {
-    _id: "service-associate",
-    title: "Customer Service Associate",
-    employer: "Marinduque Trade Center",
-    location: "Torrijos, Marinduque",
-    jobType: "Full-time",
-    type: "Full-time",
-    description: "Support customer inquiries, assist transactions, and maintain service quality in a retail setting.",
-  },
-];
 
 export default function Home() {
   const { user } = useContext(AuthContext);
@@ -66,10 +26,7 @@ export default function Home() {
 
   const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState(null);
-  const [featuredJobs, setFeaturedJobs] = useState(HOME_FEATURED_JOBS);
-  const [jobsLoading, setJobsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeJobFilter, setActiveJobFilter] = useState("all");
   const [showScrollButton, setShowScrollButton] = useState(true);
   const [experienceIndex, setExperienceIndex] = useState(0);
 
@@ -92,28 +49,6 @@ export default function Home() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [location.hash, location.pathname]);
-
-  useEffect(() => {
-    let active = true;
-    const loadJobs = async () => {
-      setJobsLoading(true);
-      try {
-        // The newest publicly available jobs, newest first (the same list "See More Jobs" opens).
-        const { data } = await jobAPI.getPublicJobs({ limit: 6, sortBy: "newest" });
-        if (!active) return;
-        const latest = Array.isArray(data?.jobs) ? data.jobs : [];
-        if (latest.length > 0) setFeaturedJobs(latest);
-        else setFeaturedJobs(HOME_FEATURED_JOBS);
-      } catch (error) {
-        console.error("Error loading jobs:", error);
-        if (active) setFeaturedJobs(HOME_FEATURED_JOBS);
-      } finally {
-        if (active) setJobsLoading(false);
-      }
-    };
-    loadJobs();
-    return () => { active = false; };
-  }, [user]);
 
   useEffect(() => {
     let ticking = false;
@@ -140,60 +75,18 @@ export default function Home() {
     }
   };
 
-  const getFilteredJobs = () => {
-    try {
-      const query = searchQuery.toLowerCase().trim();
-      return featuredJobs.filter(job => {
-        if (!job) return false;
-        const title = (job.title || "").toLowerCase().trim();
-        const employer = (typeof job.employer === 'string' ? job.employer : job.employer?.companyName || job.employer?.name || "").toLowerCase().trim();
-        const location = (job.location || "").toLowerCase().trim();
-        let jobType = "";
-        if (job.jobType && typeof job.jobType === 'string') jobType = job.jobType.toLowerCase().trim();
-        else if (job.type && typeof job.type === 'string') jobType = job.type.toLowerCase().trim();
-        else if (job.employmentType && typeof job.employmentType === 'string') jobType = job.employmentType.toLowerCase().trim();
-        
-        const normalizedType = jobType.replace(/\s+/g, "-");
-        const jobMode = String(job.workMode || job.mode || job.locationType || "").toLowerCase().trim();
-        const filterMatches = activeJobFilter === "all"
-          || jobType === activeJobFilter.toLowerCase()
-          || normalizedType === activeJobFilter.toLowerCase()
-          || jobMode === activeJobFilter.toLowerCase();
-        if (!filterMatches) return false;
-
-        if (!query) return true;
-        return (
-          title.includes(query) ||
-          (employer.includes(query) && employer !== "employer") ||
-          location.includes(query) ||
-          jobType.includes(query)
-        );
-      });
-    } catch (error) {
-      console.error("Error filtering jobs:", error);
-      return featuredJobs;
-    }
-  };
-
-  const filteredJobs = getFilteredJobs();
-  const hasNoResults = searchQuery.trim() !== "" && filteredJobs.length === 0 && !jobsLoading;
-
   const openRegisterPrompt = () => setShowRegisterPrompt(true);
   const closeRegisterPrompt = () => setShowRegisterPrompt(false);
   const goToRegister = (route) => { closeRegisterPrompt(); navigate(route); };
   const closeProgramModal = () => setSelectedProgram(null);
-  const handleViewJob = (job) => {
-    const jobId = job?._id || job?.id;
-    // Only a real posting (Mongo ObjectId) has a detail page to go to — the
-    // static fallback list shown when the API call fails/returns nothing
-    // uses slug-like placeholder ids that don't exist in the database.
-    if (!jobId || !/^[a-f0-9]{24}$/i.test(String(jobId))) return;
-    navigate(`/jobs/${jobId}`);
-  };
-  const clearSearch = () => { setSearchQuery(""); };
-  const selectJobFilter = (filter) => { setActiveJobFilter(filter); };
 
   const handleSearchChange = (e) => { setSearchQuery(e.target.value); };
+  // The search box opens the full list with the search applied (the list filters on the server).
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    navigate(q ? `/jobs?q=${encodeURIComponent(q.slice(0, 100))}` : "/jobs");
+  };
 
   const getExperienceOffset = (slideIndex) => {
     let offset = slideIndex - experienceIndex;
@@ -238,76 +131,15 @@ export default function Home() {
           <div className="jobs-design-hero">
 
             <div className="jobs-design-search-shell">
-              <div className="jobs-design-search-bar">
+              <form className="jobs-design-search-bar" onSubmit={handleSearchSubmit} role="search">
                 <FaSearch className="jobs-design-search-icon" aria-hidden="true" />
-                <input type="text" placeholder="Search by job title, employer, or type…" value={searchQuery} onChange={handleSearchChange} />
-                <button type="button">Search</button>
-              </div>
-              <div className="jobs-design-chips" aria-label="Filter jobs by type">
-                {[
-                  ["all", "All"],
-                  ["Full-time", "Full-time"],
-                  ["Contract", "Contract"],
-                  ["Project-based", "Project-based"],
-                  ["Online", "Online"],
-                  ["Onsite", "Onsite"],
-                ].map(([value, label]) => (
-                  <button key={value} type="button" className={`jobs-design-chip ${activeJobFilter === value ? "is-active" : ""}`} onClick={() => selectJobFilter(value)}>{label}</button>
-                ))}
-              </div>
+                <input type="text" aria-label="Search jobs" placeholder="Search by job title, employer, or type…" value={searchQuery} onChange={handleSearchChange} />
+                <button type="submit">Search</button>
+              </form>
             </div>
           </div>
 
-          <div className="jobs-design-section-head">
-            <div>
-              <h3>Current employer openings</h3>
-              <p>Select a card to view the full posting.</p>
-            </div>
-            <span className="jobs-design-count">{filteredJobs.length} {filteredJobs.length === 1 ? "opening" : "openings"}</span>
-          </div>
-
-          {jobsLoading ? (
-            <div className="section-loading"><p>Loading available jobs...</p></div>
-          ) : hasNoResults ? (
-            <div className="no-results-container">
-              <div className="no-results-icon">🔍</div>
-              <h3>No jobs found for "{searchQuery}"</h3>
-              <p>We couldn't find any matching jobs. Try adjusting your search terms.</p>
-              <div className="suggestions"><p>💡 Suggestions:</p><ul><li>Check for typos or spelling errors</li><li>Use more general keywords</li><li>Try searching by job type</li><li>Browse all available jobs below</li></ul></div>
-              <button className="jobs-see-more-btn" onClick={clearSearch}>View All Jobs</button>
-            </div>
-          ) : (
-            <>
-              {/* The same job card as Browse Jobs (visitor mode: no applicant count, no skills). */}
-              <div className="jb-list">
-                {filteredJobs.length > 0 ? (
-                  filteredJobs.map((job) => {
-                    const jobId = job?._id || job?.id || job?.title;
-                    return (
-                      <div key={jobId} className="jb-cell">
-                        <VacancyCard
-                          job={job}
-                          visitor
-                          matchAvailable={false}
-                          onOpen={() => handleViewJob(job)}
-                          onLogin={() => navigate("/login")}
-                          compact
-                          expanded={false}
-                          onToggle={() => {}}
-                        />
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="no-results-container"><div className="no-results-icon">🔍</div><h3>No jobs available</h3><p>There are currently no job postings. Please check back later.</p></div>
-                )}
-              </div>
-
-              <div className="more-wrap">
-                <button className="more-btn" onClick={() => navigate("/jobs")}>See More Jobs</button>
-              </div>
-            </>
-          )}
+          <HomeJobsCarousel />
         </div>
       </section>
 

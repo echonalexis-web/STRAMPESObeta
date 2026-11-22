@@ -1,0 +1,188 @@
+/* Home page jobs carousel (signed-out view). Scroll-snap only: no autoplay, no library.
+   3 slides in view from 1024px, 2 from 640px, and below that one slide with a peek of the
+   next. Every colour pair here is at least 4.5:1, buttons are 44px, and the page itself
+   never scrolls sideways (only the track does). */
+
+.hc {
+  width: 100%;
+  min-width: 0;
+}
+
+.hc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin: 0 0 16px;
+}
+.hc-head__text { min-width: 0; flex: 1 1 18rem; }
+.hc-title {
+  margin: 0;
+  font-size: clamp(1.4rem, 1.1rem + 1.2vw, 2rem);
+  line-height: 1.2;
+  color: #1a2530;
+  overflow-wrap: anywhere;
+}
+.hc-sub {
+  margin: 4px 0 0;
+  color: #374151;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+.hc-head__side {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px 14px;
+}
+.hc-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 2px 14px;
+  border-radius: 999px;
+  background: #e8f5e9;
+  color: #1b5e20;
+  font-weight: 700;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+.hc-browse {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  color: #1b5e20;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.hc-controls { display: flex; align-items: center; gap: 8px; }
+.hc-position {
+  min-width: 6.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  font-variant-numeric: tabular-nums;
+}
+.hc-arrow {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #b8c1cc;
+  border-radius: 50%;
+  background: #fff;
+  color: #1a2530;
+  cursor: pointer;
+}
+.hc-arrow:disabled { opacity: 0.45; cursor: not-allowed; }
+.hc-arrow:not(:disabled):hover { background: #e8f5e9; border-color: #1b5e20; }
+.hc-arrow:focus-visible,
+.hc-browse:focus-visible,
+.hc-more:focus-visible,
+.hc-track:focus-visible {
+  outline: 3px solid #0b57d0;
+  outline-offset: 2px;
+}
+
+/* ---- Track ---- */
+.hc-track {
+  --hc-gap: 16px;
+  display: flex;
+  gap: var(--hc-gap);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  padding: 4px 2px 14px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.hc-slide {
+  flex: 0 0 calc((100% - 2 * var(--hc-gap)) / 3);
+  min-width: 0;
+  display: flex;
+  scroll-snap-align: start;
+}
+@media (max-width: 1023px) {
+  .hc-slide { flex-basis: calc((100% - var(--hc-gap)) / 2); }
+}
+@media (max-width: 639px) {
+  /* One card with a visible peek of the next. */
+  .hc-slide { flex-basis: 82%; }
+  .hc-head__side { justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hc-track { scroll-behavior: auto; }
+}
+
+/* ---- Card (same family as the Browse Jobs card) ---- */
+.hc-slide > .hc-card { flex: 1 1 auto; width: 100%; min-width: 0; }
+.hc-card { cursor: default; }
+.hc-card:hover { transform: none; }
+.hc-clamp-1,
+.hc-clamp-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.hc-clamp-1 { -webkit-line-clamp: 1; line-clamp: 1; }
+.hc-clamp-2 { -webkit-line-clamp: 2; line-clamp: 2; }
+/* Two lines of room so every card is the same height, whatever the text length. */
+.hc-card .vac-title { min-height: 2.6em; margin: 0; }
+.hc-location { margin: 0; min-height: 2.8em; color: #374151; font-size: 0.9375rem; line-height: 1.4; }
+.hc-salary { margin: 0; font-weight: 700; color: #1b5e20; }
+.hc-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hc-type {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #e7f1fb;
+  color: #0b4f8a;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.hc-openings { font-size: 0.875rem; color: #374151; }
+.hc-footer { margin-top: auto; }
+.hc-card .btn-vac { min-height: 44px; }
+.hc-card .btn-favorite-icon { min-width: 44px; min-height: 44px; }
+
+/* ---- "See more" card ---- */
+.hc-more {
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  background: #e8f5e9;
+  border-color: #b7dfb9;
+  color: #1b5e20;
+  text-decoration: none;
+  cursor: pointer;
+}
+.hc-more:hover { background: #dcf0de; }
+.hc-more__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #1b5e20;
+  color: #fff;
+}
+.hc-more__count { font-size: 1.5rem; font-weight: 800; line-height: 1.2; }
+.hc-more__cta { font-weight: 600; color: #14471a; }
+
+/* ---- Loading skeleton: same size as a card ---- */
+.hc-track--loading { overflow: hidden; }
+.hc-skeleton { min-height: 17rem; gap: 14px; }
+.hc-sk { display: block; height: 14px; border-radius: 6px; }
+.hc-sk--sm { width: 40%; }
+.hc-sk--lg { height: 22px; width: 80%; }
+.hc-sk--btn { height: 44px; width: 55%; margin-top: auto; border-radius: 999px; }
+
+/* ---- Save prompt ---- */
+.hc-prompt-text { margin: 0 0 16px; color: #1a2530; line-height: 1.5; }
+.hc-prompt-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.hc-prompt-actions .ds-btn { min-height: 44px; }
