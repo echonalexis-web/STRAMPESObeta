@@ -319,6 +319,14 @@ describe("login", () => {
     expect((await run({ identifier: "a@x.com", password: "pw" })).status).toBe(400);
   });
 
+  test("WB-AUTHC-26b a staff account pending activation cannot sign in, even if the password somehow matched, and answers like a wrong password", async () => {
+    found(good({ role: "admin", isActive: false, accountStatus: "pending_activation" }));
+    const r = await run({ identifier: "a@x.com", password: "pw" });
+    expect(r.status).toBe(400);
+    expect(r.body).toEqual({ message: "Invalid username/email or password" });
+    expect(r.body).not.toHaveProperty("token");
+  });
+
   describe("per-account lockout (feature flag on)", () => {
     beforeEach(() => usernameSignup.isUsernameSignupEnabled.mockReturnValue(true));
 
@@ -713,6 +721,15 @@ describe("forgotPassword", () => {
     expect(mailService.sendPasswordResetEmail).not.toHaveBeenCalled();
   });
 
+  test("WB-AUTHC-68b a staff account pending activation gets the generic answer: no reset token, no mail, so a reset can never activate it", async () => {
+    const u = mkUser({ role: "admin", isActive: false, accountStatus: "pending_activation" });
+    found(u);
+    expect((await run({ email: "a@x.com" })).body).toEqual(GENERIC);
+    expect(u.passwordResetToken).toBeUndefined();
+    expect(u.save).not.toHaveBeenCalled();
+    expect(mailService.sendPasswordResetEmail).not.toHaveBeenCalled();
+  });
+
   test("WB-AUTHC-69 success: token hashed (never stored raw), 30-minute expiry, mail to the primary address, audited, generic response", async () => {
     const u = mkUser();
     found(u);
@@ -803,6 +820,8 @@ describe("resetPassword", () => {
     expect(filter.passwordResetToken).not.toBe("tok");
     expect(filter.passwordResetExpires.$gt).toBeInstanceOf(Date);
     expect(filter.staffRecoveryPending).toEqual({ $ne: true });
+    // A pending staff account is never reachable through a reset token.
+    expect(filter.accountStatus).toEqual({ $ne: "pending_activation" });
   });
 
   test("WB-AUTHC-78 policy rejection is returned", async () => {
@@ -1184,6 +1203,19 @@ describe("googleAuth / googleComplete", () => {
     verified();
     expect((await run({ intent: "admin" })).status).toBe(202);
     expect(User.create).not.toHaveBeenCalled();
+  });
+
+  test("WB-AUTHC-110b a matching Google email cannot sign in to, or link, a staff account pending activation", async () => {
+    verified(payload({ email: "staff@peso.gov" }));
+    const u = mkUser({ role: "admin", email: "staff@peso.gov", isActive: false, accountStatus: "pending_activation" });
+    found(u);
+    const r = await run();
+    expect(r.status).toBe(403);
+    expect(r.body.code).toBe("ACCOUNT_PENDING_ACTIVATION");
+    expect(r.body).not.toHaveProperty("token");
+    expect(r.body).not.toHaveProperty("appealToken");
+    expect(u.googleId).toBeUndefined();
+    expect(u.save).not.toHaveBeenCalled();
   });
 
   test.each([undefined, "false", "no"])("WB-AUTHC-111 employer sign-up needs the 18+ attestation (%p refused)", async (v) => {

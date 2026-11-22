@@ -33,6 +33,15 @@ const getDirectoryCounts = async ({ now = Date.now() } = {}) => {
   entries.forEach(([role, name], index) => {
     result[role === "employer" ? "employers" : "jobseekers"][name] = counts[index];
   });
+  // Staff accounts are not a directory tab; this only feeds the "pending staff
+  // activations" notice on the User Management page.
+  result.staff = {
+    pendingActivation: await User.countDocuments({
+      role: "admin",
+      accountStatus: "pending_activation",
+      deletedAt: null,
+    }),
+  };
   return result;
 };
 

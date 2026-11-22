@@ -76,6 +76,8 @@ const SYSTEM_DEFAULTS = {
   appealWindowDays: 14,
   requireEmployerVerification: true,
   deletedAccountGraceDays: 30,
+  staffInviteExpiryHours: 48,
+  staffInviteResendCooldownSeconds: 60,
 };
 
 const SECTIONS_BY_ROLE = {
@@ -1427,6 +1429,32 @@ function SystemSection({ role, navbarStyle, onNavbarStyleChange, system, loading
     if (clamped !== current) onSave({ deletedAccountGraceDays: clamped });
   };
 
+  // Staff activation invite: link lifetime (hours) and the wait between resends (seconds).
+  const [inviteHoursDraft, setInviteHoursDraft] = useState(String(system.staffInviteExpiryHours ?? 48));
+  const [syncedInviteHours, setSyncedInviteHours] = useState(system.staffInviteExpiryHours);
+  if (system.staffInviteExpiryHours !== syncedInviteHours) {
+    setSyncedInviteHours(system.staffInviteExpiryHours);
+    setInviteHoursDraft(String(system.staffInviteExpiryHours ?? 48));
+  }
+  const commitInviteHours = () => {
+    const current = system.staffInviteExpiryHours ?? 48;
+    const clamped = Math.min(168, Math.max(1, Math.round(Number(inviteHoursDraft)) || current));
+    setInviteHoursDraft(String(clamped));
+    if (clamped !== current) onSave({ staffInviteExpiryHours: clamped });
+  };
+  const [inviteCooldownDraft, setInviteCooldownDraft] = useState(String(system.staffInviteResendCooldownSeconds ?? 60));
+  const [syncedInviteCooldown, setSyncedInviteCooldown] = useState(system.staffInviteResendCooldownSeconds);
+  if (system.staffInviteResendCooldownSeconds !== syncedInviteCooldown) {
+    setSyncedInviteCooldown(system.staffInviteResendCooldownSeconds);
+    setInviteCooldownDraft(String(system.staffInviteResendCooldownSeconds ?? 60));
+  }
+  const commitInviteCooldown = () => {
+    const current = system.staffInviteResendCooldownSeconds ?? 60;
+    const clamped = Math.min(3600, Math.max(30, Math.round(Number(inviteCooldownDraft)) || current));
+    setInviteCooldownDraft(String(clamped));
+    if (clamped !== current) onSave({ staffInviteResendCooldownSeconds: clamped });
+  };
+
   const commitAutoClose = () => {
     const clamped = Math.min(365, Math.max(1, Math.round(Number(autoCloseDraft)) || system.autoCloseDays));
     setAutoCloseDraft(String(clamped));
@@ -1538,6 +1566,38 @@ function SystemSection({ role, navbarStyle, onNavbarStyleChange, system, loading
                 onBlur={commitGrace}
               />
               <span>{t("settings.system.deletedGraceSuffix")}</span>
+            </div>
+          </label>
+
+          <label className="set-field">
+            <span className="set-field__label">{t("settings.system.inviteExpiryLabel")}</span>
+            <div className="set-field__inline">
+              <input
+                type="number"
+                min="1"
+                max="168"
+                value={inviteHoursDraft}
+                disabled={loading}
+                onChange={(e) => setInviteHoursDraft(e.target.value)}
+                onBlur={commitInviteHours}
+              />
+              <span>{t("settings.system.inviteExpirySuffix")}</span>
+            </div>
+          </label>
+
+          <label className="set-field">
+            <span className="set-field__label">{t("settings.system.inviteCooldownLabel")}</span>
+            <div className="set-field__inline">
+              <input
+                type="number"
+                min="30"
+                max="3600"
+                value={inviteCooldownDraft}
+                disabled={loading}
+                onChange={(e) => setInviteCooldownDraft(e.target.value)}
+                onBlur={commitInviteCooldown}
+              />
+              <span>{t("settings.system.inviteCooldownSuffix")}</span>
             </div>
           </label>
 

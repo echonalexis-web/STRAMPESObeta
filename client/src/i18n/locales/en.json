@@ -476,7 +476,11 @@
       "deletedGraceLabel": "Restore window for deleted accounts",
       "deletedGraceSuffix": "days (7 to 365) before personal data is permanently removed",
       "requireVerification": "Require employer verification before posting",
-      "requireVerificationHint": "Employers must be verified by the PESO office before a vacancy goes live."
+      "requireVerificationHint": "Employers must be verified by the PESO office before a vacancy goes live.",
+      "inviteExpiryLabel": "Staff invitation link lifetime",
+      "inviteExpirySuffix": "hours (1 to 168)",
+      "inviteCooldownLabel": "Wait between invitation resends",
+      "inviteCooldownSuffix": "seconds (30 to 3600)"
     },
     "adminTools": {
       "title": "Admin Tools",
@@ -1405,7 +1409,9 @@
         "suspended": "Suspended",
         "banned": "Banned",
         "deactivated": "Deactivated",
-        "deleted": "Deleted"
+        "deleted": "Deleted",
+        "pending": "Pending activation",
+        "expired": "Invite expired"
       },
       "actions": {
         "view": "View",
@@ -1619,7 +1625,16 @@
       },
       "lockoutLine": "Lockouts: {{day}} in the last 24 hours, {{week}} in the last 7 days",
       "cardsLabel": "Accounts",
-      "tableLabel": "Accounts"
+      "tableLabel": "Accounts",
+      "pendingStaff": {
+        "badge_one": "{{count}} staff account pending activation",
+        "badge_other": "{{count}} staff accounts pending activation",
+        "title": "Staff invitations",
+        "body_one": "{{count}} staff account has not been activated yet. Resend or cancel its invitation on the Admin accounts page.",
+        "body_other": "{{count}} staff accounts have not been activated yet. Resend or cancel their invitations on the Admin accounts page.",
+        "open": "Open Admin accounts",
+        "close": "Close"
+      }
     },
     "moderation": {
       "subtitle": "Review user-submitted reports and decide on suspension appeals.",
@@ -2069,7 +2084,10 @@
       "FOLLOW_LIST_PRIVATE": "This list is private.",
       "PROFILE_UNAVAILABLE": "This profile is unavailable.",
       "PROFILE_VIEW_DAILY_LIMIT": "You have viewed a lot of profiles today. Try again tomorrow.",
-      "PROFILE_VIEW_RATE_LIMITED": "Too many profile views. Please slow down."
+      "PROFILE_VIEW_RATE_LIMITED": "Too many profile views. Please slow down.",
+      "INVITE_INVALID": "This activation link is not valid. Ask your superadmin to send you a new one.",
+      "PASSWORD_MISMATCH": "The two passwords do not match.",
+      "EMAIL_EXISTS": "An account with that email already exists."
     }
   },
   "spes": {
@@ -2613,7 +2631,10 @@
     "special": "One special character",
     "sameAsUsername": "Cannot be or contain your username",
     "sameAsBirthDate": "Cannot be your date of birth",
-    "tooCommon": "Too common. Choose something harder to guess"
+    "tooCommon": "Too common. Choose something harder to guess",
+    "match": "Both passwords match",
+    "requirementMet": "Done",
+    "requirementOpen": "Not yet"
   },
   "emailStep": {
     "title": "Add your email",
@@ -3045,5 +3066,104 @@
   "applyPhoto": {
     "label": "Include my photo in this application",
     "hint": "Your profile is hidden. The employer sees your name and what you submit, and your photo only if you tick this."
+  },
+  "staffInvite": {
+    "form": {
+      "title": "Provision staff account",
+      "lead": "We email the new staff member a one-time activation link so they choose their own password. You never see, copy or share a password.",
+      "name": "Full name",
+      "namePlaceholder": "Juan Dela Cruz",
+      "email": "PESO official email",
+      "emailPlaceholder": "name@peso.marinduque.gov.ph",
+      "emailHint": "This is also their login ID. The link is sent here.",
+      "position": "Position or office",
+      "positionPlaceholder": "PESO Manager",
+      "presetsLabel": "Quick-fill common positions",
+      "role": "Role",
+      "roleStaff": "Staff moderator (PESO admin)",
+      "roleHint": "Staff accounts can never be given the superadmin role from here.",
+      "expiryNote": "The link works once and expires in {{hours}} hours.",
+      "submit": "Send invitation",
+      "submitting": "Sending…",
+      "cancel": "Cancel",
+      "close": "Close",
+      "errorSummary": "Please fix the highlighted fields."
+    },
+    "errors": {
+      "nameRequired": "Enter the staff member's full name.",
+      "emailRequired": "Enter their PESO email address.",
+      "emailInvalid": "Enter a valid email address, like name@peso.marinduque.gov.ph.",
+      "positionRequired": "Enter their position or office.",
+      "generic": "We could not create the account. Please try again."
+    },
+    "toast": {
+      "provisioned": "Account created. An activation email is on its way to {{email}}.",
+      "provisionedEmailFailed": "Account created, but the email could not be sent. Use Resend invite.",
+      "resent": "A new activation email is on its way to {{email}}. The old link no longer works.",
+      "resentFailed": "A new link was made, but the email could not be queued. Try Resend again.",
+      "cancelled": "Invitation cancelled and the pending account removed.",
+      "cooldown": "Wait {{seconds}} seconds before sending another invitation.",
+      "limit": "This invitation was resent too many times. Cancel it and provision the account again.",
+      "notPending": "This account is no longer waiting for activation.",
+      "failed": "That did not work. Please try again."
+    },
+    "status": {
+      "pending": "Pending activation",
+      "expired": "Invite expired",
+      "active": "Active",
+      "disabled": "Disabled"
+    },
+    "email": {
+      "sent": "Email sent",
+      "queued": "Email queued",
+      "failed": "Email failed, resend"
+    },
+    "actions": {
+      "resend": "Resend invite",
+      "resendFor": "Resend invite to {{name}}",
+      "resendWait": "Resend in {{seconds}}s",
+      "cancel": "Cancel invite",
+      "cancelFor": "Cancel invite for {{name}}",
+      "details": "Invite details",
+      "detailsFor": "Invite details for {{name}}"
+    },
+    "cancelDialog": {
+      "title": "Cancel this invitation?",
+      "body": "The pending account for {{email}} is removed and its activation link stops working. You can provision the account again later.",
+      "confirm": "Cancel invitation",
+      "keep": "Keep invitation"
+    },
+    "details": {
+      "sent": "Invite sent",
+      "expires": "Link expires",
+      "expiredOn": "Link expired",
+      "resends": "Resends used",
+      "resendsOf": "{{used}} of {{max}}",
+      "activated": "Activated",
+      "none": "Not yet"
+    }
+  },
+  "activation": {
+    "title": "Activate your staff account",
+    "subtitle": "Choose your own password to finish setting up your STRAM PESO staff account.",
+    "checking": "Checking your link…",
+    "invalidTitle": "This link can't be used",
+    "invalidBody": "This activation link is not valid. Ask your superadmin to send you a new one.",
+    "backToLogin": "Back to login",
+    "password": "New password",
+    "confirm": "Confirm new password",
+    "show": "Show password",
+    "hide": "Hide password",
+    "requirementsTitle": "Your password needs:",
+    "submit": "Activate account",
+    "submitting": "Activating…",
+    "errors": {
+      "passwordRequired": "Enter a new password.",
+      "confirmRequired": "Enter the password again to confirm it.",
+      "mismatch": "The two passwords do not match.",
+      "generic": "We could not activate the account. Please try again.",
+      "tooMany": "Too many attempts. Please try again later."
+    },
+    "loginNotice": "Your account is active. Sign in with your email and the password you just chose."
   }
 }

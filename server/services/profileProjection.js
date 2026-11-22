@@ -61,6 +61,7 @@ const SECRET_USER_FIELDS = [
   "staffRecoveryRequest",
   "staffRecoveryVersion",
   "staffRecoveryPending",
+  "staffInvite",
   "idUploadWindowStartedAt",
   "idUploadCount",
   "mustChangePassword",

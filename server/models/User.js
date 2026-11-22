@@ -143,6 +143,22 @@ const userSchema = new mongoose.Schema(
     createdBySuperadmin: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     // Free-text note the superadmin records per admin: real name + PESO position.
     staffNote: { type: String, default: null },
+    // One-time activation invite for a provisioned staff account. Only the
+    // SHA-256 hash of the link token is stored (select:false, so no ordinary read
+    // returns it); the token itself exists only inside the emailed link.
+    // Absent on every account that was not provisioned this way.
+    staffInvite: {
+      tokenHash: { type: String, select: false },
+      status: { type: String, enum: ["pending", "activated"] },
+      expiresAt: { type: Date },
+      sentAt: { type: Date },
+      lastSentAt: { type: Date },
+      resendCount: { type: Number, default: undefined },
+      activatedAt: { type: Date },
+      // The outbox row of the latest invite email, and whether even queuing it failed.
+      outboxId: { type: mongoose.Schema.Types.ObjectId, ref: "EmailOutbox" },
+      queueFailed: { type: Boolean, default: undefined },
+    },
     // Updated on every successful login so the superadmin console can show which
     // admin accounts are dormant.
     lastLoginAt: { type: Date, default: null },
@@ -325,7 +341,10 @@ const userSchema = new mongoose.Schema(
     // it automatically once the owner's credentials check out again.
     accountStatus: {
       type: String,
-      enum: ["active", "suspended", "banned", "deactivated"],
+      // "pending_activation": a staff account a superadmin has provisioned that
+      // its owner has not activated yet (see services/staffInviteService.js).
+      // Always stored with isActive:false so every existing gate fails closed.
+      enum: ["active", "suspended", "banned", "deactivated", "pending_activation"],
       default: "active",
     },
     suspensionReason: { type: String, default: null },
@@ -558,6 +577,11 @@ userSchema.index({ "cover.templateId": 1 }, { sparse: true });
 userSchema.index({ role: 1, isActive: 1, accountStatus: 1 });
 // Directory filter and the purge job's "due" lookup.
 userSchema.index({ deletedAt: 1, purgeAfter: 1 });
+// Activation lookup by token hash; partial so accounts without an invite cost nothing.
+userSchema.index(
+  { "staffInvite.tokenHash": 1 },
+  { partialFilterExpression: { "staffInvite.tokenHash": { $type: "string" } }, name: "staff_invite_token_hash" }
+);
 
 userSchema.index(
   { email: 1 },

@@ -17,6 +17,7 @@ jest.mock("../services/mailService", () => ({
   sendMail: jest.fn(),
 }));
 jest.mock("../utils/logger", () => ({ info: jest.fn(), error: jest.fn(), warn: jest.fn() }));
+jest.mock("../services/auditService", () => ({ logAuditEvent: jest.fn() }));
 
 const EmailOutbox = require("../models/EmailOutbox");
 const Notification = require("../models/Notification");
@@ -264,6 +265,102 @@ describe("drainEmailOutbox", () => {
 
     expect(EmailOutbox.findOneAndUpdate).toHaveBeenCalledTimes(1);
     delete process.env.EMAIL_DAILY_CAP;
+  });
+});
+
+// A staff activation email carries a one-time link. Such a row is "sensitive":
+// it keeps the link only until it is sent or given up on, never logs it, keeps
+// no raw transport error, and audits the final outcome without the link.
+describe("sensitive (one-time link) rows", () => {
+  const { logAuditEvent } = require("../services/auditService");
+  const logger = require("../utils/logger");
+  const LINK = "https://app.example/activate-account#token=" + "ab".repeat(32);
+  const makeSensitive = (overrides = {}) => ({
+    _id: "row9",
+    recipient: "user9",
+    toEmail: "staff@example.com",
+    subject: "Your staff account",
+    heading: "Activate",
+    paragraphs: ["Hello"],
+    buttonUrl: LINK,
+    buttonLabel: "Activate account",
+    footnote: "",
+    attempts: 1,
+    notification: null,
+    status: "sending",
+    sensitive: true,
+    category: "staffInvite",
+    auditActor: "sa1",
+    save: jest.fn().mockResolvedValue(undefined),
+    ...overrides,
+  });
+  const drainOne = async (doc) => {
+    EmailOutbox.countDocuments.mockResolvedValue(0);
+    EmailOutbox.findOneAndUpdate.mockResolvedValueOnce(doc).mockResolvedValueOnce(null);
+    await svc.drainEmailOutbox({ batchSize: 5 });
+  };
+
+  test("enqueue stores the sensitive flag and the audit actor; an ordinary email stores neither", async () => {
+    EmailOutbox.create.mockResolvedValue({ _id: "r" });
+    const base = { recipientId: "u1", toEmail: "p@example.com", subject: "S", heading: "H" };
+    await svc.enqueueEmail({ ...base, sensitive: true, auditActor: "sa1" });
+    expect(EmailOutbox.create.mock.calls[0][0]).toMatchObject({ sensitive: true, auditActor: "sa1" });
+    await svc.enqueueEmail(base);
+    expect(EmailOutbox.create.mock.calls[1][0]).not.toHaveProperty("sensitive");
+    expect(EmailOutbox.create.mock.calls[1][0]).not.toHaveProperty("auditActor");
+  });
+
+  test("a sent row hides the link from the mail log, clears it afterwards and audits staff.invite.sent without it", async () => {
+    const doc = makeSensitive();
+    mailService.sendMail.mockResolvedValue({ delivered: true, channel: "smtp" });
+    await drainOne(doc);
+    expect(mailService.sendMail).toHaveBeenCalledWith(expect.objectContaining({ redact: [LINK] }));
+    expect(doc.status).toBe("sent");
+    expect(doc.buttonUrl).toBe("");
+    expect(logAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "staff.invite.sent", actorId: "sa1", actorRole: "superadmin", targetUserId: "user9" })
+    );
+    expect(JSON.stringify(logAuditEvent.mock.calls)).not.toContain("activate-account");
+  });
+
+  test("a failure with attempts left keeps the link for the retry, stores only a generic reason, and does not audit yet", async () => {
+    const doc = makeSensitive({ attempts: 1 });
+    mailService.sendMail.mockResolvedValue({ delivered: false, channel: "error" });
+    await drainOne(doc);
+    expect(doc.status).toBe("queued");
+    expect(doc.buttonUrl).toBe(LINK);
+    expect(doc.lastError).toBe("Send failed");
+    expect(logAuditEvent).not.toHaveBeenCalled();
+  });
+
+  test("giving up clears the link and audits staff.invite.failed without it", async () => {
+    const doc = makeSensitive({ attempts: 3 });
+    mailService.sendMail.mockResolvedValue({ delivered: false, channel: "error" });
+    await drainOne(doc);
+    expect(doc.status).toBe("failed");
+    expect(doc.buttonUrl).toBe("");
+    expect(doc.lastError).toBe("Send failed");
+    expect(logAuditEvent).toHaveBeenCalledWith(expect.objectContaining({ action: "staff.invite.failed", targetUserId: "user9" }));
+    expect(JSON.stringify(logAuditEvent.mock.calls)).not.toContain("activate-account");
+  });
+
+  test("an unexpected error logs no error text (it could echo the link) and stores only a generic reason", async () => {
+    const doc = makeSensitive({ attempts: 3 });
+    mailService.sendMail.mockRejectedValue(new Error(`boom ${LINK}`));
+    await drainOne(doc);
+    expect(JSON.stringify(logger.error.mock.calls)).not.toContain(LINK);
+    expect(JSON.stringify(logger.error.mock.calls)).not.toContain("boom");
+    expect(doc.lastError).toBe("Send failed");
+    expect(doc.buttonUrl).toBe("");
+  });
+
+  test("an ordinary row is unchanged: no redact option, no audit, no clearing", async () => {
+    const doc = makeSensitive({ sensitive: undefined, category: "", buttonUrl: "https://x.example/open" });
+    mailService.sendMail.mockResolvedValue({ delivered: true, channel: "smtp" });
+    await drainOne(doc);
+    expect(mailService.sendMail.mock.calls[0][0]).not.toHaveProperty("redact");
+    expect(doc.buttonUrl).toBe("https://x.example/open");
+    expect(logAuditEvent).not.toHaveBeenCalled();
   });
 });
 

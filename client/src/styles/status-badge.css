@@ -24,10 +24,15 @@
 .sb--banned { color: #8c1d18; background: #fdecea; }
 .sb--deactivated { color: #374151; background: #eef0f3; }
 .sb--deleted { color: #5b1a6e; background: #f5e9fa; }
+/* Staff invitations: #0b4f8a on #e7f1fb is about 7.4:1, #6b2d0f on #fdeee6 about 9.7:1. */
+.sb--pending { color: #0b4f8a; background: #e7f1fb; }
+.sb--expired { color: #6b2d0f; background: #fdeee6; }
 
 .sb--dot::before { border-radius: 50%; }
 .sb--diamond::before { width: 7px; height: 7px; transform: rotate(45deg); }
 .sb--square::before { border-radius: 1px; }
+.sb--triangle::before { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.sb--bar::before { width: 10px; height: 3px; border-radius: 1px; }
 .sb--ring::before { border-radius: 50%; background: transparent; border: 2px solid currentColor; box-sizing: border-box; }
 .sb--cross::before {
   background:

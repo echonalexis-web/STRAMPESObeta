@@ -14,6 +14,8 @@ export const DELETE_REASONS = [
 export function getAccountState(user) {
   if (!user) return "active";
   if (user.deletedAt) return "deleted";
+  // A staff account whose owner has not activated it yet (not a suspension).
+  if (user.accountStatus === "pending_activation") return "pending";
   if (user.isActive === false) {
     if (user.accountStatus === "banned") return "banned";
     if (user.accountStatus === "deactivated") return "deactivated";
@@ -30,6 +32,7 @@ export function getAvailableActions(user) {
   if (staff) return { deactivate: false, reactivate: false, delete: false, restore: false };
   return {
     deactivate: state === "active",
+    // "pending" (an invited staff account) never gets these: it has its own invite actions.
     reactivate: state === "suspended" || state === "banned" || state === "deactivated",
     delete: state === "suspended" || state === "banned" || state === "deactivated",
     restore: state === "deleted",

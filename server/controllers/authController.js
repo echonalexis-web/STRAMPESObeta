@@ -548,7 +548,9 @@ exports.login = async (req, res) => {
     const locked = Boolean(lockable && loginLock.isLocked(user));
 
     const match = await bcrypt.compare(password || "", user?.password || DUMMY_PASSWORD_HASH);
-    if (!user || !match || user.staffRecoveryPending || locked) {
+    // A staff account its owner has not activated yet cannot sign in, and answers
+    // exactly like a wrong password.
+    if (!user || !match || user.staffRecoveryPending || user.accountStatus === "pending_activation" || locked) {
       if (lockoutOn) {
         // One database write on every failure path, real or dummy, so response
         // time does not tell "no such account" from "wrong password" from
@@ -922,7 +924,8 @@ exports.forgotPassword = async (req, res) => {
     const useRecoveryEmail = req.body.useRecoveryEmail === true;
 
     const user = byUsername ? await resolveIdentifierToUser(rawIdentifier) : await User.findOne({ email });
-    if (!user || user.staffRecoveryPending) return res.json(generic);
+    // A pending staff account must be activated from its invite, never by a reset.
+    if (!user || user.staffRecoveryPending || user.accountStatus === "pending_activation") return res.json(generic);
     // A username-only account with no email has nowhere to send a link.
     if (byUsername && !hasVerifiedEmail(user)) return res.json(generic);
     const primaryEmail = byUsername ? normalizeEmail(user.email) : email;
@@ -987,6 +990,7 @@ exports.resetPassword = async (req, res) => {
       passwordResetToken: hashResetToken(token),
       passwordResetExpires: { $gt: new Date() },
       staffRecoveryPending: { $ne: true },
+      accountStatus: { $ne: "pending_activation" },
     });
     if (!user) {
       return res.status(400).json({
@@ -1559,6 +1563,14 @@ exports.googleAuth = async (req, res) => {
     let user = await User.findOne({ $or: [{ googleId }, { email }] });
     if (user?.googleSignInDisabled || user?.staffRecoveryPending) {
       return res.status(403).json({ message: "Sign in with your password or finish your approved account recovery." });
+    }
+    // A provisioned staff account must be activated from its invite link first;
+    // a matching Google email must not skip that step.
+    if (user && user.accountStatus === "pending_activation") {
+      return res.status(403).json({
+        code: "ACCOUNT_PENDING_ACTIVATION",
+        message: "This account has not been activated yet. Use the activation link in your invitation email.",
+      });
     }
     // An unverified password account for this email may have been created
     // by someone else; never link Google to it (see purgeUnverifiedStub).

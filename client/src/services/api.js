@@ -269,6 +269,9 @@ export const authAPI = {
   // Success returns a fresh { token, user }: the old token is no longer valid.
   verifyAddEmail: (code) => api.post('/auth/email/add/verify', { code }, getAuthHeader()),
   resetPassword: (payload) => api.post('/auth/reset-password', payload),
+  // Staff activation link (public). The token never goes in a URL: it is sent in the body.
+  checkActivation: (token) => api.post('/auth/activate-account/check', { token }),
+  activateAccount: (payload) => api.post('/auth/activate-account', payload),
   // `intent` ("employer" | "jobseeker") is only honoured when the Google account
   // is brand new — it decides which role/profile the account is created with.
   // `confirmAdult` is the employer 18+ attestation (ignored for jobseekers).
@@ -359,6 +362,12 @@ export const superadminAPI = {
     api.patch(`/superadmin/admins/${id}/active`, { active }, getAuthHeader()),
   resetAdminPassword: (id) =>
     api.post(`/superadmin/admins/${id}/reset-password`, {}, getAuthHeader()),
+  // Staff invite: a fresh activation email (the old link stops working), or cancel
+  // a pending account that was never activated.
+  resendAdminInvite: (id) =>
+    api.post(`/superadmin/admins/${id}/resend-invite`, {}, getAuthHeader()),
+  cancelAdminInvite: (id) =>
+    api.delete(`/superadmin/admins/${id}/invite`, getAuthHeader()),
   // Permanent policy-violation takedown of a job posting (superadmin only).
   deleteJob: (id, reason) =>
     api.delete(`/superadmin/jobs/${id}`, { ...getAuthHeader(), data: { reason } }),

@@ -37,6 +37,7 @@ const HIDDEN_PATHS = new Set([
   "/onboarding",
   "/forgot-password",
   "/reset-password",
+  "/activate-account",
   "/verify-email",
   "/confirm-email",
 ]);

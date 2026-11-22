@@ -31,6 +31,7 @@ import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ForgotUsername from "./pages/ForgotUsername";
 import ResetPassword from "./pages/ResetPassword";
+import ActivateAccount from "./pages/ActivateAccount";
 import ChangePassword from "./pages/ChangePassword";
 import SuperadminConsole from "./pages/superadmin/SuperadminConsole";
 import SuperadminAdminAccounts from "./pages/superadmin/SuperadminAdminAccounts";
@@ -210,6 +211,7 @@ function AppRoutes() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/forgot-username" element={<ForgotUsername />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/activate-account" element={<ActivateAccount />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/confirm-email" element={<ConfirmEmail />} />
           <Route path="/verify-recovery-email" element={<VerifyRecoveryEmail />} />

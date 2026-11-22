@@ -5,6 +5,7 @@ import { Building2, TriangleAlert, UserRound } from "lucide-react";
 import { adminAPI } from "../../services/api";
 import DeleteUserModal from "../../components/DeleteUserModal";
 import Pagination from "../../components/Pagination";
+import PendingStaffNotice from "../../components/PendingStaffNotice";
 import UserDirectoryList from "../../components/UserDirectoryList";
 import UserDirectoryToolbar from "../../components/UserDirectoryToolbar";
 import useMediaQuery from "../../hooks/useMediaQuery";
@@ -335,6 +336,11 @@ export default function UserManagement() {
           </button>
         ))}
       </div>
+
+      <PendingStaffNotice
+        count={counts?.staff?.pendingActivation}
+        onOpen={() => navigate("/superadmin/admin-accounts")}
+      />
 
       <section className="um-card" aria-label={t(tabMeta[activeTab].labelKey)}>
         <UserDirectoryToolbar

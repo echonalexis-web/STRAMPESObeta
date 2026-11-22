@@ -1,5 +1,5 @@
 ﻿import { useState, useContext, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
 import GoogleSignInButton from "../components/GoogleSignInButton";
@@ -83,6 +83,9 @@ export default function Login() {
   const { login, user } = useContext(AuthContext);
   const navigate = useNavigate();
   const toast = useToast();
+  // Left by the staff activation page after a successful activation. Not
+  // signed in: the person logs in here with the password they just chose.
+  const activatedNotice = useLocation().state?.activated === true;
 
   // A toast alongside the inline banner so the error is seen immediately,
   // regardless of scroll position.
@@ -403,6 +406,12 @@ export default function Login() {
               <h2 id="login-form-title">Sign in to STRAM PESO</h2>
               <p>Access your account to find work or post openings.</p>
             </header>
+
+            {activatedNotice && !error && (
+              <div className="auth-notice" role="status" aria-live="polite">
+                {t("activation.loginNotice")}
+              </div>
+            )}
 
             {error && (
               <div className="error-message" role="alert" aria-live="polite">

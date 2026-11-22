@@ -1,0 +1,94 @@
+/* Staff activation page (/activate-account). Built on the auth card from
+   auth.css; every colour pair here is at least 4.5:1 on white and the unmet and
+   met states differ by a mark and by text, not by colour alone. */
+
+.aa-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4, 16px);
+}
+
+/* The shared password toggle is positioned over the input's right edge; this
+   makes it a full 44px target without changing where it sits. */
+.aa-password {
+  position: relative;
+}
+.aa-password input {
+  width: 100%;
+  padding-right: 52px;
+}
+.aa-toggle {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.aa-requirements {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--ds-border, #d5dbe3);
+  border-radius: 10px;
+  background: var(--ds-surface-muted, #f6f8fa);
+}
+.aa-requirements__title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ds-text, #1a2530);
+}
+
+.aa-meter {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+.aa-meter__seg {
+  height: 6px;
+  border-radius: 3px;
+  background: #cfd6de;
+}
+.aa-meter__seg.is-on {
+  background: #1b5e20;
+}
+
+.aa-rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.aa-rules li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: #374151;
+  line-height: 1.4;
+}
+.aa-rules li.is-met {
+  color: #1b5e20;
+  font-weight: 600;
+}
+.aa-rules__mark {
+  flex: 0 0 1.1em;
+  text-align: center;
+  font-weight: 700;
+}
+
+.aa-match {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1b5e20;
+}
+
+@media (max-width: 380px) {
+  .aa-requirements {
+    padding: 10px 12px;
+  }
+  .aa-card h2 {
+    font-size: 1.25rem;
+  }
+}

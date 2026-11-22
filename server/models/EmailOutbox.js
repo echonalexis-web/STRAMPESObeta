@@ -47,6 +47,13 @@ const emailOutboxSchema = new Schema(
     buttonUrl: { type: String, default: "" },
     buttonLabel: { type: String, default: "" },
     footnote: { type: String, default: "" },
+    // True when buttonUrl is a secret one-time link (staff activation). Such a row
+    // keeps the link only until it is sent or given up on: the worker then clears
+    // buttonUrl, never logs the link, and stores only a generic failure reason.
+    sensitive: { type: Boolean, default: undefined },
+    // Who started the action behind a sensitive row, for the audit entry the
+    // worker writes when that row is finally sent or fails.
+    auditActor: { type: Schema.Types.ObjectId, ref: "User", default: undefined },
     status: {
       type: String,
       enum: ["queued", "sending", "sent", "failed", "suppressed"],

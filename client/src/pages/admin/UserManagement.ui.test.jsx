@@ -403,3 +403,17 @@ describe("layout by width", () => {
     expect(scope.getByRole("button", { name: "More actions for Ana Cruz" })).toBeTruthy();
   });
 });
+
+describe("pending staff invitations", () => {
+  test("a count above zero shows the notice; zero or no staff counts shows nothing", async () => {
+    adminAPI.getUserDirectoryCounts.mockResolvedValue({ data: { ...COUNTS, staff: { pendingActivation: 2 } } });
+    renderPage();
+    expect(await screen.findByRole("button", { name: /2 staff accounts pending activation/ })).toBeTruthy();
+  });
+
+  test("without staff counts there is no notice", async () => {
+    renderPage();
+    await screen.findByText("Ana Cruz");
+    expect(screen.queryByRole("button", { name: /pending activation/ })).toBeNull();
+  });
+});

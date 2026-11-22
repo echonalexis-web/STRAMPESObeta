@@ -20,6 +20,10 @@ const systemSettingsSchema = new mongoose.Schema(
     // removes its personal data. Read at delete time and stored on the account
     // as purgeAfter (see services/userDeletionService.js).
     deletedAccountGraceDays: { type: Number, default: 30, min: 7, max: 365 },
+    // Staff activation invite (see services/staffInviteService.js): how long a
+    // link works, and the minimum wait between two sends for the same account.
+    staffInviteExpiryHours: { type: Number, default: 48, min: 1, max: 168 },
+    staffInviteResendCooldownSeconds: { type: Number, default: 60, min: 30, max: 3600 },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true }

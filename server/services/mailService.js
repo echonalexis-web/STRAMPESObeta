@@ -80,6 +80,11 @@ const buildTransporter = () => {
   return _building;
 };
 
+// Replaces every occurrence of each secret string (a one-time link) so it never
+// reaches the console fallback.
+const hideSecrets = (text, secrets) =>
+  (secrets || []).reduce((out, secret) => (secret ? String(out).split(secret).join("[link hidden]") : out), String(text ?? ""));
+
 const logToConsole = ({ to, subject, text, reason = "no mail provider configured" }) => {
   const line = "─".repeat(64);
   console.log(
@@ -140,20 +145,22 @@ const renderEmail = ({ heading, paragraphs = [], button, footnote, alert }) => {
  * or when the transport throws, so callers never need a try/catch of their own.
  * @returns {Promise<{delivered:boolean, channel:string}>}
  */
-const sendMail = async ({ to, subject, text, html }) => {
+const sendMail = async ({ to, subject, text, html, redact = [] }) => {
   // An email-less (username-only) account has no address; never hand an empty
   // recipient to the transport or the console fallback.
   if (!to || !String(to).trim()) return { delivered: false, channel: "skipped" };
   const transporter = await buildTransporter();
+  // `redact`: secret strings (a one-time link) that must not appear in any log line.
+  const logText = hideSecrets(text, redact);
   if (!transporter) {
-    logToConsole({ to, subject, text });
+    logToConsole({ to, subject, text: logText });
     return { delivered: false, channel: "console" };
   }
   try {
     await transporter.sendMail({ from: FROM, to, subject, text, html });
     return { delivered: true, channel: "smtp" };
   } catch (err) {
-    logToConsole({ to, subject, text, reason: `SMTP send failed: ${err.message}` });
+    logToConsole({ to, subject, text: logText, reason: `SMTP send failed: ${hideSecrets(err.message, redact)}` });
     return { delivered: false, channel: "error" };
   }
 };

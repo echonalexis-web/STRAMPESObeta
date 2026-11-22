@@ -10,6 +10,8 @@ exports.getSystemSettings = async (req, res) => {
       appealWindowDays: settings.appealWindowDays,
       requireEmployerVerification: settings.requireEmployerVerification,
       deletedAccountGraceDays: settings.deletedAccountGraceDays ?? 30,
+      staffInviteExpiryHours: settings.staffInviteExpiryHours ?? 48,
+      staffInviteResendCooldownSeconds: settings.staffInviteResendCooldownSeconds ?? 60,
       updatedAt: settings.updatedAt,
     });
   } catch (error) {
@@ -19,9 +21,32 @@ exports.getSystemSettings = async (req, res) => {
 
 exports.updateSystemSettings = async (req, res) => {
   try {
-    const { autoCloseDays, appealWindowDays, requireEmployerVerification, deletedAccountGraceDays } = req.body || {};
+    const {
+      autoCloseDays,
+      appealWindowDays,
+      requireEmployerVerification,
+      deletedAccountGraceDays,
+      staffInviteExpiryHours,
+      staffInviteResendCooldownSeconds,
+    } = req.body || {};
 
     const $set = {};
+
+    if (staffInviteExpiryHours !== undefined) {
+      const hours = Number(staffInviteExpiryHours);
+      if (!Number.isFinite(hours) || hours < 1 || hours > 168) {
+        return res.status(400).json({ message: "Invite expiry must be between 1 and 168 hours." });
+      }
+      $set.staffInviteExpiryHours = Math.round(hours);
+    }
+
+    if (staffInviteResendCooldownSeconds !== undefined) {
+      const seconds = Number(staffInviteResendCooldownSeconds);
+      if (!Number.isFinite(seconds) || seconds < 30 || seconds > 3600) {
+        return res.status(400).json({ message: "Resend cooldown must be between 30 and 3600 seconds." });
+      }
+      $set.staffInviteResendCooldownSeconds = Math.round(seconds);
+    }
 
     if (autoCloseDays !== undefined) {
       const days = Number(autoCloseDays);
@@ -83,6 +108,8 @@ exports.updateSystemSettings = async (req, res) => {
       appealWindowDays: settings.appealWindowDays,
       requireEmployerVerification: settings.requireEmployerVerification,
       deletedAccountGraceDays: settings.deletedAccountGraceDays ?? 30,
+      staffInviteExpiryHours: settings.staffInviteExpiryHours ?? 48,
+      staffInviteResendCooldownSeconds: settings.staffInviteResendCooldownSeconds ?? 60,
       updatedAt: settings.updatedAt,
     });
   } catch (error) {

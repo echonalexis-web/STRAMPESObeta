@@ -3,7 +3,17 @@
 // docs/WHITE_BOX_TEST_REPORT.md).
 
 jest.mock("bcryptjs", () => ({ hash: jest.fn() }));
-jest.mock("../models/User", () => ({ find: jest.fn(), findOne: jest.fn(), findById: jest.fn(), create: jest.fn() }));
+jest.mock("../models/User", () => ({
+  find: jest.fn(),
+  findOne: jest.fn(),
+  findById: jest.fn(),
+  create: jest.fn(),
+  updateOne: jest.fn(),
+  findOneAndUpdate: jest.fn(),
+  findOneAndDelete: jest.fn(),
+}));
+// The invite email goes through the outbox; no real queue or mail in these tests.
+jest.mock("../services/emailOutboxService", () => ({ enqueueEmail: jest.fn() }));
 jest.mock("../models/JobVacancy", () => ({ findById: jest.fn(), findByIdAndDelete: jest.fn() }));
 jest.mock("../models/JobApplication", () => ({ countDocuments: jest.fn(), deleteMany: jest.fn() }));
 jest.mock("../models/SystemSettings", () => ({ getSingleton: jest.fn(), findOneAndUpdate: jest.fn() }));
@@ -38,6 +48,8 @@ beforeEach(() => {
   bcrypt.hash.mockImplementation(async (p) => `h:${p}`);
   logAuditEvent.mockResolvedValue();
   createNotificationForUser.mockResolvedValue();
+  User.updateOne.mockResolvedValue({});
+  require("../services/emailOutboxService").enqueueEmail.mockResolvedValue({ _id: "ob1" });
 });
 
 // ---------------------------------------------------------------------------
@@ -51,7 +63,7 @@ describe("superadminController.listAdmins", () => {
     const { body } = await call(sa.listAdmins, sreq());
     expect(User.find).toHaveBeenCalledWith({ role: "admin" });
     expect(q.sort).toHaveBeenCalledWith({ createdAt: -1 });
-    expect(body.admins[0]).toEqual({ id: "a1", name: "A", email: "a@x", staffNote: "HR", isActive: false, mustChangePassword: true, lastLoginAt: "t", createdAt: "c" });
+    expect(body.admins[0]).toEqual({ id: "a1", name: "A", email: "a@x", staffNote: "HR", isActive: false, mustChangePassword: true, lastLoginAt: "t", createdAt: "c", accountStatus: "active", invite: null });
     expect(body.admins[1]).toMatchObject({ staffNote: null, isActive: true, mustChangePassword: false, lastLoginAt: null });
     expect(JSON.stringify(body)).not.toContain("password");
   });
@@ -64,15 +76,16 @@ describe("superadminController.listAdmins", () => {
 
 // ---------------------------------------------------------------------------
 describe("superadminController.createAdmin", () => {
-  const good = { name: " Ann ", email: " ANN@Peso.gov ", staffNote: " HR Officer " };
+  const good = { name: " Ann ", email: " ANN@Peso.gov ", position: " HR Officer " };
   const run = (b) => call(sa.createAdmin, sreq({ body: b }));
 
-  test("WB-SADM-03 validation order: name, email format, staff note", async () => {
-    expect((await run({})).body.message).toMatch(/name/);
-    expect((await run({ name: "A", email: "nope", staffNote: "x" })).body.message).toMatch(/valid email/);
-    expect((await run({ name: "A", email: "a b@x.com", staffNote: "x" })).status).toBe(400);
-    expect((await run({ name: "A", email: "a@x.com" })).body.message).toMatch(/note/);
-    expect((await run({ name: "A", email: "a@x.com", staffNote: "   " })).status).toBe(400);
+  test("WB-SADM-03 validation order: name, email format, position, role (each names its field)", async () => {
+    expect((await run({})).body).toMatchObject({ field: "name" });
+    expect((await run({ name: "A", email: "nope", position: "x" })).body).toMatchObject({ field: "email" });
+    expect((await run({ name: "A", email: "a b@x.com", position: "x" })).status).toBe(400);
+    expect((await run({ name: "A", email: "a@x.com" })).body).toMatchObject({ field: "position" });
+    expect((await run({ name: "A", email: "a@x.com", position: "   " })).status).toBe(400);
+    expect((await run({ name: "A", email: "a@x.com", position: "x", role: "superadmin" })).body).toMatchObject({ field: "role" });
     expect(User.findOne).not.toHaveBeenCalled();
   });
 
@@ -84,26 +97,33 @@ describe("superadminController.createAdmin", () => {
     expect(User.create).not.toHaveBeenCalled();
   });
 
-  test("WB-SADM-05 success: role admin, must-change-password, hashed one-time password in 4x4 format, returned once, critical audit", async () => {
+  test("WB-SADM-05 success: pending activation, inactive, no usable password, no password shown, 'Name, Position' note, critical audit", async () => {
     User.findOne.mockReturnValue(query(null));
     User.create.mockImplementation(async (d) => ({ _id: "new", ...d }));
     const r = await run(good);
     expect(r.status).toBe(201);
-    expect(r.body.tempPassword).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}(-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}){3}$/);
+    expect(r.body).not.toHaveProperty("tempPassword");
     const created = User.create.mock.calls[0][0];
-    expect(created).toMatchObject({ name: "Ann", email: "ann@peso.gov", role: "admin", mustChangePassword: true, createdBySuperadmin: "sa1", staffNote: "HR Officer", hasCompletedOnboarding: true, onboardingComplete: true });
-    expect(created.password).toBe(`h:${r.body.tempPassword}`);
-    expect(JSON.stringify(r.body.admin)).not.toContain("h:");
-    expect(logAuditEvent).toHaveBeenCalledWith(expect.objectContaining({ action: "superadmin.admin.created", severity: "critical", actorRole: "superadmin" }));
-    expect(JSON.stringify(logAuditEvent.mock.calls)).not.toContain(r.body.tempPassword);
+    expect(created).toMatchObject({
+      name: "Ann", email: "ann@peso.gov", role: "admin", isActive: false, accountStatus: "pending_activation",
+      mustChangePassword: false, createdBySuperadmin: "sa1", staffNote: "Ann, HR Officer",
+      hasCompletedOnboarding: true, onboardingComplete: true,
+    });
+    expect(created.staffInvite).toMatchObject({ status: "pending", resendCount: 0 });
+    expect(created.staffInvite.tokenHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(created.password).toMatch(/^h:[0-9a-f]{96}$/);
+    expect(JSON.stringify(r.body)).not.toContain(created.staffInvite.tokenHash);
+    expect(logAuditEvent).toHaveBeenCalledWith(expect.objectContaining({ action: "staff.account.provisioned", severity: "critical", actorRole: "superadmin" }));
   });
 
-  test("WB-SADM-06 two provisioned passwords differ (random)", async () => {
+  test("WB-SADM-06 two provisioned accounts get different unusable passwords and different token hashes", async () => {
     User.findOne.mockReturnValue(query(null));
     User.create.mockImplementation(async (d) => ({ _id: "new", ...d }));
-    const a = (await run(good)).body.tempPassword;
-    const b = (await run(good)).body.tempPassword;
-    expect(a).not.toBe(b);
+    await run(good);
+    await run(good);
+    const [a, b] = User.create.mock.calls.map(([d]) => d);
+    expect(a.password).not.toBe(b.password);
+    expect(a.staffInvite.tokenHash).not.toBe(b.staffInvite.tokenHash);
   });
 
   test("WB-SADM-07 DB failure is a generic 500", async () => {
@@ -246,7 +266,7 @@ describe("systemSettingsController", () => {
 
   test("WB-SSET-01 getSystemSettings returns the four public fields; failure is a generic 500", async () => {
     SystemSettings.getSingleton.mockResolvedValue({ autoCloseDays: 30, appealWindowDays: 14, requireEmployerVerification: true, updatedAt: "t", secret: "x" });
-    expect((await call(settings.getSystemSettings, sreq())).body).toEqual({ autoCloseDays: 30, appealWindowDays: 14, requireEmployerVerification: true, deletedAccountGraceDays: 30, updatedAt: "t" });
+    expect((await call(settings.getSystemSettings, sreq())).body).toEqual({ autoCloseDays: 30, appealWindowDays: 14, requireEmployerVerification: true, deletedAccountGraceDays: 30, staffInviteExpiryHours: 48, staffInviteResendCooldownSeconds: 60, updatedAt: "t" });
     SystemSettings.getSingleton.mockRejectedValue(dbError());
     expect500(await call(settings.getSystemSettings, sreq()), "Could not load system settings");
   });
@@ -305,7 +325,7 @@ describe("systemSettingsController", () => {
       { new: true, upsert: true }
     );
     expect(logAuditEvent).toHaveBeenCalledWith(expect.objectContaining({ action: "superadmin.system_settings.updated", severity: "warning", targetId: "global" }));
-    expect(r.body).toEqual({ message: "System settings saved.", autoCloseDays: 30, appealWindowDays: 7, requireEmployerVerification: false, deletedAccountGraceDays: 30, updatedAt: "t" });
+    expect(r.body).toEqual({ message: "System settings saved.", autoCloseDays: 30, appealWindowDays: 7, requireEmployerVerification: false, deletedAccountGraceDays: 30, staffInviteExpiryHours: 48, staffInviteResendCooldownSeconds: 60, updatedAt: "t" });
   });
 
   test("WB-SSET-10 only the provided fields are written (partial update)", async () => {

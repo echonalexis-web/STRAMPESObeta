@@ -15,6 +15,7 @@
 const EmailOutbox = require("../models/EmailOutbox");
 const Notification = require("../models/Notification");
 const mailService = require("./mailService");
+const { logAuditEvent } = require("./auditService");
 const logger = require("../utils/logger");
 
 const DEFAULT_BATCH_SIZE = Number(process.env.EMAIL_BATCH_SIZE) || 25;
@@ -53,6 +54,8 @@ const enqueueEmail = async ({
   footnote = "",
   scheduledAt = new Date(),
   dedupeKey = null,
+  sensitive = false,
+  auditActor = null,
 }) => {
   if (!toEmail || !subject || !heading) return null;
 
@@ -74,6 +77,8 @@ const enqueueEmail = async ({
     buttonUrl: button?.url || "",
     buttonLabel: button?.label || "",
     footnote,
+    ...(sensitive ? { sensitive: true } : {}),
+    ...(sensitive && auditActor ? { auditActor } : {}),
   };
 
   if (!dedupeKey) {
@@ -125,11 +130,38 @@ const buildPlainText = (doc) => {
 const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
 
+// A sensitive row (one-time activation link) must not keep the link once it is
+// finished, and must never carry a raw transport error (which could echo it).
+const finishSensitive = (doc) => {
+  if (!doc.sensitive) return;
+  doc.buttonUrl = "";
+};
+
+// Audit entry for a finished staff invite email. Never includes the link.
+const auditStaffInvite = async (doc, action) => {
+  if (!doc.sensitive || doc.category !== "staffInvite") return;
+  try {
+    await logAuditEvent({
+      actorId: doc.auditActor || null,
+      actorRole: doc.auditActor ? "superadmin" : "system",
+      action,
+      targetUserId: doc.recipient,
+      targetType: "user",
+      targetId: String(doc.recipient),
+      severity: action === "staff.invite.failed" ? "warning" : "info",
+      metadata: { outboxId: String(doc._id) },
+    });
+  } catch {
+    /* an audit hiccup must not undo a send that already happened */
+  }
+};
+
 const scheduleRetry = (doc, errorMessage) => {
-  doc.lastError = errorMessage;
+  doc.lastError = doc.sensitive ? "Send failed" : errorMessage;
   if (doc.attempts >= MAX_ATTEMPTS) {
     doc.status = "failed";
     doc.resolvedAt = new Date();
+    finishSensitive(doc);
   } else {
     doc.status = "queued";
     doc.scheduledAt = new Date(Date.now() + RETRY_BASE_MINUTES * 60 * 1000 * 2 ** (doc.attempts - 1));
@@ -178,18 +210,23 @@ const sendOne = async (doc) => {
     subject: doc.subject,
     text: buildPlainText(doc),
     html,
+    // A sensitive row's link is hidden from the console fallback.
+    ...(doc.sensitive && doc.buttonUrl ? { redact: [doc.buttonUrl] } : {}),
   });
 
   if (result.channel === "error") {
     scheduleRetry(doc, "SMTP send failed");
     await doc.save();
+    if (doc.status === "failed") await auditStaffInvite(doc, "staff.invite.failed");
     return;
   }
 
   doc.status = "sent";
   doc.sentAt = new Date();
   doc.resolvedAt = new Date();
+  finishSensitive(doc);
   await doc.save();
+  await auditStaffInvite(doc, "staff.invite.sent");
 };
 
 /**
@@ -218,7 +255,11 @@ const drainEmailOutbox = async ({ batchSize = DEFAULT_BATCH_SIZE } = {}) => {
     try {
       await sendOne(doc);
     } catch (err) {
-      logger.error("emailOutboxService: send failed unexpectedly", { id: String(doc._id), error: err.message });
+      // A sensitive row logs no error text at all: it could echo the link.
+      logger.error(
+        "emailOutboxService: send failed unexpectedly",
+        doc.sensitive ? { id: String(doc._id) } : { id: String(doc._id), error: err.message }
+      );
       scheduleRetry(doc, err.message);
       await doc.save().catch((saveErr) =>
         logger.error("emailOutboxService: could not persist retry state", {
@@ -226,6 +267,7 @@ const drainEmailOutbox = async ({ batchSize = DEFAULT_BATCH_SIZE } = {}) => {
           error: saveErr.message,
         })
       );
+      if (doc.status === "failed") await auditStaffInvite(doc, "staff.invite.failed").catch(() => {});
     }
     drained++;
   }

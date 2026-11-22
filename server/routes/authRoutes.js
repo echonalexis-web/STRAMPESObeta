@@ -55,6 +55,8 @@ const { dbLimiter, positiveIntEnv } = require("../middleware/dbLimiter");
 const { signupGuard } = require("../middleware/signupGuard");
 const { issueToken: issueSignupToken } = require("../utils/signupToken");
 const { forgotUsername } = require("../controllers/forgotUsernameController");
+const { checkActivationToken, activateAccount } = require("../controllers/staffActivationController");
+const { hashToken: hashInviteToken } = require("../services/staffInviteService");
 const { requestAddEmail, verifyAddEmail } = require("../controllers/emailCodeController");
 const idUploadLimit = require("../middleware/idUploadLimit");
 const { confirmIdOcr, getIdFormats } = require("../controllers/idOcrController");
@@ -115,6 +117,37 @@ router.post(
   sanitizeRequestBody,
   detectMaliciousPayload,
   resetPassword
+);
+
+// Staff account activation (link from the invite email — no session needed).
+// Limited per IP (database-backed, generous for shared PESO networks) and per
+// token, so one link cannot be hammered from many addresses. Limits are read
+// when the router loads.
+const activationIpLimiter = dbLimiter({
+  name: "staff-activate-ip",
+  windowMs: 60 * 60 * 1000,
+  max: 60,
+  envName: "STAFF_ACTIVATE_LIMIT_PER_HOUR_IP",
+});
+const activationTokenLimiter = () =>
+  sensitiveOperationLimiter(positiveIntEnv("STAFF_ACTIVATE_LIMIT_PER_HOUR_TOKEN", 10), 60 * 60 * 1000, {
+    keyFn: (req) => `activate|${hashInviteToken(req.body && req.body.token)}`,
+  });
+router.post(
+  "/activate-account/check",
+  activationIpLimiter,
+  activationTokenLimiter(),
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  checkActivationToken
+);
+router.post(
+  "/activate-account",
+  activationIpLimiter,
+  activationTokenLimiter(),
+  sanitizeRequestBody,
+  detectMaliciousPayload,
+  activateAccount
 );
 
 // Google Identity Services — verify an ID token, then find-or-create + issue JWT

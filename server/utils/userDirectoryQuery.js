@@ -27,7 +27,8 @@ const statusClause = (status) => {
     case "active":
       return { isActive: { $ne: false }, deletedAt: null };
     case "suspended":
-      return { isActive: false, deletedAt: null, accountStatus: { $nin: ["banned", "deactivated"] } };
+      // A staff account still waiting for activation is not suspended.
+      return { isActive: false, deletedAt: null, accountStatus: { $nin: ["banned", "deactivated", "pending_activation"] } };
     case "banned":
       return { isActive: false, deletedAt: null, accountStatus: "banned" };
     case "deactivated":

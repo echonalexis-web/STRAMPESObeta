@@ -11,20 +11,21 @@ import {
   FaMagnifyingGlass,
   FaXmark,
   FaTriangleExclamation,
+  FaPaperPlane,
+  FaTrashCan,
 } from "react-icons/fa6";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
 import StateBlock from "../../components/StateBlock";
+import AccountStatusBadge from "../../components/AccountStatusBadge";
+import ProvisionStaffModal from "../../components/ProvisionStaffModal";
+import { POSITION_PRESETS } from "../../constants/staffPositions";
+import { useToast } from "../../components/feedback/context";
 import { BackToConsole, ConsoleHero } from "./ConsoleShell";
 import { superadminAPI } from "../../services/api";
+import "../../styles/staff-invite.css";
 
-const NOTE_PRESETS = [
-  "PESO Manager",
-  "NSRP Data Encoder",
-  "SPES Coordinator",
-  "Employer Verification Officer",
-  "Job Fair Coordinator",
-];
+const NOTE_PRESETS = POSITION_PRESETS;
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -48,30 +49,52 @@ const formatDate = (value) => {
   }
 };
 
+// pending / expired: a provisioned account waiting for its owner to activate it
+// (an invite). pendingPassword: an older account that must still replace a
+// temporary password after a reset. The "Pending" tab holds all three.
 const statusOf = (admin) => {
+  if (admin.accountStatus === "pending_activation") {
+    return admin.invite && admin.invite.status === "expired" ? "expired" : "pending";
+  }
   if (!admin.isActive) return "disabled";
-  if (admin.mustChangePassword) return "pending";
+  if (admin.mustChangePassword) return "pendingPassword";
   return "active";
 };
 
-const STATUS_META = {
-  active: { label: "Active", className: "sac-badge--active" },
-  pending: { label: "Pending OTP", className: "sac-badge--pending" },
-  disabled: { label: "Disabled", className: "sac-badge--disabled" },
+const PENDING_GROUP = ["pending", "expired", "pendingPassword"];
+const isInviteStatus = (status) => status === "pending" || status === "expired";
+const BADGE_STATE = { pending: "pending", expired: "expired", active: "active", disabled: "deactivated" };
+
+const formatWhen = (value) => {
+  if (!value) return "—";
+  try {
+    return new Date(value).toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
 };
 
 // The Managed Admin Accounts function (its own page under the console launcher).
 export default function SuperadminAdminAccounts() {
   const { t } = useTranslation();
+  const toast = useToast();
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [form, setForm] = useState({ name: "", email: "", staffNote: "" });
-  const [creating, setCreating] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Provisioning is an emailed invitation: no password is created or shown.
+  const [provisionOpen, setProvisionOpen] = useState(false);
+  const [inviteSettings, setInviteSettings] = useState({ expiryHours: 48, cooldownSeconds: 60, maxResends: 10 });
+  // Ticks once a second only while some resend button is cooling down.
+  const [now, setNow] = useState(() => Date.now());
 
-  // The last one-time password issued (on create or reset). Shown once, in a modal.
+  // The last temporary password issued by "Reset password". Shown once, in a modal.
   const [issued, setIssued] = useState(null); // { email, tempPassword, context }
   const [copied, setCopied] = useState(false);
   const [busyId, setBusyId] = useState(null);
@@ -88,6 +111,8 @@ export default function SuperadminAdminAccounts() {
     try {
       const { data } = await superadminAPI.listAdmins();
       setAdmins(Array.isArray(data?.admins) ? data.admins : []);
+      if (data?.inviteSettings) setInviteSettings(data.inviteSettings);
+      setNow(Date.now());
     } catch (err) {
       setError(err?.response?.data?.message || "Could not load admin accounts.");
     } finally {
@@ -100,15 +125,15 @@ export default function SuperadminAdminAccounts() {
   }, [loadAdmins]);
 
   // Escape closes the top-most overlay; body scroll locks while any is open.
+  // (The provision dialog is an AppModal and handles its own Escape and focus.)
   useEffect(() => {
-    const anyOverlay = drawerOpen || Boolean(issued) || Boolean(confirmState);
+    const anyOverlay = Boolean(issued) || Boolean(confirmState);
     if (!anyOverlay) return undefined;
 
     const onKey = (e) => {
       if (e.key !== "Escape") return;
       if (confirmState) setConfirmState(null);
       else if (issued) setIssued(null);
-      else if (!creating) setDrawerOpen(false);
     };
     document.addEventListener("keydown", onKey);
 
@@ -119,34 +144,69 @@ export default function SuperadminAdminAccounts() {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [drawerOpen, issued, confirmState, creating]);
+  }, [issued, confirmState]);
 
-  const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  // The account is created pending activation and the email is queued by the
+  // server; the toast says which of the two outcomes happened.
+  const handleProvisioned = async (data) => {
+    setProvisionOpen(false);
+    const email = data?.admin?.email || "";
+    if (data?.emailStatus === "failed") toast.error(t("staffInvite.toast.provisionedEmailFailed"));
+    else toast.success(t("staffInvite.toast.provisioned", { email }));
+    await loadAdmins();
+  };
 
-  const applyPreset = (label) =>
-    setForm((f) => ({ ...f, staffNote: f.staffNote.trim() === label ? "" : label }));
+  const secondsUntil = (iso) => (iso ? Math.max(0, Math.ceil((new Date(iso).getTime() - now) / 1000)) : 0);
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    setError("");
-    setCreating(true);
+  const hasCooldown = admins.some((a) => secondsUntil(a.invite && a.invite.nextResendAt) > 0);
+  useEffect(() => {
+    if (!hasCooldown) return undefined;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [hasCooldown]);
+
+  const doResend = async (admin) => {
+    setBusyId(admin.id);
     try {
-      const { data } = await superadminAPI.createAdmin({
-        name: form.name.trim(),
-        email: form.email.trim().toLowerCase(),
-        staffNote: form.staffNote.trim(),
-      });
-      setIssued({ email: data.admin.email, tempPassword: data.tempPassword, context: "created" });
-      setCopied(false);
-      setForm({ name: "", email: "", staffNote: "" });
-      setDrawerOpen(false);
-      await loadAdmins();
+      const { data } = await superadminAPI.resendAdminInvite(admin.id);
+      if (data?.emailStatus === "failed") toast.error(t("staffInvite.toast.resentFailed"));
+      else toast.success(t("staffInvite.toast.resent", { email: admin.email }));
     } catch (err) {
-      setError(err?.response?.data?.message || "Could not create the admin account.");
+      const body = err?.response?.data || {};
+      if (body.code === "RESEND_COOLDOWN") toast.error(t("staffInvite.toast.cooldown", { seconds: body.retryAfterSeconds }));
+      else if (body.code === "RESEND_LIMIT") toast.error(t("staffInvite.toast.limit"));
+      else if (body.code === "NOT_PENDING") toast.error(t("staffInvite.toast.notPending"));
+      else toast.error(t("staffInvite.toast.failed"));
     } finally {
-      setCreating(false);
+      setBusyId(null);
+      await loadAdmins();
     }
   };
+
+  const doCancelInvite = async (admin) => {
+    setBusyId(admin.id);
+    try {
+      await superadminAPI.cancelAdminInvite(admin.id);
+      toast.success(t("staffInvite.toast.cancelled"));
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.code === "NOT_PENDING" ? t("staffInvite.toast.notPending") : t("staffInvite.toast.failed")
+      );
+    } finally {
+      setBusyId(null);
+      await loadAdmins();
+    }
+  };
+
+  const requestCancelInvite = (admin) =>
+    setConfirmState({
+      title: t("staffInvite.cancelDialog.title"),
+      message: t("staffInvite.cancelDialog.body", { email: admin.email }),
+      confirmLabel: t("staffInvite.cancelDialog.confirm"),
+      cancelLabel: t("staffInvite.cancelDialog.keep"),
+      tone: "danger",
+      onConfirm: () => doCancelInvite(admin),
+    });
 
   const doToggleActive = async (admin, nextActive) => {
     setBusyId(admin.id);
@@ -216,7 +276,7 @@ export default function SuperadminAdminAccounts() {
     () => ({
       all: admins.length,
       active: admins.filter((a) => statusOf(a) === "active").length,
-      pending: admins.filter((a) => statusOf(a) === "pending").length,
+      pending: admins.filter((a) => PENDING_GROUP.includes(statusOf(a))).length,
       disabled: admins.filter((a) => statusOf(a) === "disabled").length,
     }),
     [admins]
@@ -225,7 +285,8 @@ export default function SuperadminAdminAccounts() {
   const filteredAdmins = useMemo(() => {
     const q = search.trim().toLowerCase();
     return admins.filter((admin) => {
-      if (filter !== "all" && statusOf(admin) !== filter) return false;
+      const rowStatus = statusOf(admin);
+      if (filter === "pending" ? !PENDING_GROUP.includes(rowStatus) : filter !== "all" && rowStatus !== filter) return false;
       if (!q) return true;
       return (
         (admin.name || "").toLowerCase().includes(q) ||
@@ -261,7 +322,7 @@ export default function SuperadminAdminAccounts() {
             <button
               type="button"
               className="sac__primary sac__provision-trigger"
-              onClick={() => setDrawerOpen(true)}
+              onClick={() => setProvisionOpen(true)}
             >
               <FaUserPlus aria-hidden="true" /> {t("superadmin.console.provision")}
             </button>
@@ -309,7 +370,7 @@ export default function SuperadminAdminAccounts() {
               title={t("superadmin.console.emptyTitle")}
               description={t("superadmin.console.emptyDescription")}
               action={
-                <button type="button" className="sac__primary" onClick={() => setDrawerOpen(true)}>
+                <button type="button" className="sac__primary" onClick={() => setProvisionOpen(true)}>
                   <FaUserPlus aria-hidden="true" /> {t("superadmin.console.provision")}
                 </button>
               }
@@ -354,11 +415,14 @@ export default function SuperadminAdminAccounts() {
                 <tbody>
                   {pager.pageItems.map((admin) => {
                     const status = statusOf(admin);
-                    const meta = STATUS_META[status];
+                    const invite = admin.invite || null;
+                    const awaiting = isInviteStatus(status);
+                    const waitSeconds = awaiting ? secondsUntil(invite && invite.nextResendAt) : 0;
+                    const resendsLeft = invite ? invite.resendsLeft : inviteSettings.maxResends;
                     const rowBusy = busyId === admin.id;
                     const note = (admin.staffNote || "").trim();
                     return (
-                      <tr key={admin.id} className={admin.isActive ? "" : "is-disabled"}>
+                      <tr key={admin.id} className={admin.isActive || awaiting ? "" : "is-disabled"}>
                         <td data-label="Staff member">
                           <div className="sac__member">
                             <span className="sac__avatar" aria-hidden="true">
@@ -382,13 +446,81 @@ export default function SuperadminAdminAccounts() {
                           )}
                         </td>
                         <td data-label="Status">
-                          <span className={`sac-badge ${meta.className}`}>{meta.label}</span>
+                          <div className="si-status">
+                            {status === "pendingPassword" ? (
+                              <span className="sac-badge sac-badge--pending">Pending OTP</span>
+                            ) : (
+                              <AccountStatusBadge state={BADGE_STATE[status]}>
+                                {t(`staffInvite.status.${status}`)}
+                              </AccountStatusBadge>
+                            )}
+                            {awaiting && invite && invite.emailStatus ? (
+                              <span className={`si-mail si-mail--${invite.emailStatus}`}>
+                                <span className="si-mail__mark" aria-hidden="true">
+                                  {invite.emailStatus === "failed" ? "✕" : invite.emailStatus === "sent" ? "✓" : "…"}
+                                </span>
+                                {t(`staffInvite.email.${invite.emailStatus}`)}
+                              </span>
+                            ) : null}
+                            {invite ? (
+                              <details className="si-details">
+                                <summary aria-label={t("staffInvite.actions.detailsFor", { name: admin.name })}>
+                                  {t("staffInvite.actions.details")}
+                                </summary>
+                                <dl>
+                                  <dt>{t("staffInvite.details.sent")}</dt>
+                                  <dd>{formatWhen(invite.sentAt)}</dd>
+                                  <dt>{t(status === "expired" ? "staffInvite.details.expiredOn" : "staffInvite.details.expires")}</dt>
+                                  <dd>{formatWhen(invite.expiresAt)}</dd>
+                                  <dt>{t("staffInvite.details.resends")}</dt>
+                                  <dd>
+                                    {t("staffInvite.details.resendsOf", {
+                                      used: invite.resendCount,
+                                      max: invite.resendCount + resendsLeft,
+                                    })}
+                                  </dd>
+                                  <dt>{t("staffInvite.details.activated")}</dt>
+                                  <dd>{invite.activatedAt ? formatWhen(invite.activatedAt) : t("staffInvite.details.none")}</dd>
+                                </dl>
+                              </details>
+                            ) : null}
+                          </div>
                         </td>
                         <td data-label="Last active" className="sac__lastactive">
                           {formatDate(admin.lastLoginAt)}
                         </td>
                         <td data-label="Actions">
                           <div className="sac__row-actions">
+                            {awaiting ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="sac__icon-btn sac__icon-btn--invite"
+                                  onClick={() => doResend(admin)}
+                                  disabled={rowBusy || waitSeconds > 0 || resendsLeft <= 0}
+                                  title={t("staffInvite.actions.resend")}
+                                  aria-label={t("staffInvite.actions.resendFor", { name: admin.name })}
+                                >
+                                  <FaPaperPlane aria-hidden="true" />
+                                </button>
+                                {waitSeconds > 0 ? (
+                                  <span className="si-wait" role="status">
+                                    {t("staffInvite.actions.resendWait", { seconds: waitSeconds })}
+                                  </span>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  className="sac__icon-btn sac__icon-btn--disable sac__icon-btn--invite"
+                                  onClick={() => requestCancelInvite(admin)}
+                                  disabled={rowBusy}
+                                  title={t("staffInvite.actions.cancel")}
+                                  aria-label={t("staffInvite.actions.cancelFor", { name: admin.name })}
+                                >
+                                  <FaTrashCan aria-hidden="true" />
+                                </button>
+                              </>
+                            ) : (
+                              <>
                             <button
                               type="button"
                               className="sac__icon-btn sac__icon-btn--reset"
@@ -422,6 +554,8 @@ export default function SuperadminAdminAccounts() {
                                 <FaCircleCheck />
                               </button>
                             )}
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -440,125 +574,20 @@ export default function SuperadminAdminAccounts() {
         </section>
       </main>
 
-      {/* ── Slide-over: provisioning form ─────────────────────── */}
-      {drawerOpen ? (
-        <div
-          className="sac__drawer-overlay"
-          onClick={() => !creating && setDrawerOpen(false)}
-        >
-          <aside
-            className="sac__drawer"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="sac-drawer-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header className="sac__drawer-head">
-              <h2 id="sac-drawer-title"><FaUserPlus /> Provision New Admin Account</h2>
-              <button
-                type="button"
-                className="sac__drawer-close"
-                onClick={() => setDrawerOpen(false)}
-                aria-label="Close"
-                disabled={creating}
-              >
-                <FaXmark />
-              </button>
-            </header>
-
-            <p className="sac__drawer-lead">
-              For LMDPESO office staff only. The account starts with a one-time password and the
-              holder must set their own on first sign-in.
-            </p>
-
-            <form className="sac__form" onSubmit={handleCreate}>
-              <label className="sac__field">
-                <span>Full name</span>
-                <input
-                  name="name"
-                  value={form.name}
-                  onChange={onChange}
-                  placeholder="Juan Dela Cruz"
-                  autoComplete="off"
-                  autoFocus
-                  required
-                  disabled={creating}
-                />
-              </label>
-
-              <label className="sac__field">
-                <span>PESO official email</span>
-                <input
-                  name="email"
-                  type="email"
-                  value={form.email}
-                  onChange={onChange}
-                  placeholder="name@peso.marinduque.gov.ph"
-                  autoComplete="off"
-                  required
-                  disabled={creating}
-                />
-              </label>
-
-              <label className="sac__field">
-                <span>Purpose / identity note</span>
-                <textarea
-                  name="staffNote"
-                  value={form.staffNote}
-                  onChange={onChange}
-                  placeholder="Who this is and their PESO position — e.g. 'Ma. Santos, PESO Manager'."
-                  rows={3}
-                  required
-                  disabled={creating}
-                />
-              </label>
-
-              <div className="sac__chips" role="group" aria-label="Quick-fill common roles">
-                {NOTE_PRESETS.map((preset) => (
-                  <button
-                    type="button"
-                    key={preset}
-                    className={`sac__chip${form.staffNote.trim() === preset ? " is-active" : ""}`}
-                    onClick={() => applyPreset(preset)}
-                    disabled={creating}
-                  >
-                    {preset}
-                  </button>
-                ))}
-              </div>
-
-              <p className="sac__form-hint">
-                <FaTriangleExclamation />
-                A one-time password is generated on submit and shown once. It stops working the
-                moment the new admin sets their own password.
-              </p>
-
-              <div className="sac__drawer-actions">
-                <button
-                  type="button"
-                  className="sac__ghost"
-                  onClick={() => setDrawerOpen(false)}
-                  disabled={creating}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="sac__primary" disabled={creating}>
-                  <FaUserPlus /> {creating ? "Generating…" : "Generate Admin Account"}
-                </button>
-              </div>
-            </form>
-          </aside>
-        </div>
-      ) : null}
+      {/* ── Provision staff account (emailed invitation, no password) ── */}
+      <ProvisionStaffModal
+        isOpen={provisionOpen}
+        onClose={() => setProvisionOpen(false)}
+        onProvisioned={handleProvisioned}
+        expiryHours={inviteSettings.expiryHours}
+      />
 
       {/* ── One-time password modal ───────────────────────────── */}
       {issued ? (
         <div className="sac__overlay" role="dialog" aria-modal="true" aria-labelledby="sac-otp-title">
           <div className="sac__modal">
             <div className="sac__modal-icon"><FaKey /></div>
-            <h3 id="sac-otp-title">
-              {issued.context === "created" ? "Admin account created" : "Temporary password reissued"}
-            </h3>
+            <h3 id="sac-otp-title">Temporary password reissued</h3>
             <p className="sac__modal-lead">
               Share this one-time password with <b>{issued.email}</b>. They will be required to change
               it on first sign-in.
@@ -617,7 +646,7 @@ export default function SuperadminAdminAccounts() {
                 {confirmState.confirmLabel}
               </button>
               <button type="button" className="sac__ghost" onClick={() => setConfirmState(null)}>
-                Cancel
+                {confirmState.cancelLabel || "Cancel"}
               </button>
             </div>
           </div>

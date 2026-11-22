@@ -476,7 +476,11 @@
       "deletedGraceLabel": "Palugit sa pagbalik ng binurang account",
       "deletedGraceSuffix": "araw (7 hanggang 365) bago permanenteng mabura ang personal na datos",
       "requireVerification": "Kailanganin ang beripikasyon ng employer bago mag-post",
-      "requireVerificationHint": "Dapat ma-verify ng opisina ng PESO ang employer bago mabuhay ang isang bakante."
+      "requireVerificationHint": "Dapat ma-verify ng opisina ng PESO ang employer bago mabuhay ang isang bakante.",
+      "inviteExpiryLabel": "Tagal ng bisa ng link ng imbitasyon sa staff",
+      "inviteExpirySuffix": "oras (1 hanggang 168)",
+      "inviteCooldownLabel": "Paghihintay bago magpadala muli ng imbitasyon",
+      "inviteCooldownSuffix": "segundo (30 hanggang 3600)"
     },
     "adminTools": {
       "title": "Mga Admin Tool",
@@ -1405,7 +1409,9 @@
         "suspended": "Suspendido",
         "banned": "Na-ban",
         "deactivated": "Naka-deactivate",
-        "deleted": "Binura"
+        "deleted": "Binura",
+        "pending": "Naghihintay ng activation",
+        "expired": "Nag-expire na ang imbitasyon"
       },
       "actions": {
         "view": "Tingnan",
@@ -1619,7 +1625,16 @@
       },
       "lockoutLine": "Mga lockout: {{day}} sa nakaraang 24 oras, {{week}} sa nakaraang 7 araw",
       "cardsLabel": "Mga account",
-      "tableLabel": "Mga account"
+      "tableLabel": "Mga account",
+      "pendingStaff": {
+        "badge_one": "{{count}} staff account ang naghihintay ng activation",
+        "badge_other": "{{count}} staff account ang naghihintay ng activation",
+        "title": "Mga imbitasyon sa staff",
+        "body_one": "{{count}} staff account ang hindi pa na-activate. Ipadala muli o kanselahin ang imbitasyon sa pahina ng Admin accounts.",
+        "body_other": "{{count}} staff account ang hindi pa na-activate. Ipadala muli o kanselahin ang mga imbitasyon sa pahina ng Admin accounts.",
+        "open": "Buksan ang Admin accounts",
+        "close": "Isara"
+      }
     },
     "moderation": {
       "subtitle": "Suriin ang mga report mula sa mga user at magpasya sa mga apela sa suspensyon.",
@@ -2069,7 +2084,10 @@
       "FOLLOW_LIST_PRIVATE": "Pribado ang listahang ito.",
       "PROFILE_UNAVAILABLE": "Hindi available ang profile na ito.",
       "PROFILE_VIEW_DAILY_LIMIT": "Marami ka nang tiningnang profile ngayon. Subukan bukas.",
-      "PROFILE_VIEW_RATE_LIMITED": "Masyadong maraming pagtingin sa profile. Dahan-dahan lang."
+      "PROFILE_VIEW_RATE_LIMITED": "Masyadong maraming pagtingin sa profile. Dahan-dahan lang.",
+      "INVITE_INVALID": "Hindi valid ang activation link na ito. Hilingin sa iyong superadmin na magpadala ng bago.",
+      "PASSWORD_MISMATCH": "Hindi magkapareho ang dalawang password.",
+      "EMAIL_EXISTS": "May account na gamit ang email na iyon."
     }
   },
   "spes": {
@@ -2613,7 +2631,10 @@
     "special": "Isang special character",
     "sameAsUsername": "Hindi puwedeng maging username o maglaman nito",
     "sameAsBirthDate": "Hindi puwedeng maging petsa ng kapanganakan",
-    "tooCommon": "Masyadong karaniwan. Pumili ng mas mahirap hulaan"
+    "tooCommon": "Masyadong karaniwan. Pumili ng mas mahirap hulaan",
+    "match": "Magkapareho ang dalawang password",
+    "requirementMet": "Tapos na",
+    "requirementOpen": "Hindi pa"
   },
   "emailStep": {
     "title": "Idagdag ang iyong email",
@@ -3045,5 +3066,104 @@
   "applyPhoto": {
     "label": "Isama ang larawan ko sa aplikasyong ito",
     "hint": "Nakatago ang profile mo. Makikita ng employer ang pangalan mo at ang isinumite mo, at ang larawan mo lamang kung lalagyan mo ng tsek ito."
+  },
+  "staffInvite": {
+    "form": {
+      "title": "Gumawa ng staff account",
+      "lead": "Magpapadala kami sa bagong staff ng isang beses na activation link para sila mismo ang pumili ng password. Hindi mo makikita, makokopya o maibabahagi ang anumang password.",
+      "name": "Buong pangalan",
+      "namePlaceholder": "Juan Dela Cruz",
+      "email": "Opisyal na PESO email",
+      "emailPlaceholder": "name@peso.marinduque.gov.ph",
+      "emailHint": "Ito rin ang kanilang login ID. Dito ipapadala ang link.",
+      "position": "Posisyon o opisina",
+      "positionPlaceholder": "PESO Manager",
+      "presetsLabel": "Mabilisang pagpili ng karaniwang posisyon",
+      "role": "Tungkulin",
+      "roleStaff": "Staff moderator (PESO admin)",
+      "roleHint": "Hindi puwedeng gawing superadmin ang staff account mula rito.",
+      "expiryNote": "Isang beses lang gagana ang link at mag-e-expire sa loob ng {{hours}} oras.",
+      "submit": "Ipadala ang imbitasyon",
+      "submitting": "Ipinapadala…",
+      "cancel": "Kanselahin",
+      "close": "Isara",
+      "errorSummary": "Pakiayos ang mga naka-highlight na field."
+    },
+    "errors": {
+      "nameRequired": "Ilagay ang buong pangalan ng staff.",
+      "emailRequired": "Ilagay ang kanilang PESO email address.",
+      "emailInvalid": "Maglagay ng wastong email address, tulad ng name@peso.marinduque.gov.ph.",
+      "positionRequired": "Ilagay ang kanilang posisyon o opisina.",
+      "generic": "Hindi namin nagawa ang account. Pakisubukan muli."
+    },
+    "toast": {
+      "provisioned": "Nagawa na ang account. Papunta na ang activation email sa {{email}}.",
+      "provisionedEmailFailed": "Nagawa ang account, pero hindi naipadala ang email. Gamitin ang Ipadala muli.",
+      "resent": "Papunta na ang bagong activation email sa {{email}}. Hindi na gagana ang lumang link.",
+      "resentFailed": "Nakagawa ng bagong link, pero hindi mailagay sa pila ang email. Subukang ipadala muli.",
+      "cancelled": "Nakansela ang imbitasyon at naalis ang naghihintay na account.",
+      "cooldown": "Maghintay ng {{seconds}} segundo bago magpadala muli ng imbitasyon.",
+      "limit": "Masyado nang maraming beses naipadala muli ang imbitasyong ito. Kanselahin ito at gumawa ulit ng account.",
+      "notPending": "Hindi na naghihintay ng activation ang account na ito.",
+      "failed": "Hindi ito nagtagumpay. Pakisubukan muli."
+    },
+    "status": {
+      "pending": "Naghihintay ng activation",
+      "expired": "Nag-expire na ang imbitasyon",
+      "active": "Aktibo",
+      "disabled": "Naka-disable"
+    },
+    "email": {
+      "sent": "Naipadala ang email",
+      "queued": "Nasa pila ang email",
+      "failed": "Hindi naipadala ang email, ipadala muli"
+    },
+    "actions": {
+      "resend": "Ipadala muli ang imbitasyon",
+      "resendFor": "Ipadala muli ang imbitasyon kay {{name}}",
+      "resendWait": "Ipadala muli sa {{seconds}}s",
+      "cancel": "Kanselahin ang imbitasyon",
+      "cancelFor": "Kanselahin ang imbitasyon ni {{name}}",
+      "details": "Detalye ng imbitasyon",
+      "detailsFor": "Detalye ng imbitasyon ni {{name}}"
+    },
+    "cancelDialog": {
+      "title": "Kanselahin ang imbitasyong ito?",
+      "body": "Aalisin ang naghihintay na account para sa {{email}} at hindi na gagana ang activation link nito. Maaari kang gumawa ulit ng account mamaya.",
+      "confirm": "Kanselahin ang imbitasyon",
+      "keep": "Panatilihin ang imbitasyon"
+    },
+    "details": {
+      "sent": "Naipadala ang imbitasyon",
+      "expires": "Mag-e-expire ang link",
+      "expiredOn": "Nag-expire ang link",
+      "resends": "Beses na naipadala muli",
+      "resendsOf": "{{used}} sa {{max}}",
+      "activated": "Na-activate",
+      "none": "Hindi pa"
+    }
+  },
+  "activation": {
+    "title": "I-activate ang iyong staff account",
+    "subtitle": "Pumili ng sarili mong password para matapos ang pag-set up ng iyong STRAM PESO staff account.",
+    "checking": "Sinusuri ang iyong link…",
+    "invalidTitle": "Hindi magagamit ang link na ito",
+    "invalidBody": "Hindi valid ang activation link na ito. Hilingin sa iyong superadmin na magpadala ng bago.",
+    "backToLogin": "Bumalik sa login",
+    "password": "Bagong password",
+    "confirm": "Kumpirmahin ang bagong password",
+    "show": "Ipakita ang password",
+    "hide": "Itago ang password",
+    "requirementsTitle": "Kailangan ng iyong password ng:",
+    "submit": "I-activate ang account",
+    "submitting": "Ina-activate…",
+    "errors": {
+      "passwordRequired": "Maglagay ng bagong password.",
+      "confirmRequired": "Ilagay muli ang password para makumpirma.",
+      "mismatch": "Hindi magkapareho ang dalawang password.",
+      "generic": "Hindi namin na-activate ang account. Pakisubukan muli.",
+      "tooMany": "Napakaraming pagsubok. Subukan muli mamaya."
+    },
+    "loginNotice": "Aktibo na ang iyong account. Mag-sign in gamit ang iyong email at ang password na kakapili mo lang."
   }
 }

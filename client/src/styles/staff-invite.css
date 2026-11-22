@@ -1,0 +1,229 @@
+/* Staff invitations: the provision dialog, the invite lines in the Admin accounts
+   table and the pending-staff notice on User Management. Every control is at
+   least 44px tall and focus is always visible; status is text plus a shape. */
+
+.si-lead {
+  margin: 0 0 var(--ds-space-4, 16px);
+  color: var(--ds-text, #1a2530);
+  line-height: 1.5;
+}
+
+.si-alert {
+  margin: 0 0 var(--ds-space-4, 16px);
+  padding: 10px 12px;
+  border: 1px solid var(--ds-danger, #b42318);
+  border-radius: 8px;
+  background: #fdecea;
+  color: #8c1d18;
+  font-weight: 600;
+}
+
+.si-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4, 16px);
+}
+.si-form input,
+.si-form select {
+  min-height: 44px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid var(--ds-border, #b8c1cc);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--ds-surface, #fff);
+  color: var(--ds-text, #1a2530);
+}
+.si-form input:focus-visible,
+.si-form select:focus-visible {
+  outline: 2px solid var(--ds-focus, #0b57d0);
+  outline-offset: 2px;
+}
+
+.si-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.si-chip {
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid var(--ds-border, #b8c1cc);
+  border-radius: 999px;
+  background: var(--ds-surface, #fff);
+  color: var(--ds-text, #1a2530);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.si-chip.is-active {
+  border-color: #0b4f8a;
+  background: #e7f1fb;
+  color: #0b4f8a;
+  font-weight: 700;
+}
+.si-chip:focus-visible,
+.si-btn:focus-visible {
+  outline: 2px solid var(--ds-focus, #0b57d0);
+  outline-offset: 2px;
+}
+
+.si-note {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.si-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.si-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 18px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.si-btn--primary {
+  background: #1b5e20;
+  color: #fff;
+}
+.si-btn--ghost {
+  background: transparent;
+  border-color: var(--ds-border, #b8c1cc);
+  color: var(--ds-text, #1a2530);
+}
+.si-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* The dialog on a phone is the shared bottom sheet; keep its fields readable at 320px. */
+.si-modal {
+  max-width: 520px;
+}
+
+/* ---- Admin accounts table: invite lines ---- */
+.si-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.si-mail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+}
+.si-mail--failed {
+  color: #8c1d18;
+}
+.si-mail__mark {
+  font-weight: 800;
+}
+.si-details {
+  font-size: 0.8125rem;
+  color: #374151;
+}
+.si-details > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: #0b4f8a;
+  font-weight: 600;
+}
+.si-details > summary:focus-visible {
+  outline: 2px solid var(--ds-focus, #0b57d0);
+  outline-offset: 2px;
+}
+.si-details dl {
+  margin: 0 0 6px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+}
+.si-details dt {
+  font-weight: 600;
+}
+.si-details dd {
+  margin: 0;
+}
+
+.sac .sac__icon-btn--invite {
+  min-width: 44px;
+  min-height: 44px;
+}
+.si-wait {
+  font-size: 0.75rem;
+  color: #374151;
+}
+
+/* ---- User Management: pending staff notice with a popover ---- */
+.si-notice {
+  position: relative;
+  display: inline-block;
+}
+.si-notice__trigger {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+.si-notice__trigger:focus-visible {
+  outline: 2px solid var(--ds-focus, #0b57d0);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+.si-notice__pop {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  width: min(320px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid var(--ds-border, #b8c1cc);
+  border-radius: 10px;
+  background: var(--ds-surface, #fff);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+.si-notice__title {
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: var(--ds-text, #1a2530);
+}
+.si-notice__body {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #374151;
+}
+
+@media (max-width: 480px) {
+  .si-actions .si-btn {
+    flex: 1 1 100%;
+  }
+  .si-notice__pop {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    top: auto;
+    bottom: 16px;
+    width: auto;
+  }
+}

@@ -15,6 +15,7 @@ export const HIDDEN_PATHS = Object.freeze([
   '/register-employer',
   '/forgot-password',
   '/reset-password',
+  '/activate-account',
   '/verify-email',
   '/confirm-email',
   '/verify-recovery-email',

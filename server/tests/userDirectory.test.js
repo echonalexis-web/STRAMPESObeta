@@ -34,7 +34,7 @@ describe("buildDirectoryQuery", () => {
   test("status filters: active, suspended, banned, deactivated each exclude deleted accounts", () => {
     const status = (s) => build({ status: s }).filter;
     expect(status("active").$and[0]).toEqual({ isActive: { $ne: false }, deletedAt: null });
-    expect(status("suspended").$and[0]).toEqual({ isActive: false, deletedAt: null, accountStatus: { $nin: ["banned", "deactivated"] } });
+    expect(status("suspended").$and[0]).toEqual({ isActive: false, deletedAt: null, accountStatus: { $nin: ["banned", "deactivated", "pending_activation"] } });
     expect(status("banned").$and[0]).toMatchObject({ isActive: false, accountStatus: "banned", deletedAt: null });
     expect(status("deactivated").$and[0]).toMatchObject({ isActive: false, accountStatus: "deactivated", deletedAt: null });
     expect(status("active")).not.toHaveProperty("deletedAt");

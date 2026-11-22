@@ -736,6 +736,11 @@ exports.deactivateUser = async (req, res) => {
     if (user.deletedAt) {
       return res.status(409).json({ message: "This account is deleted. Restore it first.", code: "ACCOUNT_DELETED" });
     }
+    // A staff account still waiting for its owner to activate it has its own
+    // invite actions (resend / cancel); turning it into "suspended" would hide it.
+    if (user.accountStatus === "pending_activation") {
+      return res.status(409).json({ message: "This account has not been activated yet. Resend or cancel the invite instead.", code: "PENDING_ACTIVATION" });
+    }
 
     const permanent = req.body.permanent === true || req.body.permanent === "true";
     const reason = String(req.body.reason || "").trim() || null;
@@ -809,6 +814,11 @@ exports.reactivateUser = async (req, res) => {
     // scheduled-for-purge account back by accident.
     if (user.deletedAt) {
       return res.status(409).json({ message: "This account is deleted. Restore it first.", code: "ACCOUNT_DELETED" });
+    }
+    // Reactivating would mark a never-activated staff account active with a
+    // password nobody knows. Its owner activates it from the invite link instead.
+    if (user.accountStatus === "pending_activation") {
+      return res.status(409).json({ message: "This account has not been activated yet. Resend or cancel the invite instead.", code: "PENDING_ACTIVATION" });
     }
 
     user.isActive = true;
