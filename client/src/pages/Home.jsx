@@ -1,11 +1,12 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FaArrowRight, FaSearch } from "react-icons/fa";
+import { FaSearch } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 import { jobAPI } from "../services/api";
-import EmployerAvatar from "../components/EmployerAvatar";
+import VacancyCard from "../components/VacancyCard";
 import useParallax from "../hooks/useParallax";
 import "../styles/home.css";
+import "../styles/jobboard.css";
 import heroVideo from "../assets/videos/hero-video.mp4";
 import pesoLogo from "../assets/images/peso-logo.png";
 import provincialSeal from "../assets/images/provincial-seal.png";
@@ -98,7 +99,7 @@ export default function Home() {
       setJobsLoading(true);
       try {
         // The newest publicly available jobs, newest first (the same list "See More Jobs" opens).
-        const { data } = await jobAPI.getPublicJobs({ limit: 4, sortBy: "newest" });
+        const { data } = await jobAPI.getPublicJobs({ limit: 6, sortBy: "newest" });
         if (!active) return;
         const latest = Array.isArray(data?.jobs) ? data.jobs : [];
         if (latest.length > 0) setFeaturedJobs(latest);
@@ -192,20 +193,6 @@ export default function Home() {
   const clearSearch = () => { setSearchQuery(""); };
   const selectJobFilter = (filter) => { setActiveJobFilter(filter); };
 
-  const getJobSlots = (job) => {
-    const slots = job?.numberOfPositions || job?.positionsAvailable || job?.vacancies || job?.slots;
-    return slots ? `${slots} ${Number(slots) === 1 ? "slot" : "slots"}` : "";
-  };
-
-  const getEmployerName = (job) => {
-    try {
-      if (typeof job?.employer === "string") return job.employer;
-      if (job?.employer?.companyName) return job.employer.companyName;
-      if (job?.employer?.name) return job.employer.name;
-      return "";
-    } catch { return ""; }
-  };
-
   const handleSearchChange = (e) => { setSearchQuery(e.target.value); };
 
   const getExperienceOffset = (slideIndex) => {
@@ -291,64 +278,24 @@ export default function Home() {
             </div>
           ) : (
             <>
-              <div className="jobs-design-grid">
+              {/* The same job card as Browse Jobs (visitor mode: no applicant count, no skills). */}
+              <div className="jb-list">
                 {filteredJobs.length > 0 ? (
-                  filteredJobs.map((job, index) => {
-                    const title = job?.title || "Untitled Position";
-                    const jobId = job?._id || job?.id || title;
-                    // Mirrors the guard inside handleViewJob — used here just to
-                    // grey the button out for the fallback list's placeholder ids.
-                    const hasDetailPage = /^[a-f0-9]{24}$/i.test(String(jobId));
-                    const employerName = getEmployerName(job) || "Employer";
+                  filteredJobs.map((job) => {
+                    const jobId = job?._id || job?.id || job?.title;
                     return (
-<article
-  key={jobId}
-  className={`jobs-design-card${hasDetailPage ? " jobs-design-card--clickable" : ""}`}
-  role={hasDetailPage ? "button" : undefined}
-  tabIndex={hasDetailPage ? 0 : -1}
-  onClick={() => { if (hasDetailPage) handleViewJob(job); }}
-  onKeyDown={(e) => {
-    if (!hasDetailPage) return;
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      handleViewJob(job);
-    }
-  }}
->
-  <div className="jobs-design-card-top">
-    <EmployerAvatar
-      employer={job?.employer}
-      name={employerName}
-      className={`jobs-design-logo jobs-design-logo-${index % 5}`}
-    />
-    <span className="jobs-design-open">
-      <span></span>Open
-    </span>
-  </div>
-
-  <div className="jobs-design-card-body">
-    <p className="jobs-design-employer" title={employerName}>
-      {employerName}
-    </p>
-    <p className="jobs-design-role" title={title}>
-      {title}
-    </p>
-    {getJobSlots(job) && (
-      <span className="jobs-design-slot">{getJobSlots(job)}</span>
-    )}
-  </div>
-
-  <div className="jobs-design-card-footer">
-    <button
-      type="button"
-      className="jobs-design-details"
-      disabled={!hasDetailPage}
-      onClick={(e) => { e.stopPropagation(); handleViewJob(job); }}
-    >
-      Details <FaArrowRight />
-    </button>
-  </div>
-</article>
+                      <div key={jobId} className="jb-cell">
+                        <VacancyCard
+                          job={job}
+                          visitor
+                          matchAvailable={false}
+                          onOpen={() => handleViewJob(job)}
+                          onLogin={() => navigate("/login")}
+                          compact
+                          expanded={false}
+                          onToggle={() => {}}
+                        />
+                      </div>
                     );
                   })
                 ) : (

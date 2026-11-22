@@ -3,23 +3,11 @@
    colour pair is at least 4.5:1, controls are at least 44px, and nothing is a fixed
    width, so there is no horizontal scroll at 320px. */
 
+/* Keeps the same space above the note that the old title block took. */
 .pj-head {
+  min-height: 56px;
   margin: 0 0 var(--ds-space-3, 12px);
 }
-.pj-title {
-  margin: 0;
-  font-size: 1.5rem;
-  line-height: 1.25;
-  color: var(--ds-text, #1a2530);
-  overflow-wrap: anywhere;
-}
-.pj-sub {
-  margin: 4px 0 0;
-  color: #374151;
-  font-size: 0.9375rem;
-  line-height: 1.45;
-}
-
 .pj-login-note {
   display: flex;
   flex-wrap: wrap;
@@ -45,6 +33,23 @@
 }
 
 @media (max-width: 480px) {
-  .pj-title { font-size: 1.25rem; }
   .pj-login-note .ds-btn { width: 100%; }
+}
+
+/* Public list only: the pager (summary and page buttons) is centred under the cards. */
+.pj .pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.pj .pager__nav {
+  justify-content: center;
+}
+
+/* The footer sits right under the list, so the pager's large bottom margin (meant to
+   clear a floating button on other pages) is trimmed here. */
+.pj .pager--card {
+  margin-bottom: var(--ds-space-6, 32px);
 }

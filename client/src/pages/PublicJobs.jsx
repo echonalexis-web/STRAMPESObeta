@@ -8,6 +8,7 @@ import VacancyCard from "../components/VacancyCard";
 import JobSearchFilters from "../components/JobSearchFilters";
 import Pagination from "../components/Pagination";
 import StateBlock from "../components/StateBlock";
+import SiteFooter from "../components/SiteFooter";
 import phLocationsRaw from "../data/philippine_provinces_cities_municipalities_and_barangays_2019v2.json";
 import { isSalaryRangeInvalid } from "../utils/salaryRange";
 import { loginStateFor } from "../utils/returnTo";
@@ -152,11 +153,13 @@ export default function PublicJobs() {
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
+    <>
     <div className="jb pj">
       <div className="jb-inner">
+        {/* No visible title: the top bar already names the page. The heading stays for screen
+            readers, and the block keeps the space above the note. */}
         <header className="pj-head">
-          <h1 className="pj-title">{t("publicJobs.title")}</h1>
-          <p className="pj-sub">{t("publicJobs.subtitle")}</p>
+          <h1 className="ds-sr-only">{t("publicJobs.title")}</h1>
         </header>
 
         <div className="pj-login-note" role="note">
@@ -254,5 +257,7 @@ export default function PublicJobs() {
         </div>
       </div>
     </div>
+    <SiteFooter />
+    </>
   );
 }

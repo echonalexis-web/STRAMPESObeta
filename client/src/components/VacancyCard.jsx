@@ -121,7 +121,8 @@ export default function VacancyCard({
   // checklist.missingRequired (same type+value, folded "other"→skill) —
   // matches the server's own required/preferred split, not a re-score.
   const missingKeys = new Set((checklist?.missingRequired || []).map((q) => matchKey(q.type, q.value)));
-  const requiredPreviewQuals = Array.isArray(job?.qualifications)
+  // A visitor sees no skills on the card; they are on the job details page.
+  const requiredPreviewQuals = !visitor && Array.isArray(job?.qualifications)
     ? job.qualifications.filter((q) => q?.value && q.optional !== true).slice(0, 3)
     : [];
 
