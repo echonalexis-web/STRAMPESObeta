@@ -71,6 +71,10 @@ export default function VacancyCard({
   onApply,
   canApply = true,
   publicView = false,
+  // Signed-out visitor: no applicant count, no company page link, and "Log in to apply"
+  // in place of Apply (onLogin sends them to login and back to this job).
+  visitor = false,
+  onLogin,
   compact = false,
   expanded = false,
   onToggle,
@@ -109,7 +113,7 @@ export default function VacancyCard({
   const clickable = !preview && typeof onOpen === "function";
   // Company logo and name: hover card on pointer devices, link to the company page.
   // Clicks and keys stay off the card's own "open job" handlers.
-  const employerId = !preview ? job?.employer?._id || job?.employer?.id || null : null;
+  const employerId = !preview && !visitor ? job?.employer?._id || job?.employer?.id || null : null;
   const companyName = job?.employer?.companyName || job?.employer?.name || "Employer";
   const stop = (event) => event.stopPropagation();
 
@@ -248,13 +252,23 @@ export default function VacancyCard({
             )}
           </div>
           <p className="vac-c-counts">
-            <FaUsers aria-hidden="true" /> {t("vacancy.compact.applicants", { count: applicantCount })}
-            {posted ? ` · ${t("vacancy.compact.postedAgo", { posted })}` : ""}
+            {visitor ? (
+              posted ? t("vacancy.compact.postedAgo", { posted }) : null
+            ) : (
+              <>
+                <FaUsers aria-hidden="true" /> {t("vacancy.compact.applicants", { count: applicantCount })}
+                {posted ? ` · ${t("vacancy.compact.postedAgo", { posted })}` : ""}
+              </>
+            )}
           </p>
           {model.blocked === "age" && <p className="vac-c-note">{t("vacancy.compact.viewOnlyAge")}</p>}
           {model.blocked === "applied" ? (
             <button type="button" className="ds-btn ds-btn--primary btn-vac btn-vac--primary vac-c-apply" disabled>
               {t("vacancy.compact.applied")}
+            </button>
+          ) : visitor ? (
+            <button type="button" className="ds-btn ds-btn--primary btn-vac btn-vac--primary vac-c-apply" onClick={onLogin}>
+              {t("publicJobs.loginToApply")}
             </button>
           ) : canApply ? (
             <button type="button" className="ds-btn ds-btn--primary btn-vac btn-vac--primary vac-c-apply" onClick={onApply}>
@@ -364,14 +378,18 @@ export default function VacancyCard({
 
       <div className="vac-footer">
         <span className="vac-footer-meta">
-          {publicView ? (posted ? `Posted ${posted}` : null) : (<><FaUsers aria-hidden="true" /> {applicantCount} applied{posted ? ` · posted ${posted}` : ""}</>)}
+          {publicView || visitor ? (posted ? `Posted ${posted}` : null) : (<><FaUsers aria-hidden="true" /> {applicantCount} applied{posted ? ` · posted ${posted}` : ""}</>)}
         </span>
         {!preview && (
           <div className="vac-actions" onClick={(event) => event.stopPropagation()}>
             <button className="ds-btn ds-btn--secondary btn-vac btn-vac--outline" onClick={onOpen}>
               View details
             </button>
-            {publicView ? null : applied ? (
+            {publicView ? null : visitor ? (
+              <button className="ds-btn ds-btn--primary btn-vac btn-vac--primary" onClick={onLogin}>
+                {t("publicJobs.loginToApply")}
+              </button>
+            ) : applied ? (
               <button className="ds-btn ds-btn--primary btn-vac btn-vac--primary" disabled title="You have already applied to this job">
                 Applied
               </button>

@@ -1,0 +1,50 @@
+/* Public (signed-out) jobs list. Layout, cards, filters and skeletons come from
+   jobboard.css; this adds only the plain page title and the "log in" note. Every
+   colour pair is at least 4.5:1, controls are at least 44px, and nothing is a fixed
+   width, so there is no horizontal scroll at 320px. */
+
+.pj-head {
+  margin: 0 0 var(--ds-space-3, 12px);
+}
+.pj-title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  color: var(--ds-text, #1a2530);
+  overflow-wrap: anywhere;
+}
+.pj-sub {
+  margin: 4px 0 0;
+  color: #374151;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.pj-login-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3, 12px);
+  margin: 0 0 var(--ds-space-4, 16px);
+  padding: var(--ds-space-3, 12px) var(--ds-space-4, 16px);
+  border: 1px solid #b8d4f0;
+  border-radius: var(--ds-radius-md, 10px);
+  background: #e7f1fb;
+}
+.pj-login-note p {
+  margin: 0;
+  flex: 1 1 16rem;
+  min-width: 0;
+  color: #0b3a66;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+.pj-login-note .ds-btn {
+  min-height: var(--ds-tap, 44px);
+}
+
+@media (max-width: 480px) {
+  .pj-title { font-size: 1.25rem; }
+  .pj-login-note .ds-btn { width: 100%; }
+}

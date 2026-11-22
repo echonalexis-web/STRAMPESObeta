@@ -3165,5 +3165,20 @@
       "tooMany": "Too many attempts. Please try again later."
     },
     "loginNotice": "Your account is active. Sign in with your email and the password you just chose."
+  },
+  "publicJobs": {
+    "title": "Available jobs",
+    "subtitle": "Every open job in Marinduque, newest first. You can browse and search without an account.",
+    "loginNote": "Log in to apply, save jobs, follow employers and see how well you match.",
+    "login": "Log in",
+    "loginToApply": "Log in to apply",
+    "loginToFollow": "Log in to follow",
+    "loading": "Loading jobs…",
+    "noResults": "No jobs match your search",
+    "emptyTitle": "No jobs match your search",
+    "emptyBody": "Try removing a filter or searching for something else.",
+    "errorTitle": "We couldn't load the jobs",
+    "errorBody": "Something went wrong while loading jobs. Please try again.",
+    "pagerItems": "jobs"
   }
 }

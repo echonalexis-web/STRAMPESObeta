@@ -1,5 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { loginStateFor } from "../utils/returnTo";
 import { AuthContext } from "../context/AuthContext";
 import { adminAPI, jobAPI, displayFileName } from "../services/api";
 import { useToast, useConfirm } from "../components/feedback/context";
@@ -122,6 +123,9 @@ export default function JobDetail() {
   const [recApplications, setRecApplications] = useState([]);
   const [recApplyJobId, setRecApplyJobId] = useState(null);
 
+  // A visitor who logs in from here comes back to this job afterwards.
+  const location = useLocation();
+  const goToLogin = () => navigate("/login", { state: loginStateFor(location) });
   const isAdminUser = user?.role === "admin";
   const isJobseeker = user?.role === "jobseeker";
   const editMode = searchParams.get("mode") === "edit";
@@ -251,7 +255,7 @@ export default function JobDetail() {
 
   const handleAuthLogin = () => {
     setShowAuthPrompt(false);
-    navigate("/login");
+    goToLogin();
   };
 
   const handleAuthRegister = () => {
@@ -412,6 +416,11 @@ export default function JobDetail() {
               <EmployerAvatar employer={job.employer} name={employerName} className="job-hero-logo" />
               <span className="job-hero-company-name">{employerName}</span>
             </ProfileLink>
+            {!user && (
+              <button type="button" className="job-hero-follow" onClick={() => setShowAuthPrompt(true)}>
+                <FaPlus /> {t("publicJobs.loginToFollow")}
+              </button>
+            )}
             {canFollowEmployer && (
               <button
                 type="button"
@@ -555,7 +564,7 @@ export default function JobDetail() {
               <h3>Apply for this position</h3>
               <p className="apply-card-note">Log in or create an account to apply for this job.</p>
               <div className="admin-job-actions">
-                <button type="button" className="btn-admin-action" onClick={() => navigate("/login")}>Log in</button>
+                <button type="button" className="btn-admin-action" onClick={goToLogin}>{t("publicJobs.loginToApply")}</button>
                 <button type="button" className="btn-admin-action" style={{ background: "#fff", color: "#1a5c2a" }} onClick={() => navigate("/register")}>Register</button>
               </div>
             </div>
@@ -677,10 +686,12 @@ export default function JobDetail() {
                 <span className="job-detail-label">Remaining Slots</span>
                 <strong>{Number(job.remainingSlots ?? openings)}</strong>
               </div>
-              <div className="job-detail-item">
-                <span className="job-detail-label">Applications</span>
-                <strong>{Number(job.applicationCount || 0)}</strong>
-              </div>
+              {user ? (
+                <div className="job-detail-item">
+                  <span className="job-detail-label">Applications</span>
+                  <strong>{Number(job.applicationCount || 0)}</strong>
+                </div>
+              ) : null}
             </div>
           </section>
 

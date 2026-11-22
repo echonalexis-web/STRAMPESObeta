@@ -10,6 +10,12 @@ const { canPersonalizeRecommendations } = require('../utils/personalizationEligi
 const logger = require('../utils/logger');
 const User = require('../models/User');
 const { getUnlistedEmployerIds, withListedEmployers } = require('../utils/jobVisibility');
+const { scrubEmployerForJobPayload } = require('../services/profileProjection');
+
+// A signed-out caller can page through at most this many results and ask for at most
+// this many per page. (Signed-in callers are unchanged.)
+const VISITOR_MAX_LIMIT = 24;
+const VISITOR_MAX_SKIP = 1000;
 
 exports.hybridSearch = async (req, res) => {
   try {
@@ -31,13 +37,17 @@ exports.hybridSearch = async (req, res) => {
     const normalizedSortBy = ['newest', 'salary'].includes(sortBy) ? sortBy : 'match';
     const requireAllMustHaves = onlyMeetsRequired === 'true' || onlyMeetsRequired === true;
 
-    const parsedLimit = Math.max(1, Number(limit) || 50);
+    const userId = req.user?.id || req.user?._id;
+    const isVisitor = !req.user;
+
+    const parsedLimit = isVisitor
+      ? Math.min(Math.max(1, Number(limit) || 50), VISITOR_MAX_LIMIT)
+      : Math.max(1, Number(limit) || 50);
     const parsedPage = Math.max(1, Number(page) || 1);
-    const parsedSkip = Number.isFinite(Number(skip)) && Number(skip) >= 0
+    const requestedSkip = Number.isFinite(Number(skip)) && Number(skip) >= 0
       ? Number(skip)
       : (parsedPage - 1) * parsedLimit;
-
-    const userId = req.user?.id || req.user?._id;
+    const parsedSkip = isVisitor ? Math.min(requestedSkip, VISITOR_MAX_SKIP) : requestedSkip;
     const now = new Date();
 
     await JobVacancy.updateMany(
@@ -425,7 +435,12 @@ exports.hybridSearch = async (req, res) => {
     // --- 7. Attach application counts and format ---
     const jobsWithCounts = rankedJobs.map(job => {
       const jobObj = { ...job };
-      jobObj.applicationCount = Number(countMap[String(job._id)] || 0);
+      if (isVisitor) {
+        // Signed-out callers get no employer email or phone and no applicant count.
+        jobObj.employer = scrubEmployerForJobPayload(jobObj.employer, null);
+      } else {
+        jobObj.applicationCount = Number(countMap[String(job._id)] || 0);
+      }
       jobObj.remainingSlots = Math.max(0, Number(jobObj.slots || 0) - Number(hiredCountMap[String(job._id)] || 0));
       return jobObj;
     });

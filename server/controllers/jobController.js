@@ -11,6 +11,7 @@ const { resolveJobWeightsForScoring } = require("../services/matchWeightsService
 const Message = require("../models/Message");
 const { ensureConversationBetweenUsers } = require("./messageController");
 const { getAgeDenial, sendAgeDenial } = require("../utils/ageAccess");
+const { findPublicJob } = require("../services/publicJobsService");
 const { getHomepageJobsPayload, getApplicationCountMap, getHiredCountMap } = require("../utils/jobDisplay");
 const EmployerProfile = require("../models/EmployerProfile");
 const { scrubEmployerForJobPayload } = require("../services/profileProjection");
@@ -209,7 +210,8 @@ exports.getJobs = async (req, res) => {
         jobObj.employer = scrubEmployerForJobPayload(employer, req.user || null);
         jobObj.employer.cover = await resolveCover(employer.cover);
       }
-      jobObj.applicationCount = Number(countMap[String(job._id)] || 0);
+      // A signed-out visitor never sees how many people applied.
+      if (req.user) jobObj.applicationCount = Number(countMap[String(job._id)] || 0);
       jobObj.remainingSlots = Math.max(0, Number(jobObj.slots || 0) - Number(hiredCountMap[String(job._id)] || 0));
       jobObj.qualifications = formatQualifications(jobObj.qualifications);
       return jobObj;
@@ -273,7 +275,8 @@ exports.getHomepageJobs = async (req, res) => {
       return jobObj;
     }));
 
-    const featuredJobs = await getHomepageJobsPayload(jobsWithProfile, 4);
+    // This route has no authentication, so it never carries an applicant count.
+    const featuredJobs = (await getHomepageJobsPayload(jobsWithProfile, 4)).map(({ applicationCount, ...rest }) => rest);
     res.json(featuredJobs);
   } catch (error) {
     logger.error("Get homepage jobs error:", error.message);
@@ -286,6 +289,15 @@ exports.getHomepageJobs = async (req, res) => {
 // ---------------------------------------------------------------------
 exports.getJobById = async (req, res) => {
   try {
+    // A signed-out visitor gets the public view of a job, and only if it is publicly
+    // available (the one visibility rule); anything else answers like a missing job.
+    if (!req.user) {
+      res.set("Cache-Control", "no-store");
+      const publicJob = await findPublicJob(req.params.id);
+      if (!publicJob) return res.status(404).json({ message: "Job not found" });
+      return res.json(publicJob);
+    }
+
     const job = await JobVacancy.findById(req.params.id)
       .populate("employer", "name email role companyName industry companySize website businessAddress companyDescription verificationStatus phone isActive profileImage cover");
     if (!job) return res.status(404).json({ message: "Job not found" });

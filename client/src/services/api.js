@@ -396,6 +396,9 @@ export const reportAPI = {
 export const jobAPI = {
   getJobs: () => api.get('/jobs'),
   getHomepageJobs: () => api.get('/jobs/homepage'),
+  // Signed-out visitors: public fields only, newest first. Filters use the same names as Browse Jobs.
+  getPublicJobs: (params, config = {}) => api.get('/jobs/public', { params, ...config }),
+  getPublicJob: (id, config = {}) => api.get(`/jobs/public/${id}`, config),
   searchJobsWithSemantic: (params, config = {}) => api.get('/recommendations/jobs', { params, ...config }),
   suggestJobs: (q, config = {}) => api.get('/recommendations/jobs/suggest', { params: { q }, ...config }),
   getJobById: (id) => api.get(`/jobs/${id}`),

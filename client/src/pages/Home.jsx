@@ -97,9 +97,11 @@ export default function Home() {
     const loadJobs = async () => {
       setJobsLoading(true);
       try {
-        const { data } = await jobAPI.getHomepageJobs();
+        // The newest publicly available jobs, newest first (the same list "See More Jobs" opens).
+        const { data } = await jobAPI.getPublicJobs({ limit: 4, sortBy: "newest" });
         if (!active) return;
-        if (Array.isArray(data) && data.length > 0) setFeaturedJobs(data);
+        const latest = Array.isArray(data?.jobs) ? data.jobs : [];
+        if (latest.length > 0) setFeaturedJobs(latest);
         else setFeaturedJobs(HOME_FEATURED_JOBS);
       } catch (error) {
         console.error("Error loading jobs:", error);

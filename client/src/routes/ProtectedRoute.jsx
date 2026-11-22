@@ -16,7 +16,9 @@ const routeNeedsCompletedOnboarding = (role, pathname) => {
   return false;
 };
 
-export const ProtectedRoute = ({ children, requiredRole }) => {
+// `visitorFallback`: what to show a signed-out visitor instead of sending them to login
+// (used by /jobs, which is a public list for visitors).
+export const ProtectedRoute = ({ children, requiredRole, visitorFallback = null }) => {
   const { user, token, loading } = useContext(AuthContext);
   const location = useLocation();
   const userRole = normalizeRole(user?.role);
@@ -26,6 +28,7 @@ export const ProtectedRoute = ({ children, requiredRole }) => {
   }
 
   if (!token || !user) {
+    if (visitorFallback) return visitorFallback;
     return <Navigate to="/login" />;
   }
 

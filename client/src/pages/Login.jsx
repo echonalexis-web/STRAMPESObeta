@@ -1,5 +1,6 @@
 ﻿import { useState, useContext, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import { safeReturnPath } from "../utils/returnTo";
 import { AuthContext } from "../context/AuthContext";
 import { authAPI } from "../services/api";
 import GoogleSignInButton from "../components/GoogleSignInButton";
@@ -85,7 +86,11 @@ export default function Login() {
   const toast = useToast();
   // Left by the staff activation page after a successful activation. Not
   // signed in: the person logs in here with the password they just chose.
-  const activatedNotice = useLocation().state?.activated === true;
+  const location = useLocation();
+  const activatedNotice = location.state?.activated === true;
+  // Where a visitor who hit "Log in to apply" on the public jobs pages came from. Only
+  // a jobseeker is sent back there (other roles go to their own home).
+  const returnTo = safeReturnPath(location.state?.from);
 
   // A toast alongside the inline banner so the error is seen immediately,
   // regardless of scroll position.
@@ -120,16 +125,16 @@ export default function Login() {
       if (role === "superadmin") navigate("/superadmin");
       else if (role === "admin") navigate("/admin");
       else if (role === "employer") navigate("/employer-dashboard");
-      else navigate("/dashboard");
+      else navigate(returnTo || "/dashboard");
     }
-  }, [user, navigate, isRedirecting]);
+  }, [user, navigate, isRedirecting, returnTo]);
 
   const getDefaultRouteByRole = (role) => {
     const normalizedRole = normalizeRole(role);
     if (normalizedRole === "superadmin") return "/superadmin";
     if (normalizedRole === "admin") return "/admin";
     if (normalizedRole === "employer") return "/employer-dashboard";
-    return "/dashboard";
+    return returnTo || "/dashboard";
   };
 
   const handleChange = (e) => {

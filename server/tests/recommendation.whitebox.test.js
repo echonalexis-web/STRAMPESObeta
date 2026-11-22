@@ -144,14 +144,14 @@ describe("hybridSearch: parameters and filter", () => {
   });
 
   test.each([
-    [{}, 0, 50],
+    [{}, 0, 24],
     [{ page: "3", limit: "10" }, 20, 10],
     [{ skip: "7", limit: "10" }, 7, 10],
     [{ skip: "0", page: "5", limit: "10" }, 0, 10],
     [{ skip: "-1", page: "2", limit: "10" }, 10, 10],
     [{ skip: "abc", page: "2", limit: "10" }, 10, 10],
-    [{ limit: "0" }, 0, 50],
-    [{ limit: "abc", page: "abc" }, 0, 50],
+    [{ limit: "0" }, 0, 24],
+    [{ limit: "abc", page: "abc" }, 0, 24],
     [{ page: "-4", limit: "-4" }, 0, 1],
   ])("WB-REC-10 paging %j gives skip %i limit %i", async (q, skip, limit) => {
     jobs([job("a")]);
@@ -159,9 +159,11 @@ describe("hybridSearch: parameters and filter", () => {
     expect(body).toMatchObject({ skip, limit });
   });
 
-  test("WB-REC-11 KNOWN-ISSUE: `limit` has no upper bound (limit=1000000 is honoured)", async () => {
+  // These calls are signed out: a visitor gets a default of 24 (not 50) and can never ask for more.
+  // KNOWN-ISSUE (signed-in callers, unchanged): `limit` has no upper bound there.
+  test("WB-REC-11 a signed-out visitor is capped at 24 per page", async () => {
     jobs([job("a")]);
-    expect((await search({ limit: "1000000" })).body.limit).toBe(1000000);
+    expect((await search({ limit: "1000000" })).body.limit).toBe(24);
   });
 });
 
@@ -382,7 +384,9 @@ describe("hybridSearch: ranking", () => {
       getHiredCountMap.mockResolvedValue({ b: 1 });
       const { body } = await search({ limit: "1", skip: "1" });
       expect(body.jobs).toHaveLength(1);
-      expect(body.jobs[0]).toMatchObject({ _id: "b", applicationCount: 7, remainingSlots: 2 });
+      // Signed out: remaining slots, but never an applicant count.
+      expect(body.jobs[0]).toMatchObject({ _id: "b", remainingSlots: 2 });
+      expect(body.jobs[0]).not.toHaveProperty("applicationCount");
       expect(body.pagination).toMatchObject({ total: 3, pages: 3, limit: 1 });
     });
   });

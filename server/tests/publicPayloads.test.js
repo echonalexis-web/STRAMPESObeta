@@ -2,6 +2,8 @@
 // contact data, or employer registration data, to people who should not have it.
 
 jest.mock("../models/JobVacancy", () => ({ findById: jest.fn() }));
+// A signed-out visitor gets the public view from this service (covered in publicJobs.test.js).
+jest.mock("../services/publicJobsService", () => ({ findPublicJob: jest.fn() }));
 jest.mock("../models/JobApplication", () => ({}));
 jest.mock("../models/User", () => ({}));
 jest.mock("../models/JobseekerDocument", () => ({}));
@@ -35,6 +37,9 @@ const jobDoc = () => {
 const makeRes = () => ({
   statusCode: 200,
   body: null,
+  set() {
+    return this;
+  },
   status(c) {
     this.statusCode = c;
     return this;
@@ -56,13 +61,17 @@ describe("GET /jobs/:id employer scrubbing", () => {
     require("../utils/jobDisplay").getHiredCountMap.mockResolvedValue({});
   });
 
-  test("signed out: no employer email or phone, no registration data", async () => {
+  test("signed out: gets the public view only, from the public service", async () => {
+    const { findPublicJob } = require("../services/publicJobsService");
+    findPublicJob.mockResolvedValue({ _id: "job1", title: "Welder", employer: { companyName: "Acme", profileImage: null } });
     const res = makeRes();
     await jobController.getJobById({ params: { id: "job1" }, user: undefined }, res);
     expect(res.statusCode).toBe(200);
-    const json = JSON.stringify(res.body);
-    ["hr@acme.com", "09171112222", "123-456", "contactPersonName", "ownerName", "fax"].forEach((s) => expect(json).not.toContain(s));
-    expect(res.body.employer.profile.tradeName).toBe("Acme Trading");
+    expect(res.body).toEqual({ _id: "job1", title: "Welder", employer: { companyName: "Acme", profileImage: null } });
+    findPublicJob.mockResolvedValue(null);
+    const missing = makeRes();
+    await jobController.getJobById({ params: { id: "job2" }, user: undefined }, missing);
+    expect(missing.statusCode).toBe(404);
   });
 
   test("signed-in jobseeker still gets contact but never registration data", async () => {

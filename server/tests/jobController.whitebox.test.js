@@ -181,18 +181,26 @@ describe("getJobs and getHomepageJobs", () => {
       wire([mkJob("a")], [{ userId: E, bio: "p" }]);
       getApplicationCountMap.mockResolvedValue({ a: 3 });
       getHiredCountMap.mockResolvedValue({ a: 2 });
-      const { body } = await call(c.getJobs, makeReq({ user: null }));
+      const { body } = await call(c.getJobs, makeReq({ user: { id: U, role: "employer" } }));
       expect(body[0].employer.profile).toEqual({ userId: E, bio: "p" });
       expect(body[0].employer.cover).toBe("cover");
       expect(body[0]).toMatchObject({ applicationCount: 3, remainingSlots: 3 });
       expect(body[0].qualifications.map((q) => q.value)).toEqual(["a", "b"]);
-      expect(scrubEmployerForJobPayload).toHaveBeenCalledWith(expect.anything(), null);
+      expect(scrubEmployerForJobPayload).toHaveBeenCalledWith(expect.anything(), { id: U, role: "employer" });
+    });
+
+    test("WB-JOB-11b a signed-out visitor never gets an applicant count", async () => {
+      wire([mkJob("a")]);
+      getApplicationCountMap.mockResolvedValue({ a: 3 });
+      const { body } = await call(c.getJobs, makeReq({ user: null }));
+      expect(body[0]).not.toHaveProperty("applicationCount");
+      expect(body[0]).toHaveProperty("remainingSlots");
     });
 
     test("WB-JOB-12 remaining slots never go negative; missing counts default to 0; missing qualifications become []", async () => {
       wire([mkJob("a", undefined, { slots: 1, qualifications: undefined })]);
       getHiredCountMap.mockResolvedValue({ a: 4 });
-      const { body } = await call(c.getJobs, makeReq({ user: null }));
+      const { body } = await call(c.getJobs, makeReq({ user: { id: U, role: "employer" } }));
       expect(body[0]).toMatchObject({ remainingSlots: 0, applicationCount: 0, qualifications: [] });
     });
 
@@ -261,6 +269,9 @@ describe("getJobById", () => {
     const obj = { _id: J, slots: 3, qualifications: [{ value: "x" }], employer: { _id: E, isActive: true, cover: "raw" }, ...o.obj };
     return { _id: J, title: "Welder", employer: obj.employer, toObject: () => obj, ...o.doc };
   };
+  // A signed-out visitor now gets the public view (services/publicJobsService.js, tested in
+  // publicJobs.test.js); these tests exercise the signed-in path with a non-owner employer.
+  const OTHER = { id: U, role: "employer" };
   const run = (user, id = J) => call(c.getJobById, makeReq({ params: { id }, user }));
   const wire = (job) => JobVacancy.findById.mockReturnValue(query(job));
 
@@ -270,13 +281,13 @@ describe("getJobById", () => {
 
   test("WB-JOB-19 unknown job is 404", async () => {
     wire(null);
-    expect((await run(null)).status).toBe(404);
+    expect((await run(OTHER)).status).toBe(404);
   });
 
   test("WB-JOB-20 suspended employer: 404 identical to a missing job for guests and jobseekers (no title), visible to admin and to the owner", async () => {
     const suspended = () => mkJob({ obj: { employer: { _id: E, isActive: false } }, doc: { employer: { _id: E, isActive: false } } });
     wire(suspended());
-    const pub = await run(null);
+    const pub = await run(OTHER);
     expect(pub.status).toBe(404);
     expect(pub.body).toEqual({ message: "Job not found" });
     wire(suspended());
@@ -287,12 +298,12 @@ describe("getJobById", () => {
     expect((await run({ id: E, role: "employer" })).status).toBe(200);
   });
 
-  test("WB-JOB-21 guest view: employer profile attached, scrubbed, cover resolved, counts and slots computed", async () => {
+  test("WB-JOB-21 signed-in non-owner view: employer profile attached, scrubbed, cover resolved, counts and slots computed", async () => {
     wire(mkJob());
     EmployerProfile.findOne.mockResolvedValue({ p: 1 });
     getApplicationCountMap.mockResolvedValue({ [J]: 4 });
     getHiredCountMap.mockResolvedValue({ [J]: 1 });
-    const { body } = await run(null);
+    const { body } = await run(OTHER);
     expect(body.employer.profile).toEqual({ p: 1 });
     expect(body.employer.cover).toBe("cover");
     expect(resolveCover).toHaveBeenCalledWith("raw");
@@ -302,7 +313,7 @@ describe("getJobById", () => {
 
   test("WB-JOB-22 a job with no employer object skips the profile and scrub steps", async () => {
     wire(mkJob({ obj: { employer: null }, doc: { employer: null } }));
-    const { body, status } = await run(null);
+    const { body, status } = await run(OTHER);
     expect(status).toBe(200);
     expect(EmployerProfile.findOne).not.toHaveBeenCalled();
     expect(body.employer).toBeNull();

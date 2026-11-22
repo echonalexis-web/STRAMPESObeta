@@ -48,6 +48,7 @@ import ResultModalHost from "./components/ResultModalHost";
 import CookieConsentBanner from "./components/CookieConsentBanner";
 import Dashboard from "./pages/Dashboard";
 import JobBoard from "./pages/JobBoard";
+import PublicJobs from "./pages/PublicJobs";
 import JobDetail from "./pages/JobDetail";
 import ProfilePage from "./pages/ProfilePage";
 import PersonProfile from "./pages/PersonProfile";
@@ -247,7 +248,7 @@ function AppRoutes() {
           <Route path="/spes/postings" element={<ProtectedRoute requiredRole="jobseeker"><SpesPostings /></ProtectedRoute>} />
           <Route path="/spes/postings/:id" element={<ProtectedRoute requiredRole="jobseeker"><SpesPostingDetail /></ProtectedRoute>} />
           <Route path="/spes/applications" element={<ProtectedRoute><MySpesApplications /></ProtectedRoute>} />
-          <Route path="/jobs" element={<ProtectedRoute requiredRole="jobseeker"><JobVacancyAgeGate><JobBoard /></JobVacancyAgeGate></ProtectedRoute>} />
+          <Route path="/jobs" element={<ProtectedRoute requiredRole="jobseeker" visitorFallback={<PublicJobs />}><JobVacancyAgeGate><JobBoard /></JobVacancyAgeGate></ProtectedRoute>} />
           <Route path="/jobs/:id" element={<JobVacancyAgeGate><JobDetail /></JobVacancyAgeGate>} />
           <Route path="/jobs/:id/apply" element={<JobVacancyAgeGate><JobDetail /></JobVacancyAgeGate>} />
           <Route path="/post-job" element={<ProtectedRoute requiredRole="employer"><PostJob /></ProtectedRoute>} />

@@ -3165,5 +3165,20 @@
       "tooMany": "Napakaraming pagsubok. Subukan muli mamaya."
     },
     "loginNotice": "Aktibo na ang iyong account. Mag-sign in gamit ang iyong email at ang password na kakapili mo lang."
+  },
+  "publicJobs": {
+    "title": "Mga available na trabaho",
+    "subtitle": "Lahat ng bukas na trabaho sa Marinduque, pinakabago muna. Maaari kang mag-browse at maghanap kahit walang account.",
+    "loginNote": "Mag-log in para mag-apply, mag-save ng trabaho, mag-follow ng employer at makita kung gaano ka kaangkop.",
+    "login": "Mag-log in",
+    "loginToApply": "Mag-log in para mag-apply",
+    "loginToFollow": "Mag-log in para mag-follow",
+    "loading": "Nilo-load ang mga trabaho…",
+    "noResults": "Walang trabahong tumutugma sa iyong hinahanap",
+    "emptyTitle": "Walang trabahong tumutugma sa iyong hinahanap",
+    "emptyBody": "Subukang alisin ang isang filter o maghanap ng iba.",
+    "errorTitle": "Hindi namin na-load ang mga trabaho",
+    "errorBody": "May nangyaring mali sa pag-load ng mga trabaho. Pakisubukan muli.",
+    "pagerItems": "trabaho"
   }
 }

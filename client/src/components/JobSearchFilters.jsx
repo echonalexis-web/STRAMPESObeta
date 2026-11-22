@@ -132,7 +132,9 @@ function SalaryRangeSetter({ min, max, onChange, minRef }) {
 }
 
 /* ─── Component ─── */
-const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, preferredIndustries = [], mustHaveHiddenCount = 0 }) => {
+// `visitor`: the signed-out public list. There is no match score to sort by and no
+// qualification checklist to filter on, so those two controls are not shown.
+const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, preferredIndustries = [], mustHaveHiddenCount = 0, visitor = false }) => {
   const { t } = useTranslation();
   // Admin-maintainable catalogs (item 11) — live from the server, with the
   // old hardcoded lists as a fallback for first paint / offline.
@@ -383,10 +385,10 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, p
               id={ids.sort}
               name="sortBy"
               className="ds-input filter-select"
-              value={filters.sortBy || ''}
+              value={filters.sortBy || (visitor ? 'newest' : '')}
               onChange={(e) => commit({ ...filters, sortBy: e.target.value })}
             >
-              {SORT_OPTIONS.map((opt) => (
+              {(visitor ? SORT_OPTIONS.filter((opt) => opt.value) : SORT_OPTIONS).map((opt) => (
                 <option key={opt.key} value={opt.value}>
                   {t(`jobBoard.filters.sort.${opt.key}`)}
                 </option>
@@ -428,6 +430,7 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, p
         </div>
 
         <div className="jsf-footer">
+          {!visitor && (
           <label className="must-haves-switch">
             <input
               type="checkbox"
@@ -438,7 +441,8 @@ const JobSearchFilters = ({ filters = {}, onChange, onSearch, phLocationsData, p
             />
             <span>{t('jobBoard.filters.mustHaves')}</span>
           </label>
-          {mustHavesOn && mustHaveHiddenCount > 0 && (
+          )}
+          {!visitor && mustHavesOn && mustHaveHiddenCount > 0 && (
             <span className="must-haves-hidden-count">
               {t('jobBoard.filters.hiddenCount', { count: mustHaveHiddenCount })}
             </span>

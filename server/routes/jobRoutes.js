@@ -31,6 +31,8 @@ const {
   validateMongoId,
 } = require("../middleware/validation");
 const { detectMaliciousPayload } = require("../middleware/security");
+const { listPublicJobs, getPublicJob } = require("../controllers/publicJobController");
+const { publicJobsListLimiter, publicJobDetailLimiter, visitorOnly } = require("../middleware/publicJobsLimiter");
 const { jobAttachmentUpload, persistFields, cleanupUploadedFiles } = require("../middleware/upload");
 const {
   getJobMatchWeights,
@@ -50,8 +52,17 @@ const APPLICATION_FILE_CATEGORIES = {
 // they only block a logged-in jobseeker with no usable date of birth or under 15.
 // 15-17 may browse; applying is gated separately by requireJobApplyAge.
 router.get("/homepage", getHomepageJobs);
-router.get("/", optionalAuth, requireJobViewAge, getJobs);
-router.get("/:id", optionalAuth, requireJobViewAge, getJobById);
+// Signed-out visitors: list, search and detail, public fields only, newest first, per-IP
+// rate limited, never cached. No token is read at all. Declared before "/:id" so
+// "public" is never taken for a job id.
+const publicListLimiter = publicJobsListLimiter();
+const publicDetailLimiter = publicJobDetailLimiter();
+router.get("/public", publicListLimiter, listPublicJobs);
+router.get("/public/:id", publicDetailLimiter, getPublicJob);
+// The older routes below are also reachable without a token; a signed-out caller is
+// rate limited here too (signed-in users are not affected).
+router.get("/", optionalAuth, visitorOnly(publicListLimiter), requireJobViewAge, getJobs);
+router.get("/:id", optionalAuth, visitorOnly(publicDetailLimiter), requireJobViewAge, getJobById);
 
 // ============ PROTECTED ROUTES ============
 

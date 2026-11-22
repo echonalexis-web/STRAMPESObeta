@@ -20,13 +20,25 @@ const isJobVisibleToJobseekers = (job, now = new Date()) => {
 // Database filter for one employer's postings a jobseeker may see. It is the board's
 // rules plus status "active" (a draft is never public; applying already requires it).
 // The employer account itself (active, not suspended) is checked by the caller.
-const buildVisibleJobFilter = (employerId, now = new Date()) => ({
-  employer: employerId,
+// The job-level clauses on their own (no employer), so one employer's postings and
+// the whole public list are built from the very same rule.
+const visibleJobClauses = (now = new Date()) => ({
   isActive: true,
   status: "active",
   archived: { $ne: true },
   $or: [{ applicationDeadline: null }, { applicationDeadline: { $gt: now } }],
 });
+
+const buildVisibleJobFilter = (employerId, now = new Date()) => ({
+  employer: employerId,
+  ...visibleJobClauses(now),
+});
+
+// Every publicly available job across all employers: the same job clauses plus the
+// employer account gate (suspended, banned, deactivated and deleted employers are
+// unlisted). Returns a filter ready for JobVacancy.find; callers that add their own
+// `$or` (a keyword search) must combine it with `$and`, because this one has an `$or`.
+const buildPublicJobFilter = async (now = new Date()) => withListedEmployers(visibleJobClauses(now));
 
 // ---------------------------------------------------------------------------
 // Employer account gate: postings of a suspended, banned or deactivated employer
@@ -74,6 +86,7 @@ module.exports = {
   isJobPastDeadline,
   isJobVisibleToJobseekers,
   buildVisibleJobFilter,
+  buildPublicJobFilter,
   UNLISTED_ACCOUNT_STATUSES,
   getUnlistedEmployerIds,
   withListedEmployers,
