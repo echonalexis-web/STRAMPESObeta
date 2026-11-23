@@ -105,7 +105,7 @@ export default function Reports() {
         <h2 id="an-filter-title" className="ds-sr-only">{t("adminAnalytics.filter.label")}</h2>
         <form className="an__bar" onSubmit={(event) => event.preventDefault()}>
           <div className="an__row">
-            <div className="an-field" role="group" aria-labelledby="an-period-label">
+            <div className="an-field an-field--period" role="group" aria-labelledby="an-period-label">
               <span id="an-period-label" className="an__plabel">{t("adminAnalytics.filter.period")}</span>
               <div className="an__chips">
                 {PRESETS.map((preset) => (

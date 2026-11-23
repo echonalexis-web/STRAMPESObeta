@@ -1,6 +1,8 @@
 /* Dashboard (ov-) and Analytics & Reports (an-). Hand-written, --ds-* tokens, no Tailwind. */
 
 .ov, .an { display: grid; gap: 20px; align-content: start; }
+/* The shared page header centres itself with auto margins, which shrinks it inside a grid: make it fill the row. */
+.ov > .admin-page-header, .an > .admin-page-header { width: 100%; max-width: none; margin: 0; box-sizing: border-box; }
 
 .ov__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .ov__card, .an__card {
@@ -66,6 +68,9 @@
   min-height: var(--ds-tap, 44px); padding: 0 12px; border: 1.5px solid #7d9385; border-radius: 10px; background: #fff; font: inherit; font-size: 0.875rem; font-weight: 600;
 }
 .an__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.an-field--period { flex: 1 1 100%; min-width: 0; }
+.an__plabel { font-size: 0.75rem; font-weight: 700; color: #2f3d35; line-height: 1; }
+.an__row .an__btn { align-self: flex-end; }
 .an__chip {
   min-height: var(--ds-tap, 44px); padding: 0 14px; border-radius: 999px; border: 1.5px solid #7d9385; background: #fff; color: #10231a;
   font: inherit; font-size: 0.8125rem; font-weight: 700; cursor: pointer;
