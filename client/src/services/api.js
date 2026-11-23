@@ -457,15 +457,13 @@ export const adminAPI = {
     return api.get('/admin/analytics', getAuthHeader());
   },
   getProvincialAnalytics: (params = {}) => api.get('/admin/analytics/provincial', { ...getAuthHeader(), params }),
-  getAnalyticsSummary: (params = {}, config = {}) => api.get('/admin/analytics/summary', { ...getAuthHeader(), ...config, params }),
-  getEmployerPerformance: (params = {}, config = {}) => api.get('/admin/analytics/performance/employers', { ...getAuthHeader(), ...config, params }),
-  getEmployerPerformanceDetail: (id, params = {}) => api.get(`/admin/analytics/performance/employers/${id}`, { ...getAuthHeader(), params }),
   getReportCatalog: () => api.get('/admin/report-exports/catalog', getAuthHeader()),
   previewReportExport: (body) => api.post('/admin/report-exports/preview', body, getAuthHeader()),
   generateReportExport: (body) => api.post('/admin/report-exports', body, { ...getAuthHeader(), responseType: 'blob' }),
   listReportExports: (params = {}) => api.get('/admin/report-exports', { ...getAuthHeader(), params }),
   regenerateReportExport: (reportId) => api.post(`/admin/report-exports/${encodeURIComponent(reportId)}/regenerate`, {}, { ...getAuthHeader(), responseType: 'blob' }),
-  getAnalyticsFilterOptions: () => api.get('/admin/analytics/filter-options', getAuthHeader()),
+  getDashboardOverview: () => api.get('/admin/analytics/dashboard', getAuthHeader()),
+  getAnalyticsOverview: (params = {}, config = {}) => api.get('/admin/analytics/overview', { ...getAuthHeader(), ...config, params }),
   getUserById: (id) => api.get(`/admin/users/${id}`, getAuthHeader()),
   exportUserNsrpForm1: (id) =>
     api.get(`/admin/users/${id}/nsrp-form-1/export`, { ...getAuthHeader(), responseType: 'blob' }),

@@ -284,7 +284,8 @@
         "DATASET_FORBIDDEN": "Hindi ka pinapayagang bumuo ng ulat na ito.",
         "QUERY_TIMEOUT": "Masyadong natagalan ang ulat. Paliitin ang mga filter at subukan muli.",
         "INVALID_FILTER": "Hindi wasto ang isang filter.",
-        "INVALID_PERIOD": "Hindi wasto ang panahon."
+        "INVALID_PERIOD": "Hindi wasto ang panahon.",
+        "NOT_ENOUGH_DATA": "Kulang ang datos para sa panahong ito at munisipalidad. Kailangan ng hindi bababa sa 1 bakante at 3 aplikasyon."
       },
       "history": "Kasaysayan ng mga ulat",
       "historyIntro": "Mga tala ng mga ulat na nagawa. Hindi itinatabi ang mga file; ang muling pagbuo ay babasa ng datos ngayon.",
@@ -312,7 +313,219 @@
         "employer_ranking": "Ranggo ng pagganap ng employer",
         "verification_activity": "Aktibidad ng beripikasyon",
         "audit_summary": "Buod ng audit (bilang lamang)"
+      },
+      "previewNotEnough": "Kulang ang datos para sa panahong ito at munisipalidad. Kailangan ng hindi bababa sa 1 bakante at 3 aplikasyon."
+    }
+  },
+  "adminDash": {
+    "title": "Dashboard",
+    "description": "Ang kailangan ng tao ngayon. Live na bilang, walang filter ng petsa.",
+    "kpiLabel": "Mahahalagang bilang",
+    "kpis": {
+      "activeJobseekers": {
+        "label": "Aktibong jobseeker",
+        "note": "{{count}} ang sumali sa nakaraang 30 araw"
+      },
+      "verifiedEmployers": {
+        "label": "Beripikadong employer",
+        "value": "{{verified}} sa {{total}}",
+        "note": "{{count}} ang naghihintay ng beripikasyon"
+      },
+      "openVacancies": {
+        "label": "Bukas na bakante",
+        "note": "{{count}} ang magsasara sa loob ng 7 araw"
+      },
+      "applicationsToReview": {
+        "label": "Aplikasyong susuriin",
+        "note": "Nakabinbin"
       }
+    },
+    "attention": {
+      "title": "Kailangang tingnan",
+      "intro": "Mga pilang kailangan ng tao. Binubuksan ng bawat hilera ang pahinang may hawak nito.",
+      "allClear": "Maayos lahat. Walang naghihintay sa tao ngayon.",
+      "open": "Buksan",
+      "rows": {
+        "employerVerification": {
+          "title": "Mga employer na naghihintay ng beripikasyon",
+          "hint": "Ang pinakamatagal ay naghintay ng {{days}} araw",
+          "hintNone": "Walang naghihintay"
+        },
+        "moderation": {
+          "title": "Bukas na report at apela",
+          "hint": "{{reports}} report, {{appeals}} apela",
+          "hintNone": "Walang bukas"
+        },
+        "accountRecovery": {
+          "title": "Mga hiling na pagbawi ng account",
+          "hint": "Naghihintay ng pagsusuri",
+          "hintNone": "Walang naghihintay"
+        },
+        "closingSoon": {
+          "title": "Mga bakanteng magsasara sa loob ng 7 araw",
+          "hint": "Mga bukas na bakante na may deadline ngayong linggo",
+          "hintNone": "Walang magsasara ngayong linggo"
+        },
+        "hiddenByEmployer": {
+          "title": "Mga bakanteng nakatago sa publiko",
+          "hint": "Naka-suspend o naka-deactivate ang employer",
+          "hintNone": "Walang nakatago"
+        }
+      }
+    },
+    "municipality": {
+      "title": "Aktibong jobseeker ayon sa munisipalidad",
+      "intro": "Kuha ng ngayon. Ang mga trend at natanggap ay nasa Analytics at Mga Ulat.",
+      "open": "Buksan ang Analytics at Mga Ulat",
+      "note": "Ang bilang na 1 hanggang 4 ay ipinapakitang mas mababa sa 5.",
+      "empty": "Wala pang aktibong jobseeker."
+    },
+    "recent": {
+      "title": "Kamakailang aktibidad",
+      "empty": "Wala pang naitala.",
+      "viewAll": "Tingnan ang buong Audit Trail",
+      "severity": {
+        "info": "Impormasyon",
+        "warning": "Babala",
+        "critical": "Kritikal"
+      }
+    },
+    "shortcuts": {
+      "title": "Mga shortcut",
+      "intro": "Ang magagawa lamang ng tungkuling ito.",
+      "employerVerification": "Beripikasyon ng Employer",
+      "jobMonitoring": "Pagsubaybay sa Trabaho",
+      "userManagement": "Pamamahala ng User",
+      "findAccount": "Maghanap ng account",
+      "provisionStaff": "Gumawa ng account ng kawani"
+    }
+  },
+  "adminAnalytics": {
+    "title": "Analytics at Mga Ulat",
+    "description": "Kumusta tayo sa paglipas ng panahon. Isang filter ang nagpapatakbo sa bawat panel at sa tagabuo ng ulat.",
+    "filter": {
+      "label": "Filter ng analytics",
+      "period": "Panahon",
+      "municipality": "Munisipalidad",
+      "allMunicipalities": "Lahat ng munisipalidad",
+      "reset": "I-reset",
+      "from": "Mula",
+      "to": "Hanggang",
+      "customHint": "Pumili ng petsa ng simula at wakas, simula muna.",
+      "scope": "Ipinapakita: {{period}} · {{municipality}}",
+      "hint": "Ang isang filter na ito ay para sa bawat panel at sa tagabuo ng ulat sa ibaba.",
+      "periods": {
+        "7d": "7 araw",
+        "30d": "30 araw",
+        "90d": "90 araw",
+        "12m": "12 buwan",
+        "custom": "Sariling saklaw"
+      },
+      "last": "Nakaraang {{period}}"
+    },
+    "cards": {
+      "label": "Buod",
+      "applications": "Mga aplikasyon",
+      "hires": "Mga natanggap",
+      "vacancies": "Mga bakante",
+      "jobseekers": "Mga jobseeker",
+      "hiresNote": "Mga aplikasyong natanggap sa panahong ito na natanggap sa trabaho",
+      "vacanciesNote": "{{open}} bukas · {{closed}} sarado · {{archived}} naka-archive",
+      "jobseekersNote": "Nagrehistro sa panahong ito",
+      "applicationsNote": "Natanggap sa panahong ito"
+    },
+    "trend": {
+      "title": "Trend",
+      "metric": "Ipakita",
+      "metrics": {
+        "applications": "Mga aplikasyon",
+        "hires": "Mga natanggap",
+        "vacancies": "Mga bakante"
+      },
+      "granularity": {
+        "day": "Kada araw",
+        "week": "Kada linggo",
+        "month": "Kada buwan"
+      },
+      "viewTable": "Ipakita bilang talahanayan",
+      "period": "Panahon",
+      "count": "Bilang"
+    },
+    "status": {
+      "title": "Mga aplikasyon ayon sa katayuan",
+      "intro": "Iisang depinisyon saanman. Kabuuan: {{total}} aplikasyon.",
+      "empty": "Walang aplikasyon sa panahong ito.",
+      "line": "{{count}} · {{percent}}%",
+      "items": {
+        "pending": "Nakabinbin",
+        "under_review": "Sinusuri",
+        "shortlisted": "Nasa shortlist",
+        "approved": "Aprubado",
+        "rejected": "Tinanggihan",
+        "hired": "Natanggap",
+        "withdrawn": "Binawi",
+        "other": "Iba pa"
+      }
+    },
+    "vacancies": {
+      "title": "Mga bakante ayon sa katayuan",
+      "intro": "Hindi kasama ang naka-archive sa sarado. Kabuuan: {{total}}.",
+      "empty": "Walang bakante sa panahong ito.",
+      "items": {
+        "open": "Bukas",
+        "closed": "Sarado",
+        "archived": "Naka-archive"
+      }
+    },
+    "employers": {
+      "title": "Nangungunang employer ayon sa natanggap",
+      "intro": "Kailangan ng {{postings}}+ posting, {{applicants}}+ aplikante at {{hires}}+ natanggap sa panahon.",
+      "emptyTitle": "Wala pang mairaranggo.",
+      "emptyText": "Walang employer na umabot sa minimum para sa panahong ito at munisipalidad, kaya itinago ang tsart sa halip na magpakita ng mga walang laman na bar.",
+      "chartLabel": "Mga natanggap kada employer",
+      "hiresOf": "{{hires}} natanggap mula sa {{applicants}} aplikante"
+    },
+    "roles": {
+      "title": "Mga posisyong pinakamaraming nag-apply",
+      "intro": "Pinagtutugma ang mga titulo kahit iba ang laki ng titik at espasyo, kaya ang “Service Crew” at “service crew” ay isa.",
+      "empty": "Walang aplikasyon sa panahong ito.",
+      "count": "{{count}} aplikasyon"
+    },
+    "municipalities": {
+      "title": "Ayon sa munisipalidad",
+      "intro": "Pumili ng pangalan para i-filter ang buong pahina. Ang bilang na 1 hanggang 4 ay ipinapakitang “mas mababa sa 5”, at itinatago rin ang pinakamaliit na iba pang cell sa hanay na iyon, kaya hindi makukuha ang nakatagong numero sa mga kabuuan.",
+      "municipality": "Munisipalidad",
+      "applications": "Mga aplikasyon",
+      "hires": "Mga natanggap",
+      "vacancies": "Mga bakante",
+      "select": "I-filter ayon sa {{name}}",
+      "clear": "Alisin ang filter na {{name}}"
+    },
+    "generator": {
+      "scopeIntro": "Gumagamit ng filter sa itaas: {{scope}}.",
+      "sectionTitle": "Bumuo ng ulat"
+    },
+    "errors": {
+      "title": "Hindi ma-load ang analytics",
+      "text": "Suriin ang koneksyon at subukan muli."
+    }
+  },
+  "navbar": {
+    "reportsStatistics": "Analytics at Mga Ulat"
+  },
+  "shell": {
+    "topbar": {
+      "titles": {
+        "reports": "Analytics at Mga Ulat"
+      }
+    }
+  },
+  "settings": {
+    "sections": {
+      "matching": "Mga default ng pagtutugma"
+    },
+    "matching": {
+      "subtitle": "Mga default na timbang sa pagtutugma ng jobseeker sa trabaho"
     }
   }
 }

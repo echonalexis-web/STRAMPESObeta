@@ -1,0 +1,117 @@
+/* Dashboard (ov-) and Analytics & Reports (an-). Hand-written, --ds-* tokens, no Tailwind. */
+
+.ov, .an { display: grid; gap: 20px; align-content: start; }
+
+.ov__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.ov__card, .an__card {
+  background: var(--ds-surface, #fff);
+  border: 1px solid var(--ds-border, #c3d3c8);
+  border-radius: var(--ds-radius-lg, 14px);
+  padding: 20px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.ov__h2, .an__h2 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--ds-text, #10231a); }
+.ov__sub, .an__sub { margin: 4px 0 12px; font-size: 0.8125rem; color: var(--ds-text-muted, #44514a); line-height: 1.45; }
+.ov__note, .an__note { margin: 8px 0 0; font-size: 0.8125rem; color: var(--ds-text-muted, #44514a); }
+
+/* Buttons and links that look like buttons */
+.ov__btn, .an__btn {
+  min-height: var(--ds-tap, 44px); padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: 1.5px solid #7d9385; border-radius: 10px; background: #fff; color: #10231a; font: inherit; font-size: 0.875rem; font-weight: 700;
+  text-decoration: none; cursor: pointer;
+}
+.ov__btn:hover, .an__btn:hover { background: #eef3ef; }
+.ov__btn:focus-visible, .an__btn:focus-visible, .ov__row:focus-visible, .an__chip:focus-visible, .an__name:focus-visible,
+.an-field select:focus-visible, .an-field input:focus-visible { outline: 3px solid var(--ds-focus, #f2b705); outline-offset: 2px; }
+.ov__shortcuts { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ov__shortcuts .ov__btn { width: 100%; justify-content: flex-start; }
+
+/* Needs attention rows */
+.ov__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ov__row {
+  min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+  border: 1px solid #d3dfd6; border-radius: 12px; background: #fff; color: inherit; text-decoration: none;
+}
+.ov__row:hover { background: #f3f7f4; border-color: #7d9385; }
+.ov__row.is-muted { background: #f6f8f6; color: #4a5750; }
+.ov__count {
+  min-width: 2.25rem; height: 2.25rem; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  background: #0b4d34; color: #fff; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.ov__row.is-muted .ov__count { background: #e3e9e5; color: #2f3d35; }
+.ov__row-text { flex: 1; min-width: 0; display: grid; gap: 2px; font-size: 0.875rem; }
+.ov__row-text span { color: var(--ds-text-muted, #44514a); font-size: 0.8125rem; }
+.ov__open { display: inline-flex; align-items: center; gap: 2px; font-size: 0.8125rem; font-weight: 700; color: #0b4d34; white-space: nowrap; }
+.ov__allclear { margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: #e8f4ed; color: #0b3d2a; font-size: 0.875rem; font-weight: 600; }
+
+/* Bars (tables underneath, so every bar has its number) */
+.ov__bars, .an__bars { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+.ov__bars th, .an__bars th { text-align: left; font-weight: 500; font-size: 0.875rem; padding: 6px 8px 6px 0; overflow-wrap: anywhere; }
+.ov__bars td, .an__bars td { text-align: right; white-space: nowrap; padding: 6px 0; }
+.ov__bars td strong, .an__bars td strong { display: inline-block; min-width: 4.5ch; margin-left: 8px; font-variant-numeric: tabular-nums; }
+.ov__track, .an__track { display: inline-block; width: 120px; max-width: 40vw; height: 8px; border-radius: 4px; background: #e3e9e5; vertical-align: middle; }
+.ov__fill, .an__fill { display: block; height: 100%; border-radius: 4px; background: #0b4d34; }
+
+.ov__activity { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.ov__activity li { display: grid; gap: 2px; font-size: 0.875rem; }
+.ov__activity small { color: var(--ds-text-muted, #44514a); }
+
+/* Analytics: filter bar */
+.an__bar { display: grid; gap: 12px; }
+.an__row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.an-field { display: grid; gap: 4px; flex: 0 1 200px; min-width: 150px; }
+.an-field label { font-size: 0.75rem; font-weight: 700; color: #2f3d35; }
+.an-field select, .an-field input {
+  min-height: var(--ds-tap, 44px); padding: 0 12px; border: 1.5px solid #7d9385; border-radius: 10px; background: #fff; font: inherit; font-size: 0.875rem; font-weight: 600;
+}
+.an__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.an__chip {
+  min-height: var(--ds-tap, 44px); padding: 0 14px; border-radius: 999px; border: 1.5px solid #7d9385; background: #fff; color: #10231a;
+  font: inherit; font-size: 0.8125rem; font-weight: 700; cursor: pointer;
+}
+.an__chip[aria-pressed="true"] { background: #0b4d34; border-color: #0b4d34; color: #fff; }
+.an__scope { margin: 0; font-weight: 700; font-size: 0.875rem; }
+.an__hint { margin: 0; font-size: 0.8125rem; color: #92400e; }
+
+.an__cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.an__grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+
+/* Status stacked bar: segments differ by lightness and carry an outline; the legend list repeats every number */
+.an__stack { display: flex; height: 28px; border-radius: 8px; overflow: hidden; border: 1px solid #5a6c65; margin: 8px 0 12px; }
+.an__seg { display: block; min-width: 2px; border-right: 1px solid #5a6c65; }
+.an__seg:last-child { border-right: 0; }
+.an__legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.an__legend li { display: flex; align-items: center; gap: 10px; min-height: 32px; font-size: 0.875rem; }
+.an__swatch { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #5a6c65; flex: none; }
+.an__legend .an__lname { flex: 1; }
+.an__legend .an__lnum { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+.an__metrics { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.an__empty { margin: 0; padding: 14px; border-radius: 10px; background: #f6f8f6; color: #2f3d35; font-size: 0.875rem; }
+.an__empty strong { display: block; margin-bottom: 4px; }
+.an__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.an__list li { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 0.875rem; }
+.an__list .an__lname { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.an__list small { display: block; color: var(--ds-text-muted, #44514a); }
+.an__name { min-height: var(--ds-tap, 44px); padding: 0 8px; border: 0; background: none; font: inherit; font-weight: 700; color: #0b4d34; text-align: left; cursor: pointer; text-decoration: underline; }
+.an__name[aria-pressed="true"] { background: #e8f4ed; border-radius: 8px; text-decoration: none; }
+.an__table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.an__table th, .an__table td { padding: 6px 10px; border-bottom: 1px solid #e3e9e5; text-align: left; }
+.an__table td { text-align: right; font-variant-numeric: tabular-nums; }
+.an__table th[scope="col"]:not(:first-child) { text-align: right; }
+.an__details { margin-top: 8px; }
+.an__details summary { min-height: var(--ds-tap, 44px); display: flex; align-items: center; cursor: pointer; font-size: 0.875rem; }
+
+@media (max-width: 1023px) {
+  .ov__grid, .an__grid2 { grid-template-columns: minmax(0, 1fr); }
+  .an__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 599px) {
+  .an__cards { grid-template-columns: minmax(0, 1fr); }
+  .an-field { flex: 1 1 100%; }
+  .ov__card, .an__card { padding: 14px; }
+  .an__table { display: block; overflow-x: auto; }
+  .ov__open { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .ov *, .an * { transition: none !important; } }

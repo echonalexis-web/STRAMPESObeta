@@ -1,278 +1,194 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import {
-  Area,
-  Bar,
-  CartesianGrid,
-  Cell,
-  ComposedChart,
-  Line,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { BriefcaseBusiness, Building2, ChartLine, ChartPie, FileText, ShieldCheck, UserRound, Users } from "lucide-react";
+import { BriefcaseBusiness, Building2, ChevronRight, ClipboardCheck, UserRound, Users } from "lucide-react";
 import { adminAPI } from "../../services/api";
-import "../../styles/admin.css";
+import { useAuth } from "../../context/AuthContext";
 import AdminHeader from "./AdminHeader";
-import AnalyticsStatsPanel from "../../components/AnalyticsStatsPanel";
-import TopEmployersCard from "../../components/TopEmployersCard";
-import ProvincialAnalyticsOverview from "./ProvincialAnalyticsOverview";
-import MatchWeightDefaultsSettings from "../../components/MatchWeightDefaultsSettings";
 import MetricCard from "../../components/MetricCard";
-import Reveal from "../../components/Reveal";
-import usePrefersReducedMotion from "../../hooks/usePrefersReducedMotion";
-import { CHART_AXIS, CHART_GRID, CHART_SERIES, CHART_STATUS, CHART_TOOLTIP } from "../../utils/chartTheme";
+import StateBlock from "../../components/StateBlock";
+import "../../styles/admin.css";
+import "../../styles/admin-overview.css";
 
-const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-// Shared with Provincial Analytics Overview above (brand chart palette)
-const TREND_COLORS = {
-  applications: CHART_SERIES[0],
-  registrations: CHART_SERIES[1],
+// Where each "needs attention" row goes. Every target is an existing route with its own guard.
+const ATTENTION_LINKS = {
+  employerVerification: "/admin/verification",
+  moderation: "/admin/users/moderation",
+  accountRecovery: "/admin/account-recovery",
+  closingSoon: "/admin/job-monitoring",
+  hiddenByEmployer: "/admin/job-monitoring",
 };
 
-// Application Status keeps its own semantic palette (AA-safe status hues)
-const STATUS_COLORS = CHART_STATUS;
+// An audit action key shown as plain words: "employer.verification.approved" -> "Employer verification approved".
+const actionText = (action) => {
+  const words = String(action || "").replace(/[._-]+/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : "";
+};
 
-const STATUS_ORDER = ["pending", "under_review", "reviewed", "shortlisted", "approved", "rejected", "hired", "withdrawn"];
-
-const fallbackAnalytics = {
-  totalAccounts: 0,
-  totalEmployers: 0,
-  totalJobSeekers: 0,
-  totalVacancies: 0,
-  totalApplications: 0,
-  verifiedEmployers: 0,
-  auditEventsToday: 0,
-  applicationsThisMonth: Array(12).fill(0),
-  registrationsThisMonth: Array(12).fill(0),
-  applicationsByStatus: {
-    pending: 0,
-    under_review: 0,
-    reviewed: 0,
-    shortlisted: 0,
-    approved: 0,
-    rejected: 0,
-    hired: 0,
-    withdrawn: 0,
-  },
+const dateText = (value, language) => {
+  try {
+    return new Intl.DateTimeFormat(language === "fil" ? "fil-PH" : "en-PH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Manila" }).format(new Date(value));
+  } catch {
+    return "";
+  }
 };
 
 export default function AdminDashboard() {
-  const { t } = useTranslation();
-  const reduced = usePrefersReducedMotion();
-  const [analytics, setAnalytics] = useState(fallbackAnalytics);
-  const [loading, setLoading] = useState(true);
+  const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const isSuperadmin = user?.role === "superadmin";
+  const [state, setState] = useState({ key: null, data: null, failed: null });
+  const [attempt, setAttempt] = useState(0);
+  const key = `dashboard#${attempt}`;
 
   useEffect(() => {
-    let isMounted = true;
-
-    const load = async () => {
-      try {
-        const { data } = await adminAPI.getAnalytics();
-        if (isMounted) {
-          setAnalytics(data || fallbackAnalytics);
-        }
-      } catch (error) {
-        if (isMounted) {
-          setAnalytics(fallbackAnalytics);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    load();
+    let live = true;
+    adminAPI
+      .getDashboardOverview()
+      .then(({ data }) => live && setState({ key, data, failed: null }))
+      .catch(() => live && setState({ key, data: null, failed: key }));
     return () => {
-      isMounted = false;
+      live = false;
     };
-  }, []);
+  }, [key]);
 
-  const stats = useMemo(() => [
-    { key: "totalAccounts", label: t("admin.kpi.totalAccounts"), icon: <Users size={20} />, value: analytics.totalAccounts },
-    { key: "totalEmployers", label: t("admin.kpi.totalEmployers"), icon: <Building2 size={20} />, value: analytics.totalEmployers },
-    { key: "jobSeekers", label: t("admin.kpi.jobSeekers"), icon: <UserRound size={20} />, value: analytics.totalJobSeekers },
-    { key: "vacancies", label: t("admin.kpi.vacancies"), icon: <BriefcaseBusiness size={20} />, value: analytics.totalVacancies },
-    { key: "applications", label: t("admin.kpi.applications"), icon: <FileText size={20} />, value: analytics.totalApplications },
-    { key: "verifiedEmployers", label: t("admin.kpi.verifiedEmployers"), icon: <ShieldCheck size={20} />, value: analytics.verifiedEmployers },
-  ], [analytics, t]);
+  const failed = state.failed === key;
+  const data = state.key === key ? state.data : null;
+  const kpis = data?.kpis;
+  const maxMunicipality = Math.max(1, ...(data?.jobseekersByMunicipality || []).map((row) => row.value || 0));
+  const anySuppressed = (data?.jobseekersByMunicipality || []).some((row) => row.suppressed);
 
-  const chartData = useMemo(() =>
-    MONTH_LABELS.map((month, index) => ({
-      month,
-      applications: Number(analytics.applicationsThisMonth?.[index] || 0),
-      registrations: Number(analytics.registrationsThisMonth?.[index] || 0),
-    })),
-    [analytics]
-  );
-
-  const pieData = useMemo(() => {
-    const source = analytics.applicationsByStatus || {};
-    // Every status the server counts; a status with no applications is left out of the donut.
-    return STATUS_ORDER.map((key) => ({ key, name: t(`analyticsDash.statusKeys.${key}`), value: Number(source[key] || 0) })).filter((entry) => entry.value > 0 || ["pending", "hired"].includes(entry.key));
-  }, [analytics, t]);
-
-  const pieTotal = useMemo(() => pieData.reduce((sum, entry) => sum + entry.value, 0), [pieData]);
+  const attentionText = (row) => {
+    const base = `adminDash.attention.rows.${row.key}`;
+    if (row.count === 0) return t(`${base}.hintNone`);
+    if (row.key === "employerVerification") return t(`${base}.hint`, { days: row.oldestDays ?? 0 });
+    if (row.key === "moderation") return t(`${base}.hint`, { reports: row.reports, appeals: row.appeals });
+    return t(`${base}.hint`);
+  };
 
   return (
-    <div className="admin-page-container">
-      <AdminHeader
-        title="Admin Dashboard"
-        description="Monitor platform health, account growth, hiring activity, and operational performance across the province."
-      />
+    <div className="admin-page-container ov">
+      <AdminHeader title={t("adminDash.title")} description={t("adminDash.description")} />
 
-      <section className="admin-kpis" aria-label={t("admin.kpi.sectionLabel")}>
-        {loading ? (
-          <div className="ds-metrics ds-metrics--3 admin-metrics" role="status" aria-label={t("common.loading")}>
-            {Array.from({ length: 6 }, (_, index) => (
-              <div key={`stat-loader-${index}`} className="ds-metric admin-metric--skeleton" aria-hidden="true">
-                <span className="ds-skeleton admin-metric__skel-icon" />
-                <span className="ds-skeleton admin-metric__skel-value" />
-                <span className="ds-skeleton admin-metric__skel-label" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <Reveal className="ds-metrics ds-metrics--3 admin-metrics">
-            {stats.map((item) => (
-              <MetricCard key={item.key} icon={item.icon} value={item.value} label={item.label} />
-            ))}
-          </Reveal>
-        )}
-      </section>
+      {failed ? (
+        <StateBlock kind="error" title={t("adminAnalytics.errors.title")} description={t("adminAnalytics.errors.text")} onRetry={() => setAttempt((n) => n + 1)} />
+      ) : !data ? (
+        <StateBlock kind="loading" title={t("analyticsDash.loading")} />
+      ) : (
+        <>
+          <section aria-label={t("adminDash.kpiLabel")} className="ds-metrics ds-metrics--4 ov__kpis">
+            <MetricCard
+              icon={<Users size={20} />}
+              value={kpis.activeJobseekers.value}
+              label={t("adminDash.kpis.activeJobseekers.label")}
+              note={t("adminDash.kpis.activeJobseekers.note", { count: kpis.activeJobseekers.joinedLast30 })}
+            />
+            <MetricCard
+              icon={<Building2 size={20} />}
+              value={t("adminDash.kpis.verifiedEmployers.value", { verified: kpis.verifiedEmployers.verified, total: kpis.verifiedEmployers.total })}
+              label={t("adminDash.kpis.verifiedEmployers.label")}
+              note={t("adminDash.kpis.verifiedEmployers.note", { count: kpis.verifiedEmployers.pending })}
+            />
+            <MetricCard
+              icon={<BriefcaseBusiness size={20} />}
+              value={kpis.openVacancies.value}
+              label={t("adminDash.kpis.openVacancies.label")}
+              note={t("adminDash.kpis.openVacancies.note", { count: kpis.openVacancies.closingSoon })}
+            />
+            <MetricCard
+              icon={<ClipboardCheck size={20} />}
+              value={kpis.applicationsToReview.value}
+              label={t("adminDash.kpis.applicationsToReview.label")}
+              note={t("adminDash.kpis.applicationsToReview.note")}
+            />
+          </section>
 
-      <TopEmployersCard />
+          <div className="ov__grid">
+            <section className="ov__card" aria-labelledby="ov-attention-title">
+              <h2 id="ov-attention-title" className="ov__h2">{t("adminDash.attention.title")}</h2>
+              <p className="ov__sub">{t("adminDash.attention.intro")}</p>
+              {data.allClear && <p className="ov__allclear" role="status">{t("adminDash.attention.allClear")}</p>}
+              <ul className="ov__rows">
+                {data.attention.map((row) => (
+                  <li key={row.key}>
+                    <Link to={ATTENTION_LINKS[row.key]} className={`ov__row${row.count === 0 ? " is-muted" : ""}`}>
+                      <span className="ov__count" aria-label={String(row.count)}>{row.count}</span>
+                      <span className="ov__row-text">
+                        <strong>{t(`adminDash.attention.rows.${row.key}.title`)}</strong>
+                        <span>{attentionText(row)}</span>
+                      </span>
+                      <span className="ov__open">
+                        {t("adminDash.attention.open")}
+                        <ChevronRight size={16} aria-hidden="true" />
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
-      <AnalyticsStatsPanel />
-
-      <ProvincialAnalyticsOverview />
-
-      <section className="admin-analytics-grid">
-        <article className="admin-panel-card admin-chart-card">
-          <div className="admin-card-header">
-            <h2 className="admin-chart-title"><ChartLine size={18} aria-hidden="true" /> {t("admin.charts.trendTitle")}</h2>
-          </div>
-          <div className="admin-chart-wrap" role="img" aria-label={t("admin.charts.trendAria")}>
-            <ResponsiveContainer width="100%" height={260}>
-              <ComposedChart data={chartData} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="adminRegistrationsArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={TREND_COLORS.registrations} stopOpacity={0.22} />
-                    <stop offset="100%" stopColor={TREND_COLORS.registrations} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid {...CHART_GRID} vertical={false} />
-                <XAxis dataKey="month" {...CHART_AXIS} tickLine={false} axisLine={{ stroke: CHART_GRID.stroke }} />
-                <YAxis {...CHART_AXIS} allowDecimals={false} tickLine={false} axisLine={false} width={30} />
-                <Tooltip
-                  cursor={CHART_TOOLTIP.cursor}
-                  contentStyle={CHART_TOOLTIP.contentStyle}
-                  formatter={(value, name) => [value, name === "applications" ? t("admin.charts.applications") : t("admin.charts.registrations")]}
-                />
-                <Bar dataKey="applications" fill={TREND_COLORS.applications} radius={[6, 6, 0, 0]} maxBarSize={34} isAnimationActive={!reduced} />
-                <Area type="monotone" dataKey="registrations" stroke="none" fill="url(#adminRegistrationsArea)" isAnimationActive={!reduced} />
-                <Line
-                  type="monotone"
-                  dataKey="registrations"
-                  stroke={TREND_COLORS.registrations}
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: TREND_COLORS.registrations, strokeWidth: 0 }}
-                  activeDot={{ r: 5 }}
-                  isAnimationActive={!reduced}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="admin-provincial-legend">
-            <span><i style={{ background: TREND_COLORS.applications }} /> {t("admin.charts.applications")}</span>
-            <span><i style={{ background: TREND_COLORS.registrations }} /> {t("admin.charts.registrations")}</span>
-          </div>
-          <details className="admin-chart-table">
-            <summary className="admin-chart-table__toggle">
-              <span className="admin-chart-table__show">{t("admin.charts.viewTable")}</span>
-              <span className="admin-chart-table__hide">{t("admin.charts.hideTable")}</span>
-            </summary>
-            <div className="ds-table-wrap admin-chart-table__wrap">
-              <table className="ds-table">
-                <caption className="ds-sr-only">{t("admin.charts.trendTitle")}</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">{t("admin.charts.month")}</th>
-                    <th scope="col" className="is-num">{t("admin.charts.applications")}</th>
-                    <th scope="col" className="is-num">{t("admin.charts.registrations")}</th>
-                  </tr>
-                </thead>
+            <section className="ov__card" aria-labelledby="ov-muni-title">
+              <h2 id="ov-muni-title" className="ov__h2">{t("adminDash.municipality.title")}</h2>
+              <p className="ov__sub">{t("adminDash.municipality.intro")}</p>
+              <table className="ov__bars">
+                <caption className="ds-sr-only">{t("adminDash.municipality.title")}</caption>
                 <tbody>
-                  {chartData.map((row) => (
-                    <tr key={row.month}>
-                      <td>{row.month}</td>
-                      <td className="is-num">{row.applications}</td>
-                      <td className="is-num">{row.registrations}</td>
+                  {data.jobseekersByMunicipality.map((row) => (
+                    <tr key={row.municipality}>
+                      <th scope="row">{row.municipality}</th>
+                      <td>
+                        <span className="ov__track" aria-hidden="true">
+                          <span className="ov__fill" style={{ width: `${row.suppressed ? 0 : Math.round(((row.value || 0) / maxMunicipality) * 100)}%` }} />
+                        </span>
+                        <strong>{row.suppressed ? t("analyticsDash.underFive") : row.value}</strong>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          </details>
-        </article>
+              {anySuppressed && <p className="ov__note">{t("adminDash.municipality.note")}</p>}
+              <Link className="ov__btn" to="/admin/reports">{t("adminDash.municipality.open")}</Link>
+            </section>
 
-        <article className="admin-panel-card admin-chart-card">
-          <div className="admin-card-header">
-            <h2 className="admin-chart-title"><ChartPie size={18} aria-hidden="true" /> {t("admin.charts.statusTitle")}</h2>
-          </div>
-          <div className="admin-chart-wrap admin-chart-wrap--pie">
-            <div className="admin-donut" role="img" aria-label={t("admin.charts.statusAria", { count: pieTotal })}>
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={58}
-                    outerRadius={92}
-                    paddingAngle={2}
-                    cornerRadius={4}
-                    stroke="none"
-                    isAnimationActive={!reduced}
-                  >
-                    {pieData.map((entry) => (
-                      <Cell key={entry.key} fill={STATUS_COLORS[entry.key]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={CHART_TOOLTIP.contentStyle}
-                    formatter={(value, name) => [t("admin.charts.applicationCount", { count: value }), name]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="admin-donut__center">
-                <strong>{pieTotal}</strong>
-                <span>{t("admin.charts.total")}</span>
-              </div>
-            </div>
-            <div className="admin-pie-legend">
-              {pieData.map((entry) => {
-                const pct = pieTotal ? Math.round((entry.value / pieTotal) * 100) : 0;
-                return (
-                  <div key={entry.key} className="admin-pie-legend-item">
-                    <span className="swatch" style={{ background: STATUS_COLORS[entry.key] }} />
-                    <span>{entry.name}</span>
-                    <strong>{entry.value} · {pct}%</strong>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </article>
-      </section>
+            <section className="ov__card" aria-labelledby="ov-recent-title">
+              <h2 id="ov-recent-title" className="ov__h2">{t("adminDash.recent.title")}</h2>
+              {data.recentActivity.length === 0 ? (
+                <p className="ov__sub">{t("adminDash.recent.empty")}</p>
+              ) : (
+                <ul className="ov__activity">
+                  {data.recentActivity.map((item) => (
+                    <li key={item.id}>
+                      <span>{actionText(item.action)}</span>
+                      <small>
+                        {t(`adminDash.recent.severity.${item.severity}`, { defaultValue: item.severity })} · {dateText(item.at, i18n.language)}
+                      </small>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {isSuperadmin && <Link className="ov__btn" to="/admin/audit-logs">{t("adminDash.recent.viewAll")}</Link>}
+            </section>
 
-      <MatchWeightDefaultsSettings />
+            <section className="ov__card" aria-labelledby="ov-shortcuts-title">
+              <h2 id="ov-shortcuts-title" className="ov__h2">{t("adminDash.shortcuts.title")}</h2>
+              <p className="ov__sub">{t("adminDash.shortcuts.intro")}</p>
+              <ul className="ov__shortcuts">
+                <li><Link className="ov__btn" to="/admin/verification">{t("adminDash.shortcuts.employerVerification")}</Link></li>
+                <li><Link className="ov__btn" to="/admin/job-monitoring">{t("adminDash.shortcuts.jobMonitoring")}</Link></li>
+                {isSuperadmin ? (
+                  <>
+                    <li><Link className="ov__btn" to="/admin/users">{t("adminDash.shortcuts.userManagement")}</Link></li>
+                    <li><Link className="ov__btn" to="/superadmin/admin-accounts">{t("adminDash.shortcuts.provisionStaff")}</Link></li>
+                  </>
+                ) : (
+                  // User Management is a superadmin page; a PESO admin finds people here instead.
+                  <li><Link className="ov__btn" to="/admin/find-account"><UserRound size={16} aria-hidden="true" />{t("adminDash.shortcuts.findAccount")}</Link></li>
+                )}
+              </ul>
+            </section>
+          </div>
+        </>
+      )}
     </div>
   );
 }

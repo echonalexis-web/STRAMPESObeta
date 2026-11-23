@@ -284,7 +284,8 @@
         "DATASET_FORBIDDEN": "You are not allowed to generate this report.",
         "QUERY_TIMEOUT": "The report took too long. Narrow the filters and try again.",
         "INVALID_FILTER": "A filter is not valid.",
-        "INVALID_PERIOD": "The period is not valid."
+        "INVALID_PERIOD": "The period is not valid.",
+        "NOT_ENOUGH_DATA": "There is not enough data for this period and municipality. At least 1 vacancy and 3 applications are needed."
       },
       "history": "Report history",
       "historyIntro": "Records of reports made. The files are not stored; regenerating reads today's data.",
@@ -312,7 +313,219 @@
         "employer_ranking": "Employer performance ranking",
         "verification_activity": "Verification activity",
         "audit_summary": "Audit summary (counts only)"
+      },
+      "previewNotEnough": "There is not enough data for this period and municipality. At least 1 vacancy and 3 applications are needed."
+    }
+  },
+  "adminDash": {
+    "title": "Dashboard",
+    "description": "What needs a person today. Live numbers, no date filters.",
+    "kpiLabel": "Key numbers",
+    "kpis": {
+      "activeJobseekers": {
+        "label": "Active jobseekers",
+        "note": "{{count}} joined in the last 30 days"
+      },
+      "verifiedEmployers": {
+        "label": "Verified employers",
+        "value": "{{verified}} of {{total}}",
+        "note": "{{count}} pending verification"
+      },
+      "openVacancies": {
+        "label": "Open vacancies",
+        "note": "{{count}} closing within 7 days"
+      },
+      "applicationsToReview": {
+        "label": "Applications to review",
+        "note": "Pending"
       }
+    },
+    "attention": {
+      "title": "Needs attention",
+      "intro": "Work queues that need a person. Each row opens the page that handles it.",
+      "allClear": "All clear. Nothing is waiting for a person right now.",
+      "open": "Open",
+      "rows": {
+        "employerVerification": {
+          "title": "Employers pending verification",
+          "hint": "The oldest has waited {{days}} day(s)",
+          "hintNone": "No one is waiting"
+        },
+        "moderation": {
+          "title": "Open reports and appeals",
+          "hint": "{{reports}} report(s), {{appeals}} appeal(s)",
+          "hintNone": "Nothing open"
+        },
+        "accountRecovery": {
+          "title": "Account recovery requests",
+          "hint": "Waiting for review",
+          "hintNone": "None waiting"
+        },
+        "closingSoon": {
+          "title": "Vacancies closing within 7 days",
+          "hint": "Open vacancies with a deadline this week",
+          "hintNone": "None closing this week"
+        },
+        "hiddenByEmployer": {
+          "title": "Vacancies hidden from the public",
+          "hint": "The employer is suspended or deactivated",
+          "hintNone": "None hidden"
+        }
+      }
+    },
+    "municipality": {
+      "title": "Active jobseekers by municipality",
+      "intro": "Snapshot of today. Trends and hires are in Analytics & Reports.",
+      "open": "Open Analytics & Reports",
+      "note": "Counts of 1 to 4 show as under 5.",
+      "empty": "No active jobseekers yet."
+    },
+    "recent": {
+      "title": "Recent activity",
+      "empty": "Nothing recorded yet.",
+      "viewAll": "View full Audit Trail",
+      "severity": {
+        "info": "Info",
+        "warning": "Warning",
+        "critical": "Critical"
+      }
+    },
+    "shortcuts": {
+      "title": "Shortcuts",
+      "intro": "Only what this role can do.",
+      "employerVerification": "Employer Verification",
+      "jobMonitoring": "Job Monitoring",
+      "userManagement": "User Management",
+      "findAccount": "Find account",
+      "provisionStaff": "Provision staff account"
+    }
+  },
+  "adminAnalytics": {
+    "title": "Analytics & Reports",
+    "description": "How we are doing over time. One filter drives every panel and the report generator.",
+    "filter": {
+      "label": "Analytics filter",
+      "period": "Period",
+      "municipality": "Municipality",
+      "allMunicipalities": "All municipalities",
+      "reset": "Reset",
+      "from": "From",
+      "to": "To",
+      "customHint": "Pick a start and an end date, start first.",
+      "scope": "Showing: {{period}} · {{municipality}}",
+      "hint": "This one filter applies to every panel and to the report generator below.",
+      "periods": {
+        "7d": "7 days",
+        "30d": "30 days",
+        "90d": "90 days",
+        "12m": "12 months",
+        "custom": "Custom range"
+      },
+      "last": "Last {{period}}"
+    },
+    "cards": {
+      "label": "Summary",
+      "applications": "Applications",
+      "hires": "Hires",
+      "vacancies": "Vacancies",
+      "jobseekers": "Jobseekers",
+      "hiresNote": "Applications received in this period that were hired",
+      "vacanciesNote": "{{open}} open · {{closed}} closed · {{archived}} archived",
+      "jobseekersNote": "Registered in this period",
+      "applicationsNote": "Received in this period"
+    },
+    "trend": {
+      "title": "Trend",
+      "metric": "Show",
+      "metrics": {
+        "applications": "Applications",
+        "hires": "Hires",
+        "vacancies": "Vacancies"
+      },
+      "granularity": {
+        "day": "By day",
+        "week": "By week",
+        "month": "By month"
+      },
+      "viewTable": "Show as table",
+      "period": "Period",
+      "count": "Count"
+    },
+    "status": {
+      "title": "Applications by status",
+      "intro": "One definition everywhere. Total: {{total}} applications.",
+      "empty": "No applications in this period.",
+      "line": "{{count}} · {{percent}}%",
+      "items": {
+        "pending": "Pending",
+        "under_review": "Under review",
+        "shortlisted": "Shortlisted",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "hired": "Hired",
+        "withdrawn": "Withdrawn",
+        "other": "Other"
+      }
+    },
+    "vacancies": {
+      "title": "Vacancies by status",
+      "intro": "Closed excludes archived. Total: {{total}}.",
+      "empty": "No vacancies in this period.",
+      "items": {
+        "open": "Open",
+        "closed": "Closed",
+        "archived": "Archived"
+      }
+    },
+    "employers": {
+      "title": "Top employers by hires",
+      "intro": "Needs {{postings}}+ posting, {{applicants}}+ applicants and {{hires}}+ hire in the period.",
+      "emptyTitle": "Nothing to rank yet.",
+      "emptyText": "No employer meets the minimum for this period and municipality, so the chart is hidden instead of showing empty bars.",
+      "chartLabel": "Hires per employer",
+      "hiresOf": "{{hires}} hire(s) of {{applicants}} applicants"
+    },
+    "roles": {
+      "title": "Most applied-to roles",
+      "intro": "Titles are matched ignoring capitals and spacing, so “Service Crew” and “service crew” count as one.",
+      "empty": "No applications in this period.",
+      "count": "{{count}} application(s)"
+    },
+    "municipalities": {
+      "title": "By municipality",
+      "intro": "Select a name to filter the whole page. Counts of 1 to 4 show as “under 5”, and the smallest other cell in that column is withheld too, so a hidden number cannot be worked out from the totals.",
+      "municipality": "Municipality",
+      "applications": "Applications",
+      "hires": "Hires",
+      "vacancies": "Vacancies",
+      "select": "Filter by {{name}}",
+      "clear": "Clear the {{name}} filter"
+    },
+    "generator": {
+      "scopeIntro": "Uses the filter bar above: {{scope}}.",
+      "sectionTitle": "Generate a report"
+    },
+    "errors": {
+      "title": "Could not load the analytics",
+      "text": "Check your connection and try again."
+    }
+  },
+  "navbar": {
+    "reportsStatistics": "Analytics & Reports"
+  },
+  "shell": {
+    "topbar": {
+      "titles": {
+        "reports": "Analytics & Reports"
+      }
+    }
+  },
+  "settings": {
+    "sections": {
+      "matching": "Matching defaults"
+    },
+    "matching": {
+      "subtitle": "Default weights used when jobseekers are matched to jobs"
     }
   }
 }

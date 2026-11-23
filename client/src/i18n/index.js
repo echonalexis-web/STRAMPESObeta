@@ -10,6 +10,15 @@ import analyticsFil from "./locales/analytics.fil.json";
 
 const STORAGE_KEY = "stramPesoLanguage";
 
+// Nested merge: the analytics files add keys and may replace single ones (the "Analytics & Reports" label).
+const deepMerge = (base, extra) => {
+  const out = { ...base };
+  for (const [key, value] of Object.entries(extra)) {
+    out[key] = value && typeof value === "object" && !Array.isArray(value) && base[key] && typeof base[key] === "object" ? deepMerge(base[key], value) : value;
+  }
+  return out;
+};
+
 // localStorage can throw on access (Safari private browsing, storage
 // disabled by policy, a restricted iframe) — this runs at module load time,
 // before React mounts, so an unguarded throw here would white-screen the
@@ -25,8 +34,8 @@ const storedLanguage = readStoredLanguage();
 
 i18n.use(initReactI18next).init({
   resources: {
-    en: { translation: { ...en, ...analyticsEn } },
-    fil: { translation: { ...fil, ...analyticsFil } },
+    en: { translation: deepMerge(en, analyticsEn) },
+    fil: { translation: deepMerge(fil, analyticsFil) },
   },
   lng: storedLanguage || "en",
   fallbackLng: "en",
