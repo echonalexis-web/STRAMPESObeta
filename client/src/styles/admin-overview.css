@@ -68,7 +68,12 @@
   min-height: var(--ds-tap, 44px); padding: 0 12px; border: 1.5px solid #7d9385; border-radius: 10px; background: #fff; font: inherit; font-size: 0.875rem; font-weight: 600;
 }
 .an__chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.an-field--period { flex: 1 1 100%; min-width: 0; }
+/* Period chips take the free width; municipality and Reset sit at the end of the same row. */
+.an__row { justify-content: space-between; }
+.an-field--period { flex: 1 1 480px; min-width: 0; }
+.an__row .an-field:not(.an-field--period) { flex: 0 1 240px; }
+.an__meta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 24px; padding-top: 12px; border-top: 1px solid #e3e9e5; }
+.an__meta .an__note { margin: 0; }
 .an__plabel { font-size: 0.75rem; font-weight: 700; color: #2f3d35; line-height: 1; }
 .an__row .an__btn { align-self: flex-end; }
 .an__chip {
@@ -76,7 +81,7 @@
   font: inherit; font-size: 0.8125rem; font-weight: 700; cursor: pointer;
 }
 .an__chip[aria-pressed="true"] { background: #0b4d34; border-color: #0b4d34; color: #fff; }
-.an__scope { margin: 0; font-weight: 700; font-size: 0.875rem; }
+.an__scope { margin: 0; font-weight: 700; font-size: 0.875rem; color: #10231a; }
 .an__hint { margin: 0; font-size: 0.8125rem; color: #92400e; }
 
 .an__cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }

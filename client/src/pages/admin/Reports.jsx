@@ -138,9 +138,11 @@ export default function Reports() {
               {t("adminAnalytics.filter.reset")}
             </button>
           </div>
-          <p className="an__scope" role="status">{scopeText}</p>
           {!customReady && <p className="an__hint" role="alert">{t("adminAnalytics.filter.customHint")}</p>}
-          <p className="an__note">{t("adminAnalytics.filter.hint")}</p>
+          <div className="an__meta">
+            <p className="an__scope" role="status">{scopeText}</p>
+            <p className="an__note">{t("adminAnalytics.filter.hint")}</p>
+          </div>
         </form>
       </section>
 
