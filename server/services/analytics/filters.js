@@ -4,7 +4,7 @@
 // 24-character id. Nothing from the query string is ever used as a regex or an operator.
 
 const crypto = require("crypto");
-const { MUNICIPALITY_LABELS } = require("./municipality");
+const { matchMunicipalityLabel } = require("./municipality");
 const { AGE_BRACKETS } = require("./privacy");
 const { parsePeriodQuery, formatManilaDate } = require("./period");
 const { invalidFilter } = require("./errors");
@@ -83,7 +83,13 @@ const parseAnalyticsFilter = (query = {}, { section, now = new Date(), catalog =
     }
   };
 
-  take("municipality", () => oneOf(query.municipality, MUNICIPALITY_LABELS, "municipality"));
+  take("municipality", () => {
+    const text = scalar(query.municipality, "municipality");
+    if (text === null) return null;
+    const label = matchMunicipalityLabel(text);
+    if (!label) throw invalidFilter("municipality is not an allowed value.");
+    return label;
+  });
   take("barangay", () => {
     const text = scalar(query.barangay, "barangay");
     if (text === null) return null;

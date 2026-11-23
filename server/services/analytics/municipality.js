@@ -12,6 +12,12 @@ const MUNICIPALITY_LABELS = [
   "Other / Outside Province",
 ];
 
+// The query-string sanitizer strips ( and ) from every value, so "Boac (Capital)" reaches the server as
+// "Boac Capital". A municipality is still a whitelist: compare without parentheses, case and extra spaces,
+// and answer with the real label (or null when it is not one of ours).
+const municipalityKey = (value) => String(value || "").replace(/[()]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+const matchMunicipalityLabel = (value) => MUNICIPALITY_LABELS.find((label) => municipalityKey(label) === municipalityKey(value)) || null;
+
 const escapeRegExp = (value = "") => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const normalizeMunicipality = (value = "") => {
@@ -100,6 +106,7 @@ const municipalityBucketExpression = (field) => {
 };
 
 module.exports = {
+  matchMunicipalityLabel,
   municipalityBucketExpression,
   MUNICIPALITY_LABELS,
   escapeRegExp,

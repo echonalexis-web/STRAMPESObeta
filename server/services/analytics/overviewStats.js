@@ -19,7 +19,7 @@ const { getUnlistedEmployerIds, UNLISTED_ACCOUNT_STATUSES } = require("../../uti
 const { PERFORMANCE } = require("./config");
 const { invalidFilter, invalidPeriod } = require("./errors");
 const { MANILA_TZ, manilaParts, periodBounds, formatManilaDate } = require("./period");
-const { MUNICIPALITY_LABELS, municipalityBucketExpression, normalizeMunicipalityLabel } = require("./municipality");
+const { MUNICIPALITY_LABELS, matchMunicipalityLabel, municipalityBucketExpression, normalizeMunicipalityLabel } = require("./municipality");
 const { run, applicantMunicipalityExpression } = require("./summaryStats");
 const { wilsonLower, isEmployerEligible } = require("./employerPerformance");
 const {
@@ -59,8 +59,8 @@ const parseOverviewQuery = (query = {}, now = new Date()) => {
   const wanted = oneText(query.municipality, "municipality");
   let municipality = null;
   if (wanted && wanted.toLowerCase() !== "all") {
-    if (!MUNICIPALITY_LABELS.includes(wanted)) throw invalidFilter("municipality is not an allowed value.");
-    municipality = wanted;
+    municipality = matchMunicipalityLabel(wanted);
+    if (!municipality) throw invalidFilter("municipality is not an allowed value.");
   }
   return { preset, period, municipality };
 };

@@ -110,6 +110,20 @@ describe("parseOverviewQuery", () => {
     expect(overview.parseOverviewQuery({ municipality: "all" }, NOW).municipality).toBeNull();
   });
 
+  test("the query sanitizer strips parentheses, so Boac (Capital) arrives as Boac Capital and still resolves to the real name", () => {
+    const { sanitizeQueryParams } = require("../middleware/validation");
+    const req = { query: { municipality: "Boac (Capital)" } };
+    sanitizeQueryParams(req, {}, () => {});
+    expect(req.query.municipality).toBe("Boac Capital");
+    expect(overview.parseOverviewQuery(req.query, NOW).municipality).toBe("Boac (Capital)");
+    expect(overview.parseOverviewQuery({ municipality: "Boac (Capital)" }, NOW).municipality).toBe("Boac (Capital)");
+    expect(overview.parseOverviewQuery({ municipality: "boac  capital" }, NOW).municipality).toBe("Boac (Capital)");
+    expect(overview.parseOverviewQuery({ municipality: "Other / Outside Province" }, NOW).municipality).toBe("Other / Outside Province");
+    // still a whitelist
+    expect(() => overview.parseOverviewQuery({ municipality: "Boac" }, NOW)).toThrow(expect.objectContaining({ status: 400 }));
+    expect(() => overview.parseOverviewQuery({ municipality: "Capital" }, NOW)).toThrow(expect.objectContaining({ status: 400 }));
+  });
+
   test("a custom range needs both real days in order", () => {
     expect(() => overview.parseOverviewQuery({ period: "custom", from: "2026-01-01" }, NOW)).toThrow(expect.objectContaining({ code: "INVALID_PERIOD" }));
     expect(() => overview.parseOverviewQuery({ period: "custom", from: "2026-05-01", to: "2026-03-01" }, NOW)).toThrow(expect.objectContaining({ code: "INVALID_PERIOD" }));
