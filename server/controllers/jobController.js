@@ -373,6 +373,45 @@ exports.getJobById = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------------
+// Can this jobseeker prepare documents for this job? (Studio "applying" mode)
+// ---------------------------------------------------------------------
+// Same rules as applyToJob, answered before anything is written: the job exists and is listed
+// (a missing job and an unlisted employer answer the same 404), it is open, and the applicant has
+// not already applied. Returns only what the letter needs; never employer contact details.
+exports.getApplyContext = async (req, res) => {
+  try {
+    const job = await JobVacancy.findById(req.params.id);
+    if (!job) return res.status(404).json({ code: "JOB_NOT_FOUND", message: "This job could not be found." });
+
+    const employer = job.employer && (await User.findById(job.employer).select("name companyName isActive accountStatus"));
+    if (!employer || isEmployerUnlisted(employer)) {
+      return res.status(404).json({ code: "JOB_NOT_FOUND", message: "This job could not be found." });
+    }
+    if (job.status !== "active" || !isJobVisibleToJobseekers(job)) {
+      return res.status(400).json({ code: "JOB_CLOSED", message: "This job is no longer accepting applications." });
+    }
+
+    const existing = await JobApplication.findOne({ applicant: req.user.id, vacancy: job._id }).select("status").lean();
+    if (existing && existing.status !== "withdrawn") {
+      return res.status(409).json({ code: "ALREADY_APPLIED", message: "You have already applied to this job." });
+    }
+
+    return res.json({
+      job: {
+        _id: String(job._id),
+        title: job.title,
+        companyName: employer.companyName || employer.name || "",
+        hiringManagerName: job.hiringManagerName || "",
+        location: job.location || "",
+      },
+    });
+  } catch (error) {
+    logger.error("Get apply context error:", { jobId: req.params.id, error: error.message });
+    return res.status(500).json({ message: "Failed to check this job" });
+  }
+};
+
 // Resolves a `resumeDocumentId`/`coverLetterDocumentId` body field to the
 // owning JobseekerDocument (or null), scoped to this jobseeker and kind, so
 // an applicant can only ever attach a document from their own library.

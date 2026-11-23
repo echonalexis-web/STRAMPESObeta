@@ -13,6 +13,7 @@ const {
   deleteMyApplication,
   getApplicationsForJob,
   getMyApplications,
+  getApplyContext,
 } = require("../controllers/jobController");
 const {
   verifyToken,
@@ -107,6 +108,9 @@ router.get("/:id/applications", verifyToken, isEmployer, isVerifiedEmployer, get
 
 // Jobseeker routes
 router.get("/applications/me", verifyToken, isJobseeker, requireJobViewAge, getMyApplications);
+
+// Studio "applying" mode: is this job open, listed and not yet applied to?
+router.get("/:id/apply-context", verifyToken, isJobseeker, requireJobApplyAge, validateMongoId("id"), validateRequest, getApplyContext);
 
 // Apply to job with resume and optional cover letter file upload
 router.post(

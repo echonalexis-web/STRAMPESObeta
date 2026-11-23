@@ -53,6 +53,14 @@ const jobseekerDocumentSchema = new mongoose.Schema(
     // for THIS vacancy apart from a generic one saved for something else —
     // never set for a plain upload or a Studio save started without a job
     // target.
+    // How a builder-made resume was laid out. Display metadata only (a label in the library and
+    // the Apply modal): nothing is decided from it. Older documents have no value and read as
+    // "standard".
+    resumeType: {
+      type: String,
+      enum: ["standard", "ats"],
+      default: "standard",
+    },
     sourceJobId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "JobVacancy",

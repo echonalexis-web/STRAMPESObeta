@@ -111,6 +111,9 @@ const jobVacancySchema = new mongoose.Schema({
     enum: ["remote", "onsite", "hybrid"],
     default: null,
   },
+  // Optional name of the person applications are addressed to. Plain text, used only to greet
+  // the applicant's cover letter ("Dear <name>,"). Older vacancies simply have none.
+  hiringManagerName: { type: String, trim: true, maxlength: 80, default: "" },
 
   // ===== NEW: Structured "basic requirements" =====
   // Edited in the Qualifications & Requirements modal and read directly by the

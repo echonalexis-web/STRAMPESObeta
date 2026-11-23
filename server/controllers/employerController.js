@@ -1,4 +1,5 @@
 const JobVacancy = require("../models/JobVacancy");
+const { cleanHiringManagerName } = require("../utils/hiringManager");
 const JobApplication = require("../models/JobApplication");
 const { setApplicationStatus } = require("../services/applicationStatusService");
 const Message = require("../models/Message");
@@ -460,6 +461,7 @@ exports.createJob = async (req, res) => {
       isActive: true,
       industry: parseIndustries(industry),
       workNature: VALID_WORK_NATURES.includes(workNature) ? workNature : null,
+      hiringManagerName: cleanHiringManagerName(req.body.hiringManagerName),
       ...basicRequirements,
       updatedAt: new Date(),
     });
@@ -519,6 +521,9 @@ const applyJobUpdate = async (req, res, job, actorRole, action) => {
 
   if (req.body.industry !== undefined) {
     job.industry = parseIndustries(req.body.industry);
+  }
+  if (req.body.hiringManagerName !== undefined) {
+    job.hiringManagerName = cleanHiringManagerName(req.body.hiringManagerName);
   }
   if (req.body.workNature !== undefined) {
     job.workNature = VALID_WORK_NATURES.includes(req.body.workNature) ? req.body.workNature : null;

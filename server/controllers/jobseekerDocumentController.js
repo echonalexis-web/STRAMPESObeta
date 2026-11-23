@@ -9,6 +9,12 @@ const logger = require("../utils/logger");
 // jobseeker needs (a handful of resume variants and a few cover letters).
 const MAX_DOCUMENTS_PER_KIND = 10;
 
+const DOCUMENT_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
 const KIND_LABELS = {
   resume: "resume",
   coverLetter: "cover letter",
@@ -52,6 +58,15 @@ exports.uploadMyDocument = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
+    // The shared upload filter also lets images through; a resume or cover letter is a PDF or a
+    // Word file. The content itself was already checked against its type by validateFile.
+    if (req.file.mimetype && !DOCUMENT_MIME_TYPES.includes(req.file.mimetype)) {
+      return res.status(400).json({ message: "Upload a PDF or Word (.doc, .docx) file." });
+    }
+    if (req.file.size === 0) {
+      return res.status(400).json({ message: "That file is empty." });
+    }
+
     const existingCount = await JobseekerDocument.countDocuments({ owner: req.user.id, kind });
     if (existingCount >= MAX_DOCUMENTS_PER_KIND) {
       return res.status(400).json({
@@ -92,6 +107,8 @@ exports.uploadMyDocument = async (req, res) => {
       source,
       isPrimary: !hasPrimary,
       sourceJobId,
+      // Only a builder-made resume can be "ats"; anything else is a plain standard document.
+      ...(kind === "resume" && source === "builder" && req.body.resumeType === "ats" ? { resumeType: "ats" } : {}),
     });
 
     return res.status(201).json(document);
