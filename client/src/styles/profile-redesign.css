@@ -2312,3 +2312,13 @@
     gap: 2px;
   }
 }
+
+/* "ATS" / "Standard" on a library resume: a word in an outline, so it never relies on colour. */
+.jsd-type-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--text-2);
+}

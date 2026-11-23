@@ -15,3 +15,16 @@ export const safeReturnPath = (value) => {
 export const loginStateFor = (location) => ({
   from: `${location?.pathname || ""}${location?.search || ""}`,
 });
+
+// "Back to Browse Jobs" from the Resume & Cover Letter Studio while applying. Only an in-app path
+// to the jobs board, a job page or the dashboard (where the Apply modal also lives), with its query
+// string, is accepted; anything else (another site, protocol-relative, backslashes, fragments,
+// control characters) is dropped, so a crafted link can never send the applicant elsewhere.
+const APPLY_RETURN = /^\/(jobs(\/[A-Za-z0-9_-]+)?|dashboard)(\?[^#\s\\]*)?$/;
+
+export const safeApplyReturnPath = (value) => {
+  const path = String(value ?? "");
+  // eslint-disable-next-line no-control-regex
+  if (path.length > 600 || path.startsWith("//") || /[\\\u0000-\u001f]/.test(path)) return "";
+  return APPLY_RETURN.test(path) ? path : "";
+};

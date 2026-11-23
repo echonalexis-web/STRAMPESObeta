@@ -5,6 +5,7 @@ import "../styles/jobboard.css";
 import VacancyCard from "../components/VacancyCard";
 import JobSearchFilters from "../components/JobSearchFilters";
 import ApplyModal from "../components/ApplyModal";
+import useReopenApply from "../hooks/useReopenApply";
 import { isJobVacancyEligibleAge } from "../utils/age";
 import StateBlock from "../components/StateBlock";
 import { AuthContext } from "../context/AuthContext";
@@ -50,7 +51,9 @@ export default function JobBoard() {
   if (initialUrlState.current === null) initialUrlState.current = parseFilters(searchParams);
   const [activeFilters, setActiveFilters] = useState(initialUrlState.current.filters);
   const filtersRef = useRef(activeFilters);
-  const [applyModalJobId, setApplyModalJobId] = useState(null);
+  // Back from the Studio: reopen the Apply modal for that job with the new documents picked.
+  const reopenApply = useReopenApply();
+  const [applyModalJobId, setApplyModalJobId] = useState(reopenApply?.jobId || null);
   // Phone compact cards: only one card's match and apply area is open at a time.
   const [openJobId, setOpenJobId] = useState(null);
   const toggleJob = (jobId) => setOpenJobId((current) => (current === jobId ? null : jobId));
@@ -328,6 +331,7 @@ export default function JobBoard() {
               isOpen={Boolean(applyModalJobId)}
               onClose={() => setApplyModalJobId(null)}
               jobId={applyModalJobId}
+              preselect={reopenApply}
               job={jobs.find((j) => j._id === applyModalJobId) || null}
               onSuccess={() => {
                 setApplyModalJobId(null);

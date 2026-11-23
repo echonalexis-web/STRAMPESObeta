@@ -24,5 +24,14 @@ export const DOCUMENT_TEMPLATES = [
 
 export const DEFAULT_TEMPLATE_KEY = "classic";
 
+// The one layout used for an "ATS-friendly" resume (see utils/atsPdf.js): a single plain column. It is
+// not in DOCUMENT_TEMPLATES because it is not a choice: picking the ATS type selects it.
+export const ATS_TEMPLATE = {
+  key: "ats",
+  label: "ATS template",
+  description: "Single column, plain text, no photo or icons.",
+  className: "doc-theme--ats",
+};
+
 export const getTemplateClassName = (key) =>
-  DOCUMENT_TEMPLATES.find((tpl) => tpl.key === key)?.className || DOCUMENT_TEMPLATES[0].className;
+  (key === ATS_TEMPLATE.key ? ATS_TEMPLATE : DOCUMENT_TEMPLATES.find((tpl) => tpl.key === key))?.className || DOCUMENT_TEMPLATES[0].className;

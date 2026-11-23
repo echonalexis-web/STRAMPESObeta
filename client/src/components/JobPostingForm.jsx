@@ -93,6 +93,7 @@ const getInitialFormData = () => ({
   slots: 1,
   qualifications: [],
   applicationDeadline: "",
+  hiringManagerName: "",
   ...EMPTY_BASIC_REQUIREMENTS,
 });
 
@@ -607,6 +608,7 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
         slots: Number(formData.slots) || 1,
         qualifications: Array.isArray(formData.qualifications) ? formData.qualifications : [],
         applicationDeadline: formData.applicationDeadline || undefined,
+        hiringManagerName: String(formData.hiringManagerName || "").trim().slice(0, 80),
         ...serializeBasicRequirements(pickBasicRequirements(formData)),
       };
       if (isEditing) {
@@ -1133,6 +1135,25 @@ export default function JobPostingForm({ initialJob = null, onSaved, onCancel })
                 {(validationErrors.salaryMax && touched.salaryMax) && (
                   <span className="pj-field-error" id="salaryMax-error" role="alert">{validationErrors.salaryMax}</span>
                 )}
+              </div>
+
+              <div className="pj-field pj-field-full">
+                <label htmlFor="hiringManagerName">
+                  {t("applyFlow.hiringManagerLabel")}
+                </label>
+                <input
+                  id="hiringManagerName"
+                  type="text"
+                  name="hiringManagerName"
+                  value={formData.hiringManagerName || ""}
+                  onChange={handleChange}
+                  maxLength={80}
+                  autoComplete="off"
+                  placeholder={t("applyFlow.hiringManagerPlaceholder")}
+                  aria-describedby="hiringManagerName-help"
+                  disabled={loading}
+                />
+                <small id="hiringManagerName-help" className="pj-hint">{t("applyFlow.hiringManagerHelp")}</small>
               </div>
 
               <div className="pj-field pj-field-full">

@@ -7,6 +7,9 @@ import fil from "./locales/fil.json";
 // do not collide with edits to the big locale files.
 import analyticsEn from "./locales/analytics.en.json";
 import analyticsFil from "./locales/analytics.fil.json";
+// Apply-document flow (Studio applying mode, resume type, photo, upload, hiring manager).
+import applyFlowEn from "./locales/applyFlow.en.json";
+import applyFlowFil from "./locales/applyFlow.fil.json";
 
 const STORAGE_KEY = "stramPesoLanguage";
 
@@ -34,8 +37,8 @@ const storedLanguage = readStoredLanguage();
 
 i18n.use(initReactI18next).init({
   resources: {
-    en: { translation: deepMerge(en, analyticsEn) },
-    fil: { translation: deepMerge(fil, analyticsFil) },
+    en: { translation: deepMerge(deepMerge(en, analyticsEn), applyFlowEn) },
+    fil: { translation: deepMerge(deepMerge(fil, analyticsFil), applyFlowFil) },
   },
   lng: storedLanguage || "en",
   fallbackLng: "en",

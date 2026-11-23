@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import { FaFileAlt, FaEnvelopeOpenText, FaLock, FaMagic, FaLightbulb } from "react-icons/fa";
@@ -32,6 +33,7 @@ const formatBadge = (mimeType) => {
 };
 
 function DocumentCard({ item, onSetPrimary, onDelete, busy = false }) {
+  const { t } = useTranslation();
   return (
     <article className={`jsd-card ${item.isPrimary ? "jsd-card--primary" : ""}`}>
       <div className="jsd-card-head">
@@ -47,6 +49,12 @@ function DocumentCard({ item, onSetPrimary, onDelete, busy = false }) {
         <span className={`jsd-source-badge jsd-source-badge--${item.source}`}>
           {item.source === "builder" ? "Built with Studio" : "Uploaded"}
         </span>
+        {item.kind === "resume" ? (
+          <>
+            <span className="jsd-meta-dot" aria-hidden="true">•</span>
+            <span className="jsd-type-label">{item.resumeType === "ats" ? t("applyFlow.atsLabel") : t("applyFlow.standardLabel")}</span>
+          </>
+        ) : null}
       </div>
 
       <p className="jsd-card-date">Last updated {formatDate(item.updatedAt)}</p>
@@ -72,6 +80,8 @@ DocumentCard.propTypes = {
     storedValue: PropTypes.string.isRequired,
     mimeType: PropTypes.string,
     sizeBytes: PropTypes.number,
+    kind: PropTypes.string,
+    resumeType: PropTypes.string,
     source: PropTypes.oneOf(["upload", "builder"]),
     isPrimary: PropTypes.bool,
     updatedAt: PropTypes.string,

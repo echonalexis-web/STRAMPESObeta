@@ -246,3 +246,15 @@
 .apply-modal-photo small {
   color: var(--ds-ink-500);
 }
+
+/* "ATS" / "Standard" label on a resume card: words, not colour, carry the type. */
+.app-modal-card .apply-modal-doc-type {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}

@@ -6,6 +6,7 @@ import VacancyCard from "../components/VacancyCard";
 import { isJobVacancyEligibleAge } from "../utils/age";
 import { userContactLabel } from "../utils/usernameSignup";
 import ApplyModal from "../components/ApplyModal";
+import useReopenApply from "../hooks/useReopenApply";
 import PageHero from "../components/PageHero";
 import MetricCard from "../components/MetricCard";
 import StateBlock from "../components/StateBlock";
@@ -68,7 +69,9 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [hasSkills, setHasSkills] = useState(true);
   const [recPage, setRecPage] = useState(1);
-  const [applyModalJobId, setApplyModalJobId] = useState(null);
+  // Back from the Studio: reopen the Apply modal for that job with the new documents picked.
+  const reopenApply = useReopenApply();
+  const [applyModalJobId, setApplyModalJobId] = useState(reopenApply?.jobId || null);
   const [latestNews, setLatestNews] = useState(null);
 
   useEffect(() => {
@@ -506,6 +509,7 @@ export default function Dashboard() {
         isOpen={Boolean(applyModalJobId)}
         onClose={() => setApplyModalJobId(null)}
         jobId={applyModalJobId}
+        preselect={reopenApply}
         job={jobs.find((j) => j._id === applyModalJobId) || null}
         onSuccess={() => {
           setApplyModalJobId(null);

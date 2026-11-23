@@ -1017,3 +1017,237 @@
     justify-content: center;
   }
 }
+
+/* =======================================================
+   Apply-document flow: applying bar, resume type, photo, ATS
+   ======================================================= */
+.rstudio-sr-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.rstudio-blocked {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ds-space-4, 16px);
+  padding: 80px 0;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+/* Desktop: a bar above the studio. Phones: pinned to the bottom, so Back and Continue stay in reach. */
+.rstudio-applybar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3, 12px);
+  margin-bottom: var(--ds-space-4, 16px);
+  padding: var(--ds-space-3, 12px) var(--ds-space-4, 16px);
+  border: 1px solid #a7f3d0;
+  border-radius: var(--ds-radius-md, 12px);
+  background: #ecfdf5;
+  color: #064e3b;
+}
+.rstudio-applybar__banner {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.rstudio-applybar__dirty {
+  font-weight: 600;
+  color: #92400e;
+}
+.rstudio-applybar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2, 8px);
+}
+.rstudio-applybar__error,
+.rstudio-inline-error {
+  flex: 1 0 100%;
+  margin: 0;
+  padding: var(--ds-space-2, 8px) var(--ds-space-3, 12px);
+  border-left: 4px solid #b91c1c;
+  background: #fef2f2;
+  color: #7f1d1d;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.rstudio-applybar .rstudio-btn,
+.rstudio-leave__actions .rstudio-btn,
+.rstudio-type__option,
+.rstudio-upload {
+  min-height: 44px;
+}
+.rstudio-btn[aria-disabled="true"] {
+  opacity: 0.7;
+  cursor: progress;
+}
+.rstudio-leave__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2, 8px);
+  margin-top: var(--ds-space-4, 16px);
+}
+
+.rstudio-type {
+  margin-bottom: var(--ds-space-3, 12px);
+}
+.rstudio-type__group {
+  display: flex;
+  border: 1px solid #94a3b8;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.rstudio-type__option {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 0;
+  background: #ffffff;
+  color: #334155;
+  font-weight: 700;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+.rstudio-type__option + .rstudio-type__option {
+  border-left: 1px solid #94a3b8;
+}
+/* The selected option is filled AND shows a check mark, so colour is never the only signal. */
+.rstudio-type__option.is-selected {
+  background: #065f46;
+  color: #ffffff;
+}
+.rstudio-type__hint {
+  margin: 6px 0 0;
+}
+.rstudio-tailored-note {
+  margin: 0 0 var(--ds-space-3, 12px);
+  padding: var(--ds-space-2, 8px) var(--ds-space-3, 12px);
+  border-left: 4px solid #065f46;
+  background: #f0fdf4;
+  font-size: 0.82rem;
+  color: #14532d;
+}
+.rstudio-upload {
+  position: relative;
+  cursor: pointer;
+}
+.tpl-thumb--ats {
+  background: #ffffff;
+}
+.tpl-thumb--ats .tpl-thumb__accent {
+  display: none;
+}
+
+/* The photo, in the three standard layouts. ATS resumes never have one. */
+.resume-doc__photo {
+  display: block;
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin: 0 0 10px;
+}
+.doc-theme--classic .resume-doc__photo {
+  width: 64px;
+  height: 64px;
+  float: right;
+  margin: 0 0 0 16px;
+}
+.doc-theme--executive .resume-doc__photo {
+  margin: 0 auto 12px;
+  border: 3px solid #ffffff;
+}
+.doc-theme--ats .resume-doc__photo {
+  display: none;
+}
+
+.resume-doc__match {
+  background: #fef08a;
+  color: inherit;
+  border-radius: 2px;
+}
+
+/* Cover letter address lines sit with the recipient line, in every layout. */
+.letter-doc__addressee,
+.letter-doc__location {
+  margin: 0;
+}
+.doc-theme--executive.letter-doc .letter-doc__addressee,
+.doc-theme--executive.letter-doc .letter-doc__location {
+  padding-left: 60px;
+  padding-right: 60px;
+}
+
+/* ATS: one column, one font, black on white, no colour, no photo, no icons. */
+.doc-theme--ats.resume-doc {
+  padding: 48px 56px;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000000;
+  background: #ffffff;
+}
+.doc-theme--ats .resume-doc__header {
+  border-bottom: 0;
+  padding-bottom: 0;
+  margin-bottom: 14px;
+  background: none;
+  color: #000000;
+  text-align: left;
+}
+.doc-theme--ats .resume-doc__header h2 {
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #000000;
+}
+.doc-theme--ats .resume-doc__title,
+.doc-theme--ats .resume-doc__contact {
+  color: #000000;
+}
+.doc-theme--ats .resume-doc__main {
+  padding: 0;
+}
+.doc-theme--ats .resume-doc__section h3 {
+  color: #000000;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  border: 0;
+  border-bottom: 1px solid #000000;
+  padding: 0 0 2px;
+}
+.doc-theme--ats .resume-doc__match {
+  background: none;
+  font-weight: inherit;
+}
+
+@media (max-width: 720px) {
+  .rstudio-applybar {
+    order: 99;
+    margin: 8px -14px 0;
+    border-radius: 0;
+    border-width: 1px 0 0;
+  }
+  .rstudio-applybar__actions {
+    width: 100%;
+  }
+  .rstudio-applybar__actions .rstudio-btn {
+    flex: 1;
+    justify-content: center;
+    white-space: normal;
+  }
+}

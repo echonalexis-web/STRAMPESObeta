@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import PropTypes from "prop-types";
 import { FaFileAlt, FaEnvelopeOpenText, FaMagic, FaUpload, FaCheckCircle } from "react-icons/fa";
 import AppModal from "./AppModal";
@@ -9,6 +9,8 @@ import { jobAPI, jobseekerDocumentAPI, displayFileName } from "../services/api";
 import ApplyPhoneStep from "./ApplyPhoneStep";
 import { AuthContext } from "../context/AuthContext";
 import { applyErrorKind, formatWait } from "../utils/applyGate";
+import { safeApplyReturnPath } from "../utils/returnTo";
+import { rememberScroll } from "../hooks/useReopenApply";
 import "../styles/apply-modal.css";
 
 const NONE = "__none__";
@@ -25,6 +27,8 @@ function DocumentPicker({
   currentFileHint,
   nonEmptyHint,
   emptyExtra,
+  footerExtra,
+  typeLabel,
 }) {
   const inputRef = useRef(null);
 
@@ -61,6 +65,7 @@ function DocumentPicker({
               >
                 {selection === doc._id && <FaCheckCircle className="apply-modal-doc-check" />}
                 <span className="apply-modal-doc-title" title={doc.title}>{doc.title}</span>
+                {typeLabel ? <span className="apply-modal-doc-type">{typeLabel(doc)}</span> : null}
                 <SecureFileLink value={doc.storedValue} className="apply-modal-doc-preview">
                   Preview
                 </SecureFileLink>
@@ -69,6 +74,8 @@ function DocumentPicker({
           </div>
         </>
       )}
+
+      {footerExtra}
 
       <div className="apply-modal-upload-row">
         <input
@@ -114,9 +121,15 @@ DocumentPicker.propTypes = {
   // Rendered below the "you haven't saved any..." message when the list is
   // empty — e.g. a CTA to go create one, instead of just the plain text.
   emptyExtra: PropTypes.node,
+  footerExtra: PropTypes.node,
+  // Small text on each card ("ATS" / "Standard"); the type is never shown by colour alone.
+  typeLabel: PropTypes.func,
 };
 
-export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMode = false, existingApplication = null, onSuccess }) {
+export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMode = false, existingApplication = null, onSuccess, preselect = null }) {
+  // Where "Back to Browse Jobs" in the Studio returns to: this page, with its filters and page.
+  const location = useLocation();
+  const returnTo = safeApplyReturnPath(`${location.pathname}${location.search}`);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [resumes, setResumes] = useState([]);
   const [coverLetters, setCoverLetters] = useState([]);
@@ -186,8 +199,14 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
         // back to the most recently saved one when none is marked primary.
         const defaultResume = resumeDocs.find((d) => d.isPrimary) || resumeDocs[0];
 
-        setResumeSelection(preselectedResume ? preselectedResume._id : defaultResume?._id || "");
-        setCoverLetterSelection(preselectedCover ? preselectedCover._id : tailored ? tailored._id : "");
+        // Back from the Studio: the documents it just saved for THIS job are picked. Ids that are
+        // not in the library (or belong to another job) are ignored.
+        const fromStudio = preselect && String(preselect.jobId || "") === String(effectiveJobId || "") ? preselect : null;
+        const studioResume = fromStudio?.resumeId ? resumeDocs.find((d) => d._id === String(fromStudio.resumeId)) : null;
+        const studioCover = fromStudio?.coverLetterId ? coverLetterDocs.find((d) => d._id === String(fromStudio.coverLetterId)) : null;
+
+        setResumeSelection(studioResume ? studioResume._id : preselectedResume ? preselectedResume._id : defaultResume?._id || "");
+        setCoverLetterSelection(studioCover ? studioCover._id : preselectedCover ? preselectedCover._id : tailored ? tailored._id : "");
       } catch {
         if (isCurrent) setError("Failed to load your saved documents.");
       } finally {
@@ -199,7 +218,21 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
     return () => {
       isCurrent = false;
     };
+    // preselect is a one-time hand-over from the Studio; it should not refetch the library again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, existingApplication, effectiveJobId]);
+
+  // The Studio in "applying" mode for this job, coming back to this page afterwards.
+  const studioLink = (mode) => {
+    const params = new URLSearchParams({ mode, jobId: String(effectiveJobId || "") });
+    if (returnTo) params.set("returnTo", returnTo);
+    return `/profile/resume?${params.toString()}`;
+  };
+  const leaveForStudio = () => {
+    rememberScroll();
+    onClose();
+  };
+  const typeLabel = (doc) => (doc.kind === "resume" ? (doc.resumeType === "ats" ? t("applyFlow.atsLabel") : t("applyFlow.standardLabel")) : "");
 
   const handleSubmit = async () => {
     setError("");
@@ -283,6 +316,14 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
                     ? `Keep current: ${displayFileName(existingApplication.resume)}`
                     : undefined
                 }
+                typeLabel={typeLabel}
+                footerExtra={
+                  !editMode && effectiveJobId ? (
+                    <Link className="apply-modal-tailor-cta" to={studioLink("resume")} onClick={leaveForStudio}>
+                      <FaMagic /> {t("applyFlow.tailorResume")}
+                    </Link>
+                  ) : null
+                }
               />
 
               <DocumentPicker
@@ -310,10 +351,10 @@ export default function ApplyModal({ isOpen, onClose, jobId, job = null, editMod
                   !editMode && effectiveJobId ? (
                     <Link
                       className="apply-modal-tailor-cta"
-                      to={`/profile/resume?mode=coverLetter&jobId=${effectiveJobId}`}
-                      onClick={onClose}
+                      to={studioLink("coverLetter")}
+                      onClick={leaveForStudio}
                     >
-                      <FaMagic /> Tailor a cover letter for this job
+                      <FaMagic /> {t("applyFlow.tailorLetter")}
                     </Link>
                   ) : null
                 }
@@ -383,4 +424,10 @@ ApplyModal.propTypes = {
     coverLetterDocumentId: PropTypes.string,
   }),
   onSuccess: PropTypes.func,
+  // Handed back by the Studio ({ jobId, resumeId, coverLetterId }): those documents start picked.
+  preselect: PropTypes.shape({
+    jobId: PropTypes.string,
+    resumeId: PropTypes.string,
+    coverLetterId: PropTypes.string,
+  }),
 };

@@ -402,6 +402,8 @@ export const jobAPI = {
   searchJobsWithSemantic: (params, config = {}) => api.get('/recommendations/jobs', { params, ...config }),
   suggestJobs: (q, config = {}) => api.get('/recommendations/jobs/suggest', { params: { q }, ...config }),
   getJobById: (id) => api.get(`/jobs/${id}`),
+  // Studio applying mode: is this job open, listed and not applied to yet? (404/400/409 with a code)
+  getApplyContext: (id) => api.get(`/jobs/${id}/apply-context`, getAuthHeader()),
   applyToJob: (id, data) => api.post(`/jobs/${id}/apply`, data, getAuthFormHeader()),
   getApplicationsForJob: (id) => api.get(`/jobs/${id}/applications`, getAuthHeader()),
   getMyApplications: (params = {}, config = {}) => api.get('/jobs/applications/me', { ...getAuthHeader(), params, ...config }),
@@ -421,13 +423,14 @@ export const jobAPI = {
 // visible to employers until one is attached to a submitted application.
 export const jobseekerDocumentAPI = {
   list: (kind) => api.get('/jobseeker/documents', { ...getAuthHeader(), params: kind ? { kind } : {} }),
-  upload: ({ file, kind, title, source, sourceJobId, onProgress }) => {
+  upload: ({ file, kind, title, source, sourceJobId, resumeType, onProgress }) => {
     const fd = new FormData();
     fd.append('file', file, file.name);
     fd.append('kind', kind);
     if (title) fd.append('title', title);
     if (source) fd.append('source', source);
     if (sourceJobId) fd.append('sourceJobId', sourceJobId);
+    if (resumeType) fd.append('resumeType', resumeType);
     return api.post('/jobseeker/documents/upload', fd, {
       ...getAuthFormHeader(),
       onUploadProgress: onProgress
