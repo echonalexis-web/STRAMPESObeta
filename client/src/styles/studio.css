@@ -753,3 +753,28 @@
   border-radius: 10px;
   color: #475569;
 }
+
+/* Photo crop step */
+.stu-crop {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  margin-top: 12px;
+}
+.stu-crop__canvas {
+  width: 280px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid #94a3b8;
+  border-radius: 12px;
+  background: #f1f5f9;
+}
+.stu-crop .stu-field {
+  justify-self: start;
+  margin: 6px 0 0;
+}
+.stu-crop input[type="range"] {
+  width: 100%;
+  min-height: 44px;
+  accent-color: #065f46;
+}

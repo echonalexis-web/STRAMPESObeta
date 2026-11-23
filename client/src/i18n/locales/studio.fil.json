@@ -116,6 +116,16 @@
       "save": "I-save at bumalik",
       "discard": "Itapon ang mga pagbabago",
       "stay": "Manatili rito"
+    },
+    "crop": {
+      "title": "Ayusin ang iyong larawan",
+      "help": "I-zoom at ilipat ang larawan para nasa loob ng kuwadrado ang iyong mukha. Bilog ang labas nito sa resume.",
+      "zoom": "Zoom",
+      "horizontal": "Ilipat pakaliwa o pakanan",
+      "vertical": "Ilipat pataas o pababa",
+      "preview": "Preview ng larawan",
+      "use": "Gamitin ang larawang ito",
+      "cancel": "Kanselahin"
     }
   }
 }

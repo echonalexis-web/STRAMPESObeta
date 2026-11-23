@@ -116,6 +116,16 @@
       "save": "Save and go back",
       "discard": "Discard changes",
       "stay": "Stay here"
+    },
+    "crop": {
+      "title": "Adjust your photo",
+      "help": "Zoom and move the photo so your face is in the square. Resumes show it as a circle.",
+      "zoom": "Zoom",
+      "horizontal": "Move left or right",
+      "vertical": "Move up or down",
+      "preview": "Photo preview",
+      "use": "Use this photo",
+      "cancel": "Cancel"
     }
   }
 }

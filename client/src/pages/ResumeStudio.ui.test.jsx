@@ -59,13 +59,24 @@ const withPhoto = () => {
   resumePhotoAPI.info.mockResolvedValue({ data: { hasPhoto: true, name: "me.jpg" } });
   resumePhotoAPI.image.mockResolvedValue(photoBlob());
 };
+const confirmCrop = async (user) => {
+  const dialog = await screen.findByRole("dialog", { name: "Adjust your photo" });
+  await user.click(within(dialog).getByRole("button", { name: "Use this photo" }));
+};
 const toReview = async (user) => {
   await user.click(primary("Next: Cover letter"));
   await user.click(primary("Next: Review"));
 };
 
+const drawImage = vi.fn();
 beforeEach(() => {
   vi.clearAllMocks();
+  // The crop step needs an object URL, an image that loads and a canvas; jsdom has none of them.
+  URL.createObjectURL = vi.fn(() => "blob:photo");
+  URL.revokeObjectURL = vi.fn();
+  vi.stubGlobal("Image", class { set src(_v) { this.naturalWidth = 800; this.naturalHeight = 400; queueMicrotask(() => this.onload && this.onload()); } });
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ fillRect: vi.fn(), drawImage, fillStyle: "" });
+  vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation((cb) => cb(new Blob(["jpeg"], { type: "image/jpeg" })));
   // jsdom has no layout; the shared modal hook needs something "rendered" to focus.
   vi.spyOn(HTMLElement.prototype, "getClientRects").mockReturnValue([{}]);
   authAPI.getProfile.mockResolvedValue(profileResponse());
@@ -514,10 +525,44 @@ describe("resume photo card", () => {
     await applyingReady();
     const file = new File(["x"], "new.jpg", { type: "image/jpeg" });
     await user.upload(screen.getByTestId("resume-photo-input"), file);
-    await waitFor(() => expect(resumePhotoAPI.put).toHaveBeenCalledWith(file));
+    expect(resumePhotoAPI.put).not.toHaveBeenCalled(); // framed first
+    await confirmCrop(user);
+    await waitFor(() => expect(resumePhotoAPI.put).toHaveBeenCalledTimes(1));
+    const sent = resumePhotoAPI.put.mock.calls[0][0];
+    expect([sent.name, sent.type]).toEqual(["new.jpg", "image/jpeg"]);
     await waitFor(() => expect(canvasOf().querySelector("img.resume-doc__photo")).not.toBeNull());
     expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("true");
     expect(screen.getByText("new.jpg")).toBeTruthy();
+  });
+
+  test("the crop step: sliders frame the picture, the square that was framed is what is sent, Cancel sends nothing", async () => {
+    const user = userEvent.setup();
+    renderStudio();
+    await applyingReady();
+    await user.upload(screen.getByTestId("resume-photo-input"), new File(["x"], "wide.png", { type: "image/png" }));
+    const dialog = await screen.findByRole("dialog", { name: "Adjust your photo" });
+    expect(within(dialog).getByRole("img", { name: "Photo preview" })).toBeTruthy();
+    for (const name of ["Zoom", "Move left or right", "Move up or down"]) expect(within(dialog).getByLabelText(name).type).toBe("range");
+    fireEvent.change(within(dialog).getByLabelText("Zoom"), { target: { value: "2" } });
+    fireEvent.change(within(dialog).getByLabelText("Move left or right"), { target: { value: "1" } });
+    drawImage.mockClear();
+    await user.click(within(dialog).getByRole("button", { name: "Use this photo" }));
+    // 800x400 picture, zoom 2, pushed fully right: a 200px square from x=600, drawn 800x800.
+    const call = drawImage.mock.calls.at(-1);
+    expect(call.slice(1)).toEqual([600, 100, 200, 200, 0, 0, 800, 800]);
+    await waitFor(() => expect(resumePhotoAPI.put).toHaveBeenCalledTimes(1));
+    expect(resumePhotoAPI.put.mock.calls[0][0].name).toBe("wide.jpg");
+  });
+
+  test("cancelling the crop step uploads nothing", async () => {
+    const user = userEvent.setup();
+    renderStudio();
+    await applyingReady();
+    await user.upload(screen.getByTestId("resume-photo-input"), new File(["x"], "me.png", { type: "image/png" }));
+    const dialog = await screen.findByRole("dialog", { name: "Adjust your photo" });
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(resumePhotoAPI.put).not.toHaveBeenCalled();
   });
 
   test("a wrong file type and an oversize file are refused on the page with an alert; nothing is sent", async () => {
@@ -541,6 +586,7 @@ describe("resume photo card", () => {
     renderStudio();
     await applyingReady();
     await user.upload(screen.getByTestId("resume-photo-input"), new File(["x"], "tiny.jpg", { type: "image/jpeg" }));
+    await confirmCrop(user);
     expect((await screen.findByRole("alert")).textContent).toMatch(/too small/);
     expect(canvasOf().querySelector("img")).toBeNull();
   });

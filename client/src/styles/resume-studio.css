@@ -11,14 +11,7 @@
   width: 100%;
 }
 
-.rstudio-page,
-.rstudio-body,
-.rstudio-panel,
-.rstudio-panel__pinned,
-.rstudio-panel__scroll,
-.rstudio-section,
-.rstudio-sections-list,
-.rstudio-section-row {
+.rstudio-page {
   box-sizing: border-box;
 }
 
@@ -27,79 +20,6 @@
   text-align: center;
   color: #64748b;
   font-size: 0.95rem;
-}
-
-/* ---- Top bar ---- */
-.rstudio-topbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 20px;
-  flex: 0 0 auto;
-}
-
-.rstudio-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.82rem;
-  margin-bottom: 6px;
-}
-.rstudio-breadcrumb a {
-  color: #065f46;
-  font-weight: 600;
-  text-decoration: none;
-}
-.rstudio-breadcrumb a:hover {
-  text-decoration: underline;
-}
-.rstudio-breadcrumb__sep {
-  color: #94a3b8;
-}
-.rstudio-breadcrumb .is-current {
-  color: #0f172a;
-  font-weight: 700;
-}
-
-.rstudio-heading h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  color: #0f172a;
-}
-
-.rstudio-topbar__actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.rstudio-modeswitch {
-  display: inline-flex;
-  gap: 3px;
-  background: #f1f5f9;
-  padding: 4px;
-  border-radius: 10px;
-}
-.rstudio-modeswitch button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: none;
-  background: transparent;
-  color: #475569;
-  font-weight: 700;
-  font-size: 0.84rem;
-  padding: 9px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.rstudio-modeswitch button.is-active {
-  background: #065f46;
-  color: #ffffff;
 }
 
 .rstudio-btn {
@@ -112,14 +32,6 @@
   border-radius: 10px;
   cursor: pointer;
   white-space: nowrap;
-}
-.rstudio-btn--ghost {
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #334155;
-}
-.rstudio-btn--ghost:hover:not(:disabled) {
-  background: #f8fafc;
 }
 .rstudio-btn--primary {
   border: 1px solid #065f46;
@@ -134,97 +46,7 @@
   cursor: not-allowed;
 }
 
-/* ---- Body layout ---- */
-.rstudio-body {
-  display: flex;
-  align-items: stretch;
-  gap: 20px;
-  flex: 1 1 auto;
-  min-height: 0;
-  padding-bottom: 24px;
-}
-
-.rstudio-panel {
-  flex: 0 0 360px;
-  max-width: 360px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.rstudio-panel__pinned {
-  flex: 0 0 auto;
-  padding: 18px 18px 16px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.rstudio-panel__scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.rstudio-section h4 {
-  margin: 0 0 12px;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #0f172a;
-}
-.rstudio-section__headrow {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.rstudio-section__headrow h4 {
-  margin: 0;
-}
-.rstudio-muted {
-  font-size: 0.72rem;
-  color: #94a3b8;
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: normal;
-}
-
 /* ---- Template picker ---- */
-.rstudio-template-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.rstudio-template-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  border: 2px solid #e2e8f0;
-  background: #ffffff;
-  border-radius: 10px;
-  padding: 8px;
-  cursor: pointer;
-}
-.rstudio-template-card.is-selected {
-  border-color: #065f46;
-  background: #ecfdf5;
-}
-.rstudio-template-card__label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #334155;
-  text-align: center;
-  line-height: 1.2;
-}
 
 .tpl-thumb {
   width: 100%;
@@ -284,213 +106,6 @@
 }
 .tpl-thumb--executive .tpl-thumb__lines {
   margin-top: 16px;
-}
-
-/* ---- Section order presets ---- */
-.rstudio-preset-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-.rstudio-preset-btn {
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #334155;
-  font-size: 0.76rem;
-  font-weight: 700;
-  padding: 5px 10px;
-  border-radius: 999px;
-  cursor: pointer;
-}
-.rstudio-preset-btn.is-active {
-  border-color: #065f46;
-  background: #ecfdf5;
-  color: #065f46;
-}
-
-/* ---- Sections & order ---- */
-.rstudio-sections-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.rstudio-section-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 8px 10px;
-  max-width: 100%;
-}
-/* display:contents lets the label's children (checkbox + title) act as
-   direct flex items of .rstudio-section-row, so the checkbox always sits
-   pinned to the left edge regardless of its checked state, instead of the
-   label's own box being centered/sized by its content. */
-.rstudio-checkbox {
-  display: contents;
-}
-.rstudio-checkbox input {
-  accent-color: #065f46;
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  flex-shrink: 0;
-}
-.rstudio-checkbox__label {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #0f172a;
-  word-break: break-word;
-}
-.rstudio-section-row__move {
-  display: inline-flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.rstudio-section-row__move button {
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #475569;
-  border-radius: 6px;
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 0.75rem;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-.rstudio-section-row__move button:hover:not(:disabled),
-.rstudio-section-row__move button:focus-visible:not(:disabled) {
-  background-color: #f0fdf4;
-  border-color: #166534;
-  color: #166534;
-}
-.rstudio-section-row__move button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* ---- Fields ---- */
-.rstudio-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin-bottom: 12px;
-}
-.rstudio-field:last-child {
-  margin-bottom: 0;
-}
-.rstudio-field span {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #475569;
-}
-.rstudio-field input,
-.rstudio-field textarea {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 0.85rem;
-  font-family: inherit;
-  resize: vertical;
-}
-
-.rstudio-target-job-banner {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: #065f46;
-  margin-bottom: 14px;
-}
-
-/* ---- Cover letter tone picker ---- */
-.rstudio-tone-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.rstudio-tone-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px 12px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-.rstudio-tone-card:hover {
-  border-color: #a7f3d0;
-}
-.rstudio-tone-card.is-selected {
-  border-color: #065f46;
-  background: #ecfdf5;
-}
-.rstudio-tone-card input[type="radio"] {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  flex-shrink: 0;
-  accent-color: #065f46;
-}
-.rstudio-tone-card__body {
-  min-width: 0;
-  flex: 1;
-}
-.rstudio-tone-card strong {
-  display: block;
-  font-size: 0.85rem;
-  line-height: 1.3;
-  color: #0f172a;
-}
-.rstudio-tone-card small {
-  display: block;
-  font-size: 0.74rem;
-  line-height: 1.35;
-  color: #64748b;
-  margin-top: 2px;
-}
-.rstudio-clear-link {
-  border: none;
-  background: none;
-  color: #b91c1c;
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 0;
-}
-.rstudio-clear-link:hover {
-  text-decoration: underline;
-}
-
-/* ---- Document workspace: toolbar + editable canvas ---- */
-.rstudio-doc-workspace {
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  overflow: hidden;
 }
 
 .rstudio-toolbar {
@@ -582,16 +197,6 @@
   max-width: none;
   border: none;
   padding: 0;
-}
-
-.rstudio-canvas-scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  background: #e2e8f0;
-  padding: 30px;
-  display: flex;
-  justify-content: center;
 }
 
 .rstudio-canvas {
@@ -820,113 +425,28 @@
   font-size: 0.92rem;
 }
 
-/* Hidden on desktop — only the mobile accordion toggle uses this. */
-.rstudio-mobile-panel-toggle {
-  display: none;
-}
-
 @media (max-width: 960px) {
   .rstudio-page {
     height: auto;
     overflow-y: visible;
     overflow-x: hidden;
   }
-  .rstudio-body {
-    flex-direction: column;
-    min-height: 0;
-    max-width: 100%;
-    overflow-x: hidden;
-  }
 
   /* The settings panel starts collapsed on mobile so the document is the
      first thing you see and can tap straight into, not the controls around
      it — toggled open on demand via this accordion header. */
-  .rstudio-mobile-panel-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 12px 16px;
-    font-weight: 700;
-    font-size: 0.85rem;
-    color: #0f172a;
-    cursor: pointer;
-  }
-  .rstudio-mobile-panel-toggle__chevron {
-    color: #065f46;
-    font-size: 0.7rem;
-  }
-
-  .rstudio-panel {
-    display: none;
-    max-width: 100%;
-    width: 100%;
-    max-height: none;
-    overflow: visible;
-  }
-  .rstudio-panel.is-open {
-    display: flex;
-    margin-top: 10px;
-  }
-  .rstudio-panel__scroll {
-    overflow-y: visible;
-    overflow-x: hidden;
-  }
   /* The canvas becomes the primary editing surface on stacked layouts too,
      so it stays in normal flow (scrolling with the page) instead of a
      clipped, independently-scrolling pane. */
-  .rstudio-doc-workspace {
-    min-height: 70vh;
-  }
-  .rstudio-canvas-scroll {
-    overflow: visible;
-  }
 }
 
 @media (max-width: 720px) {
   .rstudio-page {
     padding: 80px 14px 0;
   }
-  .rstudio-topbar__actions {
-    width: 100%;
-  }
-  .rstudio-modeswitch {
-    width: 100%;
-  }
-  .rstudio-modeswitch button {
-    flex: 1;
-    justify-content: center;
-  }
-
-  .rstudio-panel__scroll {
-    padding-bottom: 24px;
-  }
-
-  .rstudio-canvas-scroll {
-    padding: 18px 12px;
-  }
 
   /* Template cards become a horizontally-scrollable strip instead of a
      squeezed 3-column grid. */
-  .rstudio-template-grid {
-    display: flex;
-    grid-template-columns: none;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x proximity;
-    gap: 8px;
-    padding-bottom: 4px;
-    margin: 0 -4px;
-    padding-left: 4px;
-    padding-right: 4px;
-  }
-  .rstudio-template-card {
-    flex: 0 0 128px;
-    scroll-snap-align: start;
-  }
 
   /* The toolbar stays a single row and scrolls sideways instead of
      wrapping across several rows — on a phone, every row it wraps into is
@@ -998,20 +518,6 @@
 }
 
 @media (max-width: 640px) {
-  .rstudio-topbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .rstudio-topbar__actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .rstudio-modeswitch {
-    flex-direction: column;
-  }
-  .rstudio-modeswitch button {
-    width: 100%;
-  }
   .rstudio-btn {
     width: 100%;
     justify-content: center;
@@ -1021,15 +527,6 @@
 /* =======================================================
    Apply-document flow: applying bar, resume type, photo, ATS
    ======================================================= */
-.rstudio-sr-status {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
 
 .rstudio-blocked {
   display: flex;
@@ -1040,108 +537,9 @@
   font-size: 1rem;
   color: #0f172a;
 }
-
-/* Desktop: a bar above the studio. Phones: pinned to the bottom, so Back and Continue stay in reach. */
-.rstudio-applybar {
-  flex: 0 0 auto;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-3, 12px);
-  margin-bottom: var(--ds-space-4, 16px);
-  padding: var(--ds-space-3, 12px) var(--ds-space-4, 16px);
-  border: 1px solid #a7f3d0;
-  border-radius: var(--ds-radius-md, 12px);
-  background: #ecfdf5;
-  color: #064e3b;
-}
-.rstudio-applybar__banner {
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-.rstudio-applybar__dirty {
-  font-weight: 600;
-  color: #92400e;
-}
-.rstudio-applybar__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ds-space-2, 8px);
-}
-.rstudio-applybar__error,
-.rstudio-inline-error {
-  flex: 1 0 100%;
-  margin: 0;
-  padding: var(--ds-space-2, 8px) var(--ds-space-3, 12px);
-  border-left: 4px solid #b91c1c;
-  background: #fef2f2;
-  color: #7f1d1d;
-  font-size: 0.88rem;
-  font-weight: 600;
-}
-.rstudio-applybar .rstudio-btn,
-.rstudio-leave__actions .rstudio-btn,
-.rstudio-type__option,
-.rstudio-upload {
-  min-height: 44px;
-}
 .rstudio-btn[aria-disabled="true"] {
   opacity: 0.7;
   cursor: progress;
-}
-.rstudio-leave__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ds-space-2, 8px);
-  margin-top: var(--ds-space-4, 16px);
-}
-
-.rstudio-type {
-  margin-bottom: var(--ds-space-3, 12px);
-}
-.rstudio-type__group {
-  display: flex;
-  border: 1px solid #94a3b8;
-  border-radius: 10px;
-  overflow: hidden;
-}
-.rstudio-type__option {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: 0;
-  background: #ffffff;
-  color: #334155;
-  font-weight: 700;
-  font-size: 0.84rem;
-  cursor: pointer;
-}
-.rstudio-type__option + .rstudio-type__option {
-  border-left: 1px solid #94a3b8;
-}
-/* The selected option is filled AND shows a check mark, so colour is never the only signal. */
-.rstudio-type__option.is-selected {
-  background: #065f46;
-  color: #ffffff;
-}
-.rstudio-type__hint {
-  margin: 6px 0 0;
-}
-.rstudio-tailored-note {
-  margin: 0 0 var(--ds-space-3, 12px);
-  padding: var(--ds-space-2, 8px) var(--ds-space-3, 12px);
-  border-left: 4px solid #065f46;
-  background: #f0fdf4;
-  font-size: 0.82rem;
-  color: #14532d;
-}
-.rstudio-upload {
-  position: relative;
-  cursor: pointer;
 }
 .tpl-thumb--ats {
   background: #ffffff;
@@ -1233,21 +631,4 @@
 .doc-theme--ats .resume-doc__match {
   background: none;
   font-weight: inherit;
-}
-
-@media (max-width: 720px) {
-  .rstudio-applybar {
-    order: 99;
-    margin: 8px -14px 0;
-    border-radius: 0;
-    border-width: 1px 0 0;
-  }
-  .rstudio-applybar__actions {
-    width: 100%;
-  }
-  .rstudio-applybar__actions .rstudio-btn {
-    flex: 1;
-    justify-content: center;
-    white-space: normal;
-  }
 }

@@ -47,6 +47,7 @@ import DocumentMenu from "../components/studio/DocumentMenu";
 import { ApplyingBar, ProfileBar } from "../components/studio/StudioBar";
 import ResumePhotoCard from "../components/studio/ResumePhotoCard";
 import ReviewStep from "../components/studio/ReviewStep";
+import PhotoCropModal from "../components/studio/PhotoCropModal";
 import { buildSkillsList } from "../utils/resumeDerivation";
 import AppModal from "../components/AppModal";
 import "../styles/resume-studio.css";
@@ -219,6 +220,7 @@ export default function ResumeStudio() {
   const [photo, setPhoto] = useState(NO_PHOTO);
   const [showPhoto, setShowPhoto] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [cropFile, setCropFile] = useState(null); // the picked photo, being framed before upload
   const [photoError, setPhotoError] = useState("");
   // Applying mode steps ("resume" | "letter" | "review"), whether anything was saved, and the sticky bar.
   const [step, setStep] = useState(() => (searchParams.get("mode") === "coverLetter" ? "letter" : "resume"));
@@ -763,8 +765,18 @@ export default function ResumeStudio() {
   };
 
   // Upload and Replace are the same call (one photo per applicant). The switch comes on by default.
-  const handlePhotoFile = async (file) => {
+  const handlePhotoFile = (file) => {
     setPhotoError("");
+    const problem = photoFileProblem(file);
+    if (problem) {
+      setPhotoError(problem === "size" ? t("studio.photo.errSize") : t("studio.photo.errType"));
+      return;
+    }
+    setCropFile(file); // framed in the crop step, then uploaded by uploadPhoto
+  };
+
+  const uploadPhoto = async (file) => {
+    setCropFile(null);
     const problem = photoFileProblem(file);
     if (problem) {
       setPhotoError(problem === "size" ? t("studio.photo.errSize") : t("studio.photo.errType"));
@@ -1368,6 +1380,8 @@ export default function ResumeStudio() {
           {applying && mode === "resume" ? <p className="stu-note">{t("studio.tailoredNote")}</p> : null}
         </div>
       </div>
+
+      {cropFile ? <PhotoCropModal t={t} file={cropFile} onCancel={() => setCropFile(null)} onConfirm={uploadPhoto} /> : null}
 
       <AppModal
         isOpen={leaveOpen}
