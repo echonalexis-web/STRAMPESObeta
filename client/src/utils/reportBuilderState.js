@@ -73,10 +73,14 @@ export const setFilter = (state, name, value) => {
   return { ...state, filters };
 };
 
+// The rolling presets (7d, 30d, 90d, 12m) are counted back from today by the server.
+const ROLLING = ["7d", "30d", "90d", "12m"];
 const periodParams = (state) =>
-  state.period === "custom"
-    ? { period: "custom", from: state.from, to: state.to }
-    : { period: state.period, year: state.year, ...(state.period === "quarter" ? { quarter: state.quarter } : {}), ...(state.period === "month" ? { month: state.month } : {}) };
+  ROLLING.includes(state.period)
+    ? { period: state.period }
+    : state.period === "custom"
+      ? { period: "custom", from: state.from, to: state.to }
+      : { period: state.period, year: state.year, ...(state.period === "quarter" ? { quarter: state.quarter } : {}), ...(state.period === "month" ? { month: state.month } : {}) };
 
 // The body for POST /admin/report-exports and /preview.
 export function buildRequest(state, dataset) {

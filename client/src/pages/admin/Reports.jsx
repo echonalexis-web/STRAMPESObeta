@@ -1,581 +1,363 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import {
-  Area,
-  Bar,
-  CartesianGrid,
-  Cell,
-  ComposedChart,
-  Line,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
-  FaBriefcase,
-  FaBuilding,
-  FaUser,
-} from "react-icons/fa";
-import {
-  Archive,
-  BriefcaseBusiness,
-  Building2,
-  ChartLine,
-  ChartPie,
-  CircleCheck,
-  FileText,
-  ShieldCheck,
-  UserRound,
-  Users,
-} from "lucide-react";
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { BriefcaseBusiness, FileText, UserRound, UserCheck } from "lucide-react";
 import { adminAPI } from "../../services/api";
-import "../../styles/admin.css";
-import "../../styles/reports.css";
 import AdminHeader from "./AdminHeader";
-import AnalyticsStatsPanel from "../../components/AnalyticsStatsPanel";
-import EmployerPerformancePanel from "../../components/EmployerPerformancePanel";
-import ReportGeneratorPanel from "../../components/ReportGeneratorPanel";
 import MetricCard from "../../components/MetricCard";
-import Reveal from "../../components/Reveal";
 import StateBlock from "../../components/StateBlock";
+import Avatar from "../../components/Avatar";
+import ReportGeneratorPanel from "../../components/ReportGeneratorPanel";
 import usePrefersReducedMotion from "../../hooks/usePrefersReducedMotion";
-import { CHART_AXIS, CHART_GRID, CHART_SERIES, CHART_STATUS, CHART_TOOLTIP } from "../../utils/chartTheme";
+import { CHART_AXIS, CHART_GRID, CHART_SERIES } from "../../utils/chartTheme";
+import "../../styles/admin.css";
+import "../../styles/admin-overview.css";
 
-const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const PRESETS = ["7d", "30d", "90d", "12m", "custom"];
+const MUNICIPALITIES = ["Boac (Capital)", "Santa Cruz", "Gasan", "Mogpog", "Torrijos", "Buenavista", "Other / Outside Province"];
+const METRICS = ["applications", "hires", "vacancies"];
+// Application statuses from dark to light so they differ by lightness, not hue alone; every segment is
+// outlined and every row of the legend has its number.
+const STATUS_SHADES = {
+  pending: "#0b3d2e",
+  under_review: "#1d6b4a",
+  shortlisted: "#2f8f63",
+  approved: "#58b085",
+  hired: "#8ccaa7",
+  rejected: "#bfe3cf",
+  withdrawn: "#e3f3ea",
+  other: "#f6fbf8",
+};
+const VACANCY_SHADES = { open: "#0b3d2e", closed: "#58b085", archived: "#e3f3ea" };
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-const TREND_COLORS = { applications: CHART_SERIES[0], registrations: CHART_SERIES[1] };
-const STATUS_COLORS = CHART_STATUS;
-
-// Columns whose cells are counts: right-aligned tabular numbers in the table.
-const NUMERIC_COLUMNS = new Set(["slots", "applicants"]);
-
-const MUNICIPALITY_OPTIONS = [
-  "All Marinduque",
-  "Boac (Capital)",
-  "Santa Cruz",
-  "Gasan",
-  "Mogpog",
-  "Torrijos",
-  "Buenavista",
-  "Other / Outside Province",
-];
-const JOB_STATUS_OPTIONS = [
-  { label: "All statuses", value: "all" },
-  { label: "Pending review", value: "review" },
-  { label: "Active", value: "active" },
-  { label: "Closed / Filled", value: "closed" },
-  { label: "Rejected", value: "rejected" },
-];
-const USER_STATUS_OPTIONS = ["All", "Active", "Inactive"];
-const VERIFICATION_OPTIONS = ["All", "verified", "pending", "unverified"];
-
-const cap = (value) => {
-  const text = String(value || "").trim();
-  return text ? text.charAt(0).toUpperCase() + text.slice(1) : "—";
+const readFilter = (searchParams) => {
+  const preset = PRESETS.includes(searchParams.get("period")) ? searchParams.get("period") : "30d";
+  const from = DATE.test(searchParams.get("from") || "") ? searchParams.get("from") : "";
+  const to = DATE.test(searchParams.get("to") || "") ? searchParams.get("to") : "";
+  const municipality = MUNICIPALITIES.includes(searchParams.get("municipality")) ? searchParams.get("municipality") : "";
+  return { preset, from, to, municipality };
 };
 
-const TABS = [
-  { key: "applicants", label: "Applicants", icon: <FaUser /> },
-  { key: "jobs", label: "Jobs", icon: <FaBriefcase /> },
-  { key: "employers", label: "Employers", icon: <FaBuilding /> },
-];
-
-const PAGE_SIZE = 15;
-
-const fallbackAnalytics = {
-  totalAccounts: 0,
-  totalEmployers: 0,
-  totalJobSeekers: 0,
-  totalVacancies: 0,
-  totalApplications: 0,
-  verifiedEmployers: 0,
-  pendingVerification: 0,
-  activeJobs: 0,
-  closedJobs: 0,
-  auditEventsToday: 0,
-  applicationsThisMonth: Array(12).fill(0),
-  registrationsThisMonth: Array(12).fill(0),
-  applicationsByStatus: { pending: 0, reviewed: 0, shortlisted: 0, rejected: 0, hired: 0 },
+const writeFilter = ({ preset, from, to, municipality }) => {
+  const params = new URLSearchParams();
+  if (preset !== "30d") params.set("period", preset);
+  if (preset === "custom") {
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+  }
+  if (municipality) params.set("municipality", municipality);
+  return params;
 };
 
-const formatDate = (value) => {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "—"
-    : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-};
+const cell = (t, entry) => (entry && entry.suppressed ? t("analyticsDash.underFive") : entry ? entry.value : 0);
 
-/* ---------- per-tab query + column config ---------- */
-const buildUserParams = (filters, role, page, limit) => ({
-  role,
-  page,
-  limit,
-  search: filters.search || undefined,
-  isActive:
-    filters.userStatus === "Active" ? "true" : filters.userStatus === "Inactive" ? "false" : undefined,
-  verificationStatus:
-    role === "employer" && filters.verification !== "All" ? filters.verification : undefined,
-});
-
-const buildJobParams = (filters, page, limit) => ({
-  page,
-  limit,
-  search: filters.search || undefined,
-  municipality: filters.municipality === "All Marinduque" ? "all" : filters.municipality,
-  status: filters.jobStatus || "all",
-});
-
-const USER_COLUMNS = [
-  { key: "name", label: "Name", get: (r) => r.name || "—" },
-  { key: "email", label: "Email", get: (r) => r.email || "—" },
-  { key: "username", label: "Username", get: (r) => r.username || "—" },
-  { key: "status", label: "Status", get: (r) => (r.isActive === false ? "Inactive" : "Active") },
-  { key: "joined", label: "Joined", get: (r) => formatDate(r.createdAt) },
-];
-
-const APPLICANT_COLUMNS = [
-  ...USER_COLUMNS.slice(0, 3),
-  { key: "onboarding", label: "Onboarding", get: (r) => (r.hasCompletedOnboarding ? "Complete" : "Pending") },
-  { key: "joined", label: "Joined", get: (r) => formatDate(r.createdAt) },
-];
-
-const EMPLOYER_COLUMNS = [
-  ...USER_COLUMNS.slice(0, 2),
-  { key: "verification", label: "Verification", get: (r) => cap(r.verificationStatus || "unverified") },
-  { key: "status", label: "Status", get: (r) => (r.isActive === false ? "Inactive" : "Active") },
-  { key: "joined", label: "Joined", get: (r) => formatDate(r.createdAt) },
-];
-
-const JOB_COLUMNS = [
-  { key: "title", label: "Job title", get: (r) => r.title || "—" },
-  { key: "employer", label: "Employer", get: (r) => r.employer?.companyName || r.employer?.name || "—" },
-  { key: "municipality", label: "Municipality", get: (r) => r.municipality || "—" },
-  { key: "status", label: "Status", get: (r) => cap(r.status) },
-  { key: "slots", label: "Slots", get: (r) => Number(r.slots || 0) },
-  { key: "applicants", label: "Applicants", get: (r) => Number(r.applicantCount ?? r.applicants ?? 0) },
-  { key: "posted", label: "Posted", get: (r) => formatDate(r.createdAt) },
-];
-
+// Analytics & Reports: how we are doing over time. One filter bar drives every panel and the report generator.
 export default function Reports() {
   const { t } = useTranslation();
   const reduced = usePrefersReducedMotion();
-  const [analytics, setAnalytics] = useState(fallbackAnalytics);
-  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filter = useMemo(() => readFilter(searchParams), [searchParams]);
+  const [metric, setMetric] = useState("applications");
+  const [state, setState] = useState({ key: null, data: null, failed: null });
+  const [attempt, setAttempt] = useState(0);
 
-  const [tab, setTab] = useState("applicants");
-  const [filters, setFilters] = useState({
-    search: "",
-    userStatus: "All",
-    verification: "All",
-    municipality: "All Marinduque",
-    jobStatus: "all",
-  });
-  const [page, setPage] = useState(1);
-  const [rows, setRows] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  // Which request the rows on screen belong to: "loading" is derived from it, not set inside the effect.
-  const [loadedKey, setLoadedKey] = useState(null);
+  const customReady = filter.preset !== "custom" || Boolean(filter.from && filter.to && filter.from <= filter.to);
+  const params = useMemo(() => {
+    const out = { period: filter.preset };
+    if (filter.preset === "custom") Object.assign(out, { from: filter.from, to: filter.to });
+    if (filter.municipality) out.municipality = filter.municipality;
+    return out;
+  }, [filter]);
+  const key = `${JSON.stringify(params)}#${attempt}`;
 
   useEffect(() => {
-    let mounted = true;
+    if (!customReady) return undefined;
+    let live = true;
     adminAPI
-      .getAnalytics()
-      .then(({ data }) => mounted && setAnalytics(data || fallbackAnalytics))
-      .catch(() => mounted && setAnalytics(fallbackAnalytics))
-      .finally(() => mounted && setAnalyticsLoading(false));
+      .getAnalyticsOverview(params)
+      .then(({ data }) => live && setState({ key, data, failed: null }))
+      .catch(() => live && setState({ key, data: null, failed: key }));
     return () => {
-      mounted = false;
+      live = false;
     };
-  }, []);
+  }, [params, key, customReady]);
 
-  const fetchRows = useCallback(
-    async (targetPage, limit) => {
-      if (tab === "jobs") {
-        const { data } = await adminAPI.getAdminVacancies(buildJobParams(filters, targetPage, limit));
-        return {
-          rows: Array.isArray(data?.jobs) ? data.jobs : [],
-          total: data?.total || 0,
-          totalPages: data?.totalPages || 1,
-        };
-      }
-      const role = tab === "employers" ? "employer" : "jobseeker";
-      const { data } = await adminAPI.getUsers(buildUserParams(filters, role, targetPage, limit));
-      return {
-        rows: Array.isArray(data?.users) ? data.users : [],
-        total: data?.total || 0,
-        totalPages: data?.totalPages || 1,
-      };
-    },
-    [tab, filters],
-  );
+  const update = (patch) => setSearchParams(writeFilter({ ...filter, ...patch }), { replace: true });
+  const failed = state.failed === key;
+  const loading = customReady && !failed && state.key !== key;
+  // The last answer stays on screen, dimmed, while a new one loads.
+  const data = state.data;
 
-  const rowsKey = `${tab}|${JSON.stringify(filters)}|${page}`;
-  const rowsLoading = loadedKey !== rowsKey;
+  const periodText = filter.preset === "custom" ? `${filter.from || "…"} – ${filter.to || "…"}` : t("adminAnalytics.filter.last", { period: t(`adminAnalytics.filter.periods.${filter.preset}`) });
+  const scopeText = `${periodText} · ${filter.municipality || t("adminAnalytics.filter.allMunicipalities")}`;
 
-  useEffect(() => {
-    let mounted = true;
-    fetchRows(page, PAGE_SIZE)
-      .then((result) => {
-        if (!mounted) return;
-        setRows(result.rows);
-        setTotal(result.total);
-        setTotalPages(result.totalPages);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setRows([]);
-        setTotal(0);
-        setTotalPages(1);
-      })
-      .finally(() => mounted && setLoadedKey(rowsKey));
-    return () => {
-      mounted = false;
-    };
-  }, [fetchRows, page, rowsKey]);
-
-  const columns = useMemo(() => {
-    if (tab === "jobs") return JOB_COLUMNS;
-    if (tab === "employers") return EMPLOYER_COLUMNS;
-    return APPLICANT_COLUMNS;
-  }, [tab]);
-
-  const chartData = useMemo(
-    () =>
-      MONTH_LABELS.map((month, index) => ({
-        month,
-        applications: Number(analytics.applicationsThisMonth?.[index] || 0),
-        registrations: Number(analytics.registrationsThisMonth?.[index] || 0),
-      })),
-    [analytics],
-  );
-
-  const pieData = useMemo(() => {
-    const source = analytics.applicationsByStatus || {};
-    return [
-      { key: "pending", name: "Pending", value: Number(source.pending || 0) },
-      { key: "reviewed", name: "Reviewed", value: Number(source.reviewed || 0) },
-      { key: "shortlisted", name: "Shortlisted", value: Number(source.shortlisted || 0) },
-      { key: "rejected", name: "Rejected", value: Number(source.rejected || 0) },
-      { key: "hired", name: "Hired", value: Number(source.hired || 0) },
-    ];
-  }, [analytics]);
-  const pieTotal = useMemo(() => pieData.reduce((sum, entry) => sum + entry.value, 0), [pieData]);
-
-  const kpis = useMemo(
-    () => [
-      { key: "totalAccounts", label: t("admin.kpi.totalAccounts"), value: analytics.totalAccounts, icon: <Users size={20} /> },
-      { key: "employers", label: t("admin.kpi.employers"), value: analytics.totalEmployers, icon: <Building2 size={20} /> },
-      { key: "jobSeekers", label: t("admin.kpi.jobSeekers"), value: analytics.totalJobSeekers, icon: <UserRound size={20} /> },
-      { key: "vacancies", label: t("admin.kpi.vacancies"), value: analytics.totalVacancies, icon: <BriefcaseBusiness size={20} /> },
-      { key: "applications", label: t("admin.kpi.applications"), value: analytics.totalApplications, icon: <FileText size={20} /> },
-      { key: "activeJobs", label: t("admin.kpi.activeJobs"), value: analytics.activeJobs, icon: <CircleCheck size={20} /> },
-      { key: "closedJobs", label: t("admin.kpi.closedJobs"), value: analytics.closedJobs, icon: <Archive size={20} /> },
-      { key: "verifiedEmployers", label: t("admin.kpi.verifiedEmployers"), value: analytics.verifiedEmployers, icon: <ShieldCheck size={20} /> },
-    ],
-    [analytics, t],
-  );
-
-  const setFilter = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-    setPage(1);
-  };
-
-  const selectTab = (key) => {
-    setTab(key);
-    setPage(1);
-  };
+  const trendRows = data ? data.trend[metric] : [];
+  const statusItems = data ? data.applicationsByStatus.items.filter((item) => item.key !== "other" || item.count > 0) : [];
+  const employers = data ? data.topEmployers.rows : [];
 
   return (
-    <div className="admin-page-container rpt-scope">
-      <AdminHeader
-        title="Reports & Statistics"
-        description="Overall platform statistics plus filterable lists of applicants, jobs, and employers. Files are made with the report generator below."
-      />
+    <div className="admin-page-container an">
+      <AdminHeader title={t("adminAnalytics.title")} description={t("adminAnalytics.description")} />
 
-      <AnalyticsStatsPanel />
-
-      <EmployerPerformancePanel />
-
-      <ReportGeneratorPanel />
-
-      <section className="admin-kpis rpt-kpis" aria-label={t("admin.kpi.sectionLabel")}>
-        {analyticsLoading ? (
-          <div className="ds-metrics ds-metrics--4 admin-metrics" role="status" aria-label={t("common.loading")}>
-            {Array.from({ length: 8 }, (_, i) => (
-              <div key={i} className="ds-metric admin-metric--skeleton" aria-hidden="true">
-                <span className="ds-skeleton admin-metric__skel-icon" />
-                <span className="ds-skeleton admin-metric__skel-value" />
-                <span className="ds-skeleton admin-metric__skel-label" />
+      <section className="an__card" aria-labelledby="an-filter-title">
+        <h2 id="an-filter-title" className="ds-sr-only">{t("adminAnalytics.filter.label")}</h2>
+        <form className="an__bar" onSubmit={(event) => event.preventDefault()}>
+          <div className="an__row">
+            <div className="an-field" role="group" aria-labelledby="an-period-label">
+              <span id="an-period-label" className="an__plabel">{t("adminAnalytics.filter.period")}</span>
+              <div className="an__chips">
+                {PRESETS.map((preset) => (
+                  <button key={preset} type="button" className="an__chip" aria-pressed={filter.preset === preset} onClick={() => update({ preset })}>
+                    {t(`adminAnalytics.filter.periods.${preset}`)}
+                  </button>
+                ))}
               </div>
-            ))}
+            </div>
+            {filter.preset === "custom" && (
+              <>
+                <div className="an-field">
+                  <label htmlFor="an-from">{t("adminAnalytics.filter.from")}</label>
+                  <input id="an-from" type="date" value={filter.from} onChange={(event) => update({ from: event.target.value })} />
+                </div>
+                <div className="an-field">
+                  <label htmlFor="an-to">{t("adminAnalytics.filter.to")}</label>
+                  <input id="an-to" type="date" value={filter.to} onChange={(event) => update({ to: event.target.value })} />
+                </div>
+              </>
+            )}
+            <div className="an-field">
+              <label htmlFor="an-municipality">{t("adminAnalytics.filter.municipality")}</label>
+              <select id="an-municipality" value={filter.municipality} onChange={(event) => update({ municipality: event.target.value })}>
+                <option value="">{t("adminAnalytics.filter.allMunicipalities")}</option>
+                {MUNICIPALITIES.map((name) => <option key={name} value={name}>{name}</option>)}
+              </select>
+            </div>
+            <button type="button" className="an__btn" onClick={() => setSearchParams(new URLSearchParams(), { replace: true })}>
+              {t("adminAnalytics.filter.reset")}
+            </button>
           </div>
-        ) : (
-          <Reveal className="ds-metrics ds-metrics--4 admin-metrics">
-            {kpis.map((item) => (
-              <MetricCard key={item.key} icon={item.icon} value={item.value} label={item.label} />
-            ))}
-          </Reveal>
-        )}
+          <p className="an__scope" role="status">{scopeText}</p>
+          {!customReady && <p className="an__hint" role="alert">{t("adminAnalytics.filter.customHint")}</p>}
+          <p className="an__note">{t("adminAnalytics.filter.hint")}</p>
+        </form>
       </section>
 
-      <section className="admin-analytics-grid">
-        <article className="admin-panel-card admin-chart-card">
-          <div className="admin-card-header">
-            <h2 className="admin-chart-title"><ChartLine size={18} aria-hidden="true" /> {t("admin.charts.trendTitle")}</h2>
+      {!customReady ? null : failed ? (
+        <StateBlock kind="error" title={t("adminAnalytics.errors.title")} description={t("adminAnalytics.errors.text")} onRetry={() => setAttempt((n) => n + 1)} />
+      ) : !data ? (
+        <StateBlock kind="loading" title={t("analyticsDash.loading")} />
+      ) : (
+        <div className="an" style={loading ? { opacity: 0.6 } : undefined} aria-busy={loading}>
+          <section className="an__cards ds-metrics" aria-label={t("adminAnalytics.cards.label")}>
+            <MetricCard icon={<FileText size={20} />} value={data.cards.applications} label={t("adminAnalytics.cards.applications")} note={t("adminAnalytics.cards.applicationsNote")} />
+            <MetricCard icon={<UserCheck size={20} />} value={data.cards.hires} label={t("adminAnalytics.cards.hires")} note={t("adminAnalytics.cards.hiresNote")} />
+            <MetricCard
+              icon={<BriefcaseBusiness size={20} />}
+              value={data.cards.vacancies.total}
+              label={t("adminAnalytics.cards.vacancies")}
+              note={t("adminAnalytics.cards.vacanciesNote", { open: data.cards.vacancies.open, closed: data.cards.vacancies.closed, archived: data.cards.vacancies.archived })}
+            />
+            <MetricCard icon={<UserRound size={20} />} value={data.cards.jobseekers} label={t("adminAnalytics.cards.jobseekers")} note={t("adminAnalytics.cards.jobseekersNote")} />
+          </section>
+
+          <section className="an__card" aria-labelledby="an-trend-title">
+            <h2 id="an-trend-title" className="an__h2">{t("adminAnalytics.trend.title")}</h2>
+            <p className="an__sub">{t(`adminAnalytics.trend.granularity.${data.trend.granularity}`)}</p>
+            <div className="an__metrics" role="group" aria-label={t("adminAnalytics.trend.metric")}>
+              {METRICS.map((name) => (
+                <button key={name} type="button" className="an__chip" aria-pressed={metric === name} onClick={() => setMetric(name)}>
+                  {t(`adminAnalytics.trend.metrics.${name}`)}
+                </button>
+              ))}
+            </div>
+            <div className="an__chart" role="img" aria-label={`${t(`adminAnalytics.trend.metrics.${metric}`)}: ${trendRows.map((row) => `${row.label} ${row.value}`).join(", ")}`}>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={trendRows} margin={{ top: 18, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid {...CHART_GRID} vertical={false} />
+                  <XAxis dataKey="label" {...CHART_AXIS} tickLine={false} axisLine={{ stroke: CHART_GRID.stroke }} interval="preserveStartEnd" />
+                  <YAxis {...CHART_AXIS} allowDecimals={false} tickLine={false} axisLine={false} width={30} />
+                  <Bar dataKey="value" fill={CHART_SERIES[0]} radius={[6, 6, 0, 0]} maxBarSize={36} isAnimationActive={!reduced}>
+                    <LabelList dataKey="value" position="top" fontSize={11} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <details className="an__details">
+              <summary>{t("adminAnalytics.trend.viewTable")}</summary>
+              <div className="ds-table-wrap">
+                <table className="an__table">
+                  <caption className="ds-sr-only">{t(`adminAnalytics.trend.metrics.${metric}`)}</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">{t("adminAnalytics.trend.period")}</th>
+                      <th scope="col">{t("adminAnalytics.trend.count")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trendRows.map((row) => (
+                      <tr key={row.key}>
+                        <th scope="row">{row.label}</th>
+                        <td>{row.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </section>
+
+          <div className="an__grid2">
+            <section className="an__card" aria-labelledby="an-status-title">
+              <h2 id="an-status-title" className="an__h2">{t("adminAnalytics.status.title")}</h2>
+              <p className="an__sub">{t("adminAnalytics.status.intro", { total: data.applicationsByStatus.total })}</p>
+              {data.applicationsByStatus.total === 0 ? (
+                <p className="an__empty">{t("adminAnalytics.status.empty")}</p>
+              ) : (
+                <>
+                  <div className="an__stack" aria-hidden="true">
+                    {statusItems.filter((item) => item.count > 0).map((item) => (
+                      <span key={item.key} className="an__seg" style={{ width: `${item.percent}%`, background: STATUS_SHADES[item.key] }} />
+                    ))}
+                  </div>
+                  <ul className="an__legend">
+                    {statusItems.map((item) => (
+                      <li key={item.key}>
+                        <span className="an__swatch" style={{ background: STATUS_SHADES[item.key] }} aria-hidden="true" />
+                        <span className="an__lname">{t(`adminAnalytics.status.items.${item.key}`)}</span>
+                        <span className="an__lnum">{t("adminAnalytics.status.line", { count: item.count, percent: item.percent })}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </section>
+
+            <section className="an__card" aria-labelledby="an-vac-title">
+              <h2 id="an-vac-title" className="an__h2">{t("adminAnalytics.vacancies.title")}</h2>
+              <p className="an__sub">{t("adminAnalytics.vacancies.intro", { total: data.vacanciesByStatus.total })}</p>
+              {data.vacanciesByStatus.total === 0 ? (
+                <p className="an__empty">{t("adminAnalytics.vacancies.empty")}</p>
+              ) : (
+                <>
+                  <div className="an__stack" aria-hidden="true">
+                    {data.vacanciesByStatus.items.filter((item) => item.count > 0).map((item) => (
+                      <span key={item.key} className="an__seg" style={{ width: `${item.percent}%`, background: VACANCY_SHADES[item.key] }} />
+                    ))}
+                  </div>
+                  <ul className="an__legend">
+                    {data.vacanciesByStatus.items.map((item) => (
+                      <li key={item.key}>
+                        <span className="an__swatch" style={{ background: VACANCY_SHADES[item.key] }} aria-hidden="true" />
+                        <span className="an__lname">{t(`adminAnalytics.vacancies.items.${item.key}`)}</span>
+                        <span className="an__lnum">{t("adminAnalytics.status.line", { count: item.count, percent: item.percent })}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </section>
+
+            <section className="an__card" aria-labelledby="an-emp-title">
+              <h2 id="an-emp-title" className="an__h2">{t("adminAnalytics.employers.title")}</h2>
+              <p className="an__sub">{t("adminAnalytics.employers.intro", data.topEmployers.minimums)}</p>
+              {employers.length === 0 ? (
+                <p className="an__empty">
+                  <strong>{t("adminAnalytics.employers.emptyTitle")}</strong>
+                  {t("adminAnalytics.employers.emptyText")}
+                </p>
+              ) : (
+                <>
+                  <div className="an__chart" role="img" aria-label={`${t("adminAnalytics.employers.chartLabel")}: ${employers.map((row) => `${row.name} ${row.hires}`).join(", ")}`}>
+                    <ResponsiveContainer width="100%" height={Math.max(150, employers.length * 38 + 20)}>
+                      <BarChart data={employers} layout="vertical" margin={{ top: 4, right: 28, left: 8, bottom: 0 }}>
+                        <CartesianGrid {...CHART_GRID} horizontal={false} />
+                        <XAxis type="number" {...CHART_AXIS} allowDecimals={false} tickLine={false} axisLine={false} />
+                        <YAxis type="category" dataKey="name" {...CHART_AXIS} width={120} tickLine={false} axisLine={false} />
+                        <Bar dataKey="hires" fill={CHART_SERIES[0]} radius={[0, 6, 6, 0]} maxBarSize={22} isAnimationActive={!reduced}>
+                          <LabelList dataKey="hires" position="right" fontSize={12} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ol className="an__list">
+                    {employers.map((row) => (
+                      <li key={row.employerId}>
+                        <Avatar name={row.name} photo={row.photo} size={28} />
+                        <span className="an__lname">
+                          {row.name}
+                          <small>{[row.municipality, t("adminAnalytics.employers.hiresOf", { hires: row.hires, applicants: row.applicants })].filter(Boolean).join(" · ")}</small>
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              )}
+            </section>
+
+            <section className="an__card" aria-labelledby="an-roles-title">
+              <h2 id="an-roles-title" className="an__h2">{t("adminAnalytics.roles.title")}</h2>
+              <p className="an__sub">{t("adminAnalytics.roles.intro")}</p>
+              {data.topRoles.length === 0 ? (
+                <p className="an__empty">{t("adminAnalytics.roles.empty")}</p>
+              ) : (
+                <ol className="an__list">
+                  {data.topRoles.map((role) => (
+                    <li key={role.title}>
+                      <span className="an__lname">{role.title}</span>
+                      <strong>{t("adminAnalytics.roles.count", { count: role.count })}</strong>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
           </div>
-          <div className="admin-chart-wrap" role="img" aria-label={t("admin.charts.trendAria")}>
-            <ResponsiveContainer width="100%" height={260}>
-              <ComposedChart data={chartData} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="rptRegistrationsArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={TREND_COLORS.registrations} stopOpacity={0.22} />
-                    <stop offset="100%" stopColor={TREND_COLORS.registrations} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid {...CHART_GRID} vertical={false} />
-                <XAxis dataKey="month" {...CHART_AXIS} tickLine={false} axisLine={{ stroke: CHART_GRID.stroke }} />
-                <YAxis {...CHART_AXIS} allowDecimals={false} tickLine={false} axisLine={false} width={30} />
-                <Tooltip
-                  cursor={CHART_TOOLTIP.cursor}
-                  contentStyle={CHART_TOOLTIP.contentStyle}
-                  formatter={(value, name) => [value, name === "applications" ? t("admin.charts.applications") : t("admin.charts.registrations")]}
-                />
-                <Bar dataKey="applications" fill={TREND_COLORS.applications} radius={[6, 6, 0, 0]} maxBarSize={34} isAnimationActive={!reduced} />
-                <Area type="monotone" dataKey="registrations" stroke="none" fill="url(#rptRegistrationsArea)" isAnimationActive={!reduced} />
-                <Line
-                  type="monotone"
-                  dataKey="registrations"
-                  stroke={TREND_COLORS.registrations}
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: TREND_COLORS.registrations, strokeWidth: 0 }}
-                  activeDot={{ r: 5 }}
-                  isAnimationActive={!reduced}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="admin-provincial-legend">
-            <span><i style={{ background: TREND_COLORS.applications }} /> {t("admin.charts.applications")}</span>
-            <span><i style={{ background: TREND_COLORS.registrations }} /> {t("admin.charts.registrations")}</span>
-          </div>
-          <details className="admin-chart-table">
-            <summary className="admin-chart-table__toggle">
-              <span className="admin-chart-table__show">{t("admin.charts.viewTable")}</span>
-              <span className="admin-chart-table__hide">{t("admin.charts.hideTable")}</span>
-            </summary>
-            <div className="ds-table-wrap admin-chart-table__wrap">
-              <table className="ds-table">
-                <caption className="ds-sr-only">{t("admin.charts.trendTitle")}</caption>
+
+          <section className="an__card" aria-labelledby="an-muni-title">
+            <h2 id="an-muni-title" className="an__h2">{t("adminAnalytics.municipalities.title")}</h2>
+            <p className="an__sub">{t("adminAnalytics.municipalities.intro")}</p>
+            <div className="ds-table-wrap">
+              <table className="an__table">
+                <caption className="ds-sr-only">{t("adminAnalytics.municipalities.title")}</caption>
                 <thead>
                   <tr>
-                    <th scope="col">{t("admin.charts.month")}</th>
-                    <th scope="col" className="is-num">{t("admin.charts.applications")}</th>
-                    <th scope="col" className="is-num">{t("admin.charts.registrations")}</th>
+                    <th scope="col">{t("adminAnalytics.municipalities.municipality")}</th>
+                    <th scope="col">{t("adminAnalytics.municipalities.applications")}</th>
+                    <th scope="col">{t("adminAnalytics.municipalities.hires")}</th>
+                    <th scope="col">{t("adminAnalytics.municipalities.vacancies")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {chartData.map((row) => (
-                    <tr key={row.month}>
-                      <td>{row.month}</td>
-                      <td className="is-num">{row.applications}</td>
-                      <td className="is-num">{row.registrations}</td>
-                    </tr>
-                  ))}
+                  {data.municipalities.map((row) => {
+                    const selected = filter.municipality === row.municipality;
+                    return (
+                      <tr key={row.municipality}>
+                        <th scope="row">
+                          <button
+                            type="button"
+                            className="an__name"
+                            aria-pressed={selected}
+                            aria-label={selected ? t("adminAnalytics.municipalities.clear", { name: row.municipality }) : t("adminAnalytics.municipalities.select", { name: row.municipality })}
+                            onClick={() => update({ municipality: selected ? "" : row.municipality })}
+                          >
+                            {row.municipality}
+                          </button>
+                        </th>
+                        <td>{cell(t, row.applications)}</td>
+                        <td>{cell(t, row.hires)}</td>
+                        <td>{cell(t, row.vacancies)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-          </details>
-        </article>
-
-        <article className="admin-panel-card admin-chart-card">
-          <div className="admin-card-header">
-            <h2 className="admin-chart-title"><ChartPie size={18} aria-hidden="true" /> {t("admin.charts.statusTitle")}</h2>
-          </div>
-          <div className="admin-chart-wrap admin-chart-wrap--pie">
-            <div className="admin-donut" role="img" aria-label={t("admin.charts.statusAria", { count: pieTotal })}>
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={58}
-                    outerRadius={92}
-                    paddingAngle={2}
-                    cornerRadius={4}
-                    stroke="none"
-                    isAnimationActive={!reduced}
-                  >
-                    {pieData.map((entry) => (
-                      <Cell key={entry.key} fill={STATUS_COLORS[entry.key]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={CHART_TOOLTIP.contentStyle}
-                    formatter={(value, name) => [t("admin.charts.applicationCount", { count: value }), name]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="admin-donut__center">
-                <strong>{pieTotal}</strong>
-                <span>{t("admin.charts.total")}</span>
-              </div>
-            </div>
-            <div className="admin-pie-legend">
-              {pieData.map((entry) => {
-                const pct = pieTotal ? Math.round((entry.value / pieTotal) * 100) : 0;
-                return (
-                  <div key={entry.key} className="admin-pie-legend-item">
-                    <span className="swatch" style={{ background: STATUS_COLORS[entry.key] }} />
-                    <span>{entry.name}</span>
-                    <strong>{entry.value} · {pct}%</strong>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </article>
-      </section>
-
-      <section className="rpt-records">
-        <div className="rpt-records__head">
-          <div className="rpt-tabs ds-tabs" role="tablist" aria-label={t("admin.reports.tabsLabel")}>
-            {TABS.map((entry) => (
-              <button
-                key={entry.key}
-                id={`rpt-tab-${entry.key}`}
-                type="button"
-                role="tab"
-                aria-selected={tab === entry.key}
-                aria-controls="rpt-panel"
-                className={`rpt-tab ds-tab${tab === entry.key ? " is-active" : ""}`}
-                onClick={() => selectTab(entry.key)}
-              >
-                {entry.icon} {entry.label}
-              </button>
-            ))}
-          </div>
-          <div className="rpt-export-group">
-            <a className="rpt-export" href="#report-generator">
-              {t("analyticsDash.generator.openBuilder")}
-            </a>
-          </div>
+          </section>
         </div>
+      )}
 
-        <div id="rpt-panel" role="tabpanel" aria-labelledby={`rpt-tab-${tab}`} className="rpt-panel">
-        <div className="rpt-filters ds-toolbar">
-          <input
-            type="search"
-            className="rpt-input"
-            aria-label={t("admin.reports.searchLabel")}
-            placeholder={tab === "jobs" ? "Search job title, employer, category" : "Search name or email"}
-            value={filters.search}
-            onChange={(event) => setFilter("search", event.target.value)}
-          />
-
-          {tab === "jobs" ? (
-            <>
-              <select className="rpt-input" aria-label={t("admin.reports.municipalityLabel")} value={filters.municipality} onChange={(e) => setFilter("municipality", e.target.value)}>
-                {MUNICIPALITY_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-              <select className="rpt-input" aria-label={t("admin.reports.statusLabel")} value={filters.jobStatus} onChange={(e) => setFilter("jobStatus", e.target.value)}>
-                {JOB_STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </>
-          ) : (
-            <>
-              <select className="rpt-input" aria-label={t("admin.reports.statusLabel")} value={filters.userStatus} onChange={(e) => setFilter("userStatus", e.target.value)}>
-                {USER_STATUS_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>{opt === "All" ? "All statuses" : opt}</option>
-                ))}
-              </select>
-              {tab === "employers" ? (
-                <select className="rpt-input" aria-label={t("admin.reports.verificationLabel")} value={filters.verification} onChange={(e) => setFilter("verification", e.target.value)}>
-                  {VERIFICATION_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt === "All" ? "All verification" : opt}</option>
-                  ))}
-                </select>
-              ) : null}
-            </>
-          )}
-        </div>
-
-        <div className="rpt-table-wrap ds-table-wrap" aria-busy={rowsLoading}>
-          <table className="rpt-table ds-table">
-            <thead>
-              <tr>
-                {columns.map((col) => (
-                  <th key={col.key} scope="col" className={NUMERIC_COLUMNS.has(col.key) ? "is-num" : undefined}>{col.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rowsLoading ? (
-                Array.from({ length: 6 }, (_, i) => (
-                  <tr key={i} className="rpt-row--skeleton" aria-hidden="true">
-                    {columns.map((col) => (
-                      <td key={col.key}><span className="rpt-skel" /></td>
-                    ))}
-                  </tr>
-                ))
-              ) : rows.length === 0 ? (
-                <tr className="rpt-row--empty">
-                  <td colSpan={columns.length} className="rpt-empty">
-                    <StateBlock
-                      kind="empty"
-                      title={t("admin.reports.emptyTitle")}
-                      description={t("admin.reports.emptyDescription")}
-                    />
-                  </td>
-                </tr>
-              ) : (
-                rows.map((row) => (
-                  <tr key={row._id}>
-                    {columns.map((col) => (
-                      <td
-                        key={col.key}
-                        data-label={col.label}
-                        className={NUMERIC_COLUMNS.has(col.key) ? "is-num" : undefined}
-                      >
-                        {col.get(row)}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="rpt-pagination">
-          <span className="rpt-pagination__count">
-            {total} record{total === 1 ? "" : "s"}
-          </span>
-          <div className="rpt-pagination__nav">
-            <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1 || rowsLoading}>
-              Previous
-            </button>
-            <span>Page {page} of {totalPages}</span>
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages || rowsLoading}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-        </div>
-      </section>
+      <ReportGeneratorPanel scope={{ period: filter.preset, from: filter.from, to: filter.to, municipality: filter.municipality, text: scopeText, ready: customReady }} />
     </div>
   );
 }

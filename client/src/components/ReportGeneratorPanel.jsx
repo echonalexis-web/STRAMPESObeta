@@ -7,15 +7,6 @@ import AppModal from "./AppModal";
 import StateBlock from "./StateBlock";
 import ReportHistoryList from "./ReportHistoryList";
 import {
-  ACCOUNT_STATUSES,
-  AGE_BRACKETS,
-  JOB_STATUSES,
-  VERIFICATION_OPTIONS,
-  VERIFICATION_PENDING_REVIEW,
-  WORK_NATURES,
-} from "../utils/analyticsFilterParams";
-import {
-  DATASET_FILTERS,
   PURPOSE_MAX,
   PURPOSE_MIN,
   buildRequest,
@@ -23,35 +14,21 @@ import {
   errorCodeOf,
   filenameFromDisposition,
   initialBuilder,
-  periodOptionsFor,
   problems,
   selectDataset,
-  setFilter,
   toggleColumn,
 } from "../utils/reportBuilderState";
 import "../styles/analytics-filters.css";
 
-const FILTER_LABEL = {
-  municipality: "municipality",
-  industry: "industry",
-  jobType: "jobType",
-  workNature: "workNature",
-  jobStatus: "jobStatus",
-  verification: "verification",
-  accountStatus: "accountStatus",
-  ageBracket: "ageBracket",
-  dateField: "dateField",
-  scope: "scope",
-};
-
-// Report generator: five labelled steps, a preview of the exact numbers and the prepared-by
-// block, then one download. The server decides the preparer, the report ID and the time.
-export default function ReportGeneratorPanel() {
+// Report generator. Its period and municipality are the page's filter bar (`scope`), never its own
+// controls; the steps here are the report, the columns, the grouping, and the file and purpose.
+// The server decides the preparer, the report ID and the time.
+//   scope: { period, from, to, municipality, text, ready }
+export default function ReportGeneratorPanel({ scope }) {
   const { t } = useTranslation();
   const toast = useToast();
   const [catalog, setCatalog] = useState(null);
   const [catalogFailed, setCatalogFailed] = useState(false);
-  const [options, setOptions] = useState(null);
   const [builder, setBuilder] = useState(() => initialBuilder());
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState("");
@@ -70,18 +47,25 @@ export default function ReportGeneratorPanel() {
       .getReportCatalog()
       .then(({ data }) => live && setCatalog(data))
       .catch(() => live && setCatalogFailed(true));
-    adminAPI
-      .getAnalyticsFilterOptions()
-      .then(({ data }) => live && setOptions(data))
-      .catch(() => {});
     return () => {
       live = false;
     };
   }, [attempt]);
 
   const dataset = useMemo(() => (catalog ? catalog.datasets.find((item) => item.id === builder.dataset) || null : null), [catalog, builder.dataset]);
-  const missing = problems(builder, dataset);
-  const ready = missing.length === 0;
+  // The form's own choices plus the page's scope: this is what is sent and what is checked.
+  const effective = useMemo(
+    () => ({
+      ...builder,
+      period: scope.period,
+      from: scope.from,
+      to: scope.to,
+      filters: scope.municipality ? { municipality: scope.municipality } : {},
+    }),
+    [builder, scope.period, scope.from, scope.to, scope.municipality]
+  );
+  const missing = problems(effective, dataset);
+  const ready = missing.length === 0 && scope.ready !== false;
   const update = (patch) => setBuilder((current) => ({ ...current, ...patch }));
   const datasetName = (id) => t(`analyticsDash.generator.datasetLabels.${id}`, { defaultValue: id });
   const pdfCap = catalog && dataset ? dataset.maxRows.pdf : null;
@@ -94,7 +78,7 @@ export default function ReportGeneratorPanel() {
   const runPreview = async () => {
     setBusy("preview");
     try {
-      const { data } = await adminAPI.previewReportExport(buildRequest(builder, dataset));
+      const { data } = await adminAPI.previewReportExport(buildRequest(effective, dataset));
       setPreview(data);
     } catch (error) {
       toast.error(await failMessage(error));
@@ -114,7 +98,7 @@ export default function ReportGeneratorPanel() {
   const generate = async () => {
     setBusy("generate");
     try {
-      finish(await adminAPI.generateReportExport(buildRequest(builder, dataset)));
+      finish(await adminAPI.generateReportExport(buildRequest(effective, dataset)));
     } catch (error) {
       toast.error(await failMessage(error));
     } finally {
@@ -133,51 +117,32 @@ export default function ReportGeneratorPanel() {
     }
   };
 
-  const select = (id, value, list, path) => (
-    <div className="asf-field" key={id}>
-      <label htmlFor={`rg-${id}`}>{t(`analyticsDash.fields.${FILTER_LABEL[id]}`)}</label>
-      <select id={`rg-${id}`} value={value} onChange={(event) => setBuilder((current) => setFilter(current, id, event.target.value))}>
-        <option value="">{t("analyticsDash.all")}</option>
-        {list.map((entry) => (
-          <option key={entry} value={entry}>{path ? t(`analyticsDash.${path}.${entry}`, { defaultValue: entry }) : entry}</option>
-        ))}
-      </select>
-    </div>
-  );
-
-  const filterControl = (name) => {
-    const value = builder.filters[name] || "";
-    switch (name) {
-      case "municipality": return select(name, value, options?.municipalities || []);
-      case "industry": return select(name, value, options?.industries || []);
-      case "jobType": return select(name, value, options?.jobTypes || []);
-      case "workNature": return select(name, value, WORK_NATURES, "workNatures");
-      case "jobStatus": return select(name, value, JOB_STATUSES, "jobStatuses");
-      case "verification": return select(name, value, [VERIFICATION_PENDING_REVIEW, ...VERIFICATION_OPTIONS], "verificationValues");
-      case "accountStatus": return select(name, value, ACCOUNT_STATUSES, "accountStatuses");
-      case "ageBracket": return select(name, value, AGE_BRACKETS);
-      case "dateField": return select(name, value, ["applied", "registered"], "dateFields");
-      case "scope": return select(name, value, ["public"], "scopes");
-      default: return null;
-    }
-  };
-
   if (catalogFailed) {
     return (
-      <section className="asf" id="report-generator" aria-labelledby="rg-title">
+      <section className="asf" id="report-generator" aria-labelledby="rg-title" ref={sectionRef}>
         <h2 id="rg-title" className="asf__title">{t("analyticsDash.generator.title")}</h2>
         <StateBlock kind="error" title={t("analyticsDash.errorTitle")} description={t("analyticsDash.errorText")} onRetry={() => { setCatalogFailed(false); setAttempt((n) => n + 1); }} />
       </section>
     );
   }
 
+  const previewMessage = preview
+    ? preview.notEnoughData
+      ? t("analyticsDash.generator.previewNotEnough")
+      : preview.wouldExceedLimit
+        ? t("analyticsDash.generator.previewTooLarge", { max: preview.maxRows })
+        : preview.recordCount === 0
+          ? t("analyticsDash.generator.previewEmpty")
+          : t("analyticsDash.generator.previewCount", { count: preview.recordCount })
+    : "";
+
   return (
     <>
       <section className="asf rg" id="report-generator" aria-labelledby="rg-title" ref={sectionRef}>
         <header className="asf__head">
           <div>
-            <h2 id="rg-title" className="asf__title">{t("analyticsDash.generator.title")}</h2>
-            <p className="asf__intro">{t("analyticsDash.generator.intro")}</p>
+            <h2 id="rg-title" className="asf__title">{t("adminAnalytics.generator.sectionTitle")}</h2>
+            <p className="asf__intro">{t("adminAnalytics.generator.scopeIntro", { scope: scope.text })}</p>
           </div>
         </header>
 
@@ -203,58 +168,8 @@ export default function ReportGeneratorPanel() {
             {dataset && (
               <>
                 <fieldset className="rg__step">
-                  <legend>{t("analyticsDash.generator.step2")}</legend>
-                  <div className="asf__row">
-                    <div className="asf-field">
-                      <label htmlFor="rg-period">{t("analyticsDash.fields.period")}</label>
-                      <select id="rg-period" value={builder.period} onChange={(event) => update({ period: event.target.value })}>
-                        {periodOptionsFor(dataset.id).map((type) => <option key={type} value={type}>{t(`analyticsDash.periods.${type}`)}</option>)}
-                      </select>
-                    </div>
-                    {builder.period !== "custom" && (
-                      <div className="asf-field">
-                        <label htmlFor="rg-year">{t("analyticsDash.fields.year")}</label>
-                        <select id="rg-year" value={builder.year} onChange={(event) => update({ year: event.target.value })}>
-                          {[...new Set([...(options?.years || []).map(String), builder.year])].map((year) => <option key={year} value={year}>{year}</option>)}
-                        </select>
-                      </div>
-                    )}
-                    {builder.period === "quarter" && (
-                      <div className="asf-field">
-                        <label htmlFor="rg-quarter">{t("analyticsDash.fields.quarter")}</label>
-                        <select id="rg-quarter" value={builder.quarter} onChange={(event) => update({ quarter: event.target.value })}>
-                          {["1", "2", "3", "4"].map((q) => <option key={q} value={q}>{t(`analyticsDash.quarters.${q}`)}</option>)}
-                        </select>
-                      </div>
-                    )}
-                    {builder.period === "month" && (
-                      <div className="asf-field">
-                        <label htmlFor="rg-month">{t("analyticsDash.fields.month")}</label>
-                        <select id="rg-month" value={builder.month} onChange={(event) => update({ month: event.target.value })}>
-                          {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => <option key={m} value={m}>{t(`analyticsDash.months.${m}`)}</option>)}
-                        </select>
-                      </div>
-                    )}
-                    {builder.period === "custom" && (
-                      <>
-                        <div className="asf-field">
-                          <label htmlFor="rg-from">{t("analyticsDash.fields.from")}</label>
-                          <input id="rg-from" type="date" value={builder.from} onChange={(event) => update({ from: event.target.value })} />
-                        </div>
-                        <div className="asf-field">
-                          <label htmlFor="rg-to">{t("analyticsDash.fields.to")}</label>
-                          <input id="rg-to" type="date" value={builder.to} onChange={(event) => update({ to: event.target.value })} />
-                        </div>
-                      </>
-                    )}
-                    {(DATASET_FILTERS[dataset.id] || []).map(filterControl)}
-                  </div>
-                  {missing.includes("period") && <p className="asf__hint" role="alert">{t("analyticsDash.generator.needs.period")}</p>}
-                </fieldset>
-
-                <fieldset className="rg__step">
                   <legend>{t("analyticsDash.generator.step3")}</legend>
-                  {canChooseColumns(dataset, builder) ? (
+                  {canChooseColumns(dataset, effective) ? (
                     <>
                       <p className="asf__intro">{t("analyticsDash.generator.columnsHint")}</p>
                       <div className="rg__columns">
@@ -336,13 +251,7 @@ export default function ReportGeneratorPanel() {
       <AppModal isOpen={Boolean(preview)} onClose={() => setPreview(null)} title={t("analyticsDash.generator.previewTitle")} closeLabel={t("common.close", { defaultValue: "Close" })}>
         {preview && (
           <div className="rg__preview">
-            <p>
-              {preview.wouldExceedLimit
-                ? t("analyticsDash.generator.previewTooLarge", { max: preview.maxRows })
-                : preview.recordCount === 0
-                  ? t("analyticsDash.generator.previewEmpty")
-                  : t("analyticsDash.generator.previewCount", { count: preview.recordCount })}
-            </p>
+            <p role="status">{previewMessage}</p>
             <p className="asf__note">
               {t("analyticsDash.generator.previewPreparedBy", {
                 name: preview.preparedBy.name,
