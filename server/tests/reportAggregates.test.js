@@ -15,6 +15,7 @@ jest.mock("../utils/jobVisibility", () => ({
   UNLISTED_ACCOUNT_STATUSES: ["suspended", "banned", "deactivated"],
 }));
 
+jest.mock("../services/analytics/overviewStats", () => ({ scopeCounts: jest.fn(async () => ({ vacancies: 5, applications: 12, enough: true })) }));
 const User = require("../models/User");
 const AuditLog = require("../models/AuditLog");
 const ReportExport = require("../models/ReportExport");

@@ -19,6 +19,7 @@ const { loadCatalog } = require("../analytics/catalog");
 const { formatManilaStamp, formatManilaDate, manilaParts } = require("../analytics/period");
 const { suppressSmallCells } = require("../analytics/privacy");
 const datasets = require("./datasets");
+const { scopeCounts } = require("../analytics/overviewStats");
 const { DATASETS, FORMATS, SENSITIVE_DATASETS, PURPOSE_MIN, PURPOSE_MAX, rowCapFor, catalogForRole } = require("./catalog");
 const { FORMAT_RENDERERS } = require("./formats");
 
@@ -98,8 +99,18 @@ const validateRequest = async (user, body, now) => {
   const query = input.params && typeof input.params === "object" && !Array.isArray(input.params) ? input.params : {};
   const catalog = await loadCatalog();
   const parsed = parseAnalyticsFilter(query, { section: dataset.section, now, catalog });
+  // A dataset that does not read the municipality never prints one in its header.
+  if (!dataset.municipality) delete parsed.filter.municipality;
 
   return { dataset, format, columns: chosen, grouping, purpose, parsed };
+};
+
+// A report over a scope with fewer than 1 vacancy or 3 applications is refused before anything is
+// exported or logged as a success.
+const ensureEnoughData = async (spec) => {
+  if (!spec.dataset.needsData) return;
+  const counts = await scopeCounts(spec.parsed.period, spec.parsed.filter.municipality || null);
+  if (!counts.enough) throw fail(422, "NOT_ENOUGH_DATA", "There is not enough data for this period and municipality to make a report.");
 };
 
 // ------------------------------------------------------------------ data
@@ -218,9 +229,13 @@ const previewReport = async (user, body, now = new Date()) => {
   const preparer = await loadPreparer(user);
   const cap = rowCapFor(spec.format);
   try {
+    await ensureEnoughData(spec);
     const data = await fetchData(spec, { now, limit: PREVIEW_ROWS });
     return { dataset: spec.dataset.id, recordCount: data.recordCount, wouldExceedLimit: false, columns: data.columns, sample: data.rows, preparedBy: { name: preparer.name, role: preparer.role, ...(preparer.staffNote ? { office: preparer.staffNote } : {}) }, maxRows: cap, period: spec.parsed.period.label };
   } catch (error) {
+    if (error instanceof AnalyticsError && error.code === "NOT_ENOUGH_DATA") {
+      return { dataset: spec.dataset.id, recordCount: null, wouldExceedLimit: false, notEnoughData: true, columns: [], sample: [], preparedBy: { name: preparer.name, role: preparer.role }, maxRows: cap, period: spec.parsed.period.label };
+    }
     if (error instanceof AnalyticsError && error.code === "EXPORT_TOO_LARGE") {
       return { dataset: spec.dataset.id, recordCount: null, wouldExceedLimit: true, columns: [], sample: [], preparedBy: { name: preparer.name, role: preparer.role }, maxRows: cap, period: spec.parsed.period.label };
     }
@@ -266,6 +281,7 @@ const generateReport = async (user, body, { req = null, now = new Date(), regene
   try {
     const spec = await validateRequest(user, body, now);
     const preparer = await loadPreparer(user);
+    await ensureEnoughData(spec);
     const data = await fetchData(spec, { now, limit: rowCapFor(spec.format) + 1 });
     const reportId = newReportId(now);
     const meta = buildMeta({ spec, reportId, preparer, generatedAt: now, recordCount: data.recordCount, notes: data.notes, regeneratedFrom });

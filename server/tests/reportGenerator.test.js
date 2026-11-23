@@ -19,6 +19,8 @@ jest.mock("../utils/jobVisibility", () => ({
   UNLISTED_ACCOUNT_STATUSES: ["suspended", "banned", "deactivated"],
 }));
 
+jest.mock("../services/analytics/overviewStats", () => ({ scopeCounts: jest.fn(async () => ({ vacancies: 5, applications: 12, enough: true })) }));
+
 const crypto = require("crypto");
 const User = require("../models/User");
 const JobVacancy = require("../models/JobVacancy");
@@ -200,6 +202,37 @@ describe("audit first, history and hash", () => {
     await service.generateReport(ADMIN, body({ dataset: "hires", purpose: "Quarterly placement report" }), { now: NOW });
     expect(AuditLog.create.mock.calls[0][0]).toMatchObject({ severity: "warning" });
     expect(AuditLog.create.mock.calls[0][0].metadata.purpose).toBe("Quarterly placement report");
+  });
+});
+
+describe("not enough data", () => {
+  const { scopeCounts } = require("../services/analytics/overviewStats");
+
+  test("a scope with fewer than 1 vacancy or 3 applications is refused before anything is logged or exported", async () => {
+    scopeCounts.mockResolvedValueOnce({ vacancies: 0, applications: 9, enough: false });
+    await expect(service.generateReport(ADMIN, body(), { now: NOW })).rejects.toMatchObject({ status: 422, code: "NOT_ENOUGH_DATA" });
+    expect(AuditLog.create).not.toHaveBeenCalled();
+    expect(ReportExport.create).not.toHaveBeenCalled();
+    expect(service._inFlight.size).toBe(0);
+  });
+
+  test("the preview says so instead of failing", async () => {
+    scopeCounts.mockResolvedValueOnce({ vacancies: 3, applications: 2, enough: false });
+    expect(await service.previewReport(ADMIN, body(), NOW)).toMatchObject({ notEnoughData: true, recordCount: null, wouldExceedLimit: false });
+  });
+
+  test("the check uses the period and the municipality of the filter bar", async () => {
+    await service.generateReport(ADMIN, body({ params: { period: "30d", municipality: "Gasan" } }), { now: NOW });
+    const [period, municipality] = scopeCounts.mock.calls.at(-1);
+    expect(municipality).toBe("Gasan");
+    expect(period.label).toBe("Last 30 days");
+  });
+
+  test("a dataset that does not read the municipality never prints one", async () => {
+    const catalog = catalogForRole("admin").datasets;
+    expect(catalog.find((d) => d.id === "jobs").municipality).toBe(true);
+    expect(catalog.find((d) => d.id === "spes").municipality).toBe(false);
+    expect(catalog.find((d) => d.id === "employer_ranking").municipality).toBe(false);
   });
 });
 

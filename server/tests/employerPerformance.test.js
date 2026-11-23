@@ -76,6 +76,12 @@ describe("rankEmployers", () => {
     expect(notEnoughData[0].rank).toBeUndefined();
   });
 
+  test("an employer with no hire is not ranked, however many applicants it has", () => {
+    const { ranked, notEnoughData } = rankEmployers([row({ employerId: "none", hires: 0, applicants: 40 }), row({ employerId: "one", hires: 1 })]);
+    expect(ranked.map((r) => r.employerId)).toEqual(["one"]);
+    expect(notEnoughData.map((r) => r.employerId)).toEqual(["none"]);
+  });
+
   test("a missing time to hire sorts last", () => {
     const { ranked } = rankEmployers([row({ employerId: "n", name: "N", medianDaysToHire: null }), row({ employerId: "t", name: "T", medianDaysToHire: 40 })]);
     expect(ranked[0].employerId).toBe("t");
@@ -198,11 +204,13 @@ describe("getEmployerRanking", () => {
     expect(JobApplication.aggregate).not.toHaveBeenCalled();
   });
 
-  test("only quarter or year is accepted, and limit is capped at 50", async () => {
-    await expect(getEmployerRanking({ period: "month", year: "2026", month: "3" }, NOW)).rejects.toMatchObject({ code: "INVALID_PERIOD" });
+  test("any period type is accepted (the generator ranks rolling and custom ranges too); a bad one is refused", async () => {
     usersFind([]);
     mockAggregates({});
+    await expect(getEmployerRanking({ period: "30d" }, NOW)).resolves.toMatchObject({ period: { type: "30d" } });
+    await expect(getEmployerRanking({ period: "month", year: "2026", month: "3" }, NOW)).resolves.toBeDefined();
     await expect(getEmployerRanking({ period: "year", year: "2026", limit: "9999" }, NOW)).resolves.toBeDefined();
+    await expect(getEmployerRanking({ period: "decade" }, NOW)).rejects.toMatchObject({ code: "INVALID_PERIOD" });
   });
 
   test("a timeout is 504 QUERY_TIMEOUT through the handler", async () => {

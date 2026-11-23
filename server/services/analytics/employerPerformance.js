@@ -16,7 +16,7 @@ const User = require("../../models/User");
 const JobVacancy = require("../../models/JobVacancy");
 const JobApplication = require("../../models/JobApplication");
 const { PERFORMANCE, LIMITS } = require("./config");
-const { AnalyticsError, invalidPeriod } = require("./errors");
+const { AnalyticsError } = require("./errors");
 const { parsePeriodQuery, formatManilaDate } = require("./period");
 const { UNLISTED_ACCOUNT_STATUSES } = require("../../utils/jobVisibility");
 const { buildFunnel, timeToFillDays } = require("../archivedJobsService");
@@ -48,7 +48,7 @@ const round = (value, digits = 1) => (value === null || value === undefined ? nu
 const ratio = (part, whole) => (whole > 0 ? part / whole : null);
 
 // The minimum activity to be ranked (constants live in config.js).
-const hasEnoughData = (row) => row.postings >= PERFORMANCE.minPostings && row.applicants >= PERFORMANCE.minApplicants;
+const hasEnoughData = (row) => row.postings >= PERFORMANCE.minPostings && row.applicants >= PERFORMANCE.minApplicants && row.hires >= PERFORMANCE.minHires;
 
 const compareRows = (a, b) =>
   b.hires - a.hires ||
@@ -274,7 +274,6 @@ const periodMeta = (period) => ({
 // Quarter or year only; the rest of the period rules are the shared ones.
 const parsePerformancePeriod = (query, now) => {
   const period = parsePeriodQuery(query, now);
-  if (period.type !== "quarter" && period.type !== "year") throw invalidPeriod("Employer performance covers a quarter or a year.");
   return period;
 };
 

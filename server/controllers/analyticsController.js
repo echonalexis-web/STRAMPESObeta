@@ -36,6 +36,27 @@ exports.getAnalyticsSummary = async (req, res) => {
 };
 
 const { getEmployerRanking, getEmployerPerformanceDetail } = require("../services/analytics/employerPerformance");
+const { getAnalyticsOverview, getDashboardOverview } = require("../services/analytics/overviewStats");
+
+// GET /admin/analytics/dashboard: live numbers for "what needs a person today" (no date filter).
+exports.getDashboard = async (req, res) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(await getDashboardOverview());
+  } catch (error) {
+    return respondError(res, error, "Failed to load the dashboard");
+  }
+};
+
+// GET /admin/analytics/overview?period=7d|30d|90d|12m|custom&from=&to=&municipality=
+exports.getOverview = async (req, res) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(await getAnalyticsOverview(req.query));
+  } catch (error) {
+    return respondError(res, error, "Failed to load the analytics");
+  }
+};
 
 // GET /admin/analytics/performance/employers?period=quarter|year&year=&quarter=&limit=
 exports.getEmployerPerformance = async (req, res) => {

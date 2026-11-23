@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { getAnalyticsFilterOptions, getAnalyticsSummary, getEmployerPerformance, getEmployerPerformanceDetail } = require("../controllers/analyticsController");
+const { getAnalyticsFilterOptions, getAnalyticsSummary, getEmployerPerformance, getEmployerPerformanceDetail, getDashboard, getOverview } = require("../controllers/analyticsController");
 const {
   getAdminAnalytics,
   getProvincialAnalytics,
@@ -60,6 +60,8 @@ router.use(protect, isAdmin);
 // Dashboard
 router.get("/analytics", sanitizeQueryParams, getAdminAnalytics);
 router.get("/analytics/provincial", sanitizeQueryParams, getProvincialAnalytics);
+router.get("/analytics/dashboard", getDashboard);
+router.get("/analytics/overview", sanitizeQueryParams, getOverview);
 router.get("/analytics/filter-options", sanitizeQueryParams, getAnalyticsFilterOptions);
 router.get("/analytics/summary", sanitizeQueryParams, getAnalyticsSummary);
 // Report generator (not "reports": that word is the user-content moderation feature).

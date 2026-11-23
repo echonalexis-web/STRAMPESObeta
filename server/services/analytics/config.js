@@ -7,6 +7,8 @@
 const PERFORMANCE = Object.freeze({
   minPostings: 1,
   minApplicants: 3,
+  // An employer needs at least one hire to be listed among the top employers.
+  minHires: 1,
   defaultTopN: 10,
   maxTopN: 50,
   // An application counts toward the response rate once it is this old.

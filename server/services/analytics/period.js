@@ -84,6 +84,18 @@ const parseCivilDate = (value, label) => {
 const QUARTER_LABELS = ["Q1 (Jan to Mar)", "Q2 (Apr to Jun)", "Q3 (Jul to Sep)", "Q4 (Oct to Dec)"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+// Rolling presets: the last 7, 30 or 90 days (today included) or the last 12 calendar months
+// (this month included). Counted back from "now" in Manila time, so they move every day.
+const ROLLING_PRESETS = Object.freeze({ "7d": 7, "30d": 30, "90d": 90, "12m": 12 });
+const ROLLING_LABELS = Object.freeze({ "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days", "12m": "Last 12 months" });
+
+const rollingBounds = (type, now) => {
+  const today = manilaParts(now);
+  const to = startOfManilaDay(today.year, today.month, today.day + 1);
+  const from = type === "12m" ? startOfManilaDay(today.year, today.month - 11, 1) : startOfManilaDay(today.year, today.month, today.day - (ROLLING_PRESETS[type] - 1));
+  return { from, to, label: ROLLING_LABELS[type] };
+};
+
 const boundsFor = ({ type, year, quarter, month, fromParts, toParts }) => {
   if (type === "year") {
     return { from: startOfManilaDay(year, 1, 1), to: startOfManilaDay(year + 1, 1, 1), label: String(year) };
@@ -127,14 +139,16 @@ const previousSpec = (spec) => {
 //           previous: { from, to, label } | null, previousSameElapsedTo }.
 const periodBounds = (input = {}, now = new Date()) => {
   const type = input.type || "year";
-  if (!["year", "quarter", "month", "custom"].includes(type)) throw invalidPeriod("Unknown period type.");
+  if (!["year", "quarter", "month", "custom", ...Object.keys(ROLLING_PRESETS)].includes(type)) throw invalidPeriod("Unknown period type.");
   const thisYear = currentManilaYear(now);
 
   const spec = { type };
   let fromParts = null;
   let toParts = null;
 
-  if (type === "custom") {
+  if (ROLLING_PRESETS[type]) {
+    // nothing to read from the input: the preset is the whole choice
+  } else if (type === "custom") {
     fromParts = parseCivilDate(input.from, "From");
     toParts = parseCivilDate(input.to, "To");
     spec.fromParts = fromParts;
@@ -156,7 +170,7 @@ const periodBounds = (input = {}, now = new Date()) => {
     }
   }
 
-  const bounds = boundsFor(spec);
+  const bounds = ROLLING_PRESETS[type] ? rollingBounds(type, now) : boundsFor(spec);
   if (bounds.to <= bounds.from) throw invalidPeriod("The end of the period is before its start.");
   const spanDays = (bounds.to - bounds.from) / 86400000;
   if (spanDays > LIMITS.maxPeriodYears * 366) throw invalidPeriod(`A period can cover at most ${LIMITS.maxPeriodYears} years.`);
@@ -218,6 +232,7 @@ const parsePeriodQuery = (query = {}, now = new Date()) => {
 const manilaQuarter = (date) => Math.floor((manilaParts(date).month - 1) / 3) + 1;
 
 module.exports = {
+  ROLLING_PRESETS,
   MANILA_TZ,
   manilaParts,
   startOfManilaDay,
