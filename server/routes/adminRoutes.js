@@ -1,4 +1,5 @@
 const router = require("express").Router();
+const { getAnalyticsFilterOptions, getAnalyticsSummary } = require("../controllers/analyticsController");
 const {
   getAdminAnalytics,
   getProvincialAnalytics,
@@ -58,6 +59,8 @@ router.use(protect, isAdmin);
 // Dashboard
 router.get("/analytics", sanitizeQueryParams, getAdminAnalytics);
 router.get("/analytics/provincial", sanitizeQueryParams, getProvincialAnalytics);
+router.get("/analytics/filter-options", sanitizeQueryParams, getAnalyticsFilterOptions);
+router.get("/analytics/summary", sanitizeQueryParams, getAnalyticsSummary);
 
 // User management.
 // The management surface (provisioning-tier actions, the audit trail) is
