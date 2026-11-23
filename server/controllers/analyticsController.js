@@ -34,3 +34,25 @@ exports.getAnalyticsSummary = async (req, res) => {
     return respondError(res, error, "Failed to load statistics");
   }
 };
+
+const { getEmployerRanking, getEmployerPerformanceDetail } = require("../services/analytics/employerPerformance");
+
+// GET /admin/analytics/performance/employers?period=quarter|year&year=&quarter=&limit=
+exports.getEmployerPerformance = async (req, res) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(await getEmployerRanking(req.query));
+  } catch (error) {
+    return respondError(res, error, "Failed to load employer performance");
+  }
+};
+
+// GET /admin/analytics/performance/employers/:employerId
+exports.getEmployerPerformanceDetail = async (req, res) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(await getEmployerPerformanceDetail(req.params.employerId, req.query));
+  } catch (error) {
+    return respondError(res, error, "Failed to load employer performance");
+  }
+};
