@@ -24,7 +24,10 @@ const reportExportSchema = new mongoose.Schema(
     recordCount: { type: Number, default: 0 },
     purpose: { type: String, default: "" },
     contentSha256: { type: String, default: "" },
-    status: { type: String, enum: ["completed"], default: "completed" },
+    // "completed": a file was made. "blocked": the request was refused (for example not enough data)
+    // and nothing was exported; the reason is kept so the history can say why.
+    status: { type: String, enum: ["completed", "blocked"], default: "completed" },
+    blockedReason: { type: String, default: null },
     durationMs: { type: Number, default: 0 },
     regeneratedFrom: { type: String, default: null },
     schemaVersion: { type: Number, default: 1 },

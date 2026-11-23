@@ -211,8 +211,10 @@ describe("not enough data", () => {
   test("a scope with fewer than 1 vacancy or 3 applications is refused before anything is logged or exported", async () => {
     scopeCounts.mockResolvedValueOnce({ vacancies: 0, applications: 9, enough: false });
     await expect(service.generateReport(ADMIN, body(), { now: NOW })).rejects.toMatchObject({ status: 422, code: "NOT_ENOUGH_DATA" });
+    // nothing was exported, so nothing is audited as an export; the history keeps a "blocked" row with the reason
     expect(AuditLog.create).not.toHaveBeenCalled();
-    expect(ReportExport.create).not.toHaveBeenCalled();
+    expect(ReportExport.create).toHaveBeenCalledTimes(1);
+    expect(ReportExport.create.mock.calls[0][0]).toMatchObject({ status: "blocked", blockedReason: "NOT_ENOUGH_DATA", recordCount: 0, contentSha256: "", dataset: "jobs" });
     expect(service._inFlight.size).toBe(0);
   });
 
@@ -383,12 +385,100 @@ describe("history and regeneration", () => {
     const chain = { sort: () => chain, skip: () => chain, limit: jest.fn(() => chain), lean: async () => [stored()] };
     ReportExport.find.mockReturnValue(chain);
     ReportExport.countDocuments.mockResolvedValue(1);
-    const mine = await service.listReports(ADMIN, { limit: "500" });
+    const mine = await service.listReports(ADMIN, { limit: "50" });
     expect(ReportExport.find.mock.calls[0][0]["preparedBy.userId"]).toBe(ADMIN._id);
     expect(chain.limit).toHaveBeenCalledWith(50);
     expect(mine.items[0]).not.toHaveProperty("preparedBy.userId");
     await service.listReports(SUPER, {});
     expect(ReportExport.find.mock.calls[1][0]["preparedBy.userId"]).toBeUndefined();
+  });
+});
+
+describe("history filters, paging and result", () => {
+  const chain = () => {
+    const c = { sort: jest.fn(() => c), skip: jest.fn(() => c), limit: jest.fn(() => c), lean: async () => [] };
+    return c;
+  };
+  const ask = (user, query) => {
+    const c = chain();
+    ReportExport.find.mockReturnValue(c);
+    ReportExport.countDocuments.mockResolvedValue(0);
+    return service.listReports(user, query).then((result) => ({ result, c }));
+  };
+
+  test("a bad filter, page, limit, sort or date is a 400, never ignored", async () => {
+    for (const query of [
+      { dataset: "users" },
+      { dataset: "constructor" },
+      { format: "docx" },
+      { sort: "random" },
+      { limit: "500" },
+      { limit: "0" },
+      { page: "0" },
+      { page: "abc" },
+      { from: "2026-13-40" },
+      { to: "yesterday" },
+      { from: "2026-05-01", to: "2026-03-01" },
+      { dataset: { $ne: "jobs" } },
+      { format: ["csv"] },
+    ]) {
+      await expect(service.listReports(ADMIN, query)).rejects.toMatchObject({ status: 400, code: "INVALID_FILTER" });
+    }
+  });
+
+  test("report type, file type and date range become whole Manila days; newest first by default; paging is server side", async () => {
+    const { c } = await ask(ADMIN, { dataset: "hires", format: "pdf", from: "2026-11-01", to: "2026-11-20", page: "3", limit: "10" });
+    const filter = ReportExport.find.mock.calls.at(-1)[0];
+    expect(filter).toMatchObject({ dataset: "hires", format: "pdf", "preparedBy.userId": ADMIN._id });
+    expect(filter.createdAt.$gte.toISOString()).toBe("2026-10-31T16:00:00.000Z");
+    expect(filter.createdAt.$lt.toISOString()).toBe("2026-11-20T16:00:00.000Z");
+    expect(c.sort).toHaveBeenCalledWith({ createdAt: -1, _id: -1 });
+    expect(c.skip).toHaveBeenCalledWith(20);
+    expect(c.limit).toHaveBeenCalledWith(10);
+  });
+
+  test("oldest first can be asked for; a superadmin is not limited to their own", async () => {
+    const { c } = await ask(SUPER, { sort: "oldest" });
+    expect(c.sort).toHaveBeenCalledWith({ createdAt: 1, _id: 1 });
+    expect(ReportExport.find.mock.calls.at(-1)[0]["preparedBy.userId"]).toBeUndefined();
+  });
+
+  test("a row says made or blocked with the reason, and carries the period and municipality", async () => {
+    const row = (overrides) => ({
+      reportId: "RPT-1",
+      preparedBy: { userId: ADMIN._id, name: "Maria Santos", role: "admin" },
+      dataset: "jobs",
+      format: "csv",
+      params: { period: { type: "30d" }, municipality: "Gasan" },
+      periodFrom: new Date("2026-10-21T16:00:00Z"),
+      periodTo: new Date("2026-11-20T16:00:00Z"),
+      recordCount: 4,
+      createdAt: new Date("2026-11-20T06:05:00Z"),
+      ...overrides,
+    });
+    const c = chain();
+    c.lean = async () => [row({}), row({ reportId: "RPT-2", status: "blocked", blockedReason: "NOT_ENOUGH_DATA", recordCount: 0 })];
+    ReportExport.find.mockReturnValue(c);
+    ReportExport.countDocuments.mockResolvedValue(2);
+    const { items } = await service.listReports(ADMIN, {});
+    expect(items[0]).toMatchObject({ result: "made", blockedReason: null, municipality: "Gasan", period: { type: "30d", from: "2026-10-22", to: "2026-11-20" } });
+    expect(items[1]).toMatchObject({ result: "blocked", blockedReason: "NOT_ENOUGH_DATA" });
+    expect(JSON.stringify(items)).not.toMatch(/userId|contentSha256/);
+  });
+
+  test("an old row without a status reads as made", async () => {
+    const c = chain();
+    c.lean = async () => [{ reportId: "RPT-0", preparedBy: { userId: ADMIN._id, name: "M", role: "admin" }, dataset: "jobs", format: "csv", params: {}, createdAt: new Date() }];
+    ReportExport.find.mockReturnValue(c);
+    ReportExport.countDocuments.mockResolvedValue(1);
+    const { items } = await service.listReports(ADMIN, {});
+    expect(items[0]).toMatchObject({ result: "made", period: { type: null, from: null, to: null }, municipality: null });
+  });
+
+  test("reading the history never writes an audit entry or a history row", async () => {
+    await ask(ADMIN, {});
+    expect(AuditLog.create).not.toHaveBeenCalled();
+    expect(ReportExport.create).not.toHaveBeenCalled();
   });
 });
 

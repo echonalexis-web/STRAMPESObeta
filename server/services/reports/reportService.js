@@ -16,7 +16,7 @@ const ReportExport = require("../../models/ReportExport");
 const { AnalyticsError } = require("../analytics/errors");
 const { parseAnalyticsFilter, summarizeFilter } = require("../analytics/filters");
 const { loadCatalog } = require("../analytics/catalog");
-const { formatManilaStamp, formatManilaDate, manilaParts } = require("../analytics/period");
+const { formatManilaStamp, formatManilaDate, manilaParts, startOfManilaDay } = require("../analytics/period");
 const { suppressSmallCells } = require("../analytics/privacy");
 const datasets = require("./datasets");
 const { scopeCounts } = require("../analytics/overviewStats");
@@ -271,6 +271,27 @@ const writeAudit = ({ req, user, reportId, spec, recordCount, regeneratedFrom })
   });
 };
 
+// Best effort: the request is refused either way, so a failed history write must not hide the real reason.
+const recordBlocked = async ({ spec, preparer, reason, now, regeneratedFrom }) => {
+  try {
+    await ReportExport.create({
+      reportId: newReportId(now),
+      preparedBy: preparer,
+      ...record(spec),
+      periodFrom: spec.parsed.period.from,
+      periodTo: spec.parsed.period.to,
+      recordCount: 0,
+      contentSha256: "",
+      status: "blocked",
+      blockedReason: reason,
+      regeneratedFrom,
+      schemaVersion: SCHEMA_VERSION,
+    });
+  } catch (error) {
+    void error;
+  }
+};
+
 // POST /admin/report-exports  (and regenerate)
 // Returns { bytes, filename, contentType, reportId, recordCount }.
 const generateReport = async (user, body, { req = null, now = new Date(), regeneratedFrom = null } = {}) => {
@@ -281,7 +302,13 @@ const generateReport = async (user, body, { req = null, now = new Date(), regene
   try {
     const spec = await validateRequest(user, body, now);
     const preparer = await loadPreparer(user);
-    await ensureEnoughData(spec);
+    try {
+      await ensureEnoughData(spec);
+    } catch (error) {
+      // A refused report is kept in the history as "blocked" with its reason; no file, no audit of an export.
+      if (error instanceof AnalyticsError && error.code === "NOT_ENOUGH_DATA") await recordBlocked({ spec, preparer, reason: "NOT_ENOUGH_DATA", now, regeneratedFrom });
+      throw error;
+    }
     const data = await fetchData(spec, { now, limit: rowCapFor(spec.format) + 1 });
     const reportId = newReportId(now);
     const meta = buildMeta({ spec, reportId, preparer, generatedAt: now, recordCount: data.recordCount, notes: data.notes, regeneratedFrom });
@@ -312,18 +339,62 @@ const generateReport = async (user, body, { req = null, now = new Date(), regene
 const canSee = (user, item) => user.role === "superadmin" || String(item.preparedBy.userId) === String(user._id);
 
 // GET /admin/report-exports
+// Every history filter is a whitelist; anything else is a 400, never ignored.
+const HISTORY_SORTS = Object.freeze({ newest: { createdAt: -1, _id: -1 }, oldest: { createdAt: 1, _id: 1 } });
+
+const historyText = (value, name) => {
+  if (value === undefined || value === null || value === "") return "";
+  if (typeof value !== "string") throw fail(400, "INVALID_FILTER", `${name} is not valid.`);
+  return value.trim();
+};
+
+const historyInt = (value, name, { min, max, fallback }) => {
+  const text = historyText(value, name);
+  if (text === "") return fallback;
+  if (!/^\d{1,6}$/.test(text)) throw fail(400, "INVALID_FILTER", `${name} is not valid.`);
+  const n = Number(text);
+  if (n < min || n > max) throw fail(400, "INVALID_FILTER", `${name} is out of range.`);
+  return n;
+};
+
+const historyDay = (value, name) => {
+  const text = historyText(value, name);
+  if (text === "") return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  if (!match) throw fail(400, "INVALID_FILTER", `${name} must be a date like 2026-03-31.`);
+  const [, y, m, d] = match.map(Number);
+  const check = new Date(Date.UTC(y, m - 1, d));
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== m - 1 || check.getUTCDate() !== d) throw fail(400, "INVALID_FILTER", `${name} is not a real date.`);
+  return { y, m, d };
+};
+
+// GET /admin/report-exports
 const listReports = async (user, query = {}) => {
-  const page = Math.max(Number.parseInt(query.page, 10) || 1, 1);
-  const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 20, 1), 50);
+  const page = historyInt(query.page, "page", { min: 1, max: 100000, fallback: 1 });
+  const limit = historyInt(query.limit, "limit", { min: 1, max: 50, fallback: 20 });
+  const dataset = historyText(query.dataset, "dataset");
+  if (dataset && !Object.prototype.hasOwnProperty.call(DATASETS, dataset)) throw fail(400, "INVALID_FILTER", "dataset is not an allowed value.");
+  const format = historyText(query.format, "format");
+  if (format && !FORMATS.includes(format)) throw fail(400, "INVALID_FILTER", "format is not an allowed value.");
+  const sortKey = historyText(query.sort, "sort") || "newest";
+  if (!Object.prototype.hasOwnProperty.call(HISTORY_SORTS, sortKey)) throw fail(400, "INVALID_FILTER", "sort is not an allowed value.");
+  const from = historyDay(query.from, "from");
+  const to = historyDay(query.to, "to");
+  if (from && to && Date.UTC(from.y, from.m - 1, from.d) > Date.UTC(to.y, to.m - 1, to.d)) throw fail(400, "INVALID_FILTER", "from is after to.");
+
   const filter = {};
+  // Who may read what is decided here, not by the client: a PESO admin sees only their own reports.
   if (user.role !== "superadmin") filter["preparedBy.userId"] = user._id;
-  if (typeof query.dataset === "string" && DATASETS[query.dataset]) filter.dataset = query.dataset;
+  if (dataset) filter.dataset = dataset;
+  if (format) filter.format = format;
   const range = {};
-  if (typeof query.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(query.from)) range.$gte = new Date(`${query.from}T00:00:00+08:00`);
-  if (typeof query.to === "string" && /^\d{4}-\d{2}-\d{2}$/.test(query.to)) range.$lt = new Date(new Date(`${query.to}T00:00:00+08:00`).getTime() + 86400000);
+  // Whole Manila days: from the start of the first day to the start of the day after the last.
+  if (from) range.$gte = startOfManilaDay(from.y, from.m, from.d);
+  if (to) range.$lt = startOfManilaDay(to.y, to.m, to.d + 1);
   if (Object.keys(range).length) filter.createdAt = range;
+
   const [items, total] = await Promise.all([
-    ReportExport.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    ReportExport.find(filter).sort(HISTORY_SORTS[sortKey]).skip((page - 1) * limit).limit(limit).lean(),
     ReportExport.countDocuments(filter),
   ]);
   return { items: items.map(publicRecord), total, page, totalPages: Math.max(Math.ceil(total / limit), 1) };
@@ -342,6 +413,15 @@ const publicRecord = (item) => ({
   contentSha256: item.contentSha256,
   regeneratedFrom: item.regeneratedFrom || null,
   createdAt: item.createdAt,
+  // History columns: how the period was chosen, the municipality, and whether a file was made.
+  period: {
+    type: (item.params && item.params.period && item.params.period.type) || null,
+    from: item.periodFrom ? formatManilaDate(item.periodFrom) : null,
+    to: item.periodTo ? formatManilaDate(new Date(new Date(item.periodTo).getTime() - 1)) : null,
+  },
+  municipality: (item.params && item.params.municipality) || null,
+  result: item.status === "blocked" ? "blocked" : "made",
+  blockedReason: item.status === "blocked" ? item.blockedReason || null : null,
 });
 
 // GET /admin/report-exports/:reportId
