@@ -29,6 +29,7 @@ import { AuthContext } from "../context/AuthContext";
 import { messageAPI, notificationAPI } from "../services/api";
 import { useSocket } from "../context/SocketContext";
 import { useNavbarStylePreference } from "../hooks/useNavbarStylePreference";
+import { isStudioPath, useVisitSidebarStyle } from "../hooks/useVisitSidebarStyle";
 import { canViewJobs as canViewJobsAge, isJobVacancyEligibleAge } from "../utils/age";
 import "../styles/navbar.css";
 import pesoLogo from "../assets/images/peso-logo.png";
@@ -304,7 +305,13 @@ export default function Navbar() {
   const userRole = normalizeRole(user?.role);
   const isLoggedIn = Boolean(user);
   const currentUserId = user?._id || user?.id || null;
-  const [navbarStyle, setNavbarStyle] = useNavbarStylePreference(currentUserId);
+  const [savedNavbarStyle, saveNavbarStyle] = useNavbarStylePreference(currentUserId);
+  // The Resume & Cover Letter Studio shows the icon rail (route-driven, never saved): see the hook.
+  const [navbarStyle, setNavbarStyle] = useVisitSidebarStyle({
+    forced: isStudioPath(location.pathname),
+    savedStyle: savedNavbarStyle,
+    saveStyle: saveNavbarStyle,
+  });
   const isCompactNav = navbarStyle === "icons";
   const loggedInMenuItems = getLoggedInMenuItems(userRole, t);
   const isAdminRole = userRole === "admin" || userRole === "superadmin";
@@ -810,6 +817,7 @@ export default function Navbar() {
           className="sidebar-collapse-chip"
           onClick={() => setNavbarStyle(isCompactNav ? "full" : "icons")}
           aria-label={isCompactNav ? t("navbar.expandSidebar") : t("navbar.collapseSidebar")}
+          aria-expanded={!isCompactNav}
           title={isCompactNav ? t("navbar.expandSidebar") : t("navbar.collapseSidebar")}
         >
           <span className="sidebar-collapse-chip__arrow" aria-hidden="true" />
