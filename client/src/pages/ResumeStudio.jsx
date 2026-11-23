@@ -25,7 +25,7 @@ import {
   FaCheck,
   FaUpload,
 } from "react-icons/fa";
-import { authAPI, jobAPI, jobseekerDocumentAPI } from "../services/api";
+import { authAPI, jobAPI, jobseekerDocumentAPI, resumePhotoAPI } from "../services/api";
 import { useToast } from "../components/feedback/context";
 import { exportHtmlNodeToPdf, renderHtmlNodeToPdfBlob, downloadBlob } from "../utils/exportUtils";
 import {
@@ -42,17 +42,18 @@ import { reorderSkills, tailoredHeadline, documentTitle, documentFileName } from
 import { renderAtsPdfBlob } from "../utils/atsPdf";
 import { safeApplyReturnPath } from "../utils/returnTo";
 import { cleanHiringManagerName } from "../utils/studioText";
-import { fetchPhotoDataUrl, photoUrlOf } from "../utils/studioPhoto";
+import { blobToDataUrl, photoFileProblem } from "../utils/studioPhoto";
+import DocumentMenu from "../components/studio/DocumentMenu";
+import { ApplyingBar, ProfileBar } from "../components/studio/StudioBar";
+import ResumePhotoCard from "../components/studio/ResumePhotoCard";
+import ReviewStep from "../components/studio/ReviewStep";
 import { buildSkillsList } from "../utils/resumeDerivation";
 import AppModal from "../components/AppModal";
 import "../styles/resume-studio.css";
+import "../styles/studio.css";
 
-const LETTER_TONES = [
-  { key: "professional", label: "Professional & Formal", description: "Standard government/corporate tone" },
-  { key: "enthusiastic", label: "Enthusiastic & Passionate", description: "Highlights drive and community commitment" },
-  { key: "concise", label: "Concise & Direct", description: "Brief, high-impact bullet style" },
-  { key: "firstTime", label: "First Job / No Experience", description: "For fresh graduates and first-time jobseekers — leads with education and eagerness to learn" },
-];
+const LETTER_TONE_KEYS = ["professional", "enthusiastic", "concise", "firstTime"];
+const NO_PHOTO = { hasPhoto: false, name: "", dataUrl: "" };
 
 // Mirrors the section ids buildInitialResumeSections() always returns, so the
 // panel can label a section purely from its data-section id once content
@@ -161,7 +162,7 @@ const setSectionDraftText = (sectionEl, text) => {
   sectionEl.dataset.generated = "true";
 };
 
-const buildLetterHtml = ({ name, contactLine, todayLabel, companyName, tone, jobTitle, hiringManagerName = "", location = "", extraReplacements = {} }) => {
+const buildLetterHtml = ({ name, contactLine, todayLabel, companyName, tone, jobTitle, hiringManagerName = "", location = "", extraReplacements = {}, emptyText = "" }) => {
   // Only the job's own title and the employer's own name go in; a missing one is left out of the
   // text (see coverLetterText.js), never replaced by a bracketed placeholder.
   const paragraphs = tone
@@ -183,7 +184,7 @@ const buildLetterHtml = ({ name, contactLine, todayLabel, companyName, tone, job
     `<p class="letter-doc__salutation">${escapeHtml(salutationFor(hiringManagerName))}</p>` +
     (paragraphs.length
       ? paragraphs.map((p) => `<p class="letter-doc__paragraph">${escapeHtml(p)}</p>`).join("")
-      : `<p class="letter-doc__paragraph letter-doc__paragraph--empty">Pick a writing tone on the left, or start typing your letter here.</p>`) +
+      : `<p class="letter-doc__paragraph letter-doc__paragraph--empty">${escapeHtml(emptyText)}</p>`) +
     `<p class="letter-doc__signoff">Sincerely,<br>${escapeHtml(name)}</p>`
   );
 };
@@ -214,9 +215,16 @@ export default function ResumeStudio() {
   const [templateKey, setTemplateKey] = useState(DEFAULT_TEMPLATE_KEY);
   // "standard" | "ats". ATS locks the layout to the ATS template and turns the photo off.
   const [resumeType, setResumeType] = useState("standard");
+  // The applicant's own resume photo (not the profile photo) and whether THIS resume shows it.
+  const [photo, setPhoto] = useState(NO_PHOTO);
   const [showPhoto, setShowPhoto] = useState(false);
-  const [photoState, setPhotoState] = useState(""); // "" | "loading" | "failed"
-  const photoDataRef = useRef("");
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  // Applying mode steps ("resume" | "letter" | "review"), whether anything was saved, and the sticky bar.
+  const [step, setStep] = useState(() => (searchParams.get("mode") === "coverLetter" ? "letter" : "resume"));
+  const [savedOnce, setSavedOnce] = useState(false);
+  const pageRef = useRef(null);
+  const barRef = useRef(null);
   const [letterAddressee, setLetterAddressee] = useState("");
   const [uploadedResume, setUploadedResume] = useState(null); // { id, title } picked instead of the built resume
   const [uploading, setUploading] = useState(false);
@@ -279,8 +287,19 @@ export default function ResumeStudio() {
           .then((res) => ({ job: res.data?.job || null, code: "" }))
           .catch((error) => ({ job: null, code: error.response?.data?.code || (error.response?.status === 404 ? "JOB_NOT_FOUND" : "CHECK_FAILED") }))
       : Promise.resolve({ job: null, code: "" });
-    Promise.all([authAPI.getProfile(), checkJob])
-      .then(async ([{ data }, check]) => {
+    const loadResumePhoto = async () => {
+      try {
+        const { data: info } = await resumePhotoAPI.info();
+        if (!info?.hasPhoto) return NO_PHOTO;
+        const { data: blob } = await resumePhotoAPI.image();
+        const dataUrl = await blobToDataUrl(blob);
+        return dataUrl ? { hasPhoto: true, name: info.name || "photo", dataUrl } : NO_PHOTO;
+      } catch {
+        return NO_PHOTO;
+      }
+    };
+    Promise.all([authAPI.getProfile(), checkJob, loadResumePhoto()])
+      .then(async ([{ data }, check, loadedPhoto]) => {
         if (!mounted) return;
         if (applying && !check.job) {
           setBlockedCode(check.code || "CHECK_FAILED");
@@ -297,6 +316,8 @@ export default function ResumeStudio() {
         setProfile(loadedProfile);
         setTargetJob(loadedJob);
         setApplyJob(check.job);
+        setPhoto(loadedPhoto);
+        setShowPhoto(loadedPhoto.hasPhoto);
         setLetterAddressee(cleanHiringManagerName(check.job?.hiringManagerName));
 
         const sections = buildInitialResumeSections(loadedUser, loadedProfile);
@@ -333,6 +354,7 @@ export default function ResumeStudio() {
           contactLine: derivedContact,
           sections,
           matchedSkills: matched,
+          photoDataUrl: loadedPhoto.hasPhoto ? loadedPhoto.dataUrl : "",
         });
 
         // Applying mode pre-fills and generates the letter right away for THIS job: its exact title,
@@ -354,6 +376,7 @@ export default function ResumeStudio() {
           jobTitle: letterTitle,
           hiringManagerName: letterAddressee0,
           location: check.job?.location || "",
+          emptyText: t("studio.emptyLetter"),
           extraReplacements: {
             ...buildProfileCoverLetterReplacements(loadedUser, loadedProfile),
             ...buildJobMatchedCoverLetterReplacements(loadedJob),
@@ -522,7 +545,7 @@ export default function ResumeStudio() {
     };
     const html = buildLetterHtml({
       name, contactLine, todayLabel, companyName: letterCompanyName, tone, jobTitle: letterJobTitle,
-      hiringManagerName: letterAddressee, location: applyJob?.location || "", extraReplacements,
+      hiringManagerName: letterAddressee, location: applyJob?.location || "", extraReplacements, emptyText: t("studio.emptyLetter"),
     });
     letterHtmlRef.current = html;
     if (mode === "coverLetter" && canvasRef.current) canvasRef.current.innerHTML = html;
@@ -533,7 +556,7 @@ export default function ResumeStudio() {
     setLetterTone("");
     const html = buildLetterHtml({
       name, contactLine, todayLabel, companyName: letterCompanyName, tone: "", jobTitle: letterJobTitle,
-      hiringManagerName: letterAddressee, location: applyJob?.location || "",
+      hiringManagerName: letterAddressee, location: applyJob?.location || "", emptyText: t("studio.emptyLetter"),
     });
     letterHtmlRef.current = html;
     if (mode === "coverLetter" && canvasRef.current) canvasRef.current.innerHTML = html;
@@ -629,7 +652,19 @@ export default function ResumeStudio() {
   // The layout on the canvas: the ATS template for an ATS resume, else the chosen standard one
   // (cover letters always use a standard layout).
   const canvasTemplateKey = mode === "resume" && resumeType === "ats" ? ATS_TEMPLATE.key : templateKey;
-  const photoUrl = useMemo(() => photoUrlOf(user, profile), [user, profile]);
+  // The toolbar sticks right under the action bar, whatever its height is at this width or step: the
+  // bar's real height is measured and shared as --stu-bar-h (no magic number).
+  useEffect(() => {
+    const bar = barRef.current;
+    const page = pageRef.current;
+    if (!bar || !page) return undefined;
+    const publish = () => page.style.setProperty("--stu-bar-h", `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+    publish();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(publish);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  });
 
   const documentLabel = (kind) => (kind === "resume" ? "resume" : "cover-letter");
   // Library name: a clear "Cover letter - <Job> - <Employer>" when applying, else the file name.
@@ -662,7 +697,7 @@ export default function ResumeStudio() {
       .querySelectorAll(".letter-doc__sender, .letter-doc__date, .letter-doc__addressee, .letter-doc__recipient, .letter-doc__location, .letter-doc__salutation, .letter-doc__signoff")
       .forEach((el) => el.remove());
     clone.querySelectorAll(".letter-doc__paragraph--empty").forEach((el) => {
-      if (/^Pick a writing tone/.test(el.textContent.trim())) el.remove();
+      if (el.textContent.trim() === t("studio.emptyLetter")) el.remove();
     });
     return clone.textContent.trim();
   };
@@ -692,43 +727,72 @@ export default function ResumeStudio() {
      Resume type, photo, upload.
      --------------------------------------------------------------- */
   const stripPhoto = (root) => root.querySelectorAll(".resume-doc__photo").forEach((el) => el.remove());
+  const putPhoto = (root, dataUrl) => {
+    stripPhoto(root);
+    if (dataUrl) root.querySelector(".resume-doc__header")?.insertAdjacentHTML("afterbegin", photoHtml(dataUrl));
+  };
 
+  // The resume shows the photo only for a Standard resume whose switch is on. ATS never has one:
+  // choosing ATS takes the picture out (the stored photo stays), and going back to Standard puts it
+  // back if the switch is on.
   const chooseResumeType = (next) => {
     if (next === resumeType) return;
     setResumeType(next);
-    if (next === "ats") {
-      // Hiring software cannot read a photo: it is removed and the toggle is locked off.
-      setShowPhoto(false);
-      setPhotoState("");
-      withDocumentRoot("resume", stripPhoto);
-    }
+    if (next === "ats") withDocumentRoot("resume", stripPhoto);
+    else if (photo.hasPhoto && showPhoto) withDocumentRoot("resume", (root) => putPhoto(root, photo.dataUrl));
     markDirty("resume");
   };
 
-  const handlePhotoToggle = async (checked) => {
-    if (resumeType === "ats") return;
-    if (!checked) {
-      setShowPhoto(false);
-      setPhotoState("");
-      withDocumentRoot("resume", stripPhoto);
-      markDirty("resume");
-      return;
-    }
-    setPhotoState("loading");
-    const dataUrl = photoDataRef.current || (await fetchPhotoDataUrl(photoUrl));
-    if (!dataUrl) {
-      setPhotoState("failed");
-      setShowPhoto(false);
-      return;
-    }
-    photoDataRef.current = dataUrl;
-    setPhotoState("");
-    setShowPhoto(true);
-    withDocumentRoot("resume", (root) => {
-      stripPhoto(root);
-      root.querySelector(".resume-doc__header")?.insertAdjacentHTML("afterbegin", photoHtml(dataUrl));
-    });
+  const handleShowPhoto = (next) => {
+    if (resumeType === "ats" || !photo.hasPhoto) return;
+    setShowPhoto(next);
+    withDocumentRoot("resume", (root) => putPhoto(root, next ? photo.dataUrl : ""));
     markDirty("resume");
+  };
+
+  // Upload and Replace are the same call (one photo per applicant). The switch comes on by default.
+  const handlePhotoFile = async (file) => {
+    setPhotoError("");
+    const problem = photoFileProblem(file);
+    if (problem) {
+      setPhotoError(problem === "size" ? t("studio.photo.errSize") : t("studio.photo.errType"));
+      return;
+    }
+    setPhotoBusy(true);
+    try {
+      const { data: info } = await resumePhotoAPI.put(file);
+      const { data: blob } = await resumePhotoAPI.image();
+      const dataUrl = await blobToDataUrl(blob);
+      if (!dataUrl) throw new Error("unreadable");
+      setPhoto({ hasPhoto: true, name: info.name || file.name, dataUrl });
+      setShowPhoto(true);
+      if (resumeType !== "ats") withDocumentRoot("resume", (root) => putPhoto(root, dataUrl));
+      markDirty("resume");
+      setStatusMessage(t("studio.photo.saved"));
+    } catch (error) {
+      setPhotoError(error.response?.data?.message || t("studio.photo.errFailed"));
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  // Removing the photo changes this resume and the stored photo only; resumes already saved to the
+  // library keep their own copy of the picture.
+  const handlePhotoRemove = async () => {
+    setPhotoError("");
+    setPhotoBusy(true);
+    try {
+      await resumePhotoAPI.remove();
+      setPhoto({ hasPhoto: false, name: "", dataUrl: "" });
+      setShowPhoto(false);
+      withDocumentRoot("resume", (root) => putPhoto(root, ""));
+      markDirty("resume");
+      setStatusMessage(t("studio.photo.removed"));
+    } catch (error) {
+      setPhotoError(error.response?.data?.message || t("studio.photo.errFailed"));
+    } finally {
+      setPhotoBusy(false);
+    }
   };
 
   const handleResumeFile = async (event) => {
@@ -761,7 +825,7 @@ export default function ResumeStudio() {
      --------------------------------------------------------------- */
   const handleExportPdf = async () => {
     const node = canvasRef.current;
-    if (!node) return;
+    if (!node || exporting) return;
     try {
       setExporting(true);
       const filename = `${name.replace(/\s+/g, "-")}-${documentLabel(mode)}.pdf`;
@@ -796,7 +860,8 @@ export default function ResumeStudio() {
         console.warn("Failed to mirror resume into the document library", libraryError);
       }
 
-      setStatusMessage(t("applyFlow.savedLibrary"));
+      setSavedOnce(true);
+      setStatusMessage("");
       toast.success("Saved to your profile.");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save resume to profile.");
@@ -824,6 +889,7 @@ export default function ResumeStudio() {
       // Marks a cover letter as made for THIS job; the server only accepts such a letter for it.
       sourceJobId: kind === "coverLetter" && applying ? targetJobId : undefined,
       resumeType: kind === "resume" ? resumeType : undefined,
+      hasPhoto: kind === "resume" && resumeType !== "ats" && photo.hasPhoto && showPhoto,
     });
     savedDocsRef.current[kind] = { signature, doc: data };
     return data;
@@ -843,7 +909,8 @@ export default function ResumeStudio() {
       setSavingToLibrary(true);
       await saveDocument(mode);
       clearDirty(mode);
-      setStatusMessage(t("applyFlow.savedLibrary"));
+      setSavedOnce(true);
+      setStatusMessage("");
       toast.success(t("applyFlow.savedLibrary"));
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save to your library.");
@@ -875,6 +942,7 @@ export default function ResumeStudio() {
       const resumeId = uploadedResume ? uploadedResume.id : String((await saveDocument("resume"))._id);
       const letter = await saveDocument("coverLetter");
       clearDirty();
+      setSavedOnce(true);
       toast.success(t("applyFlow.saved"));
       navigate(backPath, { state: { reopenApply: { jobId: targetJobId, resumeId, coverLetterId: String(letter._id) } } });
     } catch (error) {
@@ -914,283 +982,307 @@ export default function ResumeStudio() {
   }
 
   const applyEmployer = applyJob?.companyName || "";
-  const blockId = "rstudio-block-message";
+  const blockId = "stu-block-message";
+  const atsLocked = resumeType === "ats";
+  const photoShown = photo.hasPhoto && showPhoto && !atsLocked;
+
+  /* ---------------------------------------------------------------
+     Steps (applying mode), primary button, status text, menu.
+     --------------------------------------------------------------- */
+  const steps = [
+    { key: "resume", label: t("studio.steps.resume") },
+    { key: "letter", label: t("studio.steps.letter") },
+    { key: "review", label: t("studio.steps.review") },
+  ];
+
+  // Moving forward into Review needs a resume with content and a letter with no [brackets]; going
+  // back or to the letter is always allowed.
+  const goToStep = (target) => {
+    if (target === step) return;
+    if (target === "review") {
+      const issues = collectIssues();
+      if (issues.length) {
+        showIssues(issues);
+        return;
+      }
+    }
+    setBlockMessage("");
+    if (target === "resume") switchMode("resume");
+    if (target === "letter") switchMode("coverLetter");
+    setStep(target);
+  };
+
+  const applyingPrimary =
+    step === "resume"
+      ? { label: t("studio.nextLetter"), run: () => goToStep("letter") }
+      : step === "letter"
+        ? { label: t("studio.nextReview"), run: () => goToStep("review") }
+        : { label: continuing ? t("applyFlow.continueSaving") : t("applyFlow.continue"), run: handleContinue };
+
+  const statusText = statusMessage || (dirty ? t("studio.status.unsaved") : savedOnce ? t("studio.status.saved") : t("studio.status.clean"));
+
+  const menuItems = [
+    { key: "library", label: t("studio.saveLibrary"), icon: <FaFolderPlus aria-hidden="true" />, onSelect: handleSaveToLibrary },
+    ...(!applying && mode === "resume"
+      ? [{ key: "profile", label: t("studio.saveProfile"), icon: <FaSave aria-hidden="true" />, onSelect: handleSaveToProfile }]
+      : []),
+    { key: "export", label: t("studio.exportPdf"), icon: <FaDownload aria-hidden="true" />, onSelect: handleExportPdf },
+  ];
+
+  const profilePrimary =
+    mode === "resume"
+      ? { label: savingToProfile ? t("studio.saving") : t("studio.saveProfile"), run: handleSaveToProfile, busy: savingToProfile }
+      : { label: savingToLibrary ? t("studio.saving") : t("studio.saveLibrary"), run: handleSaveToLibrary, busy: savingToLibrary };
+
+  const lookLabel = (DOCUMENT_TEMPLATES.find((tpl) => tpl.key === templateKey) || DOCUMENT_TEMPLATES[0]).label;
+  const reviewResumeReady = Boolean(uploadedResume) || resumeHasContent();
+  const reviewLetterIssue = step === "review" ? letterIssue() : "";
 
   return (
-    <div className="rstudio-page">
+    <div className="stu-page" ref={pageRef}>
       {applying && applyJob ? (
-        <div className="rstudio-applybar">
-          <div className="rstudio-applybar__banner">
-            {applyEmployer
-              ? t("applyFlow.banner", { job: applyJob.title, employer: applyEmployer })
-              : t("applyFlow.bannerNoEmployer", { job: applyJob.title })}
-            {dirty ? <span className="rstudio-applybar__dirty"> · {t("applyFlow.unsavedChanges")}</span> : null}
-          </div>
-          <div className="rstudio-applybar__actions">
-            <button type="button" className="rstudio-btn rstudio-btn--ghost" onClick={requestBack}>
-              <FaArrowLeft aria-hidden="true" /> {t("applyFlow.back")}
-            </button>
-            <button
-              type="button"
-              className="rstudio-btn rstudio-btn--primary"
-              onClick={handleContinue}
-              aria-disabled={continuing}
-              aria-describedby={blockMessage ? blockId : undefined}
-              title={t("applyFlow.continueHelp")}
-            >
-              {continuing ? t("applyFlow.continueSaving") : t("applyFlow.continue")}
-            </button>
-          </div>
-          {blockMessage ? (
-            <p className="rstudio-applybar__error" id={blockId} role="alert">
-              {blockMessage}
-            </p>
-          ) : null}
-        </div>
-      ) : blockMessage ? (
-        <p className="rstudio-inline-error" id={blockId} role="alert">
-          {blockMessage}
-        </p>
-      ) : null}
-      <p className="rstudio-sr-status" role="status" aria-live="polite">
-        {statusMessage}
-      </p>
+        <ApplyingBar
+          ref={barRef}
+          t={t}
+          jobTitle={applyJob.title}
+          employer={applyEmployer}
+          statusText={statusText}
+          steps={steps}
+          activeStep={step}
+          onStep={goToStep}
+          onBack={requestBack}
+          primaryLabel={applyingPrimary.label}
+          onPrimary={applyingPrimary.run}
+          busy={continuing}
+          error={blockMessage}
+          errorId={blockId}
+        />
+      ) : (
+        <ProfileBar
+          ref={barRef}
+          t={t}
+          mode={mode}
+          onMode={switchMode}
+          statusText={statusText}
+          primaryLabel={profilePrimary.label}
+          onPrimary={profilePrimary.run}
+          busy={profilePrimary.busy}
+          error={blockMessage}
+          errorId={blockId}
+        />
+      )}
 
-      <div className="rstudio-topbar">
-        <div className="rstudio-heading">
-          <nav className="rstudio-breadcrumb">
-            <Link to="/profile">Profile</Link>
-            <span className="rstudio-breadcrumb__sep">/</span>
-            <span className="is-current">Resume &amp; Cover Letter Studio</span>
-          </nav>
-          <h1>NSRP Auto-Derived Career Studio</h1>
-        </div>
-
-        <div className="rstudio-topbar__actions">
-          <div className="rstudio-modeswitch" role="tablist">
-            <button type="button" role="tab" aria-selected={mode === "resume"} className={mode === "resume" ? "is-active" : ""} onClick={() => switchMode("resume")}>
-              <FaFileAlt /> Resume Builder
-            </button>
-            <button type="button" role="tab" aria-selected={mode === "coverLetter"} className={mode === "coverLetter" ? "is-active" : ""} onClick={() => switchMode("coverLetter")}>
-              <FaEnvelopeOpenText /> Cover Letter Generator
-            </button>
-          </div>
-
-          <button
-            type="button"
-            className="rstudio-btn rstudio-btn--ghost"
-            onClick={handleSaveToProfile}
-            disabled={mode !== "resume" || savingToProfile}
-            title={mode !== "resume" ? "Saving cover letters to your profile isn't available yet" : undefined}
-          >
-            <FaSave /> {savingToProfile ? "Saving…" : "Save to Profile"}
-          </button>
-          <button
-            type="button"
-            className="rstudio-btn rstudio-btn--ghost"
-            onClick={handleSaveToLibrary}
-            disabled={savingToLibrary}
-            aria-describedby={blockMessage ? blockId : undefined}
-            title="Save this document to your Resumes & Cover Letters library so you can attach it to job applications"
-          >
-            <FaFolderPlus /> {savingToLibrary ? "Saving…" : "Save to Library"}
-          </button>
-          <button type="button" className="rstudio-btn rstudio-btn--primary" onClick={handleExportPdf} disabled={exporting}>
-            <FaDownload /> {exporting ? "Preparing…" : "Export Printable PDF"}
-          </button>
-        </div>
-      </div>
-
-      <div className="rstudio-body">
+      {step !== "review" ? (
         <button
           type="button"
-          className="rstudio-mobile-panel-toggle"
-          onClick={() => setMobilePanelOpen((v) => !v)}
+          className="stu-btn stu-btn--secondary stu-settings-toggle"
           aria-expanded={mobilePanelOpen}
+          aria-controls="stu-rail"
+          onClick={() => setMobilePanelOpen((open) => !open)}
         >
-          <span>{mode === "resume" ? "Resume settings" : "Cover letter settings"}</span>
-          <span className="rstudio-mobile-panel-toggle__chevron" aria-hidden="true">{mobilePanelOpen ? "▲" : "▼"}</span>
+          {mobilePanelOpen ? t("studio.hideSettings") : t("studio.showSettings")}
         </button>
+      ) : null}
 
-        <aside className={`rstudio-panel ${mobilePanelOpen ? "is-open" : ""}`}>
-          <section className="rstudio-section rstudio-panel__pinned">
-            {mode === "resume" ? (
-              <div className="rstudio-type">
-                <h4 id="rstudio-type-label">{t("applyFlow.resumeType")}</h4>
-                <div className="rstudio-type__group" role="radiogroup" aria-labelledby="rstudio-type-label">
-                  {[
-                    { key: "standard", label: t("applyFlow.typeStandard") },
-                    { key: "ats", label: t("applyFlow.typeAts") },
-                  ].map((option) => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      role="radio"
-                      aria-checked={resumeType === option.key}
-                      className={`rstudio-type__option ${resumeType === option.key ? "is-selected" : ""}`}
-                      onClick={() => chooseResumeType(option.key)}
-                    >
-                      {resumeType === option.key ? <FaCheck aria-hidden="true" /> : null} {option.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="rstudio-muted rstudio-type__hint">
-                  {resumeType === "ats" ? t("applyFlow.typeAtsHint") : t("applyFlow.typeStandardHint")}
-                </p>
-              </div>
-            ) : null}
-            <h4>Visual Style Template</h4>
-            <div className="rstudio-template-grid">
-              {(mode === "resume" && resumeType === "ats" ? [ATS_TEMPLATE] : DOCUMENT_TEMPLATES).map((tpl) => (
-                <button
-                  key={tpl.key}
-                  type="button"
-                  className={`rstudio-template-card ${canvasTemplateKey === tpl.key ? "is-selected" : ""}`}
-                  onClick={() => {
-                    if (tpl.key !== ATS_TEMPLATE.key) {
-                      setTemplateKey(tpl.key);
-                      markDirty();
-                    }
-                  }}
-                  title={tpl.description}
-                >
-                  <span className={`tpl-thumb tpl-thumb--${tpl.key}`}>
-                    <span className="tpl-thumb__accent" />
-                    <span className="tpl-thumb__lines">
-                      <span className="tpl-thumb__line" />
-                      <span className="tpl-thumb__line tpl-thumb__line--short" />
-                      <span className="tpl-thumb__line" />
-                    </span>
-                  </span>
-                  <span className="rstudio-template-card__label">{tpl.label}</span>
-                </button>
-              ))}
-            </div>
-          </section>
+      {step === "review" ? (
+        <ReviewStep
+          t={t}
+          resume={{
+            typeLabel: atsLocked ? t("applyFlow.typeAts") : t("applyFlow.typeStandard"),
+            lookLabel: atsLocked ? t("studio.atsLook") : lookLabel,
+            photoShown,
+            title: titleFor("resume"),
+          }}
+          letter={{
+            salutation: salutationFor(cleanHiringManagerName(letterAddressee)),
+            jobEmployer: [letterJobTitle || applyJob?.title, letterCompanyName || applyEmployer].filter(Boolean).join(" · "),
+            toneLabel: letterTone ? t(`studio.tones.${letterTone}.title`) : "—",
+            title: titleFor("coverLetter"),
+            addressedNote: cleanHiringManagerName(letterAddressee)
+              ? t("studio.review.addressed", { name: cleanHiringManagerName(letterAddressee) })
+              : t("studio.review.addressedFallback"),
+            noBrackets: !reviewLetterIssue,
+          }}
+          ready={{ resume: reviewResumeReady, letter: !reviewLetterIssue }}
+          onEdit={(target) => goToStep(target === "resume" ? "resume" : "letter")}
+        />
+      ) : null}
 
-          <div className="rstudio-panel__scroll">
+      <div className="stu-main">
+        {step !== "review" ? (
+          <aside className={`stu-rail${mobilePanelOpen ? " is-open" : ""}`} id="stu-rail" aria-label={t("studio.settingsLabel")}>
             {mode === "resume" ? (
               <>
-              {applying ? <p className="rstudio-tailored-note">{t("applyFlow.tailoredNote")}</p> : null}
-              <section className="rstudio-section">
-                <h4>{t("applyFlow.photoToggle")}</h4>
-                <label className="rstudio-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={showPhoto && resumeType !== "ats"}
-                    disabled={resumeType === "ats" || !photoUrl || photoState === "loading"}
-                    onChange={(e) => handlePhotoToggle(e.target.checked)}
-                    aria-describedby="rstudio-photo-note"
+                <section className="stu-card" aria-labelledby="stu-c-type">
+                  <h2 className="stu-card__title" id="stu-c-type">{t("studio.cardType")}</h2>
+                  <div className="stu-segment" role="radiogroup" aria-labelledby="stu-c-type">
+                    {[
+                      { key: "standard", label: t("applyFlow.typeStandard") },
+                      { key: "ats", label: t("applyFlow.typeAts") },
+                    ].map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        role="radio"
+                        aria-checked={resumeType === option.key}
+                        className={`stu-segment__option${resumeType === option.key ? " is-selected" : ""}`}
+                        onClick={() => chooseResumeType(option.key)}
+                      >
+                        {resumeType === option.key ? <FaCheck size={11} aria-hidden="true" /> : null} {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="stu-help">{atsLocked ? t("applyFlow.typeAtsHint") : t("applyFlow.typeStandardHint")}</p>
+                </section>
+
+                <section className="stu-card" aria-labelledby="stu-c-look">
+                  <h2 className="stu-card__title" id="stu-c-look">{t("studio.cardLook")}</h2>
+                  <div className="stu-looks">
+                    {DOCUMENT_TEMPLATES.map((tpl) => (
+                      <button
+                        key={tpl.key}
+                        type="button"
+                        className={`stu-look${!atsLocked && templateKey === tpl.key ? " is-selected" : ""}`}
+                        aria-pressed={!atsLocked && templateKey === tpl.key}
+                        disabled={atsLocked}
+                        title={tpl.description}
+                        onClick={() => {
+                          setTemplateKey(tpl.key);
+                          markDirty("resume");
+                        }}
+                      >
+                        <span className={`tpl-thumb tpl-thumb--${tpl.key}`} aria-hidden="true">
+                          <span className="tpl-thumb__accent" />
+                          <span className="tpl-thumb__lines">
+                            <span className="tpl-thumb__line" />
+                            <span className="tpl-thumb__line tpl-thumb__line--short" />
+                          </span>
+                        </span>
+                        <span>
+                          {!atsLocked && templateKey === tpl.key ? <FaCheck size={10} aria-hidden="true" /> : null} {tpl.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {atsLocked ? <p className="stu-help">{t("studio.atsLook")}</p> : null}
+                </section>
+
+                <section className="stu-card" aria-labelledby="stu-c-photo">
+                  <h2 className="stu-card__title" id="stu-c-photo">{t("studio.cardPhoto")}</h2>
+                  <ResumePhotoCard
+                    t={t}
+                    hasPhoto={photo.hasPhoto}
+                    name={photo.name}
+                    dataUrl={photo.dataUrl}
+                    show={showPhoto}
+                    onShow={handleShowPhoto}
+                    locked={atsLocked}
+                    busy={photoBusy}
+                    error={photoError}
+                    onFile={handlePhotoFile}
+                    onRemove={handlePhotoRemove}
                   />
-                  <span className="rstudio-checkbox__label">{t("applyFlow.photoToggle")}</span>
-                </label>
-                <p className="rstudio-muted" id="rstudio-photo-note">
-                  {resumeType === "ats" ? (
-                    t("applyFlow.photoAtsOff")
-                  ) : !photoUrl ? (
-                    <>
-                      {t("applyFlow.photoMissing")} <Link to="/profile">{t("applyFlow.photoAdd")}</Link>
-                    </>
-                  ) : photoState === "failed" ? (
-                    t("applyFlow.photoLoadFailed")
-                  ) : null}
-                </p>
-              </section>
+                </section>
 
-              <section className="rstudio-section">
-                <h4>{t("applyFlow.uploadResume")}</h4>
-                <label className="rstudio-btn rstudio-btn--ghost rstudio-upload">
-                  <FaUpload aria-hidden="true" /> {uploading ? t("applyFlow.uploading") : t("applyFlow.uploadResume")}
-                  <input type="file" accept=".pdf,.doc,.docx" hidden onChange={handleResumeFile} disabled={uploading} aria-describedby="rstudio-upload-note" />
-                </label>
-                <p className="rstudio-muted" id="rstudio-upload-note">{t("applyFlow.uploadHint")}</p>
-                {uploadError ? <p className="rstudio-inline-error" role="alert">{uploadError}</p> : null}
-                {applying && uploadedResume ? (
-                  <p className="rstudio-muted">
-                    {uploadedResume.title}{" "}
-                    <button type="button" className="rstudio-clear-link" onClick={() => setUploadedResume(null)} aria-label="Remove">×</button>
-                  </p>
-                ) : null}
-              </section>
-
-              <section className="rstudio-section">
-                <div className="rstudio-section__headrow">
-                  <h4>Sections &amp; Order</h4>
-                  <span className="rstudio-muted">Click into the document to edit</span>
-                </div>
-                <div className="rstudio-preset-list">
-                  {RESUME_SECTION_PRESETS.map((preset) => (
-                    <button
-                      key={preset.key}
-                      type="button"
-                      className={`rstudio-preset-btn ${sectionPreset === preset.key ? "is-active" : ""}`}
-                      onClick={() => applyPreset(preset.key)}
-                      title={preset.description}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="rstudio-sections-list">
-                  {sectionRows.map((row) => (
-                    <div className="rstudio-section-row" key={row.id}>
-                      <label className="rstudio-checkbox">
-                        <input type="checkbox" checked={row.visible} onChange={() => toggleSectionVisible(row.id)} />
-                        <span className="rstudio-checkbox__label">{row.title}</span>
-                      </label>
-                      <div className="rstudio-section-row__move">
-                        <button type="button" onClick={() => moveSection(row.id, -1)} disabled={row.isFirst} aria-label={`Move ${row.title} up`}>
-                          <span aria-hidden="true">▲</span>
-                        </button>
-                        <button type="button" onClick={() => moveSection(row.id, 1)} disabled={row.isLast} aria-label={`Move ${row.title} down`}>
-                          <span aria-hidden="true">▼</span>
-                        </button>
+                <section className="stu-card" aria-labelledby="stu-c-sections">
+                  <h2 className="stu-card__title" id="stu-c-sections">{t("studio.cardSections")}</h2>
+                  <div className="stu-looks" role="group" aria-label={t("studio.cardSections")}>
+                    {RESUME_SECTION_PRESETS.map((preset) => (
+                      <button
+                        key={preset.key}
+                        type="button"
+                        className={`stu-look${sectionPreset === preset.key ? " is-selected" : ""}`}
+                        aria-pressed={sectionPreset === preset.key}
+                        title={preset.description}
+                        onClick={() => applyPreset(preset.key)}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="stu-sections">
+                    {sectionRows.map((row) => (
+                      <div className="stu-section-row" key={row.id}>
+                        <label>
+                          <input type="checkbox" checked={row.visible} onChange={() => toggleSectionVisible(row.id)} />
+                          <span>{row.title}</span>
+                        </label>
+                        <div className="stu-move">
+                          <button type="button" onClick={() => moveSection(row.id, -1)} disabled={row.isFirst} aria-label={t("studio.moveUp", { section: row.title })}>
+                            <span aria-hidden="true">▲</span>
+                          </button>
+                          <button type="button" onClick={() => moveSection(row.id, 1)} disabled={row.isLast} aria-label={t("studio.moveDown", { section: row.title })}>
+                            <span aria-hidden="true">▼</span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="stu-card" aria-labelledby="stu-c-upload">
+                  <h2 className="stu-card__title" id="stu-c-upload">{t("studio.uploadResume")}</h2>
+                  <label className="stu-btn stu-btn--secondary stu-upload">
+                    <FaUpload aria-hidden="true" /> {uploading ? t("applyFlow.uploading") : t("studio.uploadResume")}
+                    <input type="file" accept=".pdf,.doc,.docx" hidden onChange={handleResumeFile} disabled={uploading} aria-describedby="stu-upload-note" />
+                  </label>
+                  <p className="stu-help" id="stu-upload-note">{t("studio.uploadResumeNote")}</p>
+                  {uploadError ? <p className="stu-error" role="alert">{uploadError}</p> : null}
+                  {applying && uploadedResume ? (
+                    <p className="stu-help">
+                      {uploadedResume.title}{" "}
+                      <button type="button" className="stu-btn stu-btn--secondary stu-btn--small" onClick={() => setUploadedResume(null)} aria-label="Remove">×</button>
+                    </p>
+                  ) : null}
+                </section>
               </>
             ) : (
               <>
-                <section className="rstudio-section">
-                  <h4>Writing Tone</h4>
-                  <div className="rstudio-tone-list">
-                    {LETTER_TONES.map((tone) => (
-                      <label key={tone.key} className={`rstudio-tone-card ${letterTone === tone.key ? "is-selected" : ""}`}>
-                        <input type="radio" name="letter-tone" checked={letterTone === tone.key} onChange={() => applyLetterTone(tone.key)} />
-                        <span className="rstudio-tone-card__body">
-                          <strong>{tone.label}</strong>
-                          <small>{tone.description}</small>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  <button type="button" className="rstudio-clear-link" onClick={clearLetter}>Clear cover letter content</button>
+                <section className="stu-card" aria-labelledby="stu-c-who">
+                  <h2 className="stu-card__title" id="stu-c-who">{t("studio.cardWho")}</h2>
+                  <label className="stu-field">
+                    <span>{t("studio.employer")}</span>
+                    <input type="text" value={letterCompanyName} onChange={handleLetterCompanyChange} placeholder={t("studio.employerPlaceholder")} />
+                  </label>
+                  <label className="stu-field">
+                    <span>{t("studio.position")}</span>
+                    <input type="text" value={letterJobTitle} onChange={(e) => { setLetterJobTitle(e.target.value); markDirty(); }} placeholder={t("studio.positionPlaceholder")} />
+                  </label>
+                  <label className="stu-field">
+                    <span>{t("applyFlow.addressedTo")}</span>
+                    <input type="text" value={letterAddressee} onChange={handleAddresseeChange} maxLength={80} placeholder={t("applyFlow.hiringManagerPlaceholder")} aria-describedby="stu-addressee-help" />
+                  </label>
+                  <p className="stu-help" id="stu-addressee-help">{t("applyFlow.addressedToHelp")}</p>
                 </section>
 
-                <section className="rstudio-section">
-                  <h4>Target Application</h4>
-                  <label className="rstudio-field">
-                    <span>Target Employer / Company</span>
-                    <input type="text" value={letterCompanyName} onChange={handleLetterCompanyChange} placeholder="e.g. Marinduque Trading Corp." />
-                  </label>
-                  <label className="rstudio-field">
-                    <span>Target Job Position</span>
-                    <input type="text" value={letterJobTitle} onChange={(e) => { setLetterJobTitle(e.target.value); markDirty(); }} placeholder="e.g. Administrative Assistant" />
-                  </label>
-                  <label className="rstudio-field">
-                    <span>{t("applyFlow.addressedTo")}</span>
-                    <input type="text" value={letterAddressee} onChange={handleAddresseeChange} maxLength={80} placeholder={t("applyFlow.hiringManagerPlaceholder")} aria-describedby="rstudio-addressee-help" />
-                  </label>
-                  <p className="rstudio-muted" id="rstudio-addressee-help">{t("applyFlow.addressedToHelp")}</p>
+                <section className="stu-card" aria-labelledby="stu-c-tone">
+                  <h2 className="stu-card__title" id="stu-c-tone">{t("studio.cardTone")}</h2>
+                  <div className="stu-tones">
+                    {LETTER_TONE_KEYS.map((key) => (
+                      <button key={key} type="button" className="stu-tone" aria-pressed={letterTone === key} onClick={() => applyLetterTone(key)}>
+                        <span className="stu-tone__title">
+                          {letterTone === key ? <FaCheck size={11} aria-hidden="true" /> : null}
+                          {t(`studio.tones.${key}.title`)}
+                        </span>
+                        <span className="stu-tone__desc">{t(`studio.tones.${key}.desc`)}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="stu-tone-actions">
+                    <button type="button" className="stu-btn stu-btn--secondary" onClick={() => applyLetterTone(letterTone || "professional")}>
+                      {t("studio.regenerate")}
+                    </button>
+                    <button type="button" className="stu-btn stu-btn--secondary" onClick={clearLetter}>
+                      {t("studio.clearLetter")}
+                    </button>
+                  </div>
                 </section>
               </>
             )}
-          </div>
-        </aside>
+          </aside>
+        ) : null}
 
-        <div className="rstudio-doc-workspace">
+        <div className={`stu-editor${step === "review" ? " is-parked" : ""}`} aria-hidden={step === "review" ? "true" : undefined} inert={step === "review" ? "" : undefined}>
           <div className="rstudio-toolbar" role="toolbar" aria-label="Formatting">
             <div className="rstudio-tb-group" onMouseDown={(e) => e.preventDefault()}>
               <button type="button" className="rstudio-tb-btn" onClick={() => runCmd("undo")} title="Undo"><FaUndo /></button>
@@ -1240,9 +1332,12 @@ export default function ResumeStudio() {
               <button type="button" className={`rstudio-tb-btn ${activeFormats.insertUnorderedList ? "is-active" : ""}`} onClick={() => runCmd("insertUnorderedList")} title="Bulleted list"><FaListUl /></button>
               <button type="button" className={`rstudio-tb-btn ${activeFormats.insertOrderedList ? "is-active" : ""}`} onClick={() => runCmd("insertOrderedList")} title="Numbered list"><FaListOl /></button>
             </div>
+            <div className="stu-toolbar-end">
+              <DocumentMenu label={t("studio.docMenu")} menuLabel={t("studio.docMenuLabel")} items={menuItems} />
+            </div>
           </div>
 
-          <div className="rstudio-canvas-scroll">
+          <div className="stu-canvas-area">
             <div
               ref={canvasRef}
               className={`rstudio-canvas ${mode === "resume" ? "resume-doc" : "letter-doc"} ${getTemplateClassName(canvasTemplateKey)}`}
@@ -1258,27 +1353,29 @@ export default function ResumeStudio() {
               }}
             />
           </div>
+          {applying && mode === "resume" ? <p className="stu-note">{t("studio.tailoredNote")}</p> : null}
         </div>
       </div>
 
       <AppModal
         isOpen={leaveOpen}
         onClose={() => setLeaveOpen(false)}
-        title={t("applyFlow.leaveTitle")}
-        titleId="rstudio-leave-title"
-        describedBy="rstudio-leave-body"
+        title={t("studio.leave.title")}
+        titleId="stu-leave-title"
+        describedBy="stu-leave-body"
+        role="alertdialog"
         hideClose
       >
-        <p id="rstudio-leave-body">{t("applyFlow.leaveBody")}</p>
-        <div className="rstudio-leave__actions">
-          <button type="button" className="rstudio-btn rstudio-btn--primary" onClick={leaveAndSave}>
-            {t("applyFlow.leaveSave")}
+        <p id="stu-leave-body">{t("studio.leave.body")}</p>
+        <div className="stu-leave__actions">
+          <button type="button" className="stu-btn stu-btn--primary" onClick={leaveAndSave}>
+            {t("studio.leave.save")}
           </button>
-          <button type="button" className="rstudio-btn rstudio-btn--ghost" onClick={() => navigate(backPath)}>
-            {t("applyFlow.leaveDiscard")}
+          <button type="button" className="stu-btn stu-btn--secondary" onClick={() => navigate(backPath)}>
+            {t("studio.leave.discard")}
           </button>
-          <button type="button" className="rstudio-btn rstudio-btn--ghost" onClick={() => setLeaveOpen(false)}>
-            {t("applyFlow.leaveStay")}
+          <button type="button" className="stu-btn stu-btn--secondary" onClick={() => setLeaveOpen(false)}>
+            {t("studio.leave.stay")}
           </button>
         </div>
       </AppModal>

@@ -1,35 +1,31 @@
-// The applicant's existing profile photo, for the optional photo on a standard resume. It reuses
-// the photo already on their profile (the same value the avatar shows); nothing new is uploaded.
+// The resume photo the applicant uploads for the resumes they make in the Studio. It is its own
+// image (server: /jobseeker/documents/photo), never the profile photo.
+//
+// The picture is read once into a data: URL so the resume holds the picture itself: drawing it into
+// the PDF is not blocked by the image's origin, and a resume saved today keeps its photo even if the
+// applicant later replaces or removes theirs.
 
-import { resolveAssetUrl } from "../services/api";
+export const PHOTO_MAX_BYTES = 2 * 1024 * 1024; // the same cap the server enforces
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-const MAX_BYTES = 3 * 1024 * 1024;
-const ALLOWED = /^image\/(png|jpe?g|webp)$/;
-
-// The uploaded photo's URL, or "" when the profile has none. (A chosen preset avatar is an
-// illustration, not a photo of the applicant, so it is not used here.)
-export const photoUrlOf = (user, profile) => {
-  const raw = user?.profileImage || profile?.profileImage || "";
-  return raw ? resolveAssetUrl(raw) : "";
+// Quick check before anything is sent. The server still decides from the real bytes.
+// Returns "" when fine, else "type" or "size".
+export const photoFileProblem = (file) => {
+  if (!file) return "type";
+  if (!PHOTO_TYPES.includes(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name || "")) return "type";
+  if (file.size > PHOTO_MAX_BYTES) return "size";
+  return "";
 };
 
-// Reads the photo into a data: URL so the resume holds the picture itself (and so drawing it into
-// the PDF is not blocked by the photo's origin). Returns "" for anything that is not a small
-// png/jpeg/webp or that cannot be fetched.
-export const fetchPhotoDataUrl = async (url, fetchImpl = (typeof fetch === "function" ? fetch : null)) => {
-  if (!url || !fetchImpl) return "";
-  try {
-    const response = await fetchImpl(url);
-    if (!response.ok) return "";
-    const blob = await response.blob();
-    if (!ALLOWED.test(blob.type) || blob.size > MAX_BYTES) return "";
-    return await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-      reader.onerror = () => resolve("");
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return "";
-  }
-};
+// A Blob as a data: URL, or "" if it cannot be read or is not a jpeg/png/webp.
+export const blobToDataUrl = (blob) =>
+  new Promise((resolve) => {
+    if (!blob || !PHOTO_TYPES.includes(blob.type)) {
+      resolve("");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(blob);
+  });

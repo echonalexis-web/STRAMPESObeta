@@ -1,0 +1,121 @@
+{
+  "studio": {
+    "title": "Career Studio",
+    "crumbProfile": "Profile",
+    "crumbStudio": "Resume & Cover Letter Studio",
+    "documentSwitch": "Dokumento",
+    "modeResume": "Resume",
+    "modeLetter": "Cover letter",
+    "applyingTo": "Nag-a-apply sa",
+    "back": "Bumalik sa Browse Jobs",
+    "status": {
+      "unsaved": "Mga pagbabagong hindi pa naka-save",
+      "saved": "Naka-save sa library",
+      "clean": "Wala pang pagbabago"
+    },
+    "stepsLabel": "Mga hakbang sa aplikasyon",
+    "steps": {
+      "resume": "Resume",
+      "letter": "Cover letter",
+      "review": "Suriin"
+    },
+    "stepDone": "tapos na",
+    "nextLetter": "Susunod: Cover letter",
+    "nextReview": "Susunod: Suriin",
+    "saving": "Sine-save…",
+    "docMenu": "Dokumento",
+    "docMenuLabel": "Mga aksyon sa dokumento",
+    "saveLibrary": "I-save sa Library",
+    "saveProfile": "I-save sa Profile",
+    "exportPdf": "I-export ang printable PDF",
+    "showSettings": "Ipakita ang mga setting",
+    "hideSettings": "Itago ang mga setting",
+    "settingsLabel": "Mga setting",
+    "cardType": "Uri ng resume",
+    "cardLook": "Itsura",
+    "cardPhoto": "Larawan sa resume",
+    "cardSections": "Mga seksyon at pagkakasunod-sunod",
+    "cardWho": "Para kanino ito",
+    "cardTone": "Tono",
+    "atsLook": "Isang payak na itsura lang ang ginagamit ng ATS",
+    "atsPhoto": "Hindi isinasama ang larawan sa ATS resume dahil hindi ito nababasa ng hiring software.",
+    "moveUp": "Ilipat paitaas ang {{section}}",
+    "moveDown": "Ilipat pababa ang {{section}}",
+    "uploadResume": "Mag-upload na lang ng resume file",
+    "uploadResumeNote": "PDF o Word, hanggang 5 MB.",
+    "employer": "Employer",
+    "position": "Posisyon sa trabaho",
+    "employerPlaceholder": "hal. Marinduque Trading Corp.",
+    "positionPlaceholder": "hal. Administrative Assistant",
+    "regenerate": "Buuin ulit",
+    "clearLetter": "Burahin ang letter",
+    "tones": {
+      "professional": {
+        "title": "Propesyonal at Pormal",
+        "desc": "Karaniwang tono ng gobyerno o korporasyon"
+      },
+      "enthusiastic": {
+        "title": "Masigla at Madamdamin",
+        "desc": "Ipinapakita ang sigasig at malasakit sa komunidad"
+      },
+      "concise": {
+        "title": "Maikli at Direkta",
+        "desc": "Maikli at may epekto"
+      },
+      "firstTime": {
+        "title": "Unang Trabaho / Walang Karanasan",
+        "desc": "Nauuna ang edukasyon at kagustuhang matuto"
+      }
+    },
+    "photo": {
+      "upload": "Mag-upload ng larawan",
+      "dropHint": "o i-drop dito ang larawan",
+      "note": "JPG, PNG o WebP, hanggang 2 MB. Sa mga resume lang na ginagawa mo gagamitin. Hindi nagbabago ang larawan sa iyong profile.",
+      "replace": "Palitan",
+      "remove": "Alisin",
+      "show": "Ipakita ang larawan sa resume na ito",
+      "on": "Naka-on",
+      "off": "Naka-off",
+      "alt": "Ang iyong larawan sa resume",
+      "uploading": "Ina-upload…",
+      "errType": "Gumamit ng JPG, PNG o WebP na larawan.",
+      "errSize": "Mas malaki sa 2 MB ang larawang iyon.",
+      "errFailed": "Hindi ma-save ang larawan. Subukan ulit.",
+      "removed": "Naalis ang larawan sa resume.",
+      "saved": "Na-save ang larawan sa resume."
+    },
+    "tailoredNote": "Iniangkop sa trabahong ito: inuna ang sarili mong mga kasanayan na hinahanap nito. Walang idinagdag.",
+    "emptyLetter": "Walang laman ang cover letter. Isulat ito rito, o pindutin ang Buuin ulit para gawan ng draft mula sa iyong profile at sa trabaho.",
+    "review": {
+      "heading": "Suriin",
+      "resume": "Resume",
+      "letter": "Cover letter",
+      "type": "Uri",
+      "look": "Itsura",
+      "photo": "Larawan",
+      "photoShown": "Nasa resume",
+      "photoHidden": "Wala sa resume",
+      "savedAs": "Isi-save bilang",
+      "salutation": "Pagbati",
+      "jobEmployer": "Trabaho at employer",
+      "tone": "Tono",
+      "addressed": "Naka-address kay {{name}}.",
+      "addressedFallback": "Walang hiring contact ang posting, kaya naka-address ito sa Hiring Manager.",
+      "noBrackets": "Walang naiwang [bracket]",
+      "editResume": "I-edit ang resume",
+      "editLetter": "I-edit ang cover letter",
+      "before": "Bago magpatuloy",
+      "checkResume": "Handa na ang resume",
+      "checkLetter": "Handa na ang cover letter",
+      "checkSaved": "Parehong isi-save sa iyong library",
+      "nothingSent": "Wala pang naipapadala. Kukumpirmahin mo ito sa Apply screen."
+    },
+    "leave": {
+      "title": "Aalis nang hindi nagse-save?",
+      "body": "May mga pagbabago kang hindi pa naka-save. I-save ang mga ito sa iyong library, itapon, o manatili rito.",
+      "save": "I-save at bumalik",
+      "discard": "Itapon ang mga pagbabago",
+      "stay": "Manatili rito"
+    }
+  }
+}

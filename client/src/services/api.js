@@ -423,7 +423,7 @@ export const jobAPI = {
 // visible to employers until one is attached to a submitted application.
 export const jobseekerDocumentAPI = {
   list: (kind) => api.get('/jobseeker/documents', { ...getAuthHeader(), params: kind ? { kind } : {} }),
-  upload: ({ file, kind, title, source, sourceJobId, resumeType, onProgress }) => {
+  upload: ({ file, kind, title, source, sourceJobId, resumeType, hasPhoto, onProgress }) => {
     const fd = new FormData();
     fd.append('file', file, file.name);
     fd.append('kind', kind);
@@ -431,6 +431,7 @@ export const jobseekerDocumentAPI = {
     if (source) fd.append('source', source);
     if (sourceJobId) fd.append('sourceJobId', sourceJobId);
     if (resumeType) fd.append('resumeType', resumeType);
+    if (hasPhoto) fd.append('hasPhoto', 'true');
     return api.post('/jobseeker/documents/upload', fd, {
       ...getAuthFormHeader(),
       onUploadProgress: onProgress
@@ -440,6 +441,18 @@ export const jobseekerDocumentAPI = {
   },
   setPrimary: (id) => api.patch(`/jobseeker/documents/${id}/primary`, {}, getAuthHeader()),
   remove: (id) => api.delete(`/jobseeker/documents/${id}`, getAuthHeader()),
+};
+
+// The applicant's resume photo (one per account, separate from the profile photo, owner-only).
+export const resumePhotoAPI = {
+  info: () => api.get('/jobseeker/documents/photo/info', getAuthHeader()),
+  image: () => api.get('/jobseeker/documents/photo', { ...getAuthHeader(), responseType: 'blob' }),
+  put: (file) => {
+    const fd = new FormData();
+    fd.append('photo', file, file.name);
+    return api.put('/jobseeker/documents/photo', fd, getAuthFormHeader());
+  },
+  remove: () => api.delete('/jobseeker/documents/photo', getAuthHeader()),
 };
 
 export const adminAPI = {

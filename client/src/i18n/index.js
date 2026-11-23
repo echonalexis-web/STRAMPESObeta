@@ -10,6 +10,9 @@ import analyticsFil from "./locales/analytics.fil.json";
 // Apply-document flow (Studio applying mode, resume type, photo, upload, hiring manager).
 import applyFlowEn from "./locales/applyFlow.en.json";
 import applyFlowFil from "./locales/applyFlow.fil.json";
+// Resume & Cover Letter Studio layout (action bar, steps, settings rail, photo, review).
+import studioEn from "./locales/studio.en.json";
+import studioFil from "./locales/studio.fil.json";
 
 const STORAGE_KEY = "stramPesoLanguage";
 
@@ -37,8 +40,8 @@ const storedLanguage = readStoredLanguage();
 
 i18n.use(initReactI18next).init({
   resources: {
-    en: { translation: deepMerge(deepMerge(en, analyticsEn), applyFlowEn) },
-    fil: { translation: deepMerge(deepMerge(fil, analyticsFil), applyFlowFil) },
+    en: { translation: deepMerge(deepMerge(deepMerge(en, analyticsEn), applyFlowEn), studioEn) },
+    fil: { translation: deepMerge(deepMerge(deepMerge(fil, analyticsFil), applyFlowFil), studioFil) },
   },
   lng: storedLanguage || "en",
   fallbackLng: "en",

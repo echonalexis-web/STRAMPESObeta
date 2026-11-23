@@ -12,7 +12,8 @@ import "../styles/app-modal.css";
 // behaving the same): `titleId` labels the dialog by the visible title
 // instead of an aria-label, `describedBy` points aria-describedby at a
 // message element, `closeLabel` localizes the close button, and `hideClose`
-// removes the close button for a state that must not be dismissed.
+// removes the close button for a state that must not be dismissed, and `role`
+// ("alertdialog" for a decision the user must answer before going on).
 export default function AppModal({
   isOpen,
   onClose,
@@ -24,6 +25,7 @@ export default function AppModal({
   describedBy,
   closeLabel = "Close modal",
   hideClose = false,
+  role = "dialog",
 }) {
   const dialogRef = useRef(null);
   useModalA11y(isOpen, onClose, dialogRef);
@@ -44,7 +46,7 @@ export default function AppModal({
     >
       <div
         className={["app-modal-card", "am-card", panelClassName].filter(Boolean).join(" ")}
-        role="dialog"
+        role={role}
         aria-modal="true"
         aria-label={titleId ? undefined : title}
         aria-labelledby={titleId}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 // The Resume & Cover Letter Studio needs the width, so the sidebar shows as the icon rail while the
 // applicant is in it. This is driven by the route, not by the saved preference:
@@ -14,18 +14,17 @@ export const isStudioPath = (pathname) => pathname === STUDIO_PATH || String(pat
 // `forced`: the current route is the studio. `savedStyle` / `saveStyle`: the normal, persisted
 // preference ("full" | "icons") and the function that saves it.
 export function useVisitSidebarStyle({ forced, savedStyle, saveStyle }) {
-  // What the applicant chose for this visit ("full" | "icons"), or null for "use the route's default".
-  const [visitStyle, setVisitStyle] = useState(null);
-
-  // Leaving the studio ends the visit, so a later entry starts collapsed again.
-  useEffect(() => {
-    if (!forced) setVisitStyle(null);
-  }, [forced]);
+  // What the applicant chose for this visit ("full" | "icons"), or null for the route's default. It is tied to
+  // the route state it was made in, so leaving the studio ends the visit (a later entry starts
+  // collapsed again) without any effect.
+  const [visit, setVisit] = useState({ forced, style: null });
+  if (visit.forced !== forced) setVisit({ forced, style: null });
+  const visitStyle = visit.forced === forced ? visit.style : null;
 
   const style = forced ? visitStyle ?? "icons" : savedStyle;
   const setStyle = useCallback(
     (next) => {
-      if (forced) setVisitStyle(next);
+      if (forced) setVisit({ forced, style: next });
       else saveStyle(next);
     },
     [forced, saveStyle]

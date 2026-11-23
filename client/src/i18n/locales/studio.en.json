@@ -1,0 +1,121 @@
+{
+  "studio": {
+    "title": "Career Studio",
+    "crumbProfile": "Profile",
+    "crumbStudio": "Resume & Cover Letter Studio",
+    "documentSwitch": "Document",
+    "modeResume": "Resume",
+    "modeLetter": "Cover letter",
+    "applyingTo": "Applying to",
+    "back": "Back to Browse Jobs",
+    "status": {
+      "unsaved": "Unsaved changes",
+      "saved": "Saved to library",
+      "clean": "No changes yet"
+    },
+    "stepsLabel": "Application steps",
+    "steps": {
+      "resume": "Resume",
+      "letter": "Cover letter",
+      "review": "Review"
+    },
+    "stepDone": "done",
+    "nextLetter": "Next: Cover letter",
+    "nextReview": "Next: Review",
+    "saving": "Saving…",
+    "docMenu": "Document",
+    "docMenuLabel": "Document actions",
+    "saveLibrary": "Save to Library",
+    "saveProfile": "Save to Profile",
+    "exportPdf": "Export printable PDF",
+    "showSettings": "Show settings",
+    "hideSettings": "Hide settings",
+    "settingsLabel": "Settings",
+    "cardType": "Resume type",
+    "cardLook": "Look",
+    "cardPhoto": "Resume photo",
+    "cardSections": "Sections and order",
+    "cardWho": "Who it is for",
+    "cardTone": "Tone",
+    "atsLook": "ATS uses one plain look",
+    "atsPhoto": "Photos are left out of ATS resumes because hiring software cannot read them.",
+    "moveUp": "Move {{section}} up",
+    "moveDown": "Move {{section}} down",
+    "uploadResume": "Upload a resume file instead",
+    "uploadResumeNote": "PDF or Word, up to 5 MB.",
+    "employer": "Employer",
+    "position": "Job position",
+    "employerPlaceholder": "e.g. Marinduque Trading Corp.",
+    "positionPlaceholder": "e.g. Administrative Assistant",
+    "regenerate": "Regenerate",
+    "clearLetter": "Clear letter",
+    "tones": {
+      "professional": {
+        "title": "Professional & Formal",
+        "desc": "Standard government or corporate tone"
+      },
+      "enthusiastic": {
+        "title": "Enthusiastic & Passionate",
+        "desc": "Shows drive and community commitment"
+      },
+      "concise": {
+        "title": "Concise & Direct",
+        "desc": "Brief and high-impact"
+      },
+      "firstTime": {
+        "title": "First Job / No Experience",
+        "desc": "Leads with education and eagerness to learn"
+      }
+    },
+    "photo": {
+      "upload": "Upload a photo",
+      "dropHint": "or drop a photo here",
+      "note": "JPG, PNG or WebP, up to 2 MB. Used only on resumes you make. Your profile photo is not changed.",
+      "replace": "Replace",
+      "remove": "Remove",
+      "show": "Show photo on this resume",
+      "on": "On",
+      "off": "Off",
+      "alt": "Your resume photo",
+      "uploading": "Uploading…",
+      "errType": "Use a JPG, PNG or WebP photo.",
+      "errSize": "That photo is larger than 2 MB.",
+      "errFailed": "The photo could not be saved. Try again.",
+      "removed": "Resume photo removed.",
+      "saved": "Resume photo saved."
+    },
+    "tailoredNote": "Tailored to this job: your own skills are ordered so the ones it asks for come first. Nothing was added.",
+    "emptyLetter": "The cover letter is empty. Write it here, or press Regenerate to draft it from your profile and the job.",
+    "review": {
+      "heading": "Review",
+      "resume": "Resume",
+      "letter": "Cover letter",
+      "type": "Type",
+      "look": "Look",
+      "photo": "Photo",
+      "photoShown": "Shown on the resume",
+      "photoHidden": "Not on the resume",
+      "savedAs": "Will be saved as",
+      "salutation": "Salutation",
+      "jobEmployer": "Job and employer",
+      "tone": "Tone",
+      "addressed": "Addressed to {{name}}.",
+      "addressedFallback": "The posting has no hiring contact, so it is addressed to Hiring Manager.",
+      "noBrackets": "No unfinished [brackets] left",
+      "editResume": "Edit resume",
+      "editLetter": "Edit cover letter",
+      "before": "Before you continue",
+      "checkResume": "Resume is ready",
+      "checkLetter": "Cover letter is ready",
+      "checkSaved": "Both are saved to your library",
+      "nothingSent": "Nothing is sent yet. You will confirm on the Apply screen."
+    },
+    "leave": {
+      "title": "Leave without saving?",
+      "body": "You have changes that are not saved. Save them to your library, discard them, or stay here.",
+      "save": "Save and go back",
+      "discard": "Discard changes",
+      "stay": "Stay here"
+    }
+  }
+}

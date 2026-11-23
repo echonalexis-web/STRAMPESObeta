@@ -1,0 +1,755 @@
+/* Resume & Cover Letter Studio layout (stu-). Hand-written, no Tailwind. Imported after
+   resume-studio.css, which still owns the document themes, the formatting toolbar internals and the
+   template thumbnails. The page scrolls once; the action bar and the toolbar are sticky.
+
+   Sticky offsets: --stu-top is the space above the page that is not ours (the phone header), and
+   --stu-bar-h is the REAL height of the action bar, measured in ResumeStudio.jsx with a
+   ResizeObserver, so the toolbar always sits right under it at any width or step. */
+
+.stu-page {
+  --stu-top: 0px;
+  --stu-bar-h: 72px;
+  --stu-ink: #0f172a;
+  --stu-text: #334155;
+  --stu-muted: #475569; /* 7.5:1 on white: help text and disabled labels stay readable */
+  --stu-line: #e2e8f0;
+  --stu-green: #065f46;
+  --stu-green-soft: #ecfdf5;
+  max-width: var(--ds-admin-content-max, 1440px);
+  margin: 0 auto;
+  padding: 0 var(--ds-space-4, 16px) var(--ds-space-8, 32px);
+  box-sizing: border-box;
+  width: 100%;
+  color: var(--stu-text);
+}
+.stu-page *,
+.stu-page *::before,
+.stu-page *::after {
+  box-sizing: border-box;
+}
+.stu-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---- Buttons (44px targets) ---- */
+.stu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.stu-btn--primary {
+  background: var(--stu-green);
+  border-color: var(--stu-green);
+  color: #ffffff;
+}
+.stu-btn--primary:hover {
+  background: #054d3a;
+}
+.stu-btn--secondary {
+  background: #ffffff;
+  border-color: #94a3b8;
+  color: var(--stu-ink);
+}
+.stu-btn--secondary:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+.stu-btn--small {
+  min-height: 44px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+}
+.stu-btn[aria-disabled="true"] {
+  opacity: 0.75;
+  cursor: progress;
+}
+.stu-btn:disabled {
+  cursor: not-allowed;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569; /* still readable when off */
+}
+.stu-page :focus-visible {
+  outline: 3px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+/* ---- Sticky action bar ---- */
+.stu-bar {
+  position: sticky;
+  top: var(--stu-top);
+  z-index: 20;
+  margin: 0 calc(var(--ds-space-4, 16px) * -1);
+  padding: 12px var(--ds-space-4, 16px) 10px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--stu-line);
+}
+.stu-bar__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stu-bar__title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.stu-bar__eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--stu-muted);
+}
+.stu-bar__job {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--stu-ink);
+  overflow-wrap: anywhere;
+}
+.stu-bar__employer {
+  font-weight: 600;
+  color: var(--stu-text);
+}
+.stu-bar__h1 {
+  margin: 2px 0 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--stu-ink);
+}
+.stu-crumb {
+  display: flex;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--stu-muted);
+}
+.stu-crumb a {
+  color: var(--stu-green);
+  font-weight: 700;
+}
+.stu-status {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--stu-text);
+  white-space: nowrap;
+}
+.stu-bar__error,
+.stu-error {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-left: 4px solid #b91c1c;
+  background: #fef2f2;
+  color: #7f1d1d;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+/* ---- Steps ---- */
+.stu-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.stu-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 14px 6px 8px;
+  border: 1px solid #94a3b8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--stu-ink);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.stu-step__num {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  font-size: 0.75rem;
+}
+/* Active: filled and numbered; done: a check mark; so state never relies on colour alone. */
+.stu-step.is-active {
+  background: var(--stu-green);
+  border-color: var(--stu-green);
+  color: #ffffff;
+}
+.stu-step.is-done .stu-step__num {
+  background: var(--stu-green);
+  border-color: var(--stu-green);
+  color: #ffffff;
+}
+
+/* ---- Segmented controls (document switch, resume type) ---- */
+.stu-segment {
+  display: inline-flex;
+  border: 1px solid #94a3b8;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.stu-segment__option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 0;
+  background: #ffffff;
+  color: var(--stu-ink);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.stu-segment__option + .stu-segment__option {
+  border-left: 1px solid #94a3b8;
+}
+.stu-segment__option.is-selected {
+  background: var(--stu-green);
+  color: #ffffff;
+}
+
+/* ---- Main layout: 320px rail + editor, aligned at the top ---- */
+.stu-main {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  margin-top: 12px;
+}
+.stu-settings-toggle {
+  display: none;
+  width: 100%;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+.stu-rail {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.stu-card {
+  background: #ffffff;
+  border: 1px solid var(--stu-line);
+  border-radius: 14px;
+  padding: 18px;
+}
+.stu-card__title {
+  margin: 0 0 12px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--stu-ink);
+}
+.stu-help {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--stu-muted);
+}
+.stu-card .stu-segment {
+  display: flex;
+  width: 100%;
+}
+
+/* Look: three small template buttons */
+.stu-looks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.stu-looks--one {
+  grid-template-columns: 1fr;
+}
+.stu-look {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding: 8px 4px;
+  min-height: 44px;
+  border: 1px solid #94a3b8;
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--stu-ink);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.stu-look.is-selected {
+  border: 2px solid var(--stu-green);
+  background: var(--stu-green-soft);
+}
+.stu-look:disabled {
+  cursor: not-allowed;
+  background: #f1f5f9;
+  color: var(--stu-muted);
+}
+
+/* Sections */
+.stu-sections {
+  display: grid;
+  gap: 4px;
+}
+.stu-section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+}
+.stu-section-row label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-height: 44px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--stu-ink);
+  cursor: pointer;
+}
+.stu-section-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--stu-green);
+}
+.stu-move {
+  display: inline-flex;
+  gap: 4px;
+}
+.stu-move button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--stu-ink);
+  cursor: pointer;
+}
+.stu-move button:disabled {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+/* Fields */
+.stu-field {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.stu-field span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--stu-ink);
+}
+.stu-field input {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--stu-ink);
+  background: #ffffff;
+}
+
+/* Tone: full-width option buttons with a title and a one-line description */
+.stu-tones {
+  display: grid;
+  gap: 8px;
+}
+.stu-tone {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 10px;
+  background: #ffffff;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.stu-tone__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--stu-ink);
+}
+.stu-tone__desc {
+  font-size: 0.78rem;
+  color: var(--stu-muted);
+}
+.stu-tone[aria-pressed="true"] {
+  border: 2px solid var(--stu-green);
+  background: var(--stu-green-soft);
+  padding: 9px 11px;
+}
+.stu-tone-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Photo card */
+.stu-drop {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  border: 2px dashed #94a3b8;
+  border-radius: 12px;
+  background: #f8fafc;
+  text-align: center;
+}
+.stu-drop.is-dragging {
+  border-color: var(--stu-green);
+  background: var(--stu-green-soft);
+}
+.stu-drop__icon {
+  color: var(--stu-muted);
+  font-size: 1.4rem;
+}
+.stu-drop__hint {
+  font-size: 0.8rem;
+  color: var(--stu-muted);
+}
+.stu-photo__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stu-photo__thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+  background: #e2e8f0;
+}
+.stu-photo__meta {
+  min-width: 0;
+}
+.stu-photo__name {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--stu-ink);
+  overflow-wrap: anywhere;
+}
+.stu-photo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.stu-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--stu-ink);
+}
+.stu-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 6px 4px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--stu-ink);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.stu-switch__knob {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #64748b;
+  transition: transform 0.15s ease;
+}
+.stu-switch.is-on {
+  background: var(--stu-green);
+  border-color: var(--stu-green);
+  color: #ffffff;
+}
+.stu-switch.is-on .stu-switch__knob {
+  background: #ffffff;
+}
+.stu-switch:disabled {
+  cursor: not-allowed;
+  background: #f1f5f9;
+  color: var(--stu-muted);
+}
+
+/* ---- Editor column ---- */
+.stu-editor {
+  min-width: 0;
+  background: #ffffff;
+  border: 1px solid var(--stu-line);
+  border-radius: 14px;
+}
+.stu-editor .rstudio-toolbar {
+  position: sticky;
+  top: calc(var(--stu-top) + var(--stu-bar-h));
+  z-index: 10;
+  border-radius: 14px 14px 0 0;
+}
+.stu-toolbar-end {
+  margin-left: auto;
+}
+.stu-canvas-area {
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+  background: #e8eef5;
+  border-radius: 0 0 14px 14px;
+}
+.stu-canvas-area .resume-doc,
+.stu-canvas-area .letter-doc {
+  width: 100%;
+  max-width: 760px;
+}
+.stu-note {
+  margin: 0;
+  padding: 10px 16px 14px;
+  background: #e8eef5;
+  border-radius: 0 0 14px 14px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--stu-muted);
+}
+.stu-note + .stu-canvas-area,
+.stu-canvas-area + .stu-note {
+  border-radius: 0 0 14px 14px;
+}
+.stu-empty-letter {
+  margin: 0 0 16px;
+  padding: 14px;
+  border: 2px dashed #94a3b8;
+  border-radius: 10px;
+  color: var(--stu-muted);
+  font-size: 0.9rem;
+}
+/* On the Review step the document stays in the page, out of sight, so it can still be saved. */
+.stu-editor.is-parked {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  width: 900px;
+}
+
+/* ---- Review ---- */
+.stu-review {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+}
+.stu-review__title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--stu-ink);
+}
+.stu-review__cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.stu-review__list {
+  margin: 0 0 12px;
+  display: grid;
+  gap: 8px;
+}
+.stu-review__row {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+.stu-review__row dt {
+  font-weight: 700;
+  color: var(--stu-muted);
+}
+.stu-review__row dd {
+  margin: 0;
+  color: var(--stu-ink);
+  overflow-wrap: anywhere;
+}
+.stu-checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.stu-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--stu-ink);
+}
+.stu-check.is-ok svg {
+  color: var(--stu-green);
+}
+.stu-check.is-bad svg {
+  color: #b91c1c;
+}
+
+/* ---- Document menu ---- */
+.stu-menu {
+  position: relative;
+}
+.stu-menu__popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  min-width: 220px;
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+  display: grid;
+}
+.stu-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--stu-ink);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.stu-menu__item:hover,
+.stu-menu__item:focus-visible {
+  background: #f1f5f9;
+}
+
+/* ---- Under 900px: one column, settings behind a button, Back and primary pinned at the bottom ---- */
+@media (max-width: 900px) {
+  .stu-page {
+    --stu-top: 64px; /* below the phone header */
+    padding-bottom: 96px; /* the bottom bar never covers content */
+  }
+  .stu-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stu-settings-toggle {
+    display: inline-flex;
+  }
+  .stu-rail {
+    display: none;
+  }
+  .stu-rail.is-open {
+    display: grid;
+  }
+  .stu-review__cards {
+    grid-template-columns: 1fr;
+  }
+  .stu-bar__row {
+    flex-wrap: wrap;
+  }
+  .stu-bar--applying .stu-bar__nav,
+  .stu-bar--applying .stu-bar__primary {
+    position: fixed;
+    bottom: 0;
+    z-index: 25;
+    padding: 10px 8px 12px;
+    background: #ffffff;
+    box-shadow: 0 -1px 0 var(--stu-line);
+  }
+  .stu-bar--applying .stu-bar__nav {
+    left: 0;
+    width: 38%;
+    padding-left: 16px;
+  }
+  .stu-bar--applying .stu-bar__primary {
+    right: 0;
+    width: 62%;
+    padding-right: 16px;
+  }
+  .stu-bar--applying .stu-bar__nav .stu-btn,
+  .stu-bar--applying .stu-bar__primary .stu-btn {
+    width: 100%;
+    white-space: normal;
+  }
+  .stu-bar--applying .stu-bar__title {
+    flex: 1 1 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stu-switch__knob {
+    transition: none;
+  }
+}
+
+.stu-leave__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.stu-upload {
+  cursor: pointer;
+}
+/* The empty cover letter: a dashed message inside the page. */
+.letter-doc__paragraph--empty {
+  padding: 14px;
+  border: 2px dashed #94a3b8;
+  border-radius: 10px;
+  color: #475569;
+}
