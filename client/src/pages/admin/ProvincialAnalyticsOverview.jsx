@@ -39,11 +39,21 @@ export default function ProvincialAnalyticsOverview() {
   const { t } = useTranslation();
   const reduced = usePrefersReducedMotion();
   const [selectedMunicipality, setSelectedMunicipality] = useState("ALL");
-  const [year, setYear] = useState(2026);
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [yearOptions, setYearOptions] = useState([]);
   const [distributionView, setDistributionView] = useState("vacancies");
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // The year list comes from the server (current Manila year and the nine before it).
+  useEffect(() => {
+    let live = true;
+    adminAPI.getAnalyticsFilterOptions().then(({ data }) => {
+      if (live && Array.isArray(data?.years) && data.years.length) setYearOptions(data.years);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -106,7 +116,7 @@ export default function ProvincialAnalyticsOverview() {
           <label className="admin-provincial-field">
             <span>Year</span>
             <select value={year} onChange={(event) => setYear(Number(event.target.value))}>
-              {[2024, 2025, 2026].map((entry) => (
+              {[...new Set([...(yearOptions.length ? yearOptions : [year, year - 1, year - 2]), year])].sort((a, b) => b - a).map((entry) => (
                 <option key={entry} value={entry}>
                   {entry}
                 </option>

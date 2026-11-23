@@ -18,6 +18,7 @@ import { BriefcaseBusiness, Building2, ChartLine, ChartPie, FileText, ShieldChec
 import { adminAPI } from "../../services/api";
 import "../../styles/admin.css";
 import AdminHeader from "./AdminHeader";
+import AnalyticsStatsPanel from "../../components/AnalyticsStatsPanel";
 import ProvincialAnalyticsOverview from "./ProvincialAnalyticsOverview";
 import MatchWeightDefaultsSettings from "../../components/MatchWeightDefaultsSettings";
 import MetricCard from "../../components/MetricCard";
@@ -36,6 +37,8 @@ const TREND_COLORS = {
 // Application Status keeps its own semantic palette (AA-safe status hues)
 const STATUS_COLORS = CHART_STATUS;
 
+const STATUS_ORDER = ["pending", "under_review", "reviewed", "shortlisted", "approved", "rejected", "hired", "withdrawn"];
+
 const fallbackAnalytics = {
   totalAccounts: 0,
   totalEmployers: 0,
@@ -48,10 +51,13 @@ const fallbackAnalytics = {
   registrationsThisMonth: Array(12).fill(0),
   applicationsByStatus: {
     pending: 0,
+    under_review: 0,
     reviewed: 0,
     shortlisted: 0,
+    approved: 0,
     rejected: 0,
     hired: 0,
+    withdrawn: 0,
   },
 };
 
@@ -107,14 +113,9 @@ export default function AdminDashboard() {
 
   const pieData = useMemo(() => {
     const source = analytics.applicationsByStatus || {};
-    return [
-      { key: "pending", name: "Pending", value: Number(source.pending || 0) },
-      { key: "reviewed", name: "Reviewed", value: Number(source.reviewed || 0) },
-      { key: "shortlisted", name: "Shortlisted", value: Number(source.shortlisted || 0) },
-      { key: "rejected", name: "Rejected", value: Number(source.rejected || 0) },
-      { key: "hired", name: "Hired", value: Number(source.hired || 0) },
-    ];
-  }, [analytics]);
+    // Every status the server counts; a status with no applications is left out of the donut.
+    return STATUS_ORDER.map((key) => ({ key, name: t(`analyticsDash.statusKeys.${key}`), value: Number(source[key] || 0) })).filter((entry) => entry.value > 0 || ["pending", "hired"].includes(entry.key));
+  }, [analytics, t]);
 
   const pieTotal = useMemo(() => pieData.reduce((sum, entry) => sum + entry.value, 0), [pieData]);
 
@@ -144,6 +145,8 @@ export default function AdminDashboard() {
           </Reveal>
         )}
       </section>
+
+      <AnalyticsStatsPanel />
 
       <ProvincialAnalyticsOverview />
 

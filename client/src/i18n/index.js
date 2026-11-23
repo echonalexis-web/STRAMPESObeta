@@ -3,6 +3,10 @@ import { initReactI18next } from "react-i18next";
 
 import en from "./locales/en.json";
 import fil from "./locales/fil.json";
+// Reports and dashboard analytics strings live in their own files (merged here) so they
+// do not collide with edits to the big locale files.
+import analyticsEn from "./locales/analytics.en.json";
+import analyticsFil from "./locales/analytics.fil.json";
 
 const STORAGE_KEY = "stramPesoLanguage";
 
@@ -21,8 +25,8 @@ const storedLanguage = readStoredLanguage();
 
 i18n.use(initReactI18next).init({
   resources: {
-    en: { translation: en },
-    fil: { translation: fil },
+    en: { translation: { ...en, ...analyticsEn } },
+    fil: { translation: { ...fil, ...analyticsFil } },
   },
   lng: storedLanguage || "en",
   fallbackLng: "en",

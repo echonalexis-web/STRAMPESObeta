@@ -15,6 +15,9 @@ export const CHART_SERIES = [
 // Status colors keep their semantic hue but use AA-safe values.
 export const CHART_STATUS = {
   pending: '#a07a00',
+  under_review: '#0e6e73',
+  approved: '#4d7c0f',
+  withdrawn: '#5a6c65',
   reviewed: '#1d5a8f',
   shortlisted: '#6b3fa0',
   rejected: '#b42318',

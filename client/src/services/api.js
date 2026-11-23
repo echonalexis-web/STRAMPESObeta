@@ -457,6 +457,8 @@ export const adminAPI = {
     return api.get('/admin/analytics', getAuthHeader());
   },
   getProvincialAnalytics: (params = {}) => api.get('/admin/analytics/provincial', { ...getAuthHeader(), params }),
+  getAnalyticsSummary: (params = {}, config = {}) => api.get('/admin/analytics/summary', { ...getAuthHeader(), ...config, params }),
+  getAnalyticsFilterOptions: () => api.get('/admin/analytics/filter-options', getAuthHeader()),
   getUserById: (id) => api.get(`/admin/users/${id}`, getAuthHeader()),
   exportUserNsrpForm1: (id) =>
     api.get(`/admin/users/${id}/nsrp-form-1/export`, { ...getAuthHeader(), responseType: 'blob' }),

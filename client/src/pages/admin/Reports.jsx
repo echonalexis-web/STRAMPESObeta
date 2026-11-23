@@ -39,6 +39,7 @@ import { exportCsv, exportPdfTable } from "../../utils/exportUtils";
 import "../../styles/admin.css";
 import "../../styles/reports.css";
 import AdminHeader from "./AdminHeader";
+import AnalyticsStatsPanel from "../../components/AnalyticsStatsPanel";
 import MetricCard from "../../components/MetricCard";
 import Reveal from "../../components/Reveal";
 import StateBlock from "../../components/StateBlock";
@@ -358,6 +359,8 @@ export default function Reports() {
         title="Reports & Statistics"
         description="Overall platform statistics plus filterable, exportable lists of applicants, jobs, and employers."
       />
+
+      <AnalyticsStatsPanel />
 
       <section className="admin-kpis rpt-kpis" aria-label={t("admin.kpi.sectionLabel")}>
         {analyticsLoading ? (
