@@ -99,9 +99,12 @@
 .an__hint { margin: 0; font-size: 0.8125rem; color: #8a3a05; }
 
 .ov .ov__kpis, .an .an__cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-.an__main { display: grid; grid-template-columns: minmax(0, 58fr) minmax(0, 42fr); gap: 16px; align-items: start; }
+/* Cards in a row are as tall as the tallest one, so no card leaves a hole under it. */
+.an__main { display: grid; grid-template-columns: minmax(0, 58fr) minmax(0, 42fr); gap: 16px; align-items: stretch; }
+.an__main > .an__card, .an__pair > .an__card { display: flex; flex-direction: column; }
+.an__main > .an__card .an__details { margin-top: auto; padding-top: 8px; }
 .an__col { display: grid; gap: 16px; }
-.an__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.an__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
 
 /* Status stacked bar: segments differ by lightness and carry an outline; the legend list repeats every number */
 .an__stack { display: flex; height: 28px; border-radius: 8px; overflow: hidden; border: 1px solid #5a6c65; margin: 8px 0 12px; }

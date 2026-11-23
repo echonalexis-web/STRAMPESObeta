@@ -184,7 +184,7 @@ export default function Reports() {
                 ))}
               </div>
               <div className="an__chart" role="img" aria-label={`${t(`adminAnalytics.trend.metrics.${metric}`)}: ${trendRows.map((row) => `${row.label} ${row.value}`).join(", ")}`}>
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={trendRows} margin={{ top: 18, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid {...CHART_GRID} vertical={false} />
                     <XAxis dataKey="label" {...CHART_AXIS} tickLine={false} axisLine={{ stroke: CHART_GRID.stroke }} interval="preserveStartEnd" />
