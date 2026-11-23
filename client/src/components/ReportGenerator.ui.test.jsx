@@ -35,8 +35,10 @@ const historyPage = (items = []) => ({ data: { items, total: items.length, page:
 const item = (overrides = {}) => ({ reportId: "RPT-20261120-ABCDEFGH", dataset: "jobs", format: "csv", recordCount: 12, createdAt: "2026-11-20T06:05:00.000Z", preparedBy: { name: "Maria Santos", role: "admin" }, regeneratedFrom: null, ...overrides });
 const blobResponse = (id = "RPT-20261120-ABCDEFGH") => ({ data: new Blob(["x"]), headers: { "content-disposition": `attachment; filename="${id}.csv"`, "x-report-id": id } });
 
-const open = async () => {
-  render(<ReportGeneratorPanel />);
+// The page's filter bar, handed down: the generator has no period or filter controls of its own.
+const SCOPE = { period: "30d", from: "", to: "", municipality: "", text: "Last 30 days · All municipalities", ready: true };
+const open = async (scope = SCOPE) => {
+  render(<ReportGeneratorPanel scope={scope} />);
   await screen.findByLabelText("Report");
 };
 const choose = async (user, label) => user.selectOptions(screen.getByLabelText("Report"), label);
@@ -106,21 +108,60 @@ describe("ReportGeneratorPanel", () => {
     expect(screen.getByText("A grouped report has a group and a count.")).toBeTruthy();
   });
 
-  test("the ranking offers only year and quarter", async () => {
-    const user = userEvent.setup();
-    await open();
-    await choose(user, "Employer performance ranking");
-    const periods = within(screen.getByLabelText("Period")).getAllByRole("option").map((o) => o.value);
-    expect(periods).toEqual(["year", "quarter"]);
-  });
-
-  test("a custom period needs both dates", async () => {
+  test("it has no period or filter controls of its own and says which scope it uses", async () => {
     const user = userEvent.setup();
     await open();
     await choose(user, "Jobs");
-    await user.selectOptions(screen.getByLabelText("Period"), "custom");
-    expect(screen.getByText("Pick a start and an end date, start first.")).toBeTruthy();
+    expect(screen.queryByLabelText("Period")).toBeNull();
+    expect(screen.queryByLabelText("Municipality")).toBeNull();
+    expect(screen.getByText("Uses the filter bar above: Last 30 days · All municipalities.")).toBeTruthy();
+  });
+
+  test("the request carries the page's period and municipality", async () => {
+    const user = userEvent.setup();
+    adminAPI.generateReportExport.mockResolvedValue(blobResponse());
+    await open({ ...SCOPE, period: "90d", municipality: "Gasan" });
+    await choose(user, "Jobs");
+    await user.click(screen.getByRole("button", { name: "Generate and download" }));
+    await waitFor(() => expect(adminAPI.generateReportExport).toHaveBeenCalled());
+    expect(lastBody(adminAPI.generateReportExport).params).toEqual({ period: "90d", municipality: "Gasan" });
+  });
+
+  test("a custom scope is sent as its two days, and an unfinished one blocks the buttons", async () => {
+    const user = userEvent.setup();
+    adminAPI.generateReportExport.mockResolvedValue(blobResponse());
+    await open({ ...SCOPE, period: "custom", from: "2026-01-01", to: "2026-02-01" });
+    await choose(user, "Jobs");
+    await user.click(screen.getByRole("button", { name: "Generate and download" }));
+    await waitFor(() => expect(adminAPI.generateReportExport).toHaveBeenCalled());
+    expect(lastBody(adminAPI.generateReportExport).params).toEqual({ period: "custom", from: "2026-01-01", to: "2026-02-01" });
+  });
+
+  test("an unfinished custom range disables Preview and Generate", async () => {
+    const user = userEvent.setup();
+    await open({ ...SCOPE, period: "custom", from: "2026-01-01", to: "", ready: false });
+    await choose(user, "Jobs");
     expect(screen.getByRole("button", { name: "Preview" }).disabled).toBe(true);
+    expect(screen.getByRole("button", { name: "Generate and download" }).disabled).toBe(true);
+  });
+
+  test("a scope with not enough data: the server's answer becomes a clear message and nothing downloads", async () => {
+    const user = userEvent.setup();
+    adminAPI.generateReportExport.mockRejectedValue({ response: { data: new Blob([JSON.stringify({ code: "NOT_ENOUGH_DATA" })]) } });
+    await open();
+    await choose(user, "Jobs");
+    await user.click(screen.getByRole("button", { name: "Generate and download" }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("There is not enough data for this period and municipality. At least 1 vacancy and 3 applications are needed."));
+    expect(downloadBlob).not.toHaveBeenCalled();
+  });
+
+  test("a preview with not enough data says so", async () => {
+    const user = userEvent.setup();
+    adminAPI.previewReportExport.mockResolvedValue({ data: { recordCount: null, wouldExceedLimit: false, notEnoughData: true, maxRows: 50000, columns: [], sample: [], preparedBy: { name: "M", role: "admin" } } });
+    await open();
+    await choose(user, "Jobs");
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+    expect(await screen.findByText("There is not enough data for this period and municipality. At least 1 vacancy and 3 applications are needed.")).toBeTruthy();
   });
 
   test("Preview shows the count, the first rows and the prepared-by block, and does not download", async () => {
@@ -191,7 +232,7 @@ describe("ReportGeneratorPanel", () => {
   test("a catalog that fails to load can be retried", async () => {
     const user = userEvent.setup();
     adminAPI.getReportCatalog.mockRejectedValueOnce(new Error("boom"));
-    render(<ReportGeneratorPanel />);
+    render(<ReportGeneratorPanel scope={SCOPE} />);
     await user.click(await screen.findByRole("button", { name: "Try again" }));
     expect(await screen.findByLabelText("Report")).toBeTruthy();
   });
