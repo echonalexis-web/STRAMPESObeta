@@ -125,6 +125,13 @@
 .an__empty { margin: 0; padding: 14px; border-radius: 10px; background: #f6f8f6; color: #2f3d35; font-size: 0.875rem; }
 .an__empty strong { display: block; margin-bottom: 4px; }
 .an__empty--dashed { background: transparent; border: 1.5px dashed #7d9385; }
+/* Top employers: the left column stretches to the right one and the empty message fills the card, centred with an icon. */
+.an__main > .an__col:first-child { align-self: stretch; display: flex; flex-direction: column; }
+.an__col > .an__card--grow { flex: 1 1 auto; display: flex; flex-direction: column; }
+.an__empty--rank { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 180px; padding: 24px; text-align: center; }
+.an__empty--rank strong { margin: 0; font-size: 1rem; }
+.an__empty--rank p { margin: 0; max-width: 46ch; line-height: 1.5; }
+.an__empty-icon { width: 56px; height: 56px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #e8f4ed; color: #0b4d34; }
 .an__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .an__list li { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 0.875rem; }
 .an__list .an__lname { flex: 1; min-width: 0; overflow-wrap: anywhere; }

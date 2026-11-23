@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { BriefcaseBusiness, FileText, UserRound, UserCheck } from "lucide-react";
+import { BriefcaseBusiness, FileText, Trophy, UserRound, UserCheck } from "lucide-react";
 import { adminAPI } from "../../services/api";
 import AdminHeader from "./AdminHeader";
 import MetricCard from "../../components/MetricCard";
@@ -219,14 +219,15 @@ export default function Reports() {
                 </div>
               </details>
             </section>
-              <section className="an__card" aria-labelledby="an-emp-title">
+              <section className="an__card an__card--grow" aria-labelledby="an-emp-title">
               <h2 id="an-emp-title" className="an__h2">{t("adminAnalytics.employers.title")}</h2>
               <p className="an__sub">{t("adminAnalytics.employers.intro", data.topEmployers.minimums)}</p>
               {employers.length === 0 ? (
-                <p className="an__empty an__empty--dashed">
+                <div className="an__empty an__empty--dashed an__empty--rank">
+                  <span className="an__empty-icon" aria-hidden="true"><Trophy size={28} /></span>
                   <strong>{t("adminAnalytics.employers.emptyTitle")}</strong>
-                  {t("adminAnalytics.employers.emptyText")}
-                </p>
+                  <p>{t("adminAnalytics.employers.emptyText")}</p>
+                </div>
               ) : (
                 <>
                   <div className="an__chart" role="img" aria-label={`${t("adminAnalytics.employers.chartLabel")}: ${employers.map((row) => `${row.name} ${row.hires}`).join(", ")}`}>
