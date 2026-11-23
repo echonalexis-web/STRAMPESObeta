@@ -82,7 +82,14 @@
       "errSize": "That photo is larger than 2 MB.",
       "errFailed": "The photo could not be saved. Try again.",
       "removed": "Resume photo removed.",
-      "saved": "Resume photo saved."
+      "saved": "Resume photo saved.",
+      "shape": "Photo shape",
+      "border": "Border",
+      "shapes": {
+        "square": "Square",
+        "rounded": "Rounded",
+        "circle": "Circle"
+      }
     },
     "tailoredNote": "Tailored to this job: your own skills are ordered so the ones it asks for come first. Nothing was added.",
     "emptyLetter": "The cover letter is empty. Write it here, or press Regenerate to draft it from your profile and the job.",

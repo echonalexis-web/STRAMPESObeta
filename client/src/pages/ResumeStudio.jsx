@@ -126,9 +126,10 @@ const skillsToHtml = (content, matchedSkills) => {
 
 // A data: URL is the only thing that goes into the photo's src, so nothing from outside can be
 // smuggled into the attribute; anything else is dropped.
-const photoHtml = (photoDataUrl) =>
+const PHOTO_SHAPES = ["square", "rounded", "circle"];
+const photoHtml = (photoDataUrl, shape = "circle", border = false) =>
   /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/.test(photoDataUrl || "")
-    ? `<img class="resume-doc__photo" src="${photoDataUrl}" alt="">`
+    ? `<img class="resume-doc__photo" data-shape="${PHOTO_SHAPES.includes(shape) ? shape : "circle"}"${border ? ' data-border="1"' : ""} src="${photoDataUrl}" alt="">`
     : "";
 
 const buildResumeHtml = ({ name, headline, contactLine, sections, photoDataUrl = "", matchedSkills = [] }) => {
@@ -220,6 +221,8 @@ export default function ResumeStudio() {
   const [photo, setPhoto] = useState(NO_PHOTO);
   const [showPhoto, setShowPhoto] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoShape, setPhotoShape] = useState("circle"); // "square" | "rounded" | "circle"
+  const [photoBorder, setPhotoBorder] = useState(false);
   const [cropFile, setCropFile] = useState(null); // the picked photo, being framed before upload
   const [photoError, setPhotoError] = useState("");
   // Applying mode steps ("resume" | "letter" | "review"), whether anything was saved, and the sticky bar.
@@ -744,7 +747,24 @@ export default function ResumeStudio() {
   const stripPhoto = (root) => root.querySelectorAll(".resume-doc__photo").forEach((el) => el.remove());
   const putPhoto = (root, dataUrl) => {
     stripPhoto(root);
-    if (dataUrl) root.querySelector(".resume-doc__header")?.insertAdjacentHTML("afterbegin", photoHtml(dataUrl));
+    if (dataUrl) root.querySelector(".resume-doc__header")?.insertAdjacentHTML("afterbegin", photoHtml(dataUrl, photoShape, photoBorder));
+  };
+  // Changing the frame restyles the picture already on the page; the image is clipped to the shape.
+  const styleResumePhoto = (root, shape, border) =>
+    root.querySelectorAll(".resume-doc__photo").forEach((img) => {
+      img.dataset.shape = shape;
+      if (border) img.dataset.border = "1";
+      else delete img.dataset.border;
+    });
+  const handlePhotoShape = (next) => {
+    setPhotoShape(next);
+    withDocumentRoot("resume", (root) => styleResumePhoto(root, next, photoBorder));
+    markDirty("resume");
+  };
+  const handlePhotoBorder = (next) => {
+    setPhotoBorder(next);
+    withDocumentRoot("resume", (root) => styleResumePhoto(root, photoShape, next));
+    markDirty("resume");
   };
 
   // The resume shows the photo only for a Standard resume whose switch is on. ATS never has one:
@@ -1206,6 +1226,10 @@ export default function ResumeStudio() {
                     error={photoError}
                     onFile={handlePhotoFile}
                     onRemove={handlePhotoRemove}
+                    shape={photoShape}
+                    onShape={handlePhotoShape}
+                    border={photoBorder}
+                    onBorder={handlePhotoBorder}
                   />
                 </section>
 

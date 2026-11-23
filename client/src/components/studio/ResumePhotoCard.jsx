@@ -5,12 +5,16 @@ import { FaCamera } from "react-icons/fa";
 // The "Resume photo" card: upload (button or drag and drop), replace, remove, and a switch for
 // whether THIS resume shows it. The photo is the applicant's own upload for resumes; it is not the
 // profile photo. ATS resumes never carry a photo, so every control is off there and says why.
-export default function ResumePhotoCard({ t, hasPhoto, name, dataUrl, show, onShow, locked, busy, error, onFile, onRemove }) {
+const SHAPES = ["square", "rounded", "circle"];
+
+export default function ResumePhotoCard({ t, hasPhoto, name, dataUrl, show, onShow, locked, busy, error, onFile, onRemove, shape, onShape, border, onBorder }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const noteId = useId();
   const errorId = useId();
   const switchLabelId = useId();
+  const shapeLabelId = useId();
+  const borderLabelId = useId();
   const off = locked || busy;
 
   const pick = () => inputRef.current?.click();
@@ -66,6 +70,40 @@ export default function ResumePhotoCard({ t, hasPhoto, name, dataUrl, show, onSh
               <span className="stu-switch__knob" aria-hidden="true" />
             </button>
           </div>
+          <div className="stu-frame">
+            <span id={shapeLabelId} className="stu-frame__label">{t("studio.photo.shape")}</span>
+            <div className="stu-segment stu-segment--3" role="radiogroup" aria-labelledby={shapeLabelId} style={{ "--i": Math.max(0, SHAPES.indexOf(shape)) }}>
+              {SHAPES.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={shape === key}
+                  disabled={locked}
+                  className={`stu-segment__option${shape === key ? " is-selected" : ""}`}
+                  onClick={() => onShape(key)}
+                >
+                  <span className={`stu-shape stu-shape--${key}`} aria-hidden="true" />
+                  {t(`studio.photo.shapes.${key}`)}
+                </button>
+              ))}
+            </div>
+            <div className="stu-switch-row">
+              <span id={borderLabelId}>{t("studio.photo.border")}</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={Boolean(border) && !locked}
+                aria-labelledby={borderLabelId}
+                className={`stu-switch${border && !locked ? " is-on" : ""}`}
+                onClick={() => onBorder(!border)}
+                disabled={locked}
+              >
+                <span className="stu-switch__text">{border && !locked ? t("studio.photo.on") : t("studio.photo.off")}</span>
+                <span className="stu-switch__knob" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
         </>
       ) : (
         <div
@@ -113,4 +151,8 @@ ResumePhotoCard.propTypes = {
   error: PropTypes.string,
   onFile: PropTypes.func.isRequired,
   onRemove: PropTypes.func.isRequired,
+  shape: PropTypes.oneOf(["square", "rounded", "circle"]),
+  onShape: PropTypes.func.isRequired,
+  border: PropTypes.bool,
+  onBorder: PropTypes.func.isRequired,
 };

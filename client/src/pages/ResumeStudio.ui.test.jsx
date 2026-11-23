@@ -461,7 +461,9 @@ describe("resume type", () => {
     expect(screen.getByText("ATS uses one plain look")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Replace" }).disabled).toBe(true);
     expect(screen.getByRole("button", { name: "Remove" }).disabled).toBe(true);
-    expect(screen.getByRole("switch").disabled).toBe(true);
+    expect(screen.getByRole("switch", { name: "Show photo on this resume" }).disabled).toBe(true);
+    expect(screen.getByRole("switch", { name: "Border" }).disabled).toBe(true);
+    for (const name of ["Square", "Rounded", "Circle"]) expect(screen.getByRole("radio", { name }).disabled).toBe(true);
     expect(screen.getByText(/Photos are left out of ATS resumes/)).toBeTruthy();
     expect(canvasOf().className).toContain("doc-theme--ats");
     expect(canvasOf().querySelector("img")).toBeNull();
@@ -519,6 +521,40 @@ describe("resume photo card", () => {
     expect(canvasOf().querySelector("img")).toBeNull();
   });
 
+  test("frame: shape and border restyle the photo on the page, which is clipped to that shape; the choice survives hiding and showing it", async () => {
+    const user = userEvent.setup();
+    withPhoto();
+    renderStudio();
+    await applyingReady();
+    const img = () => canvasOf().querySelector("img.resume-doc__photo");
+    await waitFor(() => expect(img()).not.toBeNull());
+    expect(screen.getByRole("radio", { name: "Circle" }).getAttribute("aria-checked")).toBe("true");
+    expect(img().dataset.shape).toBe("circle");
+    expect(img().dataset.border).toBeUndefined();
+
+    await user.click(screen.getByRole("radio", { name: "Square" }));
+    expect(screen.getByRole("radio", { name: "Square" }).getAttribute("aria-checked")).toBe("true");
+    expect(img().dataset.shape).toBe("square");
+    await user.click(screen.getByRole("radio", { name: "Rounded" }));
+    expect(img().dataset.shape).toBe("rounded");
+
+    const border = screen.getByRole("switch", { name: "Border" });
+    expect(border.textContent).toContain("Off");
+    await user.click(border);
+    expect(border.getAttribute("aria-checked")).toBe("true");
+    expect(border.textContent).toContain("On");
+    expect(img().dataset.border).toBe("1");
+
+    const show = screen.getByRole("switch", { name: "Show photo on this resume" });
+    await user.click(show);
+    expect(img()).toBeNull();
+    await user.click(show);
+    expect([img().dataset.shape, img().dataset.border]).toEqual(["rounded", "1"]);
+
+    await user.click(border);
+    expect(img().dataset.border).toBeUndefined();
+  });
+
   test("upload: the photo is sent, comes on by default, and shows on the resume", async () => {
     const user = userEvent.setup();
     renderStudio();
@@ -531,7 +567,7 @@ describe("resume photo card", () => {
     const sent = resumePhotoAPI.put.mock.calls[0][0];
     expect([sent.name, sent.type]).toEqual(["new.jpg", "image/jpeg"]);
     await waitFor(() => expect(canvasOf().querySelector("img.resume-doc__photo")).not.toBeNull());
-    expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("switch", { name: "Show photo on this resume" }).getAttribute("aria-checked")).toBe("true");
     expect(screen.getByText("new.jpg")).toBeTruthy();
   });
 

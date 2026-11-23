@@ -82,7 +82,14 @@
       "errSize": "Mas malaki sa 2 MB ang larawang iyon.",
       "errFailed": "Hindi ma-save ang larawan. Subukan ulit.",
       "removed": "Naalis ang larawan sa resume.",
-      "saved": "Na-save ang larawan sa resume."
+      "saved": "Na-save ang larawan sa resume.",
+      "shape": "Hugis ng larawan",
+      "border": "Hangganan",
+      "shapes": {
+        "square": "Parisukat",
+        "rounded": "Bilugan",
+        "circle": "Bilog"
+      }
     },
     "tailoredNote": "Iniangkop sa trabahong ito: inuna ang sarili mong mga kasanayan na hinahanap nito. Walang idinagdag.",
     "emptyLetter": "Walang laman ang cover letter. Isulat ito rito, o pindutin ang Buuin ulit para gawan ng draft mula sa iyong profile at sa trabaho.",
