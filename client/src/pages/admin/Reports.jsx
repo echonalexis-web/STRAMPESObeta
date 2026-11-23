@@ -17,8 +17,6 @@ import {
 import {
   FaBriefcase,
   FaBuilding,
-  FaDownload,
-  FaFileAlt,
   FaUser,
 } from "react-icons/fa";
 import {
@@ -34,8 +32,6 @@ import {
   Users,
 } from "lucide-react";
 import { adminAPI } from "../../services/api";
-import { useToast } from "../../components/feedback/context";
-import { exportCsv, exportPdfTable } from "../../utils/exportUtils";
 import "../../styles/admin.css";
 import "../../styles/reports.css";
 import AdminHeader from "./AdminHeader";
@@ -87,12 +83,7 @@ const TABS = [
   { key: "employers", label: "Employers", icon: <FaBuilding /> },
 ];
 
-// Contact details stay out of every file this page exports (the table on screen is unchanged).
-const EXPORT_EXCLUDED_COLUMNS = new Set(["email", "username"]);
-const exportable = (cols) => cols.filter((col) => !EXPORT_EXCLUDED_COLUMNS.has(col.key));
-
 const PAGE_SIZE = 15;
-const EXPORT_LIMIT = 500;
 
 const fallbackAnalytics = {
   totalAccounts: 0,
@@ -116,12 +107,6 @@ const formatDate = (value) => {
   return Number.isNaN(date.getTime())
     ? "—"
     : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-};
-
-const TAB_TITLES = {
-  applicants: "Applicants Report",
-  jobs: "Job Vacancies Report",
-  employers: "Employers Report",
 };
 
 /* ---------- per-tab query + column config ---------- */
@@ -177,7 +162,6 @@ const JOB_COLUMNS = [
 
 export default function Reports() {
   const { t } = useTranslation();
-  const toast = useToast();
   const reduced = usePrefersReducedMotion();
   const [analytics, setAnalytics] = useState(fallbackAnalytics);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
@@ -194,8 +178,8 @@ export default function Reports() {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [rowsLoading, setRowsLoading] = useState(true);
-  const [exporting, setExporting] = useState(false);
+  // Which request the rows on screen belong to: "loading" is derived from it, not set inside the effect.
+  const [loadedKey, setLoadedKey] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -230,9 +214,11 @@ export default function Reports() {
     [tab, filters],
   );
 
+  const rowsKey = `${tab}|${JSON.stringify(filters)}|${page}`;
+  const rowsLoading = loadedKey !== rowsKey;
+
   useEffect(() => {
     let mounted = true;
-    setRowsLoading(true);
     fetchRows(page, PAGE_SIZE)
       .then((result) => {
         if (!mounted) return;
@@ -246,11 +232,11 @@ export default function Reports() {
         setTotal(0);
         setTotalPages(1);
       })
-      .finally(() => mounted && setRowsLoading(false));
+      .finally(() => mounted && setLoadedKey(rowsKey));
     return () => {
       mounted = false;
     };
-  }, [fetchRows, page]);
+  }, [fetchRows, page, rowsKey]);
 
   const columns = useMemo(() => {
     if (tab === "jobs") return JOB_COLUMNS;
@@ -304,62 +290,11 @@ export default function Reports() {
     setPage(1);
   };
 
-  const activeFilterPairs = useMemo(() => {
-    const pairs = [{ label: "Search", value: filters.search }];
-    if (tab === "jobs") {
-      pairs.push(
-        { label: "Municipality", value: filters.municipality === "All Marinduque" ? "" : filters.municipality },
-        { label: "Status", value: filters.jobStatus === "all" ? "" : filters.jobStatus },
-      );
-    } else {
-      pairs.push({ label: "Status", value: filters.userStatus === "All" ? "" : filters.userStatus });
-      if (tab === "employers") {
-        pairs.push({ label: "Verification", value: filters.verification === "All" ? "" : filters.verification });
-      }
-    }
-    return pairs;
-  }, [tab, filters]);
-
-  const handleExportCsv = async () => {
-    try {
-      setExporting(true);
-      const result = await fetchRows(1, EXPORT_LIMIT);
-      const stamp = new Date().toISOString().slice(0, 10);
-      exportCsv({ filename: `report-${tab}-${stamp}.csv`, columns: exportable(columns), rows: result.rows });
-      if (result.total > result.rows.length) toast.info(t("admin.reports.exportTruncated", { shown: result.rows.length, total: result.total }));
-    } catch {
-      toast.error(t("admin.reports.exportFailed"));
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleExportPdf = async () => {
-    try {
-      setExporting(true);
-      const result = await fetchRows(1, EXPORT_LIMIT);
-      const stamp = new Date().toISOString().slice(0, 10);
-      exportPdfTable({
-        title: TAB_TITLES[tab],
-        filters: activeFilterPairs,
-        columns: exportable(columns),
-        rows: result.rows,
-        filename: `report-${tab}-${stamp}.pdf`,
-      });
-      if (result.total > result.rows.length) toast.info(t("admin.reports.exportTruncated", { shown: result.rows.length, total: result.total }));
-    } catch (error) {
-      console.error("Failed to export PDF report", error);
-      toast.error(t("admin.reports.exportFailed"));
-    } finally {
-      setExporting(false);
-    }
-  };
-
   return (
     <div className="admin-page-container rpt-scope">
       <AdminHeader
         title="Reports & Statistics"
-        description="Overall platform statistics plus filterable, exportable lists of applicants, jobs, and employers."
+        description="Overall platform statistics plus filterable lists of applicants, jobs, and employers. Files are made with the report generator below."
       />
 
       <AnalyticsStatsPanel />
@@ -526,22 +461,9 @@ export default function Reports() {
             ))}
           </div>
           <div className="rpt-export-group">
-            <button
-              type="button"
-              className="rpt-export"
-              onClick={handleExportCsv}
-              disabled={exporting || rowsLoading || rows.length === 0}
-            >
-              <FaDownload /> {exporting ? "Preparing…" : "Export CSV"}
-            </button>
-            <button
-              type="button"
-              className="rpt-export rpt-export--pdf"
-              onClick={handleExportPdf}
-              disabled={exporting || rowsLoading || rows.length === 0}
-            >
-              <FaFileAlt /> {exporting ? "Preparing…" : "Export PDF"}
-            </button>
+            <a className="rpt-export" href="#report-generator">
+              {t("analyticsDash.generator.openBuilder")}
+            </a>
           </div>
         </div>
 

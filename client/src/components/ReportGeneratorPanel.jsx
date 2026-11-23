@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { adminAPI } from "../services/api";
 import { useToast } from "./feedback/context";
@@ -57,6 +57,12 @@ export default function ReportGeneratorPanel() {
   const [busy, setBusy] = useState("");
   const [historyKey, setHistoryKey] = useState(0);
   const [attempt, setAttempt] = useState(0);
+  const sectionRef = useRef(null);
+
+  // A link from another page ("/admin/reports#report-generator") lands here.
+  useEffect(() => {
+    if (window.location.hash === "#report-generator" && sectionRef.current) sectionRef.current.scrollIntoView({ block: "start" });
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -167,7 +173,7 @@ export default function ReportGeneratorPanel() {
 
   return (
     <>
-      <section className="asf rg" id="report-generator" aria-labelledby="rg-title">
+      <section className="asf rg" id="report-generator" aria-labelledby="rg-title" ref={sectionRef}>
         <header className="asf__head">
           <div>
             <h2 id="rg-title" className="asf__title">{t("analyticsDash.generator.title")}</h2>
