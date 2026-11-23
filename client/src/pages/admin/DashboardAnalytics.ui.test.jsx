@@ -6,7 +6,18 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 let currentUser = { role: "superadmin" };
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: currentUser }) }));
 vi.mock("./AdminHeader", () => ({ default: ({ title }) => <h1>{title}</h1> }));
-vi.mock("../../components/ReportGeneratorPanel", () => ({ default: ({ scope }) => <section aria-label="generator"><span>{scope.text}</span><span data-testid="scope">{JSON.stringify(scope)}</span></section> }));
+// The generator is mocked; it shows what the page hands it and can pretend a history row's "Set up again" was pressed.
+let setUpRow = { dataset: "hires", format: "pdf", municipality: "Gasan", period: { type: "90d", from: "2026-08-23", to: "2026-11-20" } };
+vi.mock("../../components/ReportGeneratorPanel", () => ({
+  default: ({ scope, prefill, onSetUp }) => (
+    <section aria-label="generator">
+      <span>{scope.text}</span>
+      <span data-testid="scope">{JSON.stringify(scope)}</span>
+      <span data-testid="prefill">{JSON.stringify(prefill)}</span>
+      <button type="button" onClick={() => onSetUp(setUpRow)}>Pretend set up</button>
+    </section>
+  ),
+}));
 vi.mock("../../services/api", () => ({
   adminAPI: { getDashboardOverview: vi.fn(), getAnalyticsOverview: vi.fn() },
   resolveAssetUrl: (value) => value,
@@ -54,6 +65,7 @@ const openDashboard = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  setUpRow = { dataset: "hires", format: "pdf", municipality: "Gasan", period: { type: "90d", from: "2026-08-23", to: "2026-11-20" } };
   currentUser = { role: "superadmin" };
   adminAPI.getDashboardOverview.mockResolvedValue({ data: dashboard() });
 });
@@ -284,11 +296,14 @@ describe("Analytics & Reports", () => {
     expect(within(card).queryByText("Other")).toBeNull();
   });
 
-  test("vacancies by status: open, closed and archived with a total", async () => {
+  test("vacancies by status: open, closed and archived as three stat boxes with a total", async () => {
     openAnalytics();
     const card = (await screen.findByRole("heading", { name: "Vacancies by status" })).closest("section");
     expect(within(card).getByText("Closed excludes archived. Total: 35.")).toBeTruthy();
-    expect(within(card).getByText("Archived").closest("li").textContent).toContain("2 · 5.7%");
+    const box = (label) => within(card).getByText(label).closest(".an__stat");
+    expect(box("Open").textContent).toBe("12Open");
+    expect(box("Closed").textContent).toBe("21Closed");
+    expect(box("Archived").textContent).toBe("2Archived");
   });
 
   test("the trend metric toggle switches the series, and the table alternative lists the values", async () => {
@@ -344,6 +359,29 @@ describe("Analytics & Reports", () => {
     await screen.findByText("Applications by status");
     const scope = JSON.parse(screen.getByTestId("scope").textContent);
     expect(scope).toMatchObject({ period: "7d", municipality: "Gasan", text: "Last 7 days · Gasan", ready: true });
+  });
+
+  test("Set up again: the history row's scope becomes the filter bar and its report and file type go to the generator", async () => {
+    const user = userEvent.setup();
+    openAnalytics();
+    await screen.findByText("Applications by status");
+    await user.click(screen.getByRole("button", { name: "Pretend set up" }));
+    await waitFor(() => expect(lastParams()).toEqual({ period: "90d", municipality: "Gasan" }));
+    expect(location.search).toContain("period=90d");
+    expect(location.search).not.toContain("report=");
+    const prefill = JSON.parse(screen.getByTestId("prefill").textContent);
+    expect(prefill).toMatchObject({ dataset: "hires", format: "pdf" });
+    expect(typeof prefill.nonce).toBe("number");
+  });
+
+  test("Set up again from a year or custom period becomes a custom range in the filter bar", async () => {
+    const user = userEvent.setup();
+    setUpRow = { dataset: "jobs", format: "csv", municipality: null, period: { type: "quarter", from: "2026-07-01", to: "2026-09-30" } };
+    openAnalytics();
+    await screen.findByText("Applications by status");
+    await user.click(screen.getByRole("button", { name: "Pretend set up" }));
+    await waitFor(() => expect(lastParams()).toEqual({ period: "custom", from: "2026-07-01", to: "2026-09-30" }));
+    expect(screen.getByRole("button", { name: "Custom range" }).getAttribute("aria-pressed")).toBe("true");
   });
 
   test("the list tables that duplicate User Management and Job Monitoring are gone", async () => {
