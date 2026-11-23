@@ -223,7 +223,7 @@ const toMetrics = (raw) => {
 
 const loadEmployers = (ids) =>
   User.find({ _id: { $in: ids } })
-    .select("name companyName avatar role verificationStatus isActive accountStatus deletedAt purgedAt")
+    .select("name companyName profileImage role verificationStatus isActive accountStatus deletedAt purgedAt")
     .lean();
 
 const displayName = (user) => (user && (user.companyName || user.name)) || "Employer";
@@ -255,7 +255,7 @@ const computeRanking = async (range, now) => {
     rows.push({
       employerId: id,
       name: displayName(user),
-      avatar: typeof user.avatar === "string" ? user.avatar : (user.avatar && user.avatar.url) || null,
+      photo: user.profileImage || null,
       ...metrics,
     });
   }
@@ -312,7 +312,7 @@ const getEmployerRanking = async (query = {}, now = new Date()) => {
     totals: { ...current.totals, formerOrRestricted: current.former },
     responseDataAvailable: responseData,
     rows: current.ranked.slice(0, limit).map(withPrevious),
-    notEnoughData: current.notEnoughData.slice(0, PERFORMANCE.maxTopN).map(({ employerId, name, avatar, postings, applicants, hires }) => ({ employerId, name, avatar, postings, applicants, hires })),
+    notEnoughData: current.notEnoughData.slice(0, PERFORMANCE.maxTopN).map(({ employerId, name, photo, postings, applicants, hires }) => ({ employerId, name, photo, postings, applicants, hires })),
   };
 };
 
@@ -367,7 +367,7 @@ const getEmployerPerformanceDetail = async (employerId, query = {}, now = new Da
     period: periodMeta(period),
     previous: { label: period.previous.label },
     asOf: period.asOf.toISOString(),
-    employer: { id: String(id), name: displayName(user), avatar: typeof user.avatar === "string" ? user.avatar : (user.avatar && user.avatar.url) || null, eligible: isEmployerEligible(user) },
+    employer: { id: String(id), name: displayName(user), photo: user.profileImage || null, eligible: isEmployerEligible(user) },
     metrics,
     previousMetrics,
     postings,

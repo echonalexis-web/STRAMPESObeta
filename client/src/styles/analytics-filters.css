@@ -97,3 +97,20 @@
   .asf__tabs .asf__tab { flex: 1 1 auto; }
   .asf__bar-track { width: 56px; }
 }
+
+/* Employer performance (EmployerPerformancePanel, EmployerPerformanceDetail, TopEmployersCard) */
+.epf__toggle { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.epf__table { margin-top: 12px; }
+.epf__name { display: inline-flex; align-items: center; gap: 8px; }
+.epf-detail { display: grid; gap: 12px; }
+.epf-detail__who { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.epf-top__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+.epf-top__link { min-height: var(--ds-tap, 44px); display: inline-flex; align-items: center; font-size: 0.875rem; }
+.epf-top__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.epf-top__list li { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.epf-top__rank { width: 1.5rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--ds-text-muted, #4b5d56); }
+.epf-top__name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .epf__table .ds-table th,
+  .epf__table .ds-table td { white-space: nowrap; }
+}

@@ -19,6 +19,7 @@ import { adminAPI } from "../../services/api";
 import "../../styles/admin.css";
 import AdminHeader from "./AdminHeader";
 import AnalyticsStatsPanel from "../../components/AnalyticsStatsPanel";
+import TopEmployersCard from "../../components/TopEmployersCard";
 import ProvincialAnalyticsOverview from "./ProvincialAnalyticsOverview";
 import MatchWeightDefaultsSettings from "../../components/MatchWeightDefaultsSettings";
 import MetricCard from "../../components/MetricCard";
@@ -145,6 +146,8 @@ export default function AdminDashboard() {
           </Reveal>
         )}
       </section>
+
+      <TopEmployersCard />
 
       <AnalyticsStatsPanel />
 

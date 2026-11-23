@@ -19,7 +19,11 @@
     "suppressedNote": "Itinatago ang mga bilang na mas mababa sa 5 para protektahan ang privacy.",
     "viewTable": "Ipakita bilang talahanayan",
     "hideTable": "Itago ang talahanayan",
-    "sections": { "jobs": "Mga trabaho", "employers": "Mga employer", "applicants": "Mga aplikante" },
+    "sections": {
+      "jobs": "Mga trabaho",
+      "employers": "Mga employer",
+      "applicants": "Mga aplikante"
+    },
     "fields": {
       "period": "Panahon",
       "year": "Taon",
@@ -41,14 +45,56 @@
       "scope": "Mga posting"
     },
     "all": "Lahat",
-    "periods": { "year": "Taon", "quarter": "Kuwarter", "month": "Buwan", "custom": "Sariling saklaw" },
-    "quarters": { "1": "Q1 (Ene hanggang Mar)", "2": "Q2 (Abr hanggang Hun)", "3": "Q3 (Hul hanggang Set)", "4": "Q4 (Okt hanggang Dis)" },
-    "months": { "1": "Enero", "2": "Pebrero", "3": "Marso", "4": "Abril", "5": "Mayo", "6": "Hunyo", "7": "Hulyo", "8": "Agosto", "9": "Setyembre", "10": "Oktubre", "11": "Nobyembre", "12": "Disyembre" },
-    "datasets": { "regular": "Karaniwang trabaho", "spes": "SPES" },
-    "scopes": { "all": "Lahat (kasama ang mga posting na nakatago sa publiko)", "public": "Pampubliko lamang" },
-    "dateFields": { "applied": "Petsa ng pag-apply", "registered": "Petsa ng pagrehistro" },
-    "workNatures": { "remote": "Remote", "onsite": "On-site", "hybrid": "Hybrid", "unspecified": "Hindi tinukoy" },
-    "jobStatuses": { "draft": "Draft", "active": "Aktibo", "closed": "Sarado", "archived": "Naka-archive" },
+    "periods": {
+      "year": "Taon",
+      "quarter": "Kuwarter",
+      "month": "Buwan",
+      "custom": "Sariling saklaw"
+    },
+    "quarters": {
+      "1": "Q1 (Ene hanggang Mar)",
+      "2": "Q2 (Abr hanggang Hun)",
+      "3": "Q3 (Hul hanggang Set)",
+      "4": "Q4 (Okt hanggang Dis)"
+    },
+    "months": {
+      "1": "Enero",
+      "2": "Pebrero",
+      "3": "Marso",
+      "4": "Abril",
+      "5": "Mayo",
+      "6": "Hunyo",
+      "7": "Hulyo",
+      "8": "Agosto",
+      "9": "Setyembre",
+      "10": "Oktubre",
+      "11": "Nobyembre",
+      "12": "Disyembre"
+    },
+    "datasets": {
+      "regular": "Karaniwang trabaho",
+      "spes": "SPES"
+    },
+    "scopes": {
+      "all": "Lahat (kasama ang mga posting na nakatago sa publiko)",
+      "public": "Pampubliko lamang"
+    },
+    "dateFields": {
+      "applied": "Petsa ng pag-apply",
+      "registered": "Petsa ng pagrehistro"
+    },
+    "workNatures": {
+      "remote": "Remote",
+      "onsite": "On-site",
+      "hybrid": "Hybrid",
+      "unspecified": "Hindi tinukoy"
+    },
+    "jobStatuses": {
+      "draft": "Draft",
+      "active": "Aktibo",
+      "closed": "Sarado",
+      "archived": "Naka-archive"
+    },
     "verificationValues": {
       "unverified": "Hindi pa beripikado",
       "pending": "Nakabinbin",
@@ -58,7 +104,12 @@
       "rejected": "Tinanggihan",
       "pending,under_review": "Naghihintay ng pagsusuri"
     },
-    "accountStatuses": { "active": "Aktibo", "suspended": "Suspendido", "banned": "Naka-ban", "deactivated": "Naka-deactivate" },
+    "accountStatuses": {
+      "active": "Aktibo",
+      "suspended": "Suspendido",
+      "banned": "Naka-ban",
+      "deactivated": "Naka-deactivate"
+    },
     "applicationStatuses": {
       "pending": "Nakabinbin",
       "under_review": "Sinusuri",
@@ -68,8 +119,15 @@
       "hired": "Natanggap",
       "withdrawn": "Binawi"
     },
-    "spesStatuses": { "draft": "Draft", "published": "Nailathala", "archived": "Naka-archive", "submitted": "Naisumite" },
-    "ageValues": { "unknown": "Hindi alam" },
+    "spesStatuses": {
+      "draft": "Draft",
+      "published": "Nailathala",
+      "archived": "Naka-archive",
+      "submitted": "Naisumite"
+    },
+    "ageValues": {
+      "unknown": "Hindi alam"
+    },
     "cards": {
       "postings": "Mga posting",
       "slots": "Bukas na slot",
@@ -97,7 +155,11 @@
       "ageBracket": "Ayon sa pangkat ng edad",
       "ageTier": "Ayon sa antas ng edad"
     },
-    "table": { "label": "Label", "count": "Bilang", "month": "Buwan" },
+    "table": {
+      "label": "Label",
+      "count": "Bilang",
+      "month": "Buwan"
+    },
     "statusKeys": {
       "pending": "Nakabinbin",
       "under_review": "Sinusuri",
@@ -107,6 +169,60 @@
       "rejected": "Tinanggihan",
       "hired": "Natanggap",
       "withdrawn": "Binawi"
+    },
+    "performance": {
+      "title": "Pinakamahusay at pinakamabisang mga employer",
+      "intro": "Niraranggo ayon sa bilang ng natanggap sa panahon. Kung magkapantay, tinitingnan ang hire rate, fill rate, at mas mabilis na oras ng pagkuha. Walang nakatagong timbang.",
+      "period": "Panahon",
+      "year": "Taon",
+      "quarter": "Kuwarter",
+      "periodYear": "Taon",
+      "periodQuarter": "Kuwarter",
+      "top": "Ipakita ang nangunguna",
+      "rank": "Ranggo",
+      "employer": "Employer",
+      "postings": "Mga posting",
+      "applicants": "Mga aplikante",
+      "hires": "Mga natanggap",
+      "hireRate": "Hire rate",
+      "fillRate": "Fill rate",
+      "daysToHire": "Median na araw bago matanggap",
+      "responseRate": "Response rate",
+      "change": "Pagbabago",
+      "viewChart": "Ipakita bilang tsart",
+      "viewTable": "Ipakita bilang talahanayan",
+      "chartLabel": "Mga natanggap kada employer",
+      "hireRateOf": "{{rate}}% (mula sa {{n}})",
+      "noValue": "Wala",
+      "rulesNote": "Kailangan ng ranked na employer ang hindi bababa sa {{postings}} posting at {{applicants}} aplikante sa panahon.",
+      "excluded": "{{count}} employer ang hindi ipinapakita (hindi maayos ang katayuan ng account o hindi beripikado).",
+      "formerLine": "Bilang pa rin sa kabuuan ang mga natanggap ng dating o restricted na employer: {{hires}}.",
+      "notEnough": "Kulang ang datos",
+      "notEnoughHint": "Mas mababa sa minimum na aktibidad, kaya walang ranggo.",
+      "emptyTitle": "Walang naranggo na employer",
+      "emptyText": "Walang beripikadong employer na may sapat na aktibidad sa panahong ito.",
+      "previousSame": "Kumpara sa parehong mga araw ng {{label}}",
+      "previousFull": "Kumpara sa {{label}}",
+      "up": "tumaas ng {{n}}",
+      "down": "bumaba ng {{n}}",
+      "same": "walang pagbabago",
+      "details": "Detalye",
+      "detailsFor": "Detalye para sa {{name}}",
+      "previousPeriod": "Nakaraang panahon",
+      "postingsList": "Mga posting sa panahong ito",
+      "posting": "Posting",
+      "funnelApplicants": "Mga aplikante",
+      "funnelQualified": "Kwalipikado",
+      "funnelShortlisted": "Nasa shortlist",
+      "funnelHired": "Natanggap",
+      "daysToFill": "Araw bago mapuno",
+      "closeReason": "Dahilan ng pagsasara",
+      "countsOnly": "Mga bilang lamang. Walang aplikanteng pinangalanan.",
+      "notEligible": "Hindi naranggo ang employer na ito (hindi beripikado o hindi maayos ang katayuan).",
+      "topCard": "Nangungunang mga employer ngayong kuwarter",
+      "topCardAll": "Tingnan ang buong ranggo",
+      "topCardEmpty": "Wala pang naranggo na employer ngayong kuwarter.",
+      "inProgress": "Kasalukuyang kuwarter"
     }
   }
 }

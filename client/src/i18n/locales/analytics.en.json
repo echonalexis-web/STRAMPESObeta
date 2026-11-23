@@ -19,7 +19,11 @@
     "suppressedNote": "Counts under 5 are hidden to protect privacy.",
     "viewTable": "Show as table",
     "hideTable": "Hide table",
-    "sections": { "jobs": "Jobs", "employers": "Employers", "applicants": "Applicants" },
+    "sections": {
+      "jobs": "Jobs",
+      "employers": "Employers",
+      "applicants": "Applicants"
+    },
     "fields": {
       "period": "Period",
       "year": "Year",
@@ -41,14 +45,56 @@
       "scope": "Postings"
     },
     "all": "All",
-    "periods": { "year": "Year", "quarter": "Quarter", "month": "Month", "custom": "Custom range" },
-    "quarters": { "1": "Q1 (Jan to Mar)", "2": "Q2 (Apr to Jun)", "3": "Q3 (Jul to Sep)", "4": "Q4 (Oct to Dec)" },
-    "months": { "1": "January", "2": "February", "3": "March", "4": "April", "5": "May", "6": "June", "7": "July", "8": "August", "9": "September", "10": "October", "11": "November", "12": "December" },
-    "datasets": { "regular": "Regular jobs", "spes": "SPES" },
-    "scopes": { "all": "All (includes postings hidden from the public)", "public": "Public only" },
-    "dateFields": { "applied": "Date applied", "registered": "Date registered" },
-    "workNatures": { "remote": "Remote", "onsite": "On-site", "hybrid": "Hybrid", "unspecified": "Not specified" },
-    "jobStatuses": { "draft": "Draft", "active": "Active", "closed": "Closed", "archived": "Archived" },
+    "periods": {
+      "year": "Year",
+      "quarter": "Quarter",
+      "month": "Month",
+      "custom": "Custom range"
+    },
+    "quarters": {
+      "1": "Q1 (Jan to Mar)",
+      "2": "Q2 (Apr to Jun)",
+      "3": "Q3 (Jul to Sep)",
+      "4": "Q4 (Oct to Dec)"
+    },
+    "months": {
+      "1": "January",
+      "2": "February",
+      "3": "March",
+      "4": "April",
+      "5": "May",
+      "6": "June",
+      "7": "July",
+      "8": "August",
+      "9": "September",
+      "10": "October",
+      "11": "November",
+      "12": "December"
+    },
+    "datasets": {
+      "regular": "Regular jobs",
+      "spes": "SPES"
+    },
+    "scopes": {
+      "all": "All (includes postings hidden from the public)",
+      "public": "Public only"
+    },
+    "dateFields": {
+      "applied": "Date applied",
+      "registered": "Date registered"
+    },
+    "workNatures": {
+      "remote": "Remote",
+      "onsite": "On-site",
+      "hybrid": "Hybrid",
+      "unspecified": "Not specified"
+    },
+    "jobStatuses": {
+      "draft": "Draft",
+      "active": "Active",
+      "closed": "Closed",
+      "archived": "Archived"
+    },
     "verificationValues": {
       "unverified": "Unverified",
       "pending": "Pending",
@@ -58,7 +104,12 @@
       "rejected": "Rejected",
       "pending,under_review": "Pending review"
     },
-    "accountStatuses": { "active": "Active", "suspended": "Suspended", "banned": "Banned", "deactivated": "Deactivated" },
+    "accountStatuses": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "banned": "Banned",
+      "deactivated": "Deactivated"
+    },
     "applicationStatuses": {
       "pending": "Pending",
       "under_review": "Under review",
@@ -68,8 +119,15 @@
       "hired": "Hired",
       "withdrawn": "Withdrawn"
     },
-    "spesStatuses": { "draft": "Draft", "published": "Published", "archived": "Archived", "submitted": "Submitted" },
-    "ageValues": { "unknown": "Not known" },
+    "spesStatuses": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived",
+      "submitted": "Submitted"
+    },
+    "ageValues": {
+      "unknown": "Not known"
+    },
     "cards": {
       "postings": "Postings",
       "slots": "Open slots",
@@ -97,7 +155,11 @@
       "ageBracket": "By age bracket",
       "ageTier": "By age tier"
     },
-    "table": { "label": "Label", "count": "Count", "month": "Month" },
+    "table": {
+      "label": "Label",
+      "count": "Count",
+      "month": "Month"
+    },
     "statusKeys": {
       "pending": "Pending",
       "under_review": "Under review",
@@ -107,6 +169,60 @@
       "rejected": "Rejected",
       "hired": "Hired",
       "withdrawn": "Withdrawn"
+    },
+    "performance": {
+      "title": "Best and most performative employers",
+      "intro": "Ranked by hires made in the period. Ties are broken by hire rate, fill rate, then faster time to hire. No hidden weights.",
+      "period": "Period",
+      "year": "Year",
+      "quarter": "Quarter",
+      "periodYear": "Year",
+      "periodQuarter": "Quarter",
+      "top": "Show top",
+      "rank": "Rank",
+      "employer": "Employer",
+      "postings": "Postings",
+      "applicants": "Applicants",
+      "hires": "Hires",
+      "hireRate": "Hire rate",
+      "fillRate": "Fill rate",
+      "daysToHire": "Median days to hire",
+      "responseRate": "Response rate",
+      "change": "Change",
+      "viewChart": "Show as chart",
+      "viewTable": "Show as table",
+      "chartLabel": "Hires per employer",
+      "hireRateOf": "{{rate}}% (of {{n}})",
+      "noValue": "Not available",
+      "rulesNote": "Ranked employers need at least {{postings}} posting(s) and {{applicants}} applicant(s) in the period.",
+      "excluded": "{{count}} employer(s) not shown (account not in good standing or not verified).",
+      "formerLine": "Hires by former or restricted employers still count in the total: {{hires}}.",
+      "notEnough": "Not enough data",
+      "notEnoughHint": "Below the minimum activity, so not ranked.",
+      "emptyTitle": "No ranked employers",
+      "emptyText": "No verified employer has enough activity in this period.",
+      "previousSame": "Compared with the same days of {{label}}",
+      "previousFull": "Compared with {{label}}",
+      "up": "up {{n}}",
+      "down": "down {{n}}",
+      "same": "no change",
+      "details": "Details",
+      "detailsFor": "Details for {{name}}",
+      "previousPeriod": "Previous period",
+      "postingsList": "Postings in this period",
+      "posting": "Posting",
+      "funnelApplicants": "Applicants",
+      "funnelQualified": "Qualified",
+      "funnelShortlisted": "Shortlisted",
+      "funnelHired": "Hired",
+      "daysToFill": "Days to fill",
+      "closeReason": "Close reason",
+      "countsOnly": "Counts only. No applicant is named.",
+      "notEligible": "This employer is not ranked (not verified or not in good standing).",
+      "topCard": "Top employers this quarter",
+      "topCardAll": "See full ranking",
+      "topCardEmpty": "No ranked employers yet this quarter.",
+      "inProgress": "Quarter in progress"
     }
   }
 }

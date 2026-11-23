@@ -458,6 +458,8 @@ export const adminAPI = {
   },
   getProvincialAnalytics: (params = {}) => api.get('/admin/analytics/provincial', { ...getAuthHeader(), params }),
   getAnalyticsSummary: (params = {}, config = {}) => api.get('/admin/analytics/summary', { ...getAuthHeader(), ...config, params }),
+  getEmployerPerformance: (params = {}, config = {}) => api.get('/admin/analytics/performance/employers', { ...getAuthHeader(), ...config, params }),
+  getEmployerPerformanceDetail: (id, params = {}) => api.get(`/admin/analytics/performance/employers/${id}`, { ...getAuthHeader(), params }),
   getAnalyticsFilterOptions: () => api.get('/admin/analytics/filter-options', getAuthHeader()),
   getUserById: (id) => api.get(`/admin/users/${id}`, getAuthHeader()),
   exportUserNsrpForm1: (id) =>
