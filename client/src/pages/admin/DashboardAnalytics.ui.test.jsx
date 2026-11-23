@@ -206,7 +206,7 @@ const overview = (overrides = {}) => ({
   topRoles: [{ title: "Service Crew", count: 7 }],
   municipalities: [
     { municipality: "Boac (Capital)", applications: { value: 20, suppressed: false }, hires: { value: 3, suppressed: false }, vacancies: { value: 9, suppressed: false } },
-    { municipality: "Gasan", applications: { value: null, suppressed: true }, hires: { value: 0, suppressed: false }, vacancies: { value: null, suppressed: true } },
+    { municipality: "Gasan", applications: { value: 3, suppressed: false }, hires: { value: 0, suppressed: false }, vacancies: { value: 2, suppressed: false } },
   ],
   ...overrides,
 });
@@ -432,12 +432,14 @@ describe("Analytics & Reports", () => {
     expect(row.querySelector(".an__rank-value").textContent).toBe("7 applications");
   });
 
-  test("municipality table: under 5 for a hidden cell, a real 0 stays 0, and the names are buttons that set and clear the filter", async () => {
+  test("municipality table: real counts (small ones too, no under 5), a 0 stays 0, and the names are buttons that set and clear the filter", async () => {
     const user = userEvent.setup();
     openAnalytics();
     const table = await screen.findByRole("table", { name: "By municipality" });
     const gasan = within(table).getByRole("button", { name: "Filter by Gasan" }).closest("tr");
-    expect(within(gasan).getAllByText("under 5")).toHaveLength(2);
+    expect(within(table).queryByText("under 5")).toBeNull();
+    expect(within(gasan).getByText("3")).toBeTruthy();
+    expect(within(gasan).getByText("2")).toBeTruthy();
     expect(within(gasan).getByText("0")).toBeTruthy();
     await user.click(within(table).getByRole("button", { name: "Filter by Gasan" }));
     await waitFor(() => expect(lastParams()).toEqual({ period: "30d", municipality: "Gasan" }));

@@ -20,7 +20,6 @@ const { PERFORMANCE } = require("./config");
 const { invalidFilter, invalidPeriod } = require("./errors");
 const { MANILA_TZ, manilaParts, periodBounds, formatManilaDate } = require("./period");
 const { MUNICIPALITY_LABELS, municipalityBucketExpression, normalizeMunicipalityLabel } = require("./municipality");
-const { suppressSmallCells } = require("./privacy");
 const { run, applicantMunicipalityExpression } = require("./summaryStats");
 const { wilsonLower, isEmployerEligible } = require("./employerPerformance");
 const {
@@ -168,14 +167,9 @@ const allTimeVacancyStages = () => [{ $addFields: { bucket: vacancyBucketExpress
 
 const items = (order, counts, total) => order.map((key) => ({ key, count: counts[key], percent: percentOf(counts[key], total) }));
 
-// A column of the municipality table with the small-cell rule: 1 to 4 become "under 5", and if only
-// one cell is hidden the next smallest is hidden too, so nothing can be worked out from the totals.
-const suppressedColumn = (values, order) => {
-  const cells = order.map((key) => ({ key, value: values.get(key) || 0 }));
-  const total = cells.reduce((sum, cell) => sum + cell.value, 0);
-  const safe = suppressSmallCells(cells, { total });
-  return new Map(safe.cells.map((cell) => [cell.key, cell.suppressed ? { value: null, suppressed: true } : { value: cell.value, suppressed: false }]));
-};
+// A column of the municipality table: the real count of every municipality (a zero stays a zero). These are
+// counts of applications, hires and vacancies, not of people by age, so the small-cell rule is not applied.
+const column = (values, order) => new Map(order.map((key) => [key, { value: values.get(key) || 0, suppressed: false }]));
 
 const getAnalyticsOverview = async (query = {}, now = new Date()) => {
   const { preset, period, municipality } = parseOverviewQuery(query, now);
@@ -272,9 +266,9 @@ const getAnalyticsOverview = async (query = {}, now = new Date()) => {
   const hiresByMuni = new Map(mapApps.map((row) => [row._id, Number(row.hires || 0)]));
   const vacsByMuni = new Map(mapVacs.map((row) => [row._id, Number(row.vacancies || 0)]));
   const columns = {
-    applications: suppressedColumn(appsByMuni, MUNICIPALITY_LABELS),
-    hires: suppressedColumn(hiresByMuni, MUNICIPALITY_LABELS),
-    vacancies: suppressedColumn(vacsByMuni, MUNICIPALITY_LABELS),
+    applications: column(appsByMuni, MUNICIPALITY_LABELS),
+    hires: column(hiresByMuni, MUNICIPALITY_LABELS),
+    vacancies: column(vacsByMuni, MUNICIPALITY_LABELS),
   };
 
   const applicationTotal = status.total;

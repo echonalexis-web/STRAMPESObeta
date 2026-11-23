@@ -495,7 +495,7 @@
     },
     "municipalities": {
       "title": "Ayon sa munisipalidad",
-      "intro": "Pumili ng pangalan para i-filter ang buong pahina. Ang bilang na 1 hanggang 4 ay ipinapakitang “mas mababa sa 5”, at itinatago rin ang pinakamaliit na iba pang cell sa hanay na iyon, kaya hindi makukuha ang nakatagong numero sa mga kabuuan.",
+      "intro": "Pumili ng pangalan para i-filter ang buong pahina.",
       "municipality": "Munisipalidad",
       "applications": "Mga aplikasyon",
       "hires": "Mga natanggap",

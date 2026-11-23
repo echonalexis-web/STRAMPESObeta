@@ -259,7 +259,7 @@ describe("getAnalyticsOverview", () => {
     expect(topRoles).toEqual([{ title: "Service Crew", count: 7 }, { title: "Cashier", count: 5 }]);
   });
 
-  test("municipality table: 1 to 4 show as under 5, the next smallest is withheld too, a zero stays a zero", async () => {
+  test("municipality table shows the real counts, small ones included, and a zero stays a zero", async () => {
     mockData({
       muniApps: [
         { _id: "Boac (Capital)", applications: 30, hires: 0 },
@@ -271,13 +271,13 @@ describe("getAnalyticsOverview", () => {
     });
     const { municipalities } = await overview.getAnalyticsOverview({}, NOW);
     const by = (name) => municipalities.find((row) => row.municipality === name);
-    expect(by("Gasan").applications).toEqual({ value: null, suppressed: true });
-    // only one cell was under 5, so the smallest other non-zero cell (Mogpog, 12) is withheld as well
-    expect(by("Mogpog").applications).toEqual({ value: null, suppressed: true });
+    expect(by("Gasan").applications).toEqual({ value: 3, suppressed: false });
+    expect(by("Mogpog").applications).toEqual({ value: 12, suppressed: false });
     expect(by("Boac (Capital)").applications).toEqual({ value: 30, suppressed: false });
+    expect(by("Boac (Capital)").vacancies).toEqual({ value: 9, suppressed: false });
     expect(by("Torrijos").applications).toEqual({ value: 0, suppressed: false });
     expect(by("Boac (Capital)").hires).toEqual({ value: 0, suppressed: false });
-    expect(JSON.stringify(municipalities)).not.toMatch(/"value":3[,}]/);
+    expect(JSON.stringify(municipalities)).not.toContain("suppressed\":true");
   });
 
   test("a municipality filter reaches the scope, but the table still lists every municipality", async () => {

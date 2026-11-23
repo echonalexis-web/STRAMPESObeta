@@ -495,7 +495,7 @@
     },
     "municipalities": {
       "title": "By municipality",
-      "intro": "Select a name to filter the whole page. Counts of 1 to 4 show as “under 5”, and the smallest other cell in that column is withheld too, so a hidden number cannot be worked out from the totals.",
+      "intro": "Select a name to filter the whole page.",
       "municipality": "Municipality",
       "applications": "Applications",
       "hires": "Hires",
