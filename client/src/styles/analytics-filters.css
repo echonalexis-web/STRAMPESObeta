@@ -114,3 +114,26 @@
   .epf__table .ds-table th,
   .epf__table .ds-table td { white-space: nowrap; }
 }
+
+/* Report generator (ReportGeneratorPanel, ReportHistoryList) */
+.rg__form { display: grid; gap: 16px; }
+.rg__step { border: 1px solid var(--ds-border, #dfe8e3); border-radius: var(--ds-radius-lg, 16px); padding: 14px 16px; margin: 0; min-width: 0; display: grid; gap: 10px; }
+.rg__step legend { padding: 0 6px; font-weight: 600; }
+.rg__columns { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 16px; }
+.rg__check { display: flex; align-items: center; gap: 10px; min-height: var(--ds-tap, 44px); font-size: 0.9375rem; cursor: pointer; }
+.rg__check input { width: 20px; height: 20px; flex: none; }
+.rg__formats { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.rg__purpose textarea { padding: 10px 12px; border: 1px solid var(--ds-border, #dfe8e3); border-radius: var(--ds-radius, 10px); font: inherit; resize: vertical; }
+.rg__purpose small { color: var(--ds-text-muted, #4b5d56); }
+.rg__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.rg__go { border-radius: var(--ds-radius, 10px); }
+.rg__go:disabled,
+.asf__clear:disabled { opacity: 0.55; cursor: not-allowed; }
+.rg__preview { display: grid; gap: 10px; }
+.rg-history__from { display: block; font-weight: 400; color: var(--ds-text-muted, #4b5d56); }
+.rg-history__pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; }
+@media (max-width: 767px) {
+  .rg__actions > button { flex: 1 1 100%; }
+  .rg-history .ds-table th,
+  .rg-history .ds-table td { white-space: nowrap; }
+}

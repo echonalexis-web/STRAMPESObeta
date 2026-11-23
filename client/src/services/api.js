@@ -460,6 +460,11 @@ export const adminAPI = {
   getAnalyticsSummary: (params = {}, config = {}) => api.get('/admin/analytics/summary', { ...getAuthHeader(), ...config, params }),
   getEmployerPerformance: (params = {}, config = {}) => api.get('/admin/analytics/performance/employers', { ...getAuthHeader(), ...config, params }),
   getEmployerPerformanceDetail: (id, params = {}) => api.get(`/admin/analytics/performance/employers/${id}`, { ...getAuthHeader(), params }),
+  getReportCatalog: () => api.get('/admin/report-exports/catalog', getAuthHeader()),
+  previewReportExport: (body) => api.post('/admin/report-exports/preview', body, getAuthHeader()),
+  generateReportExport: (body) => api.post('/admin/report-exports', body, { ...getAuthHeader(), responseType: 'blob' }),
+  listReportExports: (params = {}) => api.get('/admin/report-exports', { ...getAuthHeader(), params }),
+  regenerateReportExport: (reportId) => api.post(`/admin/report-exports/${encodeURIComponent(reportId)}/regenerate`, {}, { ...getAuthHeader(), responseType: 'blob' }),
   getAnalyticsFilterOptions: () => api.get('/admin/analytics/filter-options', getAuthHeader()),
   getUserById: (id) => api.get(`/admin/users/${id}`, getAuthHeader()),
   exportUserNsrpForm1: (id) =>

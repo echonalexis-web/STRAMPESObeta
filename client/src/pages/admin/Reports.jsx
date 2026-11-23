@@ -41,6 +41,7 @@ import "../../styles/reports.css";
 import AdminHeader from "./AdminHeader";
 import AnalyticsStatsPanel from "../../components/AnalyticsStatsPanel";
 import EmployerPerformancePanel from "../../components/EmployerPerformancePanel";
+import ReportGeneratorPanel from "../../components/ReportGeneratorPanel";
 import MetricCard from "../../components/MetricCard";
 import Reveal from "../../components/Reveal";
 import StateBlock from "../../components/StateBlock";
@@ -364,6 +365,8 @@ export default function Reports() {
       <AnalyticsStatsPanel />
 
       <EmployerPerformancePanel />
+
+      <ReportGeneratorPanel />
 
       <section className="admin-kpis rpt-kpis" aria-label={t("admin.kpi.sectionLabel")}>
         {analyticsLoading ? (
