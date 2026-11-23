@@ -103,7 +103,8 @@ export default function AdminDashboard() {
           </section>
 
           <div className="ov__main">
-            <section className="ov__card" aria-labelledby="ov-attention-title">
+            <div className="ov__col">
+              <section className="ov__card" aria-labelledby="ov-attention-title">
               <h2 id="ov-attention-title" className="ov__h2">{t("adminDash.attention.title")}</h2>
               <p className="ov__sub">{t("adminDash.attention.intro")}</p>
               {data.allClear && <p className="ov__allclear" role="status">{t("adminDash.attention.allClear")}</p>}
@@ -125,9 +126,26 @@ export default function AdminDashboard() {
                 ))}
               </ul>
             </section>
-
+              <section className="ov__card" aria-labelledby="ov-shortcuts-title">
+              <h2 id="ov-shortcuts-title" className="ov__h2">{t("adminDash.shortcuts.title")}</h2>
+              <p className="ov__sub">{t("adminDash.shortcuts.intro")}</p>
+              <ul className="ov__shortcuts">
+                <li><Link className="ov__btn" to="/admin/verification">{t("adminDash.shortcuts.employerVerification")}</Link></li>
+                <li><Link className="ov__btn" to="/admin/job-monitoring">{t("adminDash.shortcuts.jobMonitoring")}</Link></li>
+                {isSuperadmin ? (
+                  <>
+                    <li><Link className="ov__btn" to="/admin/users">{t("adminDash.shortcuts.userManagement")}</Link></li>
+                    <li><Link className="ov__btn" to="/superadmin/admin-accounts">{t("adminDash.shortcuts.provisionStaff")}</Link></li>
+                  </>
+                ) : (
+                  // User Management is a superadmin page; a PESO admin finds people here instead.
+                  <li><Link className="ov__btn" to="/admin/find-account"><UserRound size={16} aria-hidden="true" />{t("adminDash.shortcuts.findAccount")}</Link></li>
+                )}
+              </ul>
+          </section>
+            </div>
             <div className="ov__col">
-            <section className="ov__card" aria-labelledby="ov-muni-title">
+              <section className="ov__card" aria-labelledby="ov-muni-title">
               <h2 id="ov-muni-title" className="ov__h2">{t("adminDash.municipality.title")}</h2>
               <p className="ov__sub">{t("adminDash.municipality.intro")}</p>
               <table className="ov__bars">
@@ -148,8 +166,7 @@ export default function AdminDashboard() {
               </table>
               <Link className="ov__btn" to="/admin/reports">{t("adminDash.municipality.open")}</Link>
             </section>
-
-            <section className="ov__card" aria-labelledby="ov-recent-title">
+              <section className="ov__card" aria-labelledby="ov-recent-title">
               <h2 id="ov-recent-title" className="ov__h2">{t("adminDash.recent.title")}</h2>
               {data.recentActivity.length === 0 ? (
                 <p className="ov__sub">{t("adminDash.recent.empty")}</p>
@@ -167,27 +184,8 @@ export default function AdminDashboard() {
               )}
               {isSuperadmin && <Link className="ov__btn" to="/admin/audit-logs">{t("adminDash.recent.viewAll")}</Link>}
             </section>
-
             </div>
           </div>
-
-          <section className="ov__card" aria-labelledby="ov-shortcuts-title">
-              <h2 id="ov-shortcuts-title" className="ov__h2">{t("adminDash.shortcuts.title")}</h2>
-              <p className="ov__sub">{t("adminDash.shortcuts.intro")}</p>
-              <ul className="ov__shortcuts">
-                <li><Link className="ov__btn" to="/admin/verification">{t("adminDash.shortcuts.employerVerification")}</Link></li>
-                <li><Link className="ov__btn" to="/admin/job-monitoring">{t("adminDash.shortcuts.jobMonitoring")}</Link></li>
-                {isSuperadmin ? (
-                  <>
-                    <li><Link className="ov__btn" to="/admin/users">{t("adminDash.shortcuts.userManagement")}</Link></li>
-                    <li><Link className="ov__btn" to="/superadmin/admin-accounts">{t("adminDash.shortcuts.provisionStaff")}</Link></li>
-                  </>
-                ) : (
-                  // User Management is a superadmin page; a PESO admin finds people here instead.
-                  <li><Link className="ov__btn" to="/admin/find-account"><UserRound size={16} aria-hidden="true" />{t("adminDash.shortcuts.findAccount")}</Link></li>
-                )}
-              </ul>
-          </section>
         </>
       )}
     </div>

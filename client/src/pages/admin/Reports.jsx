@@ -173,7 +173,8 @@ export default function Reports() {
           </section>
 
           <div className="an__main">
-            <section className="an__card" aria-labelledby="an-trend-title">
+            <div className="an__col">
+              <section className="an__card" aria-labelledby="an-trend-title">
               <h2 id="an-trend-title" className="an__h2">{t("adminAnalytics.trend.title")}</h2>
               <p className="an__sub">{t(`adminAnalytics.trend.granularity.${data.trend.granularity}`)}</p>
               <div className="an__metrics" role="group" aria-label={t("adminAnalytics.trend.metric")}>
@@ -218,50 +219,7 @@ export default function Reports() {
                 </div>
               </details>
             </section>
-
-            <div className="an__col">
-              <section className="an__card" aria-labelledby="an-status-title">
-                <h2 id="an-status-title" className="an__h2">{t("adminAnalytics.status.title")}</h2>
-                <p className="an__sub">{t("adminAnalytics.status.intro", { total: data.applicationsByStatus.total })}</p>
-                {data.applicationsByStatus.total === 0 ? (
-                  <p className="an__empty">{t("adminAnalytics.status.empty")}</p>
-                ) : (
-                  <>
-                    <div className="an__stack" aria-hidden="true">
-                      {statusItems.filter((item) => item.count > 0).map((item) => (
-                        <span key={item.key} className="an__seg" style={{ width: `${item.percent}%`, background: STATUS_SHADES[item.key] }} />
-                      ))}
-                    </div>
-                    <ul className="an__legend">
-                      {statusItems.map((item) => (
-                        <li key={item.key}>
-                          <span className="an__swatch" style={{ background: STATUS_SHADES[item.key] }} aria-hidden="true" />
-                          <span className="an__lname">{t(`adminAnalytics.status.items.${item.key}`)}</span>
-                          <span className="an__lnum">{t("adminAnalytics.status.line", { count: item.count, percent: item.percent })}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </section>
-
-              <section className="an__card" aria-labelledby="an-vac-title">
-                <h2 id="an-vac-title" className="an__h2">{t("adminAnalytics.vacancies.title")}</h2>
-                <p className="an__sub">{t("adminAnalytics.vacancies.intro", { total: data.vacanciesByStatus.total })}</p>
-                <div className="an__stats">
-                  {data.vacanciesByStatus.items.map((item) => (
-                    <div key={item.key} className="an__stat">
-                      <span className="an__stat-num">{item.count}</span>
-                      <span className="an__stat-label">{t(`adminAnalytics.vacancies.items.${item.key}`)}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
-          </div>
-
-          <div className="an__pair">
-            <section className="an__card" aria-labelledby="an-emp-title">
+              <section className="an__card" aria-labelledby="an-emp-title">
               <h2 id="an-emp-title" className="an__h2">{t("adminAnalytics.employers.title")}</h2>
               <p className="an__sub">{t("adminAnalytics.employers.intro", data.topEmployers.minimums)}</p>
               {employers.length === 0 ? (
@@ -297,8 +255,45 @@ export default function Reports() {
                 </>
               )}
             </section>
-
-            <section className="an__card" aria-labelledby="an-roles-title">
+            </div>
+            <div className="an__col">
+              <section className="an__card" aria-labelledby="an-status-title">
+                <h2 id="an-status-title" className="an__h2">{t("adminAnalytics.status.title")}</h2>
+                <p className="an__sub">{t("adminAnalytics.status.intro", { total: data.applicationsByStatus.total })}</p>
+                {data.applicationsByStatus.total === 0 ? (
+                  <p className="an__empty">{t("adminAnalytics.status.empty")}</p>
+                ) : (
+                  <>
+                    <div className="an__stack" aria-hidden="true">
+                      {statusItems.filter((item) => item.count > 0).map((item) => (
+                        <span key={item.key} className="an__seg" style={{ width: `${item.percent}%`, background: STATUS_SHADES[item.key] }} />
+                      ))}
+                    </div>
+                    <ul className="an__legend">
+                      {statusItems.map((item) => (
+                        <li key={item.key}>
+                          <span className="an__swatch" style={{ background: STATUS_SHADES[item.key] }} aria-hidden="true" />
+                          <span className="an__lname">{t(`adminAnalytics.status.items.${item.key}`)}</span>
+                          <span className="an__lnum">{t("adminAnalytics.status.line", { count: item.count, percent: item.percent })}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </section>
+              <section className="an__card" aria-labelledby="an-vac-title">
+                <h2 id="an-vac-title" className="an__h2">{t("adminAnalytics.vacancies.title")}</h2>
+                <p className="an__sub">{t("adminAnalytics.vacancies.intro", { total: data.vacanciesByStatus.total })}</p>
+                <div className="an__stats">
+                  {data.vacanciesByStatus.items.map((item) => (
+                    <div key={item.key} className="an__stat">
+                      <span className="an__stat-num">{item.count}</span>
+                      <span className="an__stat-label">{t(`adminAnalytics.vacancies.items.${item.key}`)}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+              <section className="an__card" aria-labelledby="an-roles-title">
               <h2 id="an-roles-title" className="an__h2">{t("adminAnalytics.roles.title")}</h2>
               <p className="an__sub">{t("adminAnalytics.roles.intro")}</p>
               {data.topRoles.length === 0 ? (
@@ -314,6 +309,7 @@ export default function Reports() {
                 </ol>
               )}
             </section>
+            </div>
           </div>
 
           <section className="an__card" aria-labelledby="an-muni-title">
