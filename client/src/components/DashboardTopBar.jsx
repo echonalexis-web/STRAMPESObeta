@@ -128,6 +128,17 @@ const PAGE_TITLE_PREFIXES = [
   ["/admin/news/", "newsManagement"],
 ];
 
+// Pages that have their own subtitle: it replaces the portal description under the title.
+const PAGE_DESCRIPTION_KEYS = {
+  "/admin": "adminDashboard",
+  "/admin/reports": "reports",
+};
+
+const getPageDescriptionKey = (pathname) => {
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return PAGE_DESCRIPTION_KEYS[path] || null;
+};
+
 const getPageTitleKey = (pathname) => {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
   if (PAGE_TITLE_EXACT[path]) return PAGE_TITLE_EXACT[path];
@@ -346,8 +357,10 @@ export default function DashboardTopBar() {
 
   if (hidden) return null;
 
-  const { title, badge, icon, description } = getPortalContent(user, t);
+  const { title, badge, icon, description: portalDescription } = getPortalContent(user, t);
   const pageTitleKey = getPageTitleKey(location.pathname);
+  const pageDescriptionKey = getPageDescriptionKey(location.pathname);
+  const description = pageDescriptionKey ? t(`shell.topbar.pageDescriptions.${pageDescriptionKey}`) : portalDescription;
 
   // The portal label is the bar's only eyebrow; the page title below it is a
   // plain paragraph, not an <h1>, so each page keeps its own single h1.

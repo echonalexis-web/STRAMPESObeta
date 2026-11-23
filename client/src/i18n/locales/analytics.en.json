@@ -319,7 +319,7 @@
   },
   "adminDash": {
     "title": "Dashboard",
-    "description": "What needs a person today. Live numbers, no date filters.",
+    "description": "What needs a person today.",
     "kpiLabel": "Key numbers",
     "kpis": {
       "activeJobseekers": {
@@ -402,7 +402,7 @@
   },
   "adminAnalytics": {
     "title": "Analytics & Reports",
-    "description": "How we are doing over time. One filter drives every panel and the report generator.",
+    "description": "How the province is doing over time.",
     "filter": {
       "label": "Analytics filter",
       "period": "Period",
@@ -475,7 +475,8 @@
         "open": "Open",
         "closed": "Closed",
         "archived": "Archived"
-      }
+      },
+      "totalLabel": "Total vacancies"
     },
     "employers": {
       "title": "Top employers by hires",
@@ -503,7 +504,16 @@
     },
     "generator": {
       "scopeIntro": "Uses the filter bar above: {{scope}}.",
-      "sectionTitle": "Generate a report"
+      "sectionTitle": "Generate a report",
+      "title": "Generate a report",
+      "historyButton": "Report history",
+      "report": "Report",
+      "choose": "Choose a report",
+      "fileType": "File type",
+      "columns": "Columns",
+      "preparedBy": "Prepared by {{name}}, taken from your sign-in. Every export is logged before the file is made.",
+      "needDataset": "Choose a report first.",
+      "disabledNote": "Choose a report to turn these buttons on."
     },
     "errors": {
       "title": "Could not load the analytics",
@@ -517,6 +527,10 @@
     "topbar": {
       "titles": {
         "reports": "Analytics & Reports"
+      },
+      "pageDescriptions": {
+        "adminDashboard": "What needs a person today.",
+        "reports": "How the province is doing over time."
       }
     }
   },
@@ -527,5 +541,46 @@
     "matching": {
       "subtitle": "Default weights used when jobseekers are matched to jobs"
     }
+  },
+  "reportHistory": {
+    "title": "Report history",
+    "subtitle": "Records of reports made. Files are not stored; running one again reads today's data. Kept for 24 months.",
+    "card": "Reports made",
+    "toolbar": "Filter the history",
+    "report": "Report",
+    "fileType": "File type",
+    "madeFrom": "Made from",
+    "madeTo": "Made to",
+    "all": "All",
+    "reset": "Reset",
+    "items": "reports",
+    "columns": {
+      "when": "Date and time",
+      "report": "Report",
+      "fileType": "File type",
+      "period": "Period",
+      "municipality": "Municipality",
+      "preparedBy": "Prepared by",
+      "result": "Result",
+      "action": "Action"
+    },
+    "allMunicipalities": "All municipalities",
+    "result": {
+      "made": "Made",
+      "blocked": "Blocked"
+    },
+    "reasons": {
+      "NOT_ENOUGH_DATA": "Not enough data"
+    },
+    "setUp": "Set up again",
+    "setUpFor": "Set up {{id}} again",
+    "emptyTitle": "No reports yet.",
+    "emptyText": "Reports you make are listed here.",
+    "emptyButton": "Make a report",
+    "filteredTitle": "No reports match these filters.",
+    "filteredText": "Try other dates or clear the filters.",
+    "errorTitle": "Could not load the report history",
+    "errorText": "Check your connection and try again.",
+    "close": "Close"
   }
 }

@@ -319,7 +319,7 @@
   },
   "adminDash": {
     "title": "Dashboard",
-    "description": "Ang kailangan ng tao ngayon. Live na bilang, walang filter ng petsa.",
+    "description": "Ang kailangan ng tao ngayon.",
     "kpiLabel": "Mahahalagang bilang",
     "kpis": {
       "activeJobseekers": {
@@ -402,7 +402,7 @@
   },
   "adminAnalytics": {
     "title": "Analytics at Mga Ulat",
-    "description": "Kumusta tayo sa paglipas ng panahon. Isang filter ang nagpapatakbo sa bawat panel at sa tagabuo ng ulat.",
+    "description": "Kumusta ang lalawigan sa paglipas ng panahon.",
     "filter": {
       "label": "Filter ng analytics",
       "period": "Panahon",
@@ -475,7 +475,8 @@
         "open": "Bukas",
         "closed": "Sarado",
         "archived": "Naka-archive"
-      }
+      },
+      "totalLabel": "Kabuuang bakante"
     },
     "employers": {
       "title": "Nangungunang employer ayon sa natanggap",
@@ -503,7 +504,16 @@
     },
     "generator": {
       "scopeIntro": "Gumagamit ng filter sa itaas: {{scope}}.",
-      "sectionTitle": "Bumuo ng ulat"
+      "sectionTitle": "Bumuo ng ulat",
+      "title": "Bumuo ng ulat",
+      "historyButton": "Kasaysayan ng mga ulat",
+      "report": "Ulat",
+      "choose": "Pumili ng ulat",
+      "fileType": "Uri ng file",
+      "columns": "Mga kolum",
+      "preparedBy": "Inihanda ni {{name}}, mula sa iyong pag-sign in. Naitatala ang bawat export bago gawin ang file.",
+      "needDataset": "Pumili muna ng ulat.",
+      "disabledNote": "Pumili ng ulat para gumana ang mga button na ito."
     },
     "errors": {
       "title": "Hindi ma-load ang analytics",
@@ -517,6 +527,10 @@
     "topbar": {
       "titles": {
         "reports": "Analytics at Mga Ulat"
+      },
+      "pageDescriptions": {
+        "adminDashboard": "Ang kailangan ng tao ngayon.",
+        "reports": "Kumusta ang lalawigan sa paglipas ng panahon."
       }
     }
   },
@@ -527,5 +541,46 @@
     "matching": {
       "subtitle": "Mga default na timbang sa pagtutugma ng jobseeker sa trabaho"
     }
+  },
+  "reportHistory": {
+    "title": "Kasaysayan ng mga ulat",
+    "subtitle": "Mga tala ng mga ulat na nagawa. Hindi itinatabi ang mga file; ang muling pagpapatakbo ay babasa ng datos ngayon. Itinatago sa loob ng 24 na buwan.",
+    "card": "Mga ulat na nagawa",
+    "toolbar": "I-filter ang kasaysayan",
+    "report": "Ulat",
+    "fileType": "Uri ng file",
+    "madeFrom": "Ginawa mula",
+    "madeTo": "Ginawa hanggang",
+    "all": "Lahat",
+    "reset": "I-reset",
+    "items": "ulat",
+    "columns": {
+      "when": "Petsa at oras",
+      "report": "Ulat",
+      "fileType": "Uri ng file",
+      "period": "Panahon",
+      "municipality": "Munisipalidad",
+      "preparedBy": "Inihanda ni",
+      "result": "Resulta",
+      "action": "Aksyon"
+    },
+    "allMunicipalities": "Lahat ng munisipalidad",
+    "result": {
+      "made": "Nagawa",
+      "blocked": "Naharang"
+    },
+    "reasons": {
+      "NOT_ENOUGH_DATA": "Kulang ang datos"
+    },
+    "setUp": "I-set up muli",
+    "setUpFor": "I-set up muli ang {{id}}",
+    "emptyTitle": "Wala pang ulat.",
+    "emptyText": "Nakalista dito ang mga ulat na gagawin mo.",
+    "emptyButton": "Gumawa ng ulat",
+    "filteredTitle": "Walang ulat na tumutugma sa mga filter na ito.",
+    "filteredText": "Subukan ang ibang petsa o alisin ang mga filter.",
+    "errorTitle": "Hindi ma-load ang kasaysayan ng mga ulat",
+    "errorText": "Suriin ang koneksyon at subukan muli.",
+    "close": "Isara"
   }
 }

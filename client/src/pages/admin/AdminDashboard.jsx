@@ -102,7 +102,7 @@ export default function AdminDashboard() {
             />
           </section>
 
-          <div className="ov__grid">
+          <div className="ov__main">
             <section className="ov__card" aria-labelledby="ov-attention-title">
               <h2 id="ov-attention-title" className="ov__h2">{t("adminDash.attention.title")}</h2>
               <p className="ov__sub">{t("adminDash.attention.intro")}</p>
@@ -126,6 +126,7 @@ export default function AdminDashboard() {
               </ul>
             </section>
 
+            <div className="ov__col">
             <section className="ov__card" aria-labelledby="ov-muni-title">
               <h2 id="ov-muni-title" className="ov__h2">{t("adminDash.municipality.title")}</h2>
               <p className="ov__sub">{t("adminDash.municipality.intro")}</p>
@@ -167,7 +168,10 @@ export default function AdminDashboard() {
               {isSuperadmin && <Link className="ov__btn" to="/admin/audit-logs">{t("adminDash.recent.viewAll")}</Link>}
             </section>
 
-            <section className="ov__card" aria-labelledby="ov-shortcuts-title">
+            </div>
+          </div>
+
+          <section className="ov__card" aria-labelledby="ov-shortcuts-title">
               <h2 id="ov-shortcuts-title" className="ov__h2">{t("adminDash.shortcuts.title")}</h2>
               <p className="ov__sub">{t("adminDash.shortcuts.intro")}</p>
               <ul className="ov__shortcuts">
@@ -183,8 +187,7 @@ export default function AdminDashboard() {
                   <li><Link className="ov__btn" to="/admin/find-account"><UserRound size={16} aria-hidden="true" />{t("adminDash.shortcuts.findAccount")}</Link></li>
                 )}
               </ul>
-            </section>
-          </div>
+          </section>
         </>
       )}
     </div>
