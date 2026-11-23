@@ -52,7 +52,10 @@ const dashboard = (overrides = {}) => ({
     { municipality: "Boac (Capital)", value: 80, suppressed: false },
     { municipality: "Gasan", value: 3, suppressed: false },
   ],
-  recentActivity: [{ id: "1", action: "employer.verification.approved", severity: "info", at: "2026-11-19T00:00:00.000Z" }],
+  recentActivity: [
+    { id: "1", action: "employer.verification.approved", severity: "info", at: "2026-11-19T00:00:00.000Z" },
+    { id: "2", action: "report.generated", severity: "warning", at: "2026-11-18T00:00:00.000Z" },
+  ],
   ...overrides,
 });
 
@@ -125,6 +128,19 @@ describe("Dashboard", () => {
   test("recent activity is plain words and a time, nothing about a person", async () => {
     openDashboard();
     expect(await screen.findByText("Employer verification approved")).toBeTruthy();
+  });
+
+  test("recent activity is a list with an icon, the time (exact one in the title) and a text flag only for warnings", async () => {
+    openDashboard();
+    const approved = (await screen.findByText("Employer verification approved")).closest("li");
+    const generated = screen.getByText("Report generated").closest("li");
+    expect(approved.querySelector("svg")).toBeTruthy();
+    expect(approved.querySelector("[aria-hidden='true'] svg")).toBeTruthy();
+    const time = approved.querySelector("time");
+    expect(time.getAttribute("datetime")).toBe("2026-11-19T00:00:00.000Z");
+    expect(time.getAttribute("title")).toBeTruthy();
+    expect(within(approved).queryByText("Warning")).toBeNull();
+    expect(within(generated).getByText("Warning")).toBeTruthy();
   });
 
   test("a superadmin sees the Audit Trail link, User Management and Provision staff", async () => {

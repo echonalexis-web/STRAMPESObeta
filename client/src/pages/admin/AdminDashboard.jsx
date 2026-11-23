@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { BriefcaseBusiness, Building2, ChevronRight, ClipboardCheck, UserRound, Users } from "lucide-react";
+import { Activity, BriefcaseBusiness, Building2, ChevronRight, ClipboardCheck, FileText, ShieldCheck, UserRound, Users } from "lucide-react";
 import { adminAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import AdminHeader from "./AdminHeader";
@@ -23,6 +23,32 @@ const ATTENTION_LINKS = {
 const actionText = (action) => {
   const words = String(action || "").replace(/[._-]+/g, " ").trim();
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : "";
+};
+
+// One icon per kind of event, picked from the audit action ("employer.verification.approved" -> a shield).
+const activityIcon = (action) => {
+  const key = String(action || "").toLowerCase();
+  if (key.includes("verification") || key.startsWith("staff") || key.startsWith("admin")) return ShieldCheck;
+  if (key.startsWith("employer")) return Building2;
+  if (key.startsWith("job") || key.startsWith("vacancy")) return BriefcaseBusiness;
+  if (key.startsWith("report") || key.startsWith("appeal")) return FileText;
+  if (key.startsWith("application")) return ClipboardCheck;
+  if (key.startsWith("user") || key.startsWith("account") || key.startsWith("jobseeker")) return UserRound;
+  return Activity;
+};
+
+// "3 hours ago" for the last week, a date after that. The exact time stays in the title and the datetime.
+const relativeText = (value, language, now = Date.now()) => {
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return "";
+  const seconds = Math.round((time - now) / 1000);
+  const abs = Math.abs(seconds);
+  const formatter = new Intl.RelativeTimeFormat(language === "fil" ? "fil-PH" : "en-PH", { numeric: "auto" });
+  if (abs < 60) return formatter.format(0, "second");
+  if (abs < 3600) return formatter.format(Math.round(seconds / 60), "minute");
+  if (abs < 86400) return formatter.format(Math.round(seconds / 3600), "hour");
+  if (abs < 7 * 86400) return formatter.format(Math.round(seconds / 86400), "day");
+  return new Intl.DateTimeFormat(language === "fil" ? "fil-PH" : "en-PH", { dateStyle: "medium", timeZone: "Asia/Manila" }).format(new Date(time));
 };
 
 const dateText = (value, language) => {
@@ -171,16 +197,24 @@ export default function AdminDashboard() {
               {data.recentActivity.length === 0 ? (
                 <p className="ov__sub">{t("adminDash.recent.empty")}</p>
               ) : (
-                <ul className="ov__activity">
-                  {data.recentActivity.map((item) => (
-                    <li key={item.id}>
-                      <span>{actionText(item.action)}</span>
-                      <small>
-                        {t(`adminDash.recent.severity.${item.severity}`, { defaultValue: item.severity })} · {dateText(item.at, i18n.language)}
-                      </small>
-                    </li>
-                  ))}
-                </ul>
+                <ol className="ov__activity">
+                  {data.recentActivity.map((item) => {
+                    const Icon = activityIcon(item.action);
+                    const flagged = item.severity === "warning" || item.severity === "critical";
+                    return (
+                      <li key={item.id} className="ov__event">
+                        <span className={`ov__event-icon${flagged ? " is-flagged" : ""}`} aria-hidden="true"><Icon size={16} /></span>
+                        <span className="ov__event-body">
+                          <span className="ov__event-title">{actionText(item.action)}</span>
+                          <time className="ov__event-time" dateTime={new Date(item.at).toISOString()} title={dateText(item.at, i18n.language)}>
+                            {relativeText(item.at, i18n.language)}
+                          </time>
+                        </span>
+                        {flagged && <span className={`ov__event-flag ov__event-flag--${item.severity}`}>{t(`adminDash.recent.severity.${item.severity}`)}</span>}
+                      </li>
+                    );
+                  })}
+                </ol>
               )}
               {isSuperadmin && <Link className="ov__btn" to="/admin/audit-logs">{t("adminDash.recent.viewAll")}</Link>}
             </section>
