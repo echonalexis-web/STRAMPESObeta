@@ -203,6 +203,25 @@ describe("audit first, history and hash", () => {
   });
 });
 
+describe("xlsx through the service", () => {
+  test("is sent as a workbook named by the report ID, with the same record count and a matching hash", async () => {
+    answer(JobVacancy, { count: 2, rows: [job(), job({ title: "Baker" })] });
+    const result = await service.generateReport(ADMIN, body({ format: "xlsx" }), { now: NOW });
+    expect(result.contentType).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    expect(result.filename).toBe(`${result.reportId}.xlsx`);
+    expect(result.bytes.slice(0, 2).toString()).toBe("PK");
+    expect(result.recordCount).toBe(2);
+    const history = ReportExport.create.mock.calls[0][0];
+    expect(history.format).toBe("xlsx");
+    expect(history.contentSha256).toBe(crypto.createHash("sha256").update(result.bytes).digest("hex"));
+  });
+
+  test("the xlsx row cap is the same 50,000 and over it is refused", async () => {
+    answer(JobVacancy, { count: 50001, rows: [] });
+    await expect(service.generateReport(ADMIN, body({ format: "xlsx" }), { now: NOW })).rejects.toMatchObject({ status: 422, code: "EXPORT_TOO_LARGE" });
+  });
+});
+
 describe("limits", () => {
   test("above the row cap the request is refused, not truncated", async () => {
     answer(JobVacancy, { count: 50001, rows: [] });
