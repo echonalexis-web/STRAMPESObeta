@@ -33,6 +33,7 @@ const PERSONAL_MODELS = {
   EmailOutbox: require("../models/EmailOutbox"),
   QualificationTemplate: require("../models/QualificationTemplate"),
   MatchWeightProfile: require("../models/MatchWeightProfile"),
+  ResumePhoto: require("../models/ResumePhoto"),
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -216,6 +217,7 @@ const personalCollections = () => [
   ["EmailOutbox", "recipient"],
   ["QualificationTemplate", "employer"],
   ["MatchWeightProfile", "owner"],
+  ["ResumePhoto", "owner"],
 ];
 
 

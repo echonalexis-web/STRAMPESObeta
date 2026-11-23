@@ -10,7 +10,7 @@ jest.mock("../models/AccountRecoveryRequest", () => ({ updateMany: jest.fn() }))
 jest.mock("../models/Conversation", () => ({ find: jest.fn(), deleteMany: jest.fn() }));
 jest.mock("../models/Message", () => ({ deleteMany: jest.fn() }));
 jest.mock("../models/JobseekerDocument", () => ({ find: jest.fn(), deleteMany: jest.fn() }));
-["JobseekerProfile", "EmployerProfile", "JobLike", "NewsLike", "NewsComment", "Follow", "Notification", "ContactShare", "EmailOutbox", "QualificationTemplate", "MatchWeightProfile"].forEach((name) => {
+["JobseekerProfile", "EmployerProfile", "JobLike", "NewsLike", "NewsComment", "Follow", "Notification", "ContactShare", "EmailOutbox", "QualificationTemplate", "MatchWeightProfile", "ResumePhoto"].forEach((name) => {
   jest.mock(`../models/${name}`, () => ({ deleteMany: jest.fn() }));
 });
 
@@ -199,7 +199,7 @@ describe("purgeUser", () => {
     Conversation.find.mockReturnValue(query([{ _id: "c1" }]));
     Message.deleteMany.mockResolvedValue({ deletedCount: 4 });
     Conversation.deleteMany.mockResolvedValue({ deletedCount: 1 });
-    ["JobseekerProfile", "EmployerProfile", "NewsLike", "NewsComment", "Follow", "Notification", "ContactShare", "EmailOutbox", "QualificationTemplate", "MatchWeightProfile"].forEach((name) => {
+    ["JobseekerProfile", "EmployerProfile", "NewsLike", "NewsComment", "Follow", "Notification", "ContactShare", "EmailOutbox", "QualificationTemplate", "MatchWeightProfile", "ResumePhoto"].forEach((name) => {
       require(`../models/${name}`).deleteMany.mockResolvedValue({ deletedCount: 0 });
     });
     JobLike.deleteMany.mockResolvedValue({ deletedCount: 2 });

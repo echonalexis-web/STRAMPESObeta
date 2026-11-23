@@ -109,6 +109,8 @@ exports.uploadMyDocument = async (req, res) => {
       sourceJobId,
       // Only a builder-made resume can be "ats"; anything else is a plain standard document.
       ...(kind === "resume" && source === "builder" && req.body.resumeType === "ats" ? { resumeType: "ats" } : {}),
+      // Whether the saved resume shows the applicant's resume photo (display metadata; never ATS).
+      ...(kind === "resume" && source === "builder" && req.body.resumeType !== "ats" && req.body.hasPhoto === "true" ? { hasPhoto: true } : {}),
     });
 
     return res.status(201).json(document);
