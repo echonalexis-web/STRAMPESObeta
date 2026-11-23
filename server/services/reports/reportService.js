@@ -29,6 +29,10 @@ const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 const fail = (status, code, message) => new AnalyticsError(status, code, message);
 
+// req.user comes from the token (the protect middleware spreads the decoded payload), which carries `id`
+// and no `_id`; other callers pass a full document with `_id`. Both work.
+const userIdOf = (user) => (user && (user._id || user.id)) || null;
+
 // ------------------------------------------------------------------ ids and small helpers
 
 const newReportId = (now = new Date()) => {
@@ -194,8 +198,9 @@ const groupLabel = (grouping) => GROUP_LABELS[grouping] || "Group";
 
 const loadPreparer = async (user) => {
   // Re-read from the database: the name, role and office on a report are never taken from the request or token.
-  const record = await User.findById(user._id).select("name role staffNote").lean();
-  if (!record) throw fail(401, "UNAUTHORIZED", "Account not found.");
+  const record = await User.findById(userIdOf(user)).select("name role staffNote").lean();
+  // Not a 401: the browser treats any 401 as an ended session and signs the person out.
+  if (!record) throw fail(404, "PREPARER_NOT_FOUND", "Your account could not be found.");
   const note = typeof record.staffNote === "string" ? record.staffNote.trim() : "";
   return { userId: record._id, name: record.name || "", role: record.role, staffNote: note || null };
 };
@@ -249,7 +254,7 @@ const record = (spec) => ({ dataset: spec.dataset.id, format: spec.format, param
 const writeAudit = ({ req, user, reportId, spec, recordCount, regeneratedFrom }) => {
   const ip = req ? (typeof req.headers?.["x-forwarded-for"] === "string" && req.headers["x-forwarded-for"] ? req.headers["x-forwarded-for"].split(",")[0].trim() : req.ip || "") : "";
   return AuditLog.create({
-    actorId: user._id,
+    actorId: userIdOf(user),
     actorRole: user.role,
     action: "report.generated",
     targetType: "report",
@@ -295,7 +300,7 @@ const recordBlocked = async ({ spec, preparer, reason, now, regeneratedFrom }) =
 // POST /admin/report-exports  (and regenerate)
 // Returns { bytes, filename, contentType, reportId, recordCount }.
 const generateReport = async (user, body, { req = null, now = new Date(), regeneratedFrom = null } = {}) => {
-  const key = String(user._id);
+  const key = String(userIdOf(user));
   if (inFlight.has(key)) throw fail(429, "REPORT_IN_PROGRESS", "A report is already being generated for your account. Wait for it to finish.");
   inFlight.add(key);
   const started = Date.now();
@@ -336,7 +341,7 @@ const generateReport = async (user, body, { req = null, now = new Date(), regene
   }
 };
 
-const canSee = (user, item) => user.role === "superadmin" || String(item.preparedBy.userId) === String(user._id);
+const canSee = (user, item) => user.role === "superadmin" || String(item.preparedBy.userId) === String(userIdOf(user));
 
 // GET /admin/report-exports
 // Every history filter is a whitelist; anything else is a 400, never ignored.
@@ -384,7 +389,7 @@ const listReports = async (user, query = {}) => {
 
   const filter = {};
   // Who may read what is decided here, not by the client: a PESO admin sees only their own reports.
-  if (user.role !== "superadmin") filter["preparedBy.userId"] = user._id;
+  if (user.role !== "superadmin") filter["preparedBy.userId"] = userIdOf(user);
   if (dataset) filter.dataset = dataset;
   if (format) filter.format = format;
   const range = {};

@@ -482,6 +482,55 @@ describe("history filters, paging and result", () => {
   });
 });
 
+describe("the user as the protect middleware builds it (the token's id, no _id)", () => {
+  // req.user is the decoded token plus a few fields: { id, role, ... }. There is no _id on it.
+  const TOKEN_ADMIN = { id: "64b7f0f0f0f0f0f0f0f0f001", role: "admin" };
+  const TOKEN_OTHER = { id: "64b7f0f0f0f0f0f0f0f0f002", role: "admin" };
+
+  test("generating works: the preparer is found by that id, and the audit entry names the actor", async () => {
+    const result = await service.generateReport(TOKEN_ADMIN, body(), { now: NOW });
+    expect(result.reportId).toMatch(/^RPT-/);
+    expect(User.findById).toHaveBeenCalledWith(TOKEN_ADMIN.id);
+    expect(AuditLog.create.mock.calls[0][0].actorId).toBe(TOKEN_ADMIN.id);
+    expect(ReportExport.create.mock.calls[0][0].preparedBy.userId).toBe(ADMIN._id);
+  });
+
+  test("a preparer that cannot be found is a 404, never a 401 (the browser signs a person out on any 401)", async () => {
+    User.findById.mockReturnValue({ select: () => ({ lean: async () => null }) });
+    await expect(service.generateReport(TOKEN_ADMIN, body(), { now: NOW })).rejects.toMatchObject({ status: 404, code: "PREPARER_NOT_FOUND" });
+    await expect(service.previewReport(TOKEN_ADMIN, body(), NOW)).rejects.toMatchObject({ status: 404 });
+  });
+
+  test("the one-at-a-time guard is per person, not shared by everyone who has no _id", async () => {
+    let release;
+    JobVacancy.aggregate.mockImplementation((pipeline) => ({
+      option: () => new Promise((resolve) => { release = () => resolve(pipeline[pipeline.length - 1].$count ? [{ n: 1 }] : [job()]); }),
+    }));
+    const first = service.generateReport(TOKEN_ADMIN, body(), { now: NOW });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect([...service._inFlight]).toEqual([TOKEN_ADMIN.id]);
+    answer(JobVacancy, { count: 1, rows: [job()] });
+    await expect(service.generateReport(TOKEN_OTHER, body(), { now: NOW })).resolves.toBeDefined();
+    JobVacancy.aggregate.mockImplementation((pipeline) => ({ option: () => Promise.resolve(pipeline[pipeline.length - 1].$count ? [{ n: 1 }] : [job()]) }));
+    release();
+    await first.catch(() => {});
+  });
+
+  test("history: an admin is limited to their own rows by that id, and can read their own report but not another's", async () => {
+    const chain = { sort: () => chain, skip: () => chain, limit: () => chain, lean: async () => [] };
+    ReportExport.find.mockReturnValue(chain);
+    ReportExport.countDocuments.mockResolvedValue(0);
+    await service.listReports(TOKEN_ADMIN, {});
+    expect(ReportExport.find.mock.calls.at(-1)[0]["preparedBy.userId"]).toBe(TOKEN_ADMIN.id);
+
+    const stored = (userId) => ({ reportId: "RPT-X", preparedBy: { userId, name: "M", role: "admin" }, dataset: "jobs", format: "csv", params: {}, createdAt: new Date() });
+    ReportExport.findOne.mockReturnValue({ lean: async () => stored(TOKEN_ADMIN.id) });
+    await expect(service.getReport(TOKEN_ADMIN, "RPT-X")).resolves.toMatchObject({ reportId: "RPT-X" });
+    ReportExport.findOne.mockReturnValue({ lean: async () => stored(TOKEN_OTHER.id) });
+    await expect(service.getReport(TOKEN_ADMIN, "RPT-X")).rejects.toMatchObject({ status: 404 });
+  });
+});
+
 describe("controller", () => {
   const res = () => {
     const out = { statusCode: 200, headers: {} };
