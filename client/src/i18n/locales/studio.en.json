@@ -126,6 +126,7 @@
       "preview": "Photo preview",
       "use": "Use this photo",
       "cancel": "Cancel"
-    }
+    },
+    "chooseFile": "Choose a file"
   }
 }

@@ -105,6 +105,9 @@
   align-items: center;
   gap: 12px;
 }
+.stu-bar--applying .stu-bar__title {
+  flex: 1 1 12rem;
+}
 .stu-bar__title {
   flex: 1 1 auto;
   min-width: 0;
@@ -167,16 +170,17 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 10px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
+  flex: 0 1 auto;
 }
 .stu-step {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 6px 14px 6px 8px;
+  min-height: 40px;
+  padding: 4px 14px 4px 6px;
   border: 1px solid #94a3b8;
   border-radius: 999px;
   background: #ffffff;
@@ -209,32 +213,50 @@
 
 /* ---- Segmented controls (document switch, resume type) ---- */
 .stu-segment {
-  display: inline-flex;
+  /* --i is the selected option (0 or 1); the highlight slides to it. */
+  --i: 0;
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
   border: 1px solid #94a3b8;
   border-radius: 10px;
   overflow: hidden;
+  background: #ffffff;
+}
+.stu-segment::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 50%;
+  background: var(--stu-green);
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform 0.25s ease;
 }
 .stu-segment__option {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  flex: 1;
   min-height: 44px;
   padding: 6px 14px;
   border: 0;
-  background: #ffffff;
+  border-radius: 0; /* the two options meet flat in the middle */
+  background: transparent;
   color: var(--stu-ink);
   font: inherit;
   font-size: 0.84rem;
   font-weight: 700;
   cursor: pointer;
+  transition: color 0.25s ease;
 }
 .stu-segment__option + .stu-segment__option {
   border-left: 1px solid #94a3b8;
 }
 .stu-segment__option.is-selected {
-  background: var(--stu-green);
   color: #ffffff;
 }
 
@@ -278,7 +300,7 @@
   color: var(--stu-muted);
 }
 .stu-card .stu-segment {
-  display: flex;
+  display: grid;
   width: 100%;
 }
 
@@ -326,16 +348,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 48px;
+  min-height: 40px;
 }
 .stu-section-row label {
   display: flex;
   align-items: center;
   gap: 10px;
   flex: 1;
-  min-height: 44px;
-  font-size: 0.88rem;
+  min-height: 36px;
+  font-size: 0.86rem;
   font-weight: 600;
+  line-height: 1.25;
   color: var(--stu-ink);
   cursor: pointer;
 }
@@ -347,12 +370,16 @@
 .stu-move {
   display: inline-flex;
   gap: 4px;
+  flex: none;
 }
 .stu-move button {
-  width: 44px;
-  height: 44px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: 0.6rem;
+  line-height: 1;
   border: 1px solid #94a3b8;
-  border-radius: 8px;
+  border-radius: 6px;
   background: #ffffff;
   color: var(--stu-ink);
   cursor: pointer;
@@ -432,11 +459,11 @@
 .stu-drop {
   display: grid;
   justify-items: center;
-  gap: 8px;
-  padding: 16px 12px;
-  border: 2px dashed #94a3b8;
-  border-radius: 12px;
-  background: #f8fafc;
+  gap: 10px;
+  padding: 22px 14px 18px;
+  border: 2px dashed #6ee7b7;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
   text-align: center;
 }
 .stu-drop.is-dragging {
@@ -444,8 +471,13 @@
   background: var(--stu-green-soft);
 }
 .stu-drop__icon {
-  color: var(--stu-muted);
-  font-size: 1.4rem;
+  box-sizing: content-box;
+  width: 24px;
+  height: 24px;
+  padding: 16px;
+  border-radius: 50%;
+  background: #d1fae5;
+  color: var(--stu-green);
 }
 .stu-drop__hint {
   font-size: 0.8rem;
@@ -729,10 +761,16 @@
   .stu-bar--applying .stu-bar__title {
     flex: 1 1 100%;
   }
+  .stu-steps {
+    flex: 1 1 100%;
+    order: 5;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stu-switch__knob {
+  .stu-switch__knob,
+  .stu-segment::before,
+  .stu-segment__option {
     transition: none;
   }
 }

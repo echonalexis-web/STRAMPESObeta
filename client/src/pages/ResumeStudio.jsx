@@ -226,6 +226,7 @@ export default function ResumeStudio() {
   const [step, setStep] = useState(() => (searchParams.get("mode") === "coverLetter" ? "letter" : "resume"));
   const [savedOnce, setSavedOnce] = useState(false);
   const pageRef = useRef(null);
+  const resumeFileRef = useRef(null);
   const barRef = useRef(null);
   const [letterAddressee, setLetterAddressee] = useState("");
   const [uploadedResume, setUploadedResume] = useState(null); // { id, title } picked instead of the built resume
@@ -1139,7 +1140,7 @@ export default function ResumeStudio() {
               <>
                 <section className="stu-card" aria-labelledby="stu-c-type">
                   <h2 className="stu-card__title" id="stu-c-type">{t("studio.cardType")}</h2>
-                  <div className="stu-segment" role="radiogroup" aria-labelledby="stu-c-type">
+                  <div className="stu-segment" role="radiogroup" aria-labelledby="stu-c-type" style={{ "--i": resumeType === "ats" ? 1 : 0 }}>
                     {[
                       { key: "standard", label: t("applyFlow.typeStandard") },
                       { key: "ats", label: t("applyFlow.typeAts") },
@@ -1246,10 +1247,10 @@ export default function ResumeStudio() {
 
                 <section className="stu-card" aria-labelledby="stu-c-upload">
                   <h2 className="stu-card__title" id="stu-c-upload">{t("studio.uploadResume")}</h2>
-                  <label className="stu-btn stu-btn--secondary stu-upload">
-                    <FaUpload aria-hidden="true" /> {uploading ? t("applyFlow.uploading") : t("studio.uploadResume")}
-                    <input type="file" accept=".pdf,.doc,.docx" hidden onChange={handleResumeFile} disabled={uploading} aria-describedby="stu-upload-note" />
-                  </label>
+                  <button type="button" className="stu-btn stu-btn--secondary stu-upload" onClick={() => resumeFileRef.current?.click()} disabled={uploading} aria-describedby="stu-upload-note">
+                    <FaUpload aria-hidden="true" /> {uploading ? t("applyFlow.uploading") : t("studio.chooseFile")}
+                  </button>
+                  <input ref={resumeFileRef} type="file" accept=".pdf,.doc,.docx" style={{ display: "none" }} onChange={handleResumeFile} tabIndex={-1} aria-hidden="true" />
                   <p className="stu-help" id="stu-upload-note">{t("studio.uploadResumeNote")}</p>
                   {uploadError ? <p className="stu-error" role="alert">{uploadError}</p> : null}
                   {applying && uploadedResume ? (

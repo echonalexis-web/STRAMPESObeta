@@ -609,7 +609,9 @@ describe("resume file upload", () => {
     jobseekerDocumentAPI.upload.mockImplementation(async ({ kind, title }) => ({ data: { _id: kind === "resume" ? "up-1" : "let-1", title } }));
     renderStudio();
     await applyingReady();
-    const input = screen.getByText(/Upload a resume file instead/, { selector: "label" }).querySelector('input[type="file"]');
+    expect(screen.getByRole("button", { name: "Choose a file" })).toBeTruthy(); // one visible button; the native input stays hidden
+    const input = document.querySelector('input[accept=".pdf,.doc,.docx"]');
+    expect(input.style.display).toBe("none");
     await user.upload(input, new File(["%PDF-1.4"], "my-cv.pdf", { type: "application/pdf" }));
     expect(await screen.findByText("my-cv.pdf")).toBeTruthy();
     expect(jobseekerDocumentAPI.upload.mock.calls[0][0]).toMatchObject({ kind: "resume", source: "upload", title: "my-cv.pdf" });

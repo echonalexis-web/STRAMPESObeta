@@ -36,6 +36,29 @@ export const ApplyingBar = forwardRef(function ApplyingBar(
             {employer ? <span className="stu-bar__employer"> · {employer}</span> : null}
           </p>
         </div>
+        <ol className="stu-steps" aria-label={t("studio.stepsLabel")}>
+          {steps.map((step, index) => {
+            const passed = index < activeIndex;
+            return (
+              <li key={step.key} className="stu-steps__item">
+                <button
+                  type="button"
+                  className={`stu-step${step.key === activeStep ? " is-active" : ""}${passed ? " is-done" : ""}`}
+                  aria-current={step.key === activeStep ? "step" : undefined}
+                  onClick={() => onStep(step.key)}
+                >
+                  <span className="stu-step__num" aria-hidden="true">
+                    {passed ? <FaCheck size={10} /> : index + 1}
+                  </span>
+                  <span>
+                    {step.label}
+                    {passed ? <span className="stu-sr"> ({t("studio.stepDone")})</span> : null}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
         <Status text={statusText} />
         <div className="stu-bar__primary">
           <button
@@ -49,29 +72,6 @@ export const ApplyingBar = forwardRef(function ApplyingBar(
           </button>
         </div>
       </div>
-      <ol className="stu-steps" aria-label={t("studio.stepsLabel")}>
-        {steps.map((step, index) => {
-          const passed = index < activeIndex;
-          return (
-            <li key={step.key} className="stu-steps__item">
-              <button
-                type="button"
-                className={`stu-step${step.key === activeStep ? " is-active" : ""}${passed ? " is-done" : ""}`}
-                aria-current={step.key === activeStep ? "step" : undefined}
-                onClick={() => onStep(step.key)}
-              >
-                <span className="stu-step__num" aria-hidden="true">
-                  {passed ? <FaCheck size={10} /> : index + 1}
-                </span>
-                <span>
-                  {step.label}
-                  {passed ? <span className="stu-sr"> ({t("studio.stepDone")})</span> : null}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
       {error ? (
         <p className="stu-bar__error" id={errorId} role="alert">
           {error}
@@ -113,7 +113,7 @@ export const ProfileBar = forwardRef(function ProfileBar(
           </nav>
           <h1 className="stu-bar__h1">{t("studio.title")}</h1>
         </div>
-        <div className="stu-segment" role="group" aria-label={t("studio.documentSwitch")}>
+        <div className="stu-segment" role="group" aria-label={t("studio.documentSwitch")} style={{ "--i": mode === "coverLetter" ? 1 : 0 }}>
           {[
             { key: "resume", label: t("studio.modeResume") },
             { key: "coverLetter", label: t("studio.modeLetter") },

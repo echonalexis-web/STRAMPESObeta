@@ -24,7 +24,9 @@ export default function ResumePhotoCard({ t, hasPhoto, name, dataUrl, show, onSh
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        hidden
+        style={{ display: "none" }}
+        tabIndex={-1}
+        aria-hidden="true"
         data-testid="resume-photo-input"
         onChange={(event) => {
           const file = event.target.files?.[0];
