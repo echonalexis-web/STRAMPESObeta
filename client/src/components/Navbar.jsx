@@ -272,6 +272,7 @@ const SystemLogsQuickLinks = ({
         aria-current={isActiveLink("/messages") ? "page" : undefined}
         onClick={onLinkClick}
         title={t("navbar.messages")}
+        aria-label={t("navbar.messages")}
       >
         <FaEnvelope className="nav-link-icon" aria-hidden="true" />
         <span className="nav-link-text">{t("navbar.messages")}</span>
@@ -285,6 +286,7 @@ const SystemLogsQuickLinks = ({
         aria-current={isActiveLink("/notifications") ? "page" : undefined}
         onClick={onLinkClick}
         title={t("navbar.notifications")}
+        aria-label={t("navbar.notifications")}
       >
         <FaBell className="nav-link-icon" aria-hidden="true" />
         <span className="nav-link-text">{t("navbar.notifications")}</span>
@@ -701,6 +703,7 @@ export default function Navbar() {
                         className={isActiveLink(item.to) ? "nav-section-link is-active" : "nav-section-link"}
                         aria-current={isActiveLink(item.to) ? "page" : undefined}
                         title={item.label}
+                        aria-label={item.label}
                       >
                         {item.icon}
                         <span className="nav-link-text">{item.label}</span>
@@ -757,6 +760,7 @@ export default function Navbar() {
                         className={isActiveLink(subitem.to) ? "nav-section-link is-active" : "nav-section-link"}
                         aria-current={isActiveLink(subitem.to) ? "page" : undefined}
                         title={subitem.label}
+                        aria-label={subitem.label}
                       >
                         {subitem.icon}
                         <span className="nav-link-text">{subitem.label}</span>
@@ -773,6 +777,7 @@ export default function Navbar() {
                   className={isActiveLink(item.to) ? "nav-standalone-link is-active" : "nav-standalone-link"}
                   aria-current={isActiveLink(item.to) ? "page" : undefined}
                   title={item.label}
+                  aria-label={item.label}
                 >
                   {item.icon}
                   <span className="nav-link-text">{item.label}</span>
@@ -787,6 +792,7 @@ export default function Navbar() {
               className={cx("messages-link", isActiveLink("/messages") && "is-active", hideMessagesWide)}
               aria-current={isActiveLink("/messages") ? "page" : undefined}
               title={t("navbar.messages")}
+              aria-label={t("navbar.messages")}
             >
               <FaEnvelope className="nav-link-icon" aria-hidden="true" />
               <span className="nav-link-text">{t("navbar.messages")}</span>
@@ -802,6 +808,7 @@ export default function Navbar() {
               className={cx("messages-link", isActiveLink("/notifications") && "is-active", hideNotificationsWide)}
               aria-current={isActiveLink("/notifications") ? "page" : undefined}
               title={t("navbar.notifications")}
+              aria-label={t("navbar.notifications")}
             >
               <FaBell className="nav-link-icon" aria-hidden="true" />
               <span className="nav-link-text">{t("navbar.notifications")}</span>

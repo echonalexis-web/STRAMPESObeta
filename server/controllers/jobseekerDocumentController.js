@@ -67,18 +67,6 @@ exports.uploadMyDocument = async (req, res) => {
       return res.status(400).json({ message: "That file is empty." });
     }
 
-    const existingCount = await JobseekerDocument.countDocuments({ owner: req.user.id, kind });
-    if (existingCount >= MAX_DOCUMENTS_PER_KIND) {
-      return res.status(400).json({
-        message: `You can save up to ${MAX_DOCUMENTS_PER_KIND} ${KIND_LABELS[kind]}s. Delete one before adding another.`,
-      });
-    }
-
-    const uploadResult = await storageService.upload(req.file, {
-      category: CATEGORY_BY_KIND[kind],
-      ownerId: req.user.id,
-    });
-
     const title =
       String(req.body.title || "").trim().slice(0, 120) ||
       req.file.originalname ||
@@ -91,6 +79,51 @@ exports.uploadMyDocument = async (req, res) => {
     // passed through.
     const sourceJobId =
       kind === "coverLetter" && mongoose.isValidObjectId(req.body.sourceJobId) ? req.body.sourceJobId : null;
+    const resumeType = kind === "resume" && source === "builder" && req.body.resumeType === "ats" ? "ats" : null;
+    const hasPhoto = kind === "resume" && source === "builder" && req.body.resumeType !== "ats" && req.body.hasPhoto === "true";
+
+    // Saving a Studio document again under the same name (the same job and employer) replaces that
+    // document instead of adding a copy, so tailoring several times does not use up the library
+    // limit. Only the applicant's own builder document of the same kind is ever replaced, and a
+    // file an application already used is kept (see deleteMyDocument).
+    const existing =
+      source === "builder" && String(req.body.title || "").trim()
+        ? await JobseekerDocument.findOne({ owner: req.user.id, kind, source: "builder", title })
+        : null;
+
+    if (!existing) {
+      const existingCount = await JobseekerDocument.countDocuments({ owner: req.user.id, kind });
+      if (existingCount >= MAX_DOCUMENTS_PER_KIND) {
+        return res.status(400).json({
+          message: `You can save up to ${MAX_DOCUMENTS_PER_KIND} ${KIND_LABELS[kind]}s. Delete one before adding another.`,
+        });
+      }
+    }
+
+    const uploadResult = await storageService.upload(req.file, {
+      category: CATEGORY_BY_KIND[kind],
+      ownerId: req.user.id,
+    });
+
+    if (existing) {
+      const previousStored = existing.storedValue;
+      existing.storedValue = uploadResult.storedValue;
+      existing.mimeType = req.file.mimetype || "";
+      existing.sizeBytes = req.file.size || 0;
+      existing.resumeType = resumeType || "standard";
+      existing.hasPhoto = hasPhoto;
+      if (sourceJobId) existing.sourceJobId = sourceJobId;
+      await existing.save();
+      const stillUsed = await JobApplication.exists({
+        $or: [{ resumeDocumentId: existing._id }, { coverLetterDocumentId: existing._id }],
+      });
+      if (!stillUsed && previousStored && previousStored !== uploadResult.storedValue) {
+        Promise.resolve(storageService.remove(previousStored)).catch((err) =>
+          logger.error("Failed to remove replaced jobseeker document from storage", { documentId: String(existing._id), error: err.message })
+        );
+      }
+      return res.status(200).json(existing);
+    }
 
     // The first document saved for a kind becomes primary automatically, so
     // the "Primary" badge and ApplyModal's default selection are meaningful
@@ -108,9 +141,9 @@ exports.uploadMyDocument = async (req, res) => {
       isPrimary: !hasPrimary,
       sourceJobId,
       // Only a builder-made resume can be "ats"; anything else is a plain standard document.
-      ...(kind === "resume" && source === "builder" && req.body.resumeType === "ats" ? { resumeType: "ats" } : {}),
+      ...(resumeType ? { resumeType } : {}),
       // Whether the saved resume shows the applicant's resume photo (display metadata; never ATS).
-      ...(kind === "resume" && source === "builder" && req.body.resumeType !== "ats" && req.body.hasPhoto === "true" ? { hasPhoto: true } : {}),
+      ...(hasPhoto ? { hasPhoto: true } : {}),
     });
 
     return res.status(201).json(document);

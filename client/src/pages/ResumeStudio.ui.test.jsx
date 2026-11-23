@@ -300,6 +300,27 @@ describe("Back with and without unsaved changes", () => {
   });
 });
 
+describe("closing the tab", () => {
+  const unload = () => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+
+  test("warns only while there are unsaved changes, and stops once they are saved", async () => {
+    const user = userEvent.setup();
+    renderStudio("");
+    await screen.findByRole("heading", { level: 1 });
+    expect(unload()).toBe(false);
+    fireEvent.input(canvasOf());
+    expect(unload()).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Document" }));
+    await user.click(screen.getByRole("menuitem", { name: "Save to Library" }));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Saved to library"));
+    expect(unload()).toBe(false);
+  });
+});
+
 describe("Document menu", () => {
   test("opens, lists Save to Library and Export (not Save to Profile when applying), closes on Escape and returns focus", async () => {
     const user = userEvent.setup();

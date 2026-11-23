@@ -68,6 +68,7 @@ export default function NavCollapsibleGroup({ id, label, icon, items, isActiveLi
         aria-expanded={open}
         aria-controls={panelId}
         title={label}
+        aria-label={label}
         onClick={toggle}
       >
         {!mobile && icon}
@@ -84,6 +85,7 @@ export default function NavCollapsibleGroup({ id, label, icon, items, isActiveLi
                 className={`${mobile ? "" : "nav-section-link "}nav-collapsible__link${active ? " is-active" : ""}`.trim()}
                 aria-current={active ? "page" : undefined}
                 title={item.label}
+                aria-label={item.label}
                 onClick={onNavigate}
               >
                 {!mobile && item.icon}

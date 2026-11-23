@@ -666,6 +666,18 @@ export default function ResumeStudio() {
     return () => observer.disconnect();
   });
 
+  // Closing the tab or reloading with unsaved changes asks first (the browser shows its own
+  // wording). Going Back inside the app has its own dialog.
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
   const documentLabel = (kind) => (kind === "resume" ? "resume" : "cover-letter");
   // Library name: a clear "Cover letter - <Job> - <Employer>" when applying, else the file name.
   const titleFor = (kind) =>

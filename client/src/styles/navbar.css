@@ -1119,6 +1119,31 @@ body.app-with-sidebar {
     padding-right: 0.4rem;
   }
 
+  /* Keyboard focus shows the name next to the icon (hover uses the link's title tooltip). */
+  .navbar--auth-sidebar.is-compact .nav-section-link,
+  .navbar--auth-sidebar.is-compact .nav-standalone-link,
+  .navbar--auth-sidebar.is-compact .messages-link {
+    position: relative;
+  }
+  .navbar--auth-sidebar.is-compact .nav-section-link:focus-visible::after,
+  .navbar--auth-sidebar.is-compact .nav-standalone-link:focus-visible::after,
+  .navbar--auth-sidebar.is-compact .messages-link:focus-visible::after {
+    content: attr(aria-label);
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 60;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
   .navbar--auth-sidebar.is-compact .nav-link-text,
   .navbar--auth-sidebar.is-compact .nav-logo-text,
   .navbar--auth-sidebar.is-compact .nav-section-label,

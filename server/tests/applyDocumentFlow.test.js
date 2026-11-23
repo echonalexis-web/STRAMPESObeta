@@ -3,7 +3,7 @@
 // Self-contained on purpose (no shared test helper); nothing here touches a database.
 
 jest.mock("../models/JobVacancy", () => ({ findById: jest.fn(), updateOne: jest.fn() }));
-jest.mock("../models/JobApplication", () => ({ startSession: jest.fn(), findOne: jest.fn(), create: jest.fn() }));
+jest.mock("../models/JobApplication", () => ({ startSession: jest.fn(), findOne: jest.fn(), create: jest.fn(), exists: jest.fn() }));
 jest.mock("../models/User", () => ({ findById: jest.fn() }));
 jest.mock("../models/JobseekerDocument", () => ({
   findOne: jest.fn(), countDocuments: jest.fn(), exists: jest.fn(), create: jest.fn(),
@@ -200,5 +200,48 @@ describe("submit with library documents", () => {
     expect(r.status).toBe(400);
     expect(r.body.message).toMatch(/tailor/i);
     expect(JobApplication.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("saving a Studio document again", () => {
+  const file = { originalname: "r.pdf", mimetype: "application/pdf", size: 900 };
+  const body = { kind: "resume", source: "builder", title: "Resume - Service Crew - Acme Foods", resumeType: "ats" };
+  const existingDoc = () => ({
+    _id: "d1", owner: SEEKER, kind: "resume", source: "builder", title: body.title, storedValue: "old/stored.pdf", resumeType: "standard", hasPhoto: true,
+    save: jest.fn().mockResolvedValue(undefined),
+  });
+
+  test("the same name replaces the document in place: no copy, no limit check, the old file goes", async () => {
+    const doc = existingDoc();
+    JobseekerDocument.findOne.mockResolvedValue(doc);
+    JobApplication.exists.mockResolvedValue(null);
+    storageService.upload.mockResolvedValue({ storedValue: "new/stored.pdf" });
+    JobseekerDocument.countDocuments.mockResolvedValue(10); // a full library still accepts the replacement
+    const r = await run(uploadMyDocument, { body, file });
+    expect(r.status).toBe(200);
+    expect(JobseekerDocument.create).not.toHaveBeenCalled();
+    expect(JobseekerDocument.countDocuments).not.toHaveBeenCalled();
+    expect(JobseekerDocument.findOne).toHaveBeenCalledWith({ owner: SEEKER, kind: "resume", source: "builder", title: body.title });
+    expect(doc).toMatchObject({ storedValue: "new/stored.pdf", resumeType: "ats", hasPhoto: false });
+    expect(doc.save).toHaveBeenCalled();
+    expect(storageService.remove).toHaveBeenCalledWith("old/stored.pdf");
+  });
+
+  test("a file an application already used is kept", async () => {
+    JobseekerDocument.findOne.mockResolvedValue(existingDoc());
+    JobApplication.exists.mockResolvedValue({ _id: "app" });
+    storageService.upload.mockResolvedValue({ storedValue: "new/stored.pdf" });
+    await run(uploadMyDocument, { body, file });
+    expect(storageService.remove).not.toHaveBeenCalled();
+  });
+
+  test("a plain upload, or a builder save without a name, never replaces anything", async () => {
+    JobseekerDocument.countDocuments.mockResolvedValue(0);
+    JobseekerDocument.exists.mockResolvedValue(null);
+    storageService.upload.mockResolvedValue({ storedValue: "s/x.pdf" });
+    JobseekerDocument.create.mockImplementation(async (d) => ({ _id: "n", ...d }));
+    expect((await run(uploadMyDocument, { body: { kind: "resume", source: "upload", title: body.title }, file })).status).toBe(201);
+    expect((await run(uploadMyDocument, { body: { kind: "resume", source: "builder" }, file })).status).toBe(201);
+    expect(JobseekerDocument.findOne).not.toHaveBeenCalled();
   });
 });
