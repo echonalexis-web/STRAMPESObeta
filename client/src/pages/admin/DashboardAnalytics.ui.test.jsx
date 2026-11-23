@@ -334,25 +334,83 @@ describe("Analytics & Reports", () => {
     expect(screen.getByRole("table", { name: "Vacancies" })).toBeTruthy();
   });
 
-  test("top employers show a chart when someone qualifies", async () => {
+  const employerRows = [
+    { rank: 1, employerId: "e1", name: "Acme Corp", photo: null, municipality: "Gasan", applicants: 14, hires: 4 },
+    { rank: 2, employerId: "e2", name: "Beta Trading with a very long company name that has to wrap on a phone", photo: null, municipality: null, applicants: 9, hires: 2 },
+    { rank: 3, employerId: "e3", name: "Cebu Pacific Foods", photo: null, municipality: "Boac (Capital)", applicants: 5, hires: 1 },
+  ];
+  const withEmployers = (rows) =>
+    adminAPI.getAnalyticsOverview.mockResolvedValue({ data: overview({ topEmployers: { rows, minimums: { postings: 1, applicants: 3, hires: 1 } } }) });
+  const employersCard = async () => (await screen.findByRole("heading", { name: "Top employers by hires" })).closest("section");
+
+  test("top employers are one ordered list in rank order, with no chart", async () => {
+    withEmployers(employerRows);
     openAnalytics();
-    await screen.findByText("Top employers by hires");
-    expect(screen.getByRole("img", { name: /Hires per employer: Acme Corp 4/ })).toBeTruthy();
-    expect(screen.getByText("Needs 1+ posting, 3+ applicants and 1+ hire in the period.")).toBeTruthy();
+    const card = await employersCard();
+    const list = within(card).getByRole("list", { name: "Top employers by hires" });
+    expect(list.tagName).toBe("OL");
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows.map((row) => row.querySelector(".an__rank-name").textContent)).toEqual(["Acme Corp", "Beta Trading with a very long company name that has to wrap on a phone", "Cebu Pacific Foods"]);
+    expect(rows.map((row) => row.querySelector(".an__rank-n").textContent)).toEqual(["1", "2", "3"]);
+    expect(within(card).queryByRole("img")).toBeNull();
+    expect(card.querySelector(".recharts-wrapper, svg.recharts-surface")).toBeNull();
+    expect(within(card).getByText("Needs 1+ posting, 3+ applicants and 1+ hire in the period.")).toBeTruthy();
+  });
+
+  test("each employer row has the municipality as muted text, the applicants line and the hires at the right", async () => {
+    withEmployers(employerRows);
+    openAnalytics();
+    const first = within(await employersCard()).getAllByRole("listitem")[0];
+    expect(within(first).getByText("Gasan").className).toContain("an__rank-meta");
+    expect(within(first).getByText("14 applicants")).toBeTruthy();
+    expect(first.querySelector(".an__rank-value").textContent).toBe("4 hires");
+    // a row without a municipality simply has none
+    const second = within(await employersCard()).getAllByRole("listitem")[1];
+    expect(second.querySelector(".an__rank-meta")).toBeNull();
+  });
+
+  test("the bars are proportional to the top employer, and rows are not links or buttons", async () => {
+    withEmployers(employerRows);
+    openAnalytics();
+    const card = await employersCard();
+    const widths = within(card).getAllByRole("listitem").map((row) => row.querySelector(".an__rank-fill").style.width);
+    expect(widths).toEqual(["100%", "50%", "25%"]);
+    expect(within(card).queryByRole("link")).toBeNull();
+    expect(within(card).queryByRole("button")).toBeNull();
+  });
+
+  test("a single employer is one row, not a chart plus a repeat", async () => {
+    withEmployers(employerRows.slice(0, 1));
+    openAnalytics();
+    const card = await employersCard();
+    expect(within(card).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(card).getAllByText("Acme Corp")).toHaveLength(1);
+  });
+
+  test("the roles card uses the same ranked rows", async () => {
+    withEmployers(employerRows);
+    openAnalytics();
+    const roles = (await screen.findByRole("heading", { name: "Most applied-to roles" })).closest("section");
+    const rows = within(roles).getAllByRole("listitem");
+    expect(rows[0].className).toBe((await employersCard()).querySelector("li").className);
   });
 
   test("when nobody qualifies the chart is hidden and a short message shows instead", async () => {
     adminAPI.getAnalyticsOverview.mockResolvedValue({ data: overview({ topEmployers: { rows: [], minimums: { postings: 1, applicants: 3, hires: 1 } } }) });
     openAnalytics();
     expect(await screen.findByText("Nothing to rank yet.")).toBeTruthy();
-    expect(screen.queryByRole("img", { name: /Hires per employer/ })).toBeNull();
+    const card = await employersCard();
+    expect(within(card).queryByRole("list")).toBeNull();
+    expect(within(card).queryByRole("img", { name: /Hires per employer/ })).toBeNull();
     expect(screen.getByText(/No employer meets the minimum for this period and municipality/)).toBeTruthy();
   });
 
-  test("roles: one line per role", async () => {
+  test("roles: one ranked row per role with the number of applications", async () => {
     openAnalytics();
-    expect(await screen.findByText("Service Crew")).toBeTruthy();
-    expect(screen.getByText("7 application(s)")).toBeTruthy();
+    const roles = (await screen.findByRole("heading", { name: "Most applied-to roles" })).closest("section");
+    const row = within(roles).getByText("Service Crew").closest("li");
+    expect(row.querySelector(".an__rank-n").textContent).toBe("1");
+    expect(row.querySelector(".an__rank-value").textContent).toBe("7 applications");
   });
 
   test("municipality table: under 5 for a hidden cell, a real 0 stays 0, and the names are buttons that set and clear the filter", async () => {

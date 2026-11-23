@@ -483,14 +483,14 @@
       "intro": "Kailangan ng {{postings}}+ posting, {{applicants}}+ aplikante at {{hires}}+ natanggap sa panahon.",
       "emptyTitle": "Wala pang mairaranggo.",
       "emptyText": "Walang employer na umabot sa minimum para sa panahong ito at munisipalidad, kaya itinago ang tsart sa halip na magpakita ng mga walang laman na bar.",
-      "chartLabel": "Mga natanggap kada employer",
-      "hiresOf": "{{hires}} natanggap mula sa {{applicants}} aplikante"
+      "applicantsLine": "{{count}} aplikante",
+      "hiresUnit": "natanggap"
     },
     "roles": {
       "title": "Mga posisyong pinakamaraming nag-apply",
       "intro": "Pinagtutugma ang mga titulo kahit iba ang laki ng titik at espasyo, kaya ang “Service Crew” at “service crew” ay isa.",
       "empty": "Walang aplikasyon sa panahong ito.",
-      "count": "{{count}} aplikasyon"
+      "applicationsUnit": "aplikasyon"
     },
     "municipalities": {
       "title": "Ayon sa munisipalidad",

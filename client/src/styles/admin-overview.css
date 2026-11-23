@@ -109,8 +109,12 @@
 .an__hint { margin: 0; font-size: 0.8125rem; color: #8a3a05; }
 
 .ov .ov__kpis, .an .an__cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-/* Two independent columns, each as tall as its own cards: nothing is stretched, so no card leaves a hole. */
-.an__main { display: grid; grid-template-columns: minmax(0, 58fr) minmax(0, 42fr); gap: 16px; align-items: start; }
+/* Trend beside status: one row of two cards that are the same height. */
+.an__main { display: grid; grid-template-columns: minmax(0, 58fr) minmax(0, 42fr); gap: 16px; align-items: stretch; }
+/* The two ranking cards share a row but never stretch to each other: each is as tall as its own content. */
+.an__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.an__main > .an__card .an__details { margin-top: auto; padding-top: 8px; }
+.an__main > .an__card { display: flex; flex-direction: column; }
 .an__col { display: grid; gap: 16px; }
 
 /* Status stacked bar: segments differ by lightness and carry an outline; the legend list repeats every number */
@@ -133,13 +137,25 @@
 .an__empty { margin: 0; padding: 14px; border-radius: 10px; background: #f6f8f6; color: #2f3d35; font-size: 0.875rem; }
 .an__empty strong { display: block; margin-bottom: 4px; }
 .an__empty--dashed { background: transparent; border: 1.5px dashed #7d9385; }
-/* Top employers: the left column stretches to the right one and the empty message fills the card, centred with an icon. */
-.an__main > .an__col:first-child { align-self: stretch; display: flex; flex-direction: column; }
-.an__col > .an__card--grow { flex: 1 1 auto; display: flex; flex-direction: column; }
-.an__empty--rank { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 180px; padding: 24px; text-align: center; }
+/* Top employers, nothing to rank: a centred message with an icon, sized by its content. */
+.an__empty--rank { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 180px; padding: 24px; text-align: center; }
 .an__empty--rank strong { margin: 0; font-size: 1rem; }
 .an__empty--rank p { margin: 0; max-width: 46ch; line-height: 1.5; }
 .an__empty-icon { width: 56px; height: 56px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #e8f4ed; color: #0b4d34; }
+/* Ranked list (top employers, most applied-to roles): same rows in both cards, so they look matched. */
+.an__rank { list-style: none; margin: 0; padding: 0; display: grid; }
+.an__rank-row { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 0; font-size: 0.875rem; }
+.an__rank-row + .an__rank-row { border-top: 1px solid #e3e9e5; }
+.an__rank-n { flex: none; width: 1.5rem; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; color: #2f3d35; }
+.an__rank-logo { flex: none; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #e8f4ed; color: #0b4d34; overflow: hidden; }
+.an__rank-main { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.an__rank-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.an__rank-name { font-weight: 700; color: #10231a; overflow-wrap: anywhere; }
+.an__rank-meta { font-size: 0.8125rem; color: #44514a; }
+.an__rank-sub { font-size: 0.8125rem; color: #44514a; }
+.an__rank-track { display: block; height: 6px; border-radius: 3px; background: #e3e9e5; overflow: hidden; }
+.an__rank-fill { display: block; height: 100%; border-radius: 3px; background: #0b4d34; }
+.an__rank-value { flex: none; min-width: 2.5ch; text-align: right; font-size: 1.125rem; font-weight: 800; font-variant-numeric: tabular-nums; color: #10231a; }
 .an__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .an__list li { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 0.875rem; }
 .an__list .an__lname { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -184,7 +200,7 @@
 .rh__action { text-align: right; }
 
 @media (max-width: 899px) {
-  .ov__main, .an__main { grid-template-columns: minmax(0, 1fr); }
+  .ov__main, .an__main, .an__pair { grid-template-columns: minmax(0, 1fr); }
   .ov .ov__kpis, .an .an__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

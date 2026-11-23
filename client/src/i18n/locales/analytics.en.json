@@ -483,14 +483,14 @@
       "intro": "Needs {{postings}}+ posting, {{applicants}}+ applicants and {{hires}}+ hire in the period.",
       "emptyTitle": "Nothing to rank yet.",
       "emptyText": "No employer meets the minimum for this period and municipality, so the chart is hidden instead of showing empty bars.",
-      "chartLabel": "Hires per employer",
-      "hiresOf": "{{hires}} hire(s) of {{applicants}} applicants"
+      "applicantsLine": "{{count}} applicants",
+      "hiresUnit": "hires"
     },
     "roles": {
       "title": "Most applied-to roles",
       "intro": "Titles are matched ignoring capitals and spacing, so “Service Crew” and “service crew” count as one.",
       "empty": "No applications in this period.",
-      "count": "{{count}} application(s)"
+      "applicationsUnit": "applications"
     },
     "municipalities": {
       "title": "By municipality",

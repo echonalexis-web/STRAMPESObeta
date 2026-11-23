@@ -51,6 +51,39 @@ const writeFilter = ({ preset, from, to, municipality }) => {
   return params;
 };
 
+// One ranked list for both ranking cards, so they look matched: rank, a logo or icon, the name (with a muted
+// extra), an optional muted line, a thin bar relative to the top row, and the number at the right.
+// A plain ordered list: the order is the ranking, and nothing in a row is a link.
+function RankedList({ items, unit, label }) {
+  const top = Math.max(1, ...items.map((item) => item.value));
+  return (
+    <ol className="an__rank" aria-label={label}>
+      {items.map((item) => (
+        <li key={item.key} className="an__rank-row">
+          <span className="an__rank-n">{item.rank}</span>
+          <span className="an__rank-logo">
+            {item.avatar ? <Avatar name={item.avatar.name} photo={item.avatar.photo} size={32} /> : <BriefcaseBusiness size={16} aria-hidden="true" />}
+          </span>
+          <span className="an__rank-main">
+            <span className="an__rank-line">
+              <span className="an__rank-name">{item.name}</span>
+              {item.meta ? <span className="an__rank-meta">{item.meta}</span> : null}
+            </span>
+            {item.sub ? <span className="an__rank-sub">{item.sub}</span> : null}
+            <span className="an__rank-track" aria-hidden="true">
+              <span className="an__rank-fill" style={{ width: `${Math.max(4, Math.round((item.value / top) * 100))}%` }} />
+            </span>
+          </span>
+          <span className="an__rank-value">
+            {item.value}
+            <span className="ds-sr-only"> {unit}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 const cell = (t, entry) => (entry && entry.suppressed ? t("analyticsDash.underFive") : entry ? entry.value : 0);
 
 // Analytics & Reports: how the province is doing over time. One filter bar drives every panel and the
@@ -173,8 +206,7 @@ export default function Reports() {
           </section>
 
           <div className="an__main">
-            <div className="an__col">
-              <section className="an__card" aria-labelledby="an-trend-title">
+            <section className="an__card" aria-labelledby="an-trend-title">
               <h2 id="an-trend-title" className="an__h2">{t("adminAnalytics.trend.title")}</h2>
               <p className="an__sub">{t(`adminAnalytics.trend.granularity.${data.trend.granularity}`)}</p>
               <div className="an__metrics" role="group" aria-label={t("adminAnalytics.trend.metric")}>
@@ -219,46 +251,7 @@ export default function Reports() {
                 </div>
               </details>
             </section>
-              <section className="an__card an__card--grow" aria-labelledby="an-emp-title">
-              <h2 id="an-emp-title" className="an__h2">{t("adminAnalytics.employers.title")}</h2>
-              <p className="an__sub">{t("adminAnalytics.employers.intro", data.topEmployers.minimums)}</p>
-              {employers.length === 0 ? (
-                <div className="an__empty an__empty--dashed an__empty--rank">
-                  <span className="an__empty-icon" aria-hidden="true"><Trophy size={28} /></span>
-                  <strong>{t("adminAnalytics.employers.emptyTitle")}</strong>
-                  <p>{t("adminAnalytics.employers.emptyText")}</p>
-                </div>
-              ) : (
-                <>
-                  <div className="an__chart" role="img" aria-label={`${t("adminAnalytics.employers.chartLabel")}: ${employers.map((row) => `${row.name} ${row.hires}`).join(", ")}`}>
-                    <ResponsiveContainer width="100%" height={Math.max(150, employers.length * 38 + 20)}>
-                      <BarChart data={employers} layout="vertical" margin={{ top: 4, right: 28, left: 8, bottom: 0 }}>
-                        <CartesianGrid {...CHART_GRID} horizontal={false} />
-                        <XAxis type="number" {...CHART_AXIS} allowDecimals={false} tickLine={false} axisLine={false} />
-                        <YAxis type="category" dataKey="name" {...CHART_AXIS} width={120} tickLine={false} axisLine={false} />
-                        <Bar dataKey="hires" fill={CHART_SERIES[0]} radius={[0, 6, 6, 0]} maxBarSize={22} isAnimationActive={!reduced}>
-                          <LabelList dataKey="hires" position="right" fontSize={12} />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <ol className="an__list">
-                    {employers.map((row) => (
-                      <li key={row.employerId}>
-                        <Avatar name={row.name} photo={row.photo} size={28} />
-                        <span className="an__lname">
-                          {row.name}
-                          <small>{[row.municipality, t("adminAnalytics.employers.hiresOf", { hires: row.hires, applicants: row.applicants })].filter(Boolean).join(" · ")}</small>
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
-                </>
-              )}
-            </section>
-            </div>
-            <div className="an__col">
-              <section className="an__card" aria-labelledby="an-status-title">
+            <section className="an__card" aria-labelledby="an-status-title">
                 <h2 id="an-status-title" className="an__h2">{t("adminAnalytics.status.title")}</h2>
                 <p className="an__sub">{t("adminAnalytics.status.intro", { total: data.applicationsByStatus.total })}</p>
                 {data.applicationsByStatus.total === 0 ? (
@@ -282,7 +275,9 @@ export default function Reports() {
                   </>
                 )}
               </section>
-              <section className="an__card" aria-labelledby="an-vac-title">
+          </div>
+
+          <section className="an__card" aria-labelledby="an-vac-title">
                 <h2 id="an-vac-title" className="an__h2">{t("adminAnalytics.vacancies.title")}</h2>
                 <p className="an__sub">{t("adminAnalytics.vacancies.intro", { total: data.vacanciesByStatus.total })}</p>
                 <div className="an__stats">
@@ -294,23 +289,47 @@ export default function Reports() {
                   ))}
                 </div>
               </section>
-              <section className="an__card" aria-labelledby="an-roles-title">
+
+          <div className="an__pair">
+            <section className="an__card" aria-labelledby="an-emp-title">
+              <h2 id="an-emp-title" className="an__h2">{t("adminAnalytics.employers.title")}</h2>
+              <p className="an__sub">{t("adminAnalytics.employers.intro", data.topEmployers.minimums)}</p>
+              {employers.length === 0 ? (
+                <div className="an__empty an__empty--dashed an__empty--rank">
+                  <span className="an__empty-icon" aria-hidden="true"><Trophy size={28} /></span>
+                  <strong>{t("adminAnalytics.employers.emptyTitle")}</strong>
+                  <p>{t("adminAnalytics.employers.emptyText")}</p>
+                </div>
+              ) : (
+                <RankedList
+                  label={t("adminAnalytics.employers.title")}
+                  unit={t("adminAnalytics.employers.hiresUnit")}
+                  items={employers.map((row) => ({
+                    key: row.employerId,
+                    rank: row.rank,
+                    avatar: { name: row.name, photo: row.photo },
+                    name: row.name,
+                    meta: row.municipality,
+                    sub: t("adminAnalytics.employers.applicantsLine", { count: row.applicants }),
+                    value: row.hires,
+                  }))}
+                />
+              )}
+            </section>
+
+            <section className="an__card" aria-labelledby="an-roles-title">
               <h2 id="an-roles-title" className="an__h2">{t("adminAnalytics.roles.title")}</h2>
               <p className="an__sub">{t("adminAnalytics.roles.intro")}</p>
               {data.topRoles.length === 0 ? (
                 <p className="an__empty an__empty--dashed">{t("adminAnalytics.roles.empty")}</p>
               ) : (
-                <ol className="an__list">
-                  {data.topRoles.map((role) => (
-                    <li key={role.title}>
-                      <span className="an__lname">{role.title}</span>
-                      <strong>{t("adminAnalytics.roles.count", { count: role.count })}</strong>
-                    </li>
-                  ))}
-                </ol>
+                <RankedList
+                  label={t("adminAnalytics.roles.title")}
+                  unit={t("adminAnalytics.roles.applicationsUnit")}
+                  items={data.topRoles.map((role, index) => ({ key: role.title, rank: index + 1, name: role.title, value: role.count }))}
+                />
               )}
             </section>
-            </div>
           </div>
 
           <section className="an__card" aria-labelledby="an-muni-title">
