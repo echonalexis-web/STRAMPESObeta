@@ -822,9 +822,9 @@
 .stu-frame__label { font-size: 0.82rem; font-weight: 700; color: var(--stu-ink); }
 .stu-segment--3 { grid-template-columns: repeat(3, 1fr); }
 .stu-segment--3::before { width: 33.3334%; }
-.stu-segment--3 .stu-segment__option { flex-direction: column; gap: 4px; padding: 8px 4px; font-size: 0.78rem; }
+.stu-segment--3 .stu-segment__option { flex-direction: row; gap: 6px; min-height: 34px; padding: 3px 6px; font-size: 0.78rem; }
 .stu-segment--3 .stu-segment__option:disabled { color: var(--stu-muted); cursor: not-allowed; }
-.stu-shape { width: 18px; height: 18px; border: 2px solid currentColor; display: block; }
+.stu-shape { width: 13px; height: 13px; border: 2px solid currentColor; display: block; flex: none; }
 .stu-shape--square { border-radius: 0; }
 .stu-shape--rounded { border-radius: 5px; }
 .stu-shape--circle { border-radius: 50%; }
