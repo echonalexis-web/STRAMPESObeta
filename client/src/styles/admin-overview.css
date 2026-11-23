@@ -155,6 +155,11 @@
 .an__rank-sub { font-size: 0.8125rem; color: #44514a; }
 .an__rank-track { display: block; height: 6px; border-radius: 3px; background: #e3e9e5; overflow: hidden; }
 .an__rank-fill { display: block; height: 100%; border-radius: 3px; background: #0b4d34; }
+/* A place nobody holds yet: a dashed circle, a quiet label and an empty bar. */
+.an__rank-row--open { color: #44514a; }
+.an__rank-logo--open { background: transparent; border: 1.5px dashed #7d9385; }
+.an__rank-name--open { font-weight: 500; color: #44514a; }
+.an__rank-value--open { font-weight: 500; color: #44514a; }
 .an__rank-value { flex: none; min-width: 2.5ch; text-align: right; font-size: 1.125rem; font-weight: 800; font-variant-numeric: tabular-nums; color: #10231a; }
 .an__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .an__list li { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 0.875rem; }

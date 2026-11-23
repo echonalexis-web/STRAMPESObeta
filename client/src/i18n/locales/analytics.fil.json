@@ -484,7 +484,8 @@
       "emptyTitle": "Wala pang mairaranggo.",
       "emptyText": "Walang employer na umabot sa minimum para sa panahong ito at munisipalidad, kaya itinago ang tsart sa halip na magpakita ng mga walang laman na bar.",
       "applicantsLine": "{{count}} aplikante",
-      "hiresUnit": "natanggap"
+      "hiresUnit": "natanggap",
+      "openSpot": "Bakanteng puwesto"
     },
     "roles": {
       "title": "Mga posisyong pinakamaraming nag-apply",

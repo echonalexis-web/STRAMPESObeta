@@ -54,7 +54,9 @@ const writeFilter = ({ preset, from, to, municipality }) => {
 // One ranked list for both ranking cards, so they look matched: rank, a logo or icon, the name (with a muted
 // extra), an optional muted line, a thin bar relative to the top row, and the number at the right.
 // A plain ordered list: the order is the ranking, and nothing in a row is a link.
-function RankedList({ items, unit, label }) {
+//   slots: how many rows the list is meant to have; the ones nobody holds yet are drawn as quiet placeholders
+//   (decoration only: hidden from screen readers, so the ranking they hear is the real one).
+function RankedList({ items, unit, label, slots = 0, slotText = "" }) {
   const top = Math.max(1, ...items.map((item) => item.value));
   return (
     <ol className="an__rank" aria-label={label}>
@@ -78,6 +80,17 @@ function RankedList({ items, unit, label }) {
             {item.value}
             <span className="ds-sr-only"> {unit}</span>
           </span>
+        </li>
+      ))}
+      {Array.from({ length: Math.max(0, slots - items.length) }, (_, index) => (
+        <li key={`open-${index}`} className="an__rank-row an__rank-row--open" aria-hidden="true">
+          <span className="an__rank-n">{items.length + index + 1}</span>
+          <span className="an__rank-logo an__rank-logo--open" />
+          <span className="an__rank-main">
+            <span className="an__rank-name an__rank-name--open">{slotText}</span>
+            <span className="an__rank-track" />
+          </span>
+          <span className="an__rank-value an__rank-value--open">–</span>
         </li>
       ))}
     </ol>
@@ -304,6 +317,8 @@ export default function Reports() {
                 <RankedList
                   label={t("adminAnalytics.employers.title")}
                   unit={t("adminAnalytics.employers.hiresUnit")}
+                  slots={5}
+                  slotText={t("adminAnalytics.employers.openSpot")}
                   items={employers.map((row) => ({
                     key: row.employerId,
                     rank: row.rank,

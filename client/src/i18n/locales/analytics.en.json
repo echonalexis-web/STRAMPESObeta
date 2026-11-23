@@ -484,7 +484,8 @@
       "emptyTitle": "Nothing to rank yet.",
       "emptyText": "No employer meets the minimum for this period and municipality, so the chart is hidden instead of showing empty bars.",
       "applicantsLine": "{{count}} applicants",
-      "hiresUnit": "hires"
+      "hiresUnit": "hires",
+      "openSpot": "Open spot"
     },
     "roles": {
       "title": "Most applied-to roles",

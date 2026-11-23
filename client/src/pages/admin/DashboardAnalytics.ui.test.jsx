@@ -387,6 +387,25 @@ describe("Analytics & Reports", () => {
     expect(within(card).getAllByText("Acme Corp")).toHaveLength(1);
   });
 
+  test("places nobody holds yet are quiet placeholders: not in the ranking a screen reader hears, and none when the list is full", async () => {
+    withEmployers(employerRows.slice(0, 1));
+    openAnalytics();
+    let card = await employersCard();
+    expect(card.querySelectorAll(".an__rank-row--open")).toHaveLength(4);
+    expect([...card.querySelectorAll(".an__rank-row--open .an__rank-n")].map((n) => n.textContent)).toEqual(["2", "3", "4", "5"]);
+    expect(card.querySelector(".an__rank-row--open").getAttribute("aria-hidden")).toBe("true");
+    expect(within(card).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(card).getAllByText("Open spot")).toHaveLength(4);
+  });
+
+  test("a full list of five has no placeholders", async () => {
+    withEmployers(Array.from({ length: 5 }, (_, i) => ({ rank: i + 1, employerId: `e${i}`, name: `Employer ${i}`, photo: null, municipality: null, applicants: 9, hires: 5 - i })));
+    openAnalytics();
+    const card = await employersCard();
+    expect(card.querySelectorAll(".an__rank-row--open")).toHaveLength(0);
+    expect(within(card).getAllByRole("listitem")).toHaveLength(5);
+  });
+
   test("the roles card uses the same ranked rows", async () => {
     withEmployers(employerRows);
     openAnalytics();
