@@ -26,6 +26,7 @@ import { useNavbarStylePreference } from "../hooks/useNavbarStylePreference";
 import { useToast, useConfirm } from "../components/feedback/context";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 import IdOcrReview from "../components/IdOcrReview";
+import MatchWeightDefaultsSettings from "../components/MatchWeightDefaultsSettings";
 import PesoHelpFloatingToggle from "../chatbot/ui/PesoHelpFloatingToggle";
 import { backupCodesFilename, buildBackupCodesText, downloadTextFile, localDateStamp } from "../utils/backupCodesFile";
 import { needsEmail } from "../utils/usernameSignup";
@@ -83,8 +84,8 @@ const SYSTEM_DEFAULTS = {
 const SECTIONS_BY_ROLE = {
   jobseeker: ["account", "language", "notifications", "privacy", "system", "peso-help", "about", "danger"],
   employer: ["account", "language", "templates", "notifications", "privacy", "system", "peso-help", "about", "danger"],
-  admin: ["account", "notifications", "privacy", "access", "system", "about"],
-  superadmin: ["account", "privacy", "system", "admin-tools", "about"],
+  admin: ["account", "notifications", "privacy", "access", "matching", "system", "about"],
+  superadmin: ["account", "privacy", "matching", "system", "admin-tools", "about"],
 };
 
 const SECTION_ICON = {
@@ -95,6 +96,7 @@ const SECTION_ICON = {
   privacy: <FaUserShield />,
   access: <FaClipboardList />,
   system: <FaSlidersH />,
+  matching: <FaSlidersH />,
   "peso-help": <FaQuestionCircle />,
   "admin-tools": <FaClipboardList />,
   about: <FaInfoCircle />,
@@ -109,6 +111,7 @@ const SECTION_LABEL_KEY = {
   privacy: "privacy",
   access: "access",
   system: "system",
+  matching: "matching",
   "peso-help": "pesoHelp",
   "admin-tools": "adminTools",
   about: "about",
@@ -460,6 +463,7 @@ export default function Settings() {
                 />
               )}
               {current === "access" && <AccessSection role={role} />}
+              {current === "matching" && <MatchWeightDefaultsSettings />}
               {current === "system" && (
                 <SystemSection
                   role={role}
