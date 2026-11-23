@@ -105,4 +105,16 @@ const userExportBudget = buildAccountBudget({
   alwaysOn: true,
 });
 
-module.exports = { conversationBudget, uploadBudget, uploadBudgetForFiles, coverUploadBudget, profileViewBudget, backupCodesBudget, staffResetBudget, userDeleteBudget, userExportBudget };
+// Report generator: per-account hourly cap on generating (and regenerating) a report.
+// REPORT_EXPORT_HOURLY_CAP, default 10. Always on (a new feature).
+const reportExportBudget = buildAccountBudget({
+  name: "report-export",
+  windowMs: HOUR_MS,
+  envName: "REPORT_EXPORT_HOURLY_CAP",
+  defaultMax: 10,
+  code: "RATE_LIMITED",
+  message: "Too many reports generated in the last hour. Try again later.",
+  alwaysOn: true,
+});
+
+module.exports = { reportExportBudget, conversationBudget, uploadBudget, uploadBudgetForFiles, coverUploadBudget, profileViewBudget, backupCodesBudget, staffResetBudget, userDeleteBudget, userExportBudget };

@@ -51,7 +51,8 @@ const {
 const { detectMaliciousPayload } = require("../middleware/security");
 const { getSecuritySummary, unlockLogin } = require("../controllers/accountSecurityAdminController");
 const { resetPasswordAtCounter } = require("../controllers/officeResetController");
-const { staffResetBudget, userDeleteBudget, userExportBudget } = require("../middleware/budgets");
+const { staffResetBudget, userDeleteBudget, userExportBudget, reportExportBudget } = require("../middleware/budgets");
+const reportExports = require("../controllers/reportExportController");
 
 // All admin routes require authentication and admin role
 router.use(protect, isAdmin);
@@ -61,6 +62,13 @@ router.get("/analytics", sanitizeQueryParams, getAdminAnalytics);
 router.get("/analytics/provincial", sanitizeQueryParams, getProvincialAnalytics);
 router.get("/analytics/filter-options", sanitizeQueryParams, getAnalyticsFilterOptions);
 router.get("/analytics/summary", sanitizeQueryParams, getAnalyticsSummary);
+// Report generator (not "reports": that word is the user-content moderation feature).
+router.get("/report-exports/catalog", reportExports.getCatalog);
+router.post("/report-exports/preview", sanitizeRequestBody, detectMaliciousPayload, reportExports.previewReport);
+router.get("/report-exports", sanitizeQueryParams, reportExports.listReports);
+router.post("/report-exports", reportExportBudget, sanitizeRequestBody, detectMaliciousPayload, reportExports.generateReport);
+router.get("/report-exports/:reportId", reportExports.getReport);
+router.post("/report-exports/:reportId/regenerate", reportExportBudget, reportExports.regenerateReport);
 router.get("/analytics/performance/employers", sanitizeQueryParams, getEmployerPerformance);
 router.get("/analytics/performance/employers/:employerId", sanitizeQueryParams, getEmployerPerformanceDetail);
 

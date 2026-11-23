@@ -238,7 +238,8 @@ const spesPostingsSummary = async (period) => {
 
 // ---------------------------------------------------------------- employers
 
-const employersSummary = async (filter, period) => {
+// The employers of the filter: stages up to and including the municipality filter.
+const employersBase = async (filter, period) => {
   const match = { role: "employer", deletedAt: null, createdAt: { $gte: period.from, $lt: period.to } };
   if (filter.industry) match.industry = filter.industry;
   if (filter.verification) match.verificationStatus = { $in: filter.verification };
@@ -256,6 +257,11 @@ const employersSummary = async (filter, period) => {
     },
   ];
   if (filter.municipality) pipeline.push({ $match: { municipalityBucket: filter.municipality } });
+  return pipeline;
+};
+
+const employersSummary = async (filter, period) => {
+  const pipeline = await employersBase(filter, period);
   pipeline.push({
     $facet: {
       totals: [
@@ -419,4 +425,4 @@ const getAnalyticsSummary = async (parsed, now = new Date()) => {
   };
 };
 
-module.exports = { getAnalyticsSummary, monthKeys, breakdown, card, applicantMunicipalityExpression };
+module.exports = { jobsMatch, employersBase, run, monthGroup, getAnalyticsSummary, monthKeys, breakdown, card, applicantMunicipalityExpression };

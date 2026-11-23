@@ -9,7 +9,7 @@
 //   jobapplications {status, hiredAt}      hires made in a period
 //   jobvacancies {employer, createdAt}     one employer's postings in a period (ranking, drill-down)
 //   reportexports {reportId} (unique)      look a report up by its ID
-//   reportexports {preparedBy, createdAt}  "my reports" history, newest first
+//   reportexports {preparedBy.userId, createdAt}  "my reports" history, newest first
 //   reportexports {createdAt}              retention: delete history older than 24 months
 const REPORT_INDEXES = Object.freeze([
   { collection: "jobapplications", key: { createdAt: 1 }, options: { name: "report_createdAt" } },
@@ -17,7 +17,7 @@ const REPORT_INDEXES = Object.freeze([
   { collection: "jobapplications", key: { status: 1, hiredAt: 1 }, options: { name: "report_status_hiredAt" } },
   { collection: "jobvacancies", key: { employer: 1, createdAt: -1 }, options: { name: "report_employer_createdAt" } },
   { collection: "reportexports", key: { reportId: 1 }, options: { name: "report_reportId_unique", unique: true } },
-  { collection: "reportexports", key: { preparedBy: 1, createdAt: -1 }, options: { name: "report_preparedBy_createdAt" } },
+  { collection: "reportexports", key: { "preparedBy.userId": 1, createdAt: -1 }, options: { name: "report_preparedBy_createdAt" } },
   { collection: "reportexports", key: { createdAt: 1 }, options: { name: "report_createdAt_retention" } },
 ]);
 
