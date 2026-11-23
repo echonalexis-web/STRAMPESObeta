@@ -368,8 +368,8 @@ const getDashboardOverview = async (now = new Date()) => {
   ]);
 
   const counts = new Map(byMunicipality.map((row) => [row._id, Number(row.count || 0)]));
-  const column = suppressedColumn(counts, MUNICIPALITY_LABELS);
-  const municipalities = MUNICIPALITY_LABELS.map((label) => ({ municipality: label, ...column.get(label) }));
+  // The Dashboard snapshot shows the real counts (they are about active accounts, not about minors).
+  const municipalities = MUNICIPALITY_LABELS.map((label) => ({ municipality: label, value: counts.get(label) || 0, suppressed: false }));
 
   const attention = [
     { key: "employerVerification", count: employersPending, oldestDays: oldestDays(oldestPending && (oldestPending.verificationSubmittedAt || oldestPending.createdAt), now) },

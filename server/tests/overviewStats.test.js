@@ -390,11 +390,12 @@ describe("getDashboardOverview", () => {
     expect(JobVacancy.countDocuments.mock.calls.some((c) => c[0].employer)).toBe(false);
   });
 
-  test("jobseekers by municipality use the small-cell rule; recent activity carries no person and skips sign-ins", async () => {
+  test("jobseekers by municipality show the real counts, small ones included; recent activity carries no person and skips sign-ins", async () => {
     mockDashboard();
     route(User, () => [{ _id: "Gasan", count: 3 }, { _id: "Boac (Capital)", count: 80 }, { _id: "Mogpog", count: 10 }]);
     const result = await overview.getDashboardOverview(NOW);
-    expect(result.jobseekersByMunicipality.find((m) => m.municipality === "Gasan")).toMatchObject({ value: null, suppressed: true });
+    expect(result.jobseekersByMunicipality.find((m) => m.municipality === "Gasan")).toEqual({ municipality: "Gasan", value: 3, suppressed: false });
+    expect(result.jobseekersByMunicipality.find((m) => m.municipality === "Torrijos")).toEqual({ municipality: "Torrijos", value: 0, suppressed: false });
     expect(result.jobseekersByMunicipality.find((m) => m.municipality === "Boac (Capital)")).toMatchObject({ value: 80 });
     expect(result.recentActivity).toEqual([{ id: "1", action: "employer.verification.approved", severity: "info", at: new Date("2026-11-19T00:00:00Z") }]);
     expect(Object.keys(result.recentActivity[0]).sort()).toEqual(["action", "at", "id", "severity"]);

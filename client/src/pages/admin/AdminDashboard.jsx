@@ -56,7 +56,6 @@ export default function AdminDashboard() {
   const data = state.key === key ? state.data : null;
   const kpis = data?.kpis;
   const maxMunicipality = Math.max(1, ...(data?.jobseekersByMunicipality || []).map((row) => row.value || 0));
-  const anySuppressed = (data?.jobseekersByMunicipality || []).some((row) => row.suppressed);
 
   const attentionText = (row) => {
     const base = `adminDash.attention.rows.${row.key}`;
@@ -138,15 +137,14 @@ export default function AdminDashboard() {
                       <th scope="row">{row.municipality}</th>
                       <td>
                         <span className="ov__track" aria-hidden="true">
-                          <span className="ov__fill" style={{ width: `${row.suppressed ? 0 : Math.round(((row.value || 0) / maxMunicipality) * 100)}%` }} />
+                          <span className="ov__fill" style={{ width: `${Math.round(((row.value || 0) / maxMunicipality) * 100)}%` }} />
                         </span>
-                        <strong>{row.suppressed ? t("analyticsDash.underFive") : row.value}</strong>
+                        <strong>{row.value}</strong>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {anySuppressed && <p className="ov__note">{t("adminDash.municipality.note")}</p>}
               <Link className="ov__btn" to="/admin/reports">{t("adminDash.municipality.open")}</Link>
             </section>
 

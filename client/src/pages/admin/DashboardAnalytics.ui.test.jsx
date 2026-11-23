@@ -39,7 +39,7 @@ const dashboard = (overrides = {}) => ({
   allClear: false,
   jobseekersByMunicipality: [
     { municipality: "Boac (Capital)", value: 80, suppressed: false },
-    { municipality: "Gasan", value: null, suppressed: true },
+    { municipality: "Gasan", value: 3, suppressed: false },
   ],
   recentActivity: [{ id: "1", action: "employer.verification.approved", severity: "info", at: "2026-11-19T00:00:00.000Z" }],
   ...overrides,
@@ -101,11 +101,12 @@ describe("Dashboard", () => {
     expect(within(attention).getAllByRole("link")).toHaveLength(5);
   });
 
-  test("jobseekers by municipality as bars with numbers, under 5 for a hidden cell, and a link to Analytics & Reports", async () => {
+  test("jobseekers by municipality as bars with the real numbers (small ones too), and a link to Analytics & Reports", async () => {
     openDashboard();
     const table = await screen.findByRole("table", { name: "Active jobseekers by municipality" });
     expect(within(table).getByText("80")).toBeTruthy();
-    expect(within(table).getByText("under 5")).toBeTruthy();
+    expect(within(table).getByText("3")).toBeTruthy();
+    expect(within(table).queryByText("under 5")).toBeNull();
     expect(screen.getByRole("link", { name: "Open Analytics & Reports" }).getAttribute("href")).toBe("/admin/reports");
   });
 
