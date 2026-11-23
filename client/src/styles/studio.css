@@ -524,21 +524,21 @@
 .stu-switch {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 4px 6px 4px 12px;
+  gap: 6px;
+  min-height: 30px;
+  padding: 2px 3px 2px 10px;
   border: 1px solid #94a3b8;
   border-radius: 999px;
   background: #ffffff;
   color: var(--stu-ink);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   font-weight: 800;
   cursor: pointer;
 }
 .stu-switch__knob {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: #64748b;
   transition: transform 0.15s ease;
