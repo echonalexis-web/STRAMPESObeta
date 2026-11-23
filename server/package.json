@@ -50,6 +50,7 @@
     "natural": "^8.1.1",
     "nodemailer": "^10.0.13",
     "pdf-lib": "^1.17.1",
+    "pdfmake": "^0.3.15",
     "sharp": "^0.35.5",
     "socket.io": "^4.8.1",
     "tesseract.js": "^7.0.0",
