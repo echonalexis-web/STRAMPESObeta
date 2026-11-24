@@ -25,7 +25,7 @@ describe("TeamMember page", () => {
   it("shows the member for a known slug", () => {
     renderAt("/about/team/alexis-echon");
     expect(screen.getByRole("heading", { level: 1, name: "Alexis Echon" })).toBeTruthy();
-    expect(screen.getByText("Lead Developer")).toBeTruthy();
+    expect(screen.getByText("Lead Programmer & Lead Systems Analyst")).toBeTruthy();
   });
 
   it("redirects an unknown slug to the About page", () => {
