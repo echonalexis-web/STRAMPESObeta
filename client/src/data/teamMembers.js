@@ -15,17 +15,18 @@ import ivyPhoto from "../assets/images/Ivy.png";
 //   longBio          80 to 150 word biography (blank lines split paragraphs)
 //   expertise        ["Skill", ...]
 //   responsibilities ["Main responsibility", ...]
-//   school           { name, program, year, major, standing }
+//   school           { name, program, year, major, standing, gwa, standingNote }
 //   achievements     [{ title, issuer, year, description }]
 //   activities       [{ name, role, period, description }]
 //   certifications   [{ name, issuer, year, credential, expires }]
 //   projects         [{ title, description, year }]
-//   links            { linkedin, github, website }   (full https:// URLs)
+//   links            { linkedin, github, website, email }   (https:// URLs; email is a plain address)
+//   order            number; sorts the Previous/Next cards (default: array position)
 //   quote            "A personal or professional statement"
 //   funFact          "Optional"
 //   specialRole      "Founder, lead, developer, designer, etc."
 //
-// Email is deliberately not supported: this is a public page.
+// Email shows as a mailto button only when `links.email` is filled in (nobody has one yet).
 export const TEAM_MEMBERS = [
   {
     slug: "alkimar-guitang",
@@ -301,12 +302,19 @@ export const TEAM_MEMBERS = [
 
 export const findTeamMember = (slug) => TEAM_MEMBERS.find((m) => m.slug === slug) || null;
 
+// Members in display order: the optional `order` field wins, otherwise array position.
+export const orderedMembers = () =>
+  TEAM_MEMBERS.map((m, i) => ({ m, k: Number.isFinite(m.order) ? m.order : i }))
+    .sort((a, b) => a.k - b.k)
+    .map((x) => x.m);
+
 // Previous and next member, wrapping around at both ends.
 export const neighborsOf = (slug) => {
-  const i = TEAM_MEMBERS.findIndex((m) => m.slug === slug);
+  const list = orderedMembers();
+  const i = list.findIndex((m) => m.slug === slug);
   if (i < 0) return { prev: null, next: null };
-  const n = TEAM_MEMBERS.length;
-  return { prev: TEAM_MEMBERS[(i - 1 + n) % n], next: TEAM_MEMBERS[(i + 1) % n] };
+  const n = list.length;
+  return { prev: list[(i - 1 + n) % n], next: list[(i + 1) % n] };
 };
 
 // Which optional sections have data, in display order. Used by the profile page and tests.

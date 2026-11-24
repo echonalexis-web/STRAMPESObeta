@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import "../i18n";
 import TeamMember from "./TeamMember";
 import { TEAM_MEMBERS, neighborsOf, profileSections } from "../data/teamMembers";
 
@@ -32,15 +33,29 @@ describe("TeamMember page", () => {
     expect(screen.getByText("about page")).toBeTruthy();
   });
 
-  it("hides sections that have no data", () => {
-    const saved = {};
-    const m = TEAM_MEMBERS.find((x) => x.slug === "ivy-cruzado");
-    for (const k of ["school", "links", "certifications", "funFact"]) { saved[k] = m[k]; delete m[k]; }
-    renderAt("/about/team/ivy-cruzado");
-    expect(screen.queryByText(/certifications/i)).toBeNull();
-    expect(screen.queryByText(/^school$/i)).toBeNull();
-    expect(screen.queryByText(/^links$/i)).toBeNull();
-    Object.assign(m, saved);
+  it("hides empty sections and the glance strip for a member with null fields", () => {
+    renderAt("/about/team/jake-romar-sescar");
+    for (const name of [/^notable projects$/i, /^awards and achievements$/i, /^extracurricular activities$/i, /^certificates$/i, /^fun fact$/i]) {
+      expect(screen.queryByRole("heading", { name })).toBeNull();
+    }
+    expect(screen.queryByRole("navigation", { name: /at a glance/i })).toBeNull();
+    expect(screen.queryByText(/in their own words/i)).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+
+  it("folds the CISCO certificates into one collapsed group of 6", () => {
+    renderAt("/about/team/alexis-echon");
+    const group = screen.getByRole("button", { name: /^CISCO · 6 certificates · 2024–2025/ });
+    expect(group.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(group);
+    expect(group.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Network Defense")).toBeTruthy();
+  });
+
+  it("renders hero, body and pager inside the shared container", () => {
+    const { container } = renderAt("/about/team/alexis-echon");
+    const inWrap = (sel) => container.querySelector(sel)?.closest(".tp-wrap");
+    for (const sel of [".tp-hero__grid", ".tp-layout", ".tp-pager"]) expect(inWrap(sel)).toBeTruthy();
   });
 
   it("links to the previous and next member, wrapping around", () => {
@@ -59,10 +74,11 @@ describe("TeamMember page", () => {
   });
 
   it("never renders a non-http link", () => {
+    const savedLinks = TEAM_MEMBERS[1].links;
     TEAM_MEMBERS[1].links = { github: "javascript:alert(1)", linkedin: "https://example.com/in/x" };
     renderAt("/about/team/alexis-echon");
     expect(screen.queryByText("GitHub")).toBeNull();
     expect(screen.getByText("LinkedIn").closest("a").getAttribute("href")).toBe("https://example.com/in/x");
-    delete TEAM_MEMBERS[1].links;
+    TEAM_MEMBERS[1].links = savedLinks;
   });
 });
