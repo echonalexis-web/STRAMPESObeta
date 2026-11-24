@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import "../styles/about.css";
 import pesoLogo from "../assets/images/peso-logo.png";
 import provincialSeal from "../assets/images/provincial-seal.png";
-import alkimarPhoto from "../assets/images/Alkimar.png";
-import alexisPhoto from "../assets/images/Alexis.png";
-import jakePhoto from "../assets/images/Jake.png";
-import ivyPhoto from "../assets/images/Ivy.png";
 import marinduqueMap from "../data/marinduqueMap.json";
+import { TEAM_MEMBERS } from "../data/teamMembers";
 
 // geoKey maps each town to its MUNICIPALI key in marinduqueMap.json (traced
 // from a real municipal boundary GeoJSON — see client/scripts/geojson-to-svg.mjs).
@@ -61,45 +59,17 @@ const PROVINCE_TOTALS = Object.values(marinduqueMap.municipalities).reduce(
   { voters: 0, barangays: 0, landAreaHectares: 0 }
 );
 
-const TEAM_MEMBERS = [
-  {
-    key: "m1",
-    initials: "AG",
-    name: "Alkimar Guitang",
-    role: "Team Leader / UI-UX Designer",
-    bio: "Leads the team and shaped the portal's look and feel, from layout to the overall user experience.",
-    photo: alkimarPhoto,
-  },
-  {
-    key: "m2",
-    initials: "AE",
-    name: "Alexis Echon",
-    role: "Lead Developer",
-    bio: "Built out the core application logic and led the technical implementation of the platform.",
-    photo: alexisPhoto,
-  },
-  {
-    key: "m3",
-    initials: "JS",
-    name: "Jake Romar Sescar",
-    role: "Database Analyst",
-    bio: "Designed the data structure behind the portal and manages how information is stored and organized.",
-    photo: jakePhoto,
-  },
-  {
-    key: "m4",
-    initials: "IC",
-    name: "Ivy Cruzado",
-    role: "Documentation",
-    bio: "Handles the project's written documentation, keeping the team's process and output clearly recorded.",
-    photo: ivyPhoto,
-  },
-];
-
 export default function About() {
   const year = useMemo(() => new Date().getFullYear(), []);
   const [activeTab, setActiveTab] = useState("lmd");
   const [activeMunicipality, setActiveMunicipality] = useState(null);
+
+  // "Back to team" on a profile page links to /about#team; the router does not scroll to
+  // a hash by itself.
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (id) document.getElementById(id)?.scrollIntoView();
+  }, []);
 
   useEffect(() => {
     const revealEls = Array.from(document.querySelectorAll(".about-mock .reveal"));
@@ -354,10 +324,15 @@ export default function About() {
 
           <div className="team-grid reveal">
             {TEAM_MEMBERS.map((member) => (
-              <div className="team-card" key={member.key}>
+              <Link
+                className="team-card"
+                key={member.slug}
+                to={`/about/team/${member.slug}`}
+                aria-label={`View ${member.name}'s profile`}
+              >
                 <div className="avatar-frame">
                   {
-                    member.photo ? (<img src={member.photo} alt={member.name} className="avatar-img" />) : 
+                    member.photo ? (<img src={member.photo} alt="" className="avatar-img" />) :
                     (<div className="avatar-fallback" aria-hidden="true">{member.initials}</div>)
                   }
                 </div>
@@ -365,8 +340,12 @@ export default function About() {
                   <h3>{member.name}</h3>
                   <span className="team-role">{member.role}</span>
                   <p className="team-bio">{member.bio}</p>
+                  <span className="team-view" aria-hidden="true">
+                    View profile
+                    <span className="team-view__arrow">&rarr;</span>
+                  </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 

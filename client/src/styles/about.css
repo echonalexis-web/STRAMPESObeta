@@ -510,9 +510,79 @@ body, html {
   transition: var(--transition-fast);
 }
 
+.team-card {
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  text-decoration: none;
+}
+
+.team-card .team-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .team-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-md);
+}
+
+.team-card:focus-visible {
+  outline: 3px solid var(--accent-green);
+  outline-offset: 3px;
+}
+
+/* Pinned to the bottom of every card, whatever the bio length. */
+.team-view {
+  margin-top: auto;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--accent-green), var(--hover-green));
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 6px 14px rgba(47, 158, 68, 0.3);
+  transition: var(--transition-fast);
+}
+
+/* Space between the bio and the button, kept even when the bio is short. */
+.team-bio {
+  margin-bottom: 20px;
+}
+
+.team-view__arrow {
+  transition: transform 0.2s ease;
+}
+
+.team-card:hover .team-view,
+.team-card:focus-visible .team-view {
+  background: linear-gradient(135deg, var(--hover-green), #165b2a);
+  box-shadow: 0 8px 20px rgba(47, 158, 68, 0.4);
+}
+
+.team-card:hover .team-view__arrow,
+.team-card:focus-visible .team-view__arrow {
+  transform: translateX(4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .team-view,
+  .team-view__arrow {
+    transition: none;
+  }
+
+  .team-card:hover .team-view__arrow,
+  .team-card:focus-visible .team-view__arrow {
+    transform: none;
+  }
 }
 
 .avatar-frame {

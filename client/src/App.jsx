@@ -23,6 +23,7 @@ import { claimAccountInactiveHandling } from "./services/api";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import About from "./pages/About";
+import TeamMember from "./pages/TeamMember";
 import NewsFeed from "./pages/NewsFeed";
 import NewsFeedDetail from "./pages/NewsFeedDetail";
 import Login from "./pages/Login";
@@ -217,6 +218,7 @@ function AppRoutes() {
           <Route path="/confirm-email" element={<ConfirmEmail />} />
           <Route path="/verify-recovery-email" element={<VerifyRecoveryEmail />} />
           <Route path="/account-recovery" element={<AccountRecovery />} />
+          <Route path="/about/team/:slug" element={<TeamMember />} />
           <Route path="/staff-account-recovery" element={<StaffAccountRecovery />} />
           <Route path="/admin/account-recovery" element={<ProtectedRoute requiredRole={["admin", "superadmin"]}><AccountRecoveryQueue /></ProtectedRoute>} />
           <Route path="/account-suspended" element={<AccountSuspended />} />
