@@ -203,14 +203,15 @@ export default function Home() {
             </div>
             <div className="how-it-works-v2-video-wrapper">
               <div className="how-it-works-v2-video-card">
-                <iframe
-                  className="how-it-works-v2-video"
-                  src="https://www.youtube.com/embed/waJz6hNShdo?list=RDwaJz6hNShdo"
-                  title="How it works video"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
+                {/* Placeholder: put the how-it-works video here (an <iframe className="how-it-works-v2-video">) when it is ready. */}
+                <div className="how-it-works-v2-video-empty" role="status">
+                  <svg className="how-it-works-v2-video-empty-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                    <path d="M10 8.5v7l6-3.5z" fill="currentColor" />
+                  </svg>
+                  <p className="how-it-works-v2-video-empty-title">Video coming soon</p>
+                  <p className="how-it-works-v2-video-empty-text">A short walkthrough of how Trabaho Mandin works will be shown here.</p>
+                </div>
               </div>
             </div>
           </div>
