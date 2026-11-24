@@ -26,7 +26,8 @@ const main = async () => {
   const apply = args.apply === true;
   const uri = String(args["mongo-uri"] || process.env.SEED_MONGO_URI || DEFAULT_URI);
 
-  const guard = evaluateGuard({ nodeEnv: process.env.NODE_ENV, uri });
+  const allowDb = typeof args["allow-db"] === "string" ? args["allow-db"] : undefined;
+  const guard = evaluateGuard({ nodeEnv: process.env.NODE_ENV, uri, allowDb });
   if (!guard.ok) throw new Error(`Refusing to run. ${guard.reasons.join(" ")}`);
   console.log(`Target: ${guard.target.masked}  (database "${guard.target.db}")`);
 
@@ -38,7 +39,7 @@ const main = async () => {
   const mongoose = require("mongoose");
   await mongoose.connect(uri, { serverSelectionTimeoutMS: 8000 });
   try {
-    const live = evaluateGuard({ nodeEnv: process.env.NODE_ENV, uri: `mongodb://${mongoose.connection.host}:${mongoose.connection.port}/${mongoose.connection.name}` });
+    const live = evaluateGuard({ nodeEnv: process.env.NODE_ENV, uri: `mongodb://${mongoose.connection.host}:${mongoose.connection.port}/${mongoose.connection.name}`, allowDb });
     if (!live.ok) throw new Error(`Connected target failed the guard. ${live.reasons.join(" ")}`);
     if (manifest.database && manifest.database !== mongoose.connection.name) {
       throw new Error(`Manifest was written to database "${manifest.database}" but this is "${mongoose.connection.name}".`);

@@ -26,6 +26,15 @@ describe("seed guards: evaluateGuard", () => {
     expect(evaluateGuard({ nodeEnv: "development", uri: "mongodb://db.example.net:27017/strampeso_prod" }).ok).toBe(false);
   });
 
+  test("allowDb passes only the exact database name and never overrides production", () => {
+    const uri = "mongodb+srv://u:p@c0.example.net/strampeso_staging";
+    expect(evaluateGuard({ nodeEnv: "development", uri }).ok).toBe(false);
+    expect(evaluateGuard({ nodeEnv: "development", uri, allowDb: "strampeso_staging" }).ok).toBe(true);
+    expect(evaluateGuard({ nodeEnv: "development", uri, allowDb: "strampeso" }).ok).toBe(false);
+    expect(evaluateGuard({ nodeEnv: "development", uri, allowDb: "" }).ok).toBe(false);
+    expect(evaluateGuard({ nodeEnv: "production", uri, allowDb: "strampeso_staging" }).ok).toBe(false);
+  });
+
   test("mixed host list with a remote member needs a dev/test database name", () => {
     expect(evaluateGuard({ nodeEnv: "development", uri: "mongodb://localhost:27017,db.example.net:27017/strampeso" }).ok).toBe(false);
   });

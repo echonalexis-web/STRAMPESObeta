@@ -56,6 +56,8 @@ Data other code created about seed users (audit log entries, notifications, mess
 
 - Refuses if `NODE_ENV=production`.
 - Refuses unless every host is localhost/127.0.0.1/::1, or the database name ends with `_dev` or `_test`.
+- `--allow-db <exact name>` (on `seed:sample` and `seed:cleanup`) lets a remote database with that exact name pass, for example
+  a shared staging database. It never overrides the production check. Use it only when you accept writing to that database.
 - Prints the target (credentials masked) before writing; re-checks the host and database the driver really connected to.
 - Refuses if a manifest for the batch already exists, unless `--force-new-batch` (then a new batch label is used).
 - Refuses if any planned email or username already exists.

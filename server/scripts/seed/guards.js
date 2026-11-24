@@ -19,7 +19,9 @@ const parseMongoUri = (uri) => {
   return { scheme, hosts, db, masked, hasCredentials: credentials !== undefined };
 };
 
-const evaluateGuard = ({ nodeEnv, uri } = {}) => {
+// `allowDb` is an explicit opt-in (--allow-db <name>): a remote database whose name is EXACTLY
+// that value passes. It never overrides the production check.
+const evaluateGuard = ({ nodeEnv, uri, allowDb } = {}) => {
   const reasons = [];
   const parsed = parseMongoUri(uri);
   if (String(nodeEnv || "").toLowerCase() === "production") reasons.push("NODE_ENV is production.");
@@ -29,7 +31,8 @@ const evaluateGuard = ({ nodeEnv, uri } = {}) => {
   }
   const allLocal = parsed.scheme === "mongodb" && parsed.hosts.every((h) => LOCAL_HOSTS.has(h));
   const devName = /_(dev|test)$/.test(parsed.db);
-  if (!allLocal && !devName) {
+  const allowed = typeof allowDb === "string" && allowDb !== "" && allowDb === parsed.db;
+  if (!allLocal && !devName && !allowed) {
     reasons.push(`Host "${parsed.hosts.join(",")}" is not localhost/127.0.0.1 and database "${parsed.db || "(none)"}" does not end with _dev or _test.`);
   }
   return { ok: reasons.length === 0, reasons, target: { hosts: parsed.hosts, db: parsed.db, masked: parsed.masked } };

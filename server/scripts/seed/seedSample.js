@@ -53,7 +53,8 @@ const main = async () => {
   const seed = intFlag(args.seed, 20260101, { min: 0 });
   let batch = assertSafeBatch(String(args.batch && args.batch !== true ? args.batch : defaultBatch()));
 
-  const guard = evaluateGuard({ nodeEnv: process.env.NODE_ENV, uri });
+  const allowDb = typeof args["allow-db"] === "string" ? args["allow-db"] : undefined;
+  const guard = evaluateGuard({ nodeEnv: process.env.NODE_ENV, uri, allowDb });
 
   if (!apply) {
     const plan = generateSample({ seed, batch, employers, jobseekers });
@@ -82,6 +83,7 @@ const main = async () => {
     const live = evaluateGuard({
       nodeEnv: process.env.NODE_ENV,
       uri: `mongodb://${mongoose.connection.host}:${mongoose.connection.port}/${mongoose.connection.name}`,
+      allowDb,
     });
     if (!live.ok) throw new Error(`Connected target failed the guard. ${live.reasons.join(" ")}`);
     console.log(`Connected: ${mongoose.connection.host}/${mongoose.connection.name}`);
