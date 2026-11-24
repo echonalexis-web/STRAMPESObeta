@@ -93,3 +93,15 @@ graphify-out/
 
 # Generated sample data (credentials, manifests)
 server/scripts/seed/output/
+
+# Generated test coverage output
+server/coverage/
+
+# Team submission documents (not part of the app)
+Team_Portfolio_Submission_Format*.docx
+
+# Never commit credential lists or database dumps
+**/credentials-*.csv
+**/manifest-*.json
+*.bson
+backups/
