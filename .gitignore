@@ -90,3 +90,6 @@ graphify-out/
 .impeccable/
 .claude/agents/
 .claude/commands/
+
+# Generated sample data (credentials, manifests)
+server/scripts/seed/output/
