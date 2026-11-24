@@ -82,3 +82,45 @@
     display: block;
   }
 }
+
+/* Step 1: the mobile number and the date of birth share one row (two columns
+   each) so the country code and the number stay on a single line. */
+@media (min-width: 768px) {
+  .onboarding-fields .onboarding-field-grid-4 > .phone-input,
+  .onboarding-fields .onboarding-field-grid-4 > .onboarding-dob {
+    grid-column: span 2;
+  }
+}
+
+/* The country code and the number never stack, whatever the page CSS says. */
+.onboarding-fields .phone-input__row {
+  flex-wrap: nowrap;
+}
+
+.onboarding-fields .phone-input__number {
+  width: auto;
+  flex: 1 1 0;
+  /* .onboarding-fields input adds a top margin; the row has its own spacing. */
+  margin-top: 0;
+}
+
+.onboarding-fields .phone-input__search {
+  margin-top: 0;
+}
+
+/* Same label-to-field gap as the other fields, and the country button grows to
+   the number box height so both sit on one line, top and bottom aligned. */
+.onboarding-fields .phone-input {
+  gap: 0.4rem;
+}
+
+.onboarding-fields .phone-input__country {
+  display: flex;
+}
+
+.onboarding-fields .phone-input__country-btn {
+  align-self: stretch;
+  min-height: 44px;
+  border-radius: var(--ob-radius-md);
+  border-color: var(--ob-neutral-300);
+}

@@ -4,7 +4,7 @@
 .phone-input__row {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--ds-space-2);
   align-items: stretch;
 }
@@ -20,7 +20,7 @@
   justify-content: space-between;
   gap: 6px;
   min-height: 44px;
-  min-width: 6.5rem;
+  min-width: 5.5rem;
   padding: 0 var(--ds-space-3);
   border: 1px solid var(--ds-border);
   border-radius: var(--ds-radius-sm);
@@ -51,7 +51,7 @@
 }
 
 .phone-input__number {
-  flex: 1 1 10rem;
+  flex: 1 1 0;
   min-width: 0;
   min-height: 44px;
   padding: 0 var(--ds-space-3);

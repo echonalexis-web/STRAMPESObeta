@@ -425,6 +425,9 @@ export default function JobSeekerOnboarding() {
       firstName: prev.firstName || user.firstName || "",
       middleName: prev.middleName || user.middleName || "",
       suffix: prev.suffix || user.suffix || "",
+      // DOB is locked server-side once set (Google sign-up stores it), so the
+      // account value always wins over a stale draft that has it blank.
+      dateOfBirth: user.dateOfBirth ? String(user.dateOfBirth).slice(0, 10) : prev.dateOfBirth,
     }));
   }, [user, setForm]);
 
@@ -834,7 +837,7 @@ export default function JobSeekerOnboarding() {
               <label>Middle Name <span className="onboarding-optional">(optional)</span><input type="text" value={form.middleName || ""} onChange={e => updateField("middleName", e.target.value)} disabled={saving} /></label>
               <label>Suffix <span className="onboarding-optional">(optional)</span><input type="text" placeholder="Jr., III, etc." value={form.suffix || ""} onChange={e => updateField("suffix", e.target.value)} disabled={saving} /></label>
               <PhoneInput id="phone" name="phone" value={form.phone || ""} onChange={(v) => updateField("phone", v)} error={errors.phone} required disabled={saving} />
-              <label>Date of Birth <input type="date" value={form.dateOfBirth || ""} onChange={e => updateField("dateOfBirth", e.target.value)} {...ariaFor(errors, "dateOfBirth")} disabled={saving} readOnly={Boolean(user?.dateOfBirth)} aria-readonly={Boolean(user?.dateOfBirth)} />{user?.dateOfBirth ? <small className="onboarding-optional">{t("ageGate.dobLockedProfile")}</small> : null}<FieldError id="dateOfBirth" error={errors.dateOfBirth} /></label>
+              <label className="onboarding-dob">Date of Birth <input type="date" value={form.dateOfBirth || ""} onChange={e => updateField("dateOfBirth", e.target.value)} {...ariaFor(errors, "dateOfBirth")} disabled={saving} readOnly={Boolean(user?.dateOfBirth)} aria-readonly={Boolean(user?.dateOfBirth)} />{user?.dateOfBirth ? <small className="onboarding-optional">{t("ageGate.dobLockedProfile")}</small> : null}<FieldError id="dateOfBirth" error={errors.dateOfBirth} /></label>
             </div>
             <FieldGroup id="gender" legend={<span className="onboarding-label">Gender</span>} error={errors.gender}>
               <div className="pill-row">
