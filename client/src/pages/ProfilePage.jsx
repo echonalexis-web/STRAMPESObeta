@@ -873,11 +873,14 @@ export default function ProfilePage({ isAdminView = false, isEmployerView = fals
                 ) : null}
               </div>
 
+              {/* Jobseekers see the same email, phone and address in the Contact & identity card. */}
+              {isEmployer || isAdmin ? (
               <div className="rd2-contact">
                 {profile?.email ? <a href={`mailto:${profile.email}`}><FaEnvelope aria-hidden="true" /> {profile.email}</a> : null}
                 {profile?.phone ? <a href={`tel:${phoneHref(profile.phone)}`}><FaPhone aria-hidden="true" /> {formatPhoneDisplay(profile.phone)}</a> : null}
                 {contactLocation ? <span><FaMapMarkerAlt aria-hidden="true" /> {contactLocation}</span> : null}
               </div>
+              ) : null}
             </div>
             <div className="rd2-actions">
               {!isReadOnly ? (
