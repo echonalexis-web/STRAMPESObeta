@@ -11,7 +11,9 @@
     "migrate:qualifications": "node scripts/migrateRequirementsToQualifications.js",
     "migrate:salary-numbers": "node scripts/migrateJobSalaryNumbers.js",
     "migrate:uploads": "node scripts/migrateUploadsToCloudinary.js",
-    "seed:superadmin": "node scripts/seedSuperadmin.js"
+    "seed:superadmin": "node scripts/seedSuperadmin.js",
+    "seed:sample": "node scripts/seed/seedSample.js",
+    "seed:cleanup": "node scripts/seed/cleanupSample.js"
   },
   "jest": {
     "testMatch": [
