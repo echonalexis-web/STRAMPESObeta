@@ -105,3 +105,6 @@ Team_Portfolio_Submission_Format*.docx
 **/manifest-*.json
 *.bson
 backups/
+
+# Local planning notes
+STRAM_PESO_REPORTS_PLAN.md
